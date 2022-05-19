@@ -5,8 +5,9 @@
 #include <map>
 #include "WCX-SDK-master\src\wcxhead.h"
 #include <cassert>
+#include <string>
+#include <functional>
 
-const uint8_t *g_cypher = (const uint8_t *)"5.QX2Y0view < MAX_VIEWS";
 const uint32_t g_crc32Table[256] = {
 	0, 0x77073096, 0xEE0E612C, 0x990951BA, 0x76DC419, 0x706AF48F,
 	0xE963A535, 0x9E6495A3, 0xEDB8832, 0x79DCB8A4, 0xE0D5E91E,
@@ -61,65 +62,75 @@ const uint32_t g_crc32Table[256] = {
 	0x2A6F2B94, 0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D
 };
 uint32_t SIG_CalcCaseInsensitiveSignature(const char *str) {
-	__int64 v3;
-	const char *v4;
-	uint32_t v5;
-	char v6;
-	const char *v7;
-	int v8;
-	uint8_t v9;
-
-	uint32_t result = 0;
 	if (str) {
-		result = (uint32_t)strlen(str);
-		if (result) {
-			v3 = 0LL;
-			v4 = str + 1;
-			v5 = -1;
-			v6 = *(uint8_t *)str;
-			if (v6 != 92)
-				goto LABEL_11;
-LABEL_12:
-			v7 = v4;
-			v8 = (uint8_t)v6;
-			if ((uint8_t)v6 != '\\')
-				goto LABEL_14;
-			do {
-				do {
-					v9 = *v7++;
-					v8 = v9;
-				} while (v9 == 92);
-LABEL_14:
-				;
-			} while (v8 == 47);
-			while (1) {
-				if ((uint32_t)(v6 - 97) < 0x1A)
-					v6 = v6 - 32;
-				if ((uint8_t)v6 == 47)
-					v6 = 92;
-				++v3;
-				++v4;
-				v5 = g_crc32Table[(uint8_t)(v5 ^ v6)] ^ (v5 >> 8);
-				if (v3 == (uint32_t)result)
-					return ~v5;
-				v6 = (uint8_t)str[v3];
-				if (v6 == '\\')
-					goto LABEL_12;
-LABEL_11:
-				if (v6 == '/')
-					goto LABEL_12;
+		uint32_t crc32 = 0xFFFFFFFF;
+		while (true) {
+			switch (*str) {
+			case 0:
+				return ~crc32;
+			case '/': case '\\': 
+				crc32 = g_crc32Table[(uint8_t)(crc32 ^ '\\')] ^ (crc32 >> 8);
+				str++;
+				while (*str && (*str == '/' || *str == '\\')) str++;
+				break;
+			default:
+				crc32 = g_crc32Table[(uint8_t)(crc32 ^ toupper(*str++))] ^ (crc32 >> 8);
+				break;
 			}
 		}
 	}
-	return result;
+	return 0;
 }
-
+const char *AssetType(int at) {
+	const char *assetNames[] = { "gde", "sky", "coll", "bog", "snd", "entity", "moby",
+		"tie", "shrub", "texture", "shader", "particle", "ui", "global", "nav", "pvar_include",
+		"tuning_include", "???" };
+	return assetNames[at];
+}
+enum class WAD_ASSET_TYPE : uint32_t {
+	GDE,
+	SKY,
+	COLL,
+	BOG,
+	SND,
+	ENTITY,
+	MOBY,
+	TIE,
+	SHRUB,
+	TEXTURE,
+	SHADER,
+	PARTICLE,
+	UI,
+	GLOBAL,
+	NAV,
+	PVAR_INCLUDE,
+	TUNING_INCLUDE,
+	CNT
+};
+const int FILE_PATH_SIZE = 96, WAD_VERSION = 11, HASH_BUCKETS = 1024;
+WAD_ASSET_TYPE GuessAssetType(const char *filePath) {
+	assert(*filePath);
+	if (*filePath == 0) return WAD_ASSET_TYPE::GLOBAL;
+	auto sz = strlen(filePath);
+	const char *ptr = filePath + sz - 1;
+	if (*ptr == 'e') {
+		if (sz > 3 && ptr[-1] == 'd' && ptr[-2] == 'g' && ptr[-3] == '.') return WAD_ASSET_TYPE::GDE;
+	} else if (*ptr == 'x') {
+		if (sz > 3 && ptr[-1] == 't') {
+			if (ptr[-2] == 'z' && ptr[-3] == '.') return WAD_ASSET_TYPE::TEXTURE;
+		} else if (sz > 4 && ptr[-1] == 'a') {
+			if (ptr[-2] == 'g' && ptr[-3] == 't' && ptr[-4] == '.') return WAD_ASSET_TYPE::TEXTURE;
+		}
+	} else if (sz > 4 && *ptr == 'h' && ptr[-1] == 's') { return WAD_ASSET_TYPE::SHADER; }
+	return WAD_ASSET_TYPE::GLOBAL;
+}
 struct WadUnpacker {
 	int g_ret = 0;
 	bool g_bDumpMode;
 	tProcessDataProc m_wcxProcess = nullptr;
 	operator int() const { return g_ret; }
-	WadUnpacker(const char *fileName, bool bDumpMode = true) {
+	std::string m_wadFileName;
+	WadUnpacker(const char *fileName, bool bDumpMode = true) : m_wadFileName(fileName) {
 		g_bDumpMode = bDumpMode;
 		m_curPosition = m_list.cbegin();
 		auto err = fopen_s(&g_fwad, fileName, "rb");
@@ -132,73 +143,74 @@ struct WadUnpacker {
 		if (sizeof(wad_hdr) == fread_s(&wad_hdr, sizeof(wad_hdr), 1, sizeof(wad_hdr), g_fwad)) {
 			if (wad_hdr.m_fileSignature[0] == 'Z' && wad_hdr.m_fileSignature[1] == 'W' &&
 				wad_hdr.m_fileSignature[2] == 'F' && wad_hdr.m_fileSignature[3] == '!') {
-				if (wad_hdr.m_version == 0x0B) {
+				if (wad_hdr.m_version == WAD_VERSION) {
 					uint32_t decomp_buf_sz = ((wad_hdr.m_decompressed_size + 263) & 0xFFFFFFF8) + 0x100020;
 					m_decomp_buf = (uint8_t *)calloc(decomp_buf_sz, 1);
-					if (m_decomp_buf != nullptr) {
-						uint8_t *pDecompressPtr = (uint8_t *)((uint64_t)(m_decomp_buf + wad_hdr.m_decompressed_size + 256 - wad_hdr.m_compressed_size + 0x100000) & 0xFFFFFFFFFFFFFF80LL);
-						memcpy(m_decomp_buf, &wad_hdr, sizeof(wad_hdr));
-						g_compr_bytes_remain = wad_hdr.m_compressed_size;
-						g_compr_bytes = wad_hdr.m_compressed_size;
-						uint32_t bytesToRead = 0, new_compr_bytes_remain = 0;
-						if (wad_hdr.m_compressed_size) {
-							uint8_t *pDecompressEnd = m_decomp_buf + decomp_buf_sz;
-							if (wad_hdr.m_compressed_size >> 19)
-								bytesToRead = 0x80000LL;
-							else
-								bytesToRead = wad_hdr.m_compressed_size;
-							if (wad_hdr.m_compressed_size >> 19)
-								new_compr_bytes_remain = wad_hdr.m_compressed_size - 0x80000;
-							g_compr_bytes_remain = new_compr_bytes_remain;
-							if (&pDecompressPtr[bytesToRead] > pDecompressEnd) {
-								g_ret = -9;
-								if (bDumpMode) std::cerr << "wad_unpack assert: pDecompressPtr + bytesToRead <= pDecompressEnd\n";
-								return;
-							}
-							if (bytesToRead != fread_s(pDecompressPtr, bytesToRead, 1, bytesToRead, g_fwad)) {
-								g_ret = -10;
-								if (bDumpMode) std::cerr << "wad_unpack error: could not read initial block\n";
-								return;
-							}
-							if (g_compr_bytes_remain) {
-								bytesToRead = (g_compr_bytes_remain >> 19) ? 0x80000 : g_compr_bytes_remain;
-								g_compr_bytes_remain = (g_compr_bytes_remain >> 19) ? (g_compr_bytes_remain - 0x80000) : 0;
-								if (bytesToRead != fread_s(pDecompressPtr + 0x80000, bytesToRead, 1, bytesToRead, g_fwad)) {
-									g_ret = -11;
-									if (bDumpMode) std::cerr << "wad_unpack error: could not read second block\n";
+					if (m_decomp_buf) {
+						auto pCompressedPtr = (uint8_t *)calloc(wad_hdr.m_compressed_size, 1);
+						if (pCompressedPtr) {
+							memcpy(m_decomp_buf, &wad_hdr, sizeof(wad_hdr));
+							if (wad_hdr.m_compressed_size) {
+								if (wad_hdr.m_compressed_size != fread_s(pCompressedPtr, wad_hdr.m_compressed_size, 1, wad_hdr.m_compressed_size, g_fwad)) {
+									g_ret = -10;
+									if (bDumpMode) std::cerr << "wad_unpack error: could not read compressed block\n";
 									return;
 								}
 							}
-						}
-						uint32_t crc32 = 0;
-						uint32_t resultLength = TJZIP_Decompress(
-							pDecompressPtr,
-							m_decomp_buf + sizeof(wad_hdr),
-							wad_hdr.m_compressed_size,
-							&crc32,
-							pDecompressPtr + 0x80000);
-						WAD_HEADER *wh = (WAD_HEADER *)m_decomp_buf;
-						wh->dump(g_bDumpMode);
-						if (resultLength == wh->m_decompressed_size) {
-							if (wh->m_crc32 != crc32) {
-								g_ret = -8;
-								if (bDumpMode) std::cerr << "\nwad_unpack error: wad file counted crc32: " << crc32
-									<< " but header value is:" << wh->m_crc32 << "\n";
+							uint32_t crc32 = 0;
+							uint32_t resultLength = TJZIP_Decompress(
+								pCompressedPtr,
+								m_decomp_buf + sizeof(wad_hdr),
+								wad_hdr.m_compressed_size,
+								&crc32);
+							/*FILE *ftmp = nullptr;
+							fopen_s(&ftmp, "c:\\tmp\\decompress.bin", "wb");
+							fwrite(m_decomp_buf + sizeof(wad_hdr), resultLength, 1, ftmp);
+							fclose(ftmp);
+							FILE *ftmp = nullptr;
+							auto c2 = TJZIP_Compress(m_decomp_buf + sizeof(wad_hdr), resultLength, pCompressedPtr, &crc32);
+							fopen_s(&ftmp, "c:\\tmp\\c3.bin", "wb");
+							fwrite(&wad_hdr, 256, 1, ftmp);
+							fwrite(pCompressedPtr, wad_hdr.m_compressed_size, 1, ftmp);
+							fclose(ftmp);*/
+#ifdef _DEBUG
+#if 0 //compress test
+							uint32_t crc32_chk = 0;
+							auto pCompressedPtrChk = (uint8_t *)calloc(wad_hdr.m_compressed_size, 1);
+							auto comp_chk_sz = TJZIP_Compress(m_decomp_buf + sizeof(wad_hdr), wad_hdr.m_decompressed_size, pCompressedPtrChk, &crc32_chk);
+							assert(comp_chk_sz == wad_hdr.m_compressed_size);
+							assert(crc32_chk == crc32);
+							assert(0 == memcmp(pCompressedPtrChk, pCompressedPtr, wad_hdr.m_compressed_size));
+#endif
+#endif
+
+							free(pCompressedPtr);
+							WAD_HEADER *wh = (WAD_HEADER *)m_decomp_buf;
+							wh->dump(g_bDumpMode);
+							if (resultLength == wh->m_decompressed_size) {
+								if (wh->m_crc32 != crc32) {
+									g_ret = -8;
+									if (bDumpMode) std::cerr << "\nwad_unpack error: wad file counted crc32: " << crc32
+										<< " but header value is:" << wh->m_crc32 << "\n";
+								}
+								WAD_OffsetsToPointers(wh);
+								m_curPosition = m_list.cbegin();
+							} else {
+								g_ret = -7;
+								if (bDumpMode) std::cerr << "\nwad_unpack error: Decompressed length error: resulting length = " << resultLength << ". Expected length = " <<
+									wh->m_decompressed_size << std::endl;
 							}
-							WAD_OffsetsToPointers(wh);
-							m_curPosition = m_list.cbegin();
 						} else {
-							g_ret = -7;
-							if (bDumpMode) std::cerr << "\nwad_unpack error: Decompressed length error: resulting length = " << resultLength << ". Expected length = " <<
-								wh->m_decompressed_size << std::endl;
+							g_ret = -9;
+							if (bDumpMode) std::cerr << "wad_unpack error: no memory for compressed, we need: " << wad_hdr.m_compressed_size << std::endl;
 						}
 					} else {
 						g_ret = -6;
-						if (bDumpMode) std::cerr << "wad_unpack error: no memory, we need: " << decomp_buf_sz << std::endl;
+						if (bDumpMode) std::cerr << "wad_unpack error: no memory for decompressed, we need: " << decomp_buf_sz << std::endl;
 					}
 				} else {
 					g_ret = -5;
-					if (bDumpMode) std::cerr << "wad_unpack error: unexpected wad file version(we need 11): " << wad_hdr.m_version << std::endl;
+					if (bDumpMode) std::cerr << "wad_unpack error: unexpected wad file version(we support " << WAD_VERSION << "): " << wad_hdr.m_version << std::endl;
 				}
 			} else {
 				g_ret = -4;
@@ -209,92 +221,34 @@ struct WadUnpacker {
 			if (bDumpMode) std::cerr << "wad_unpack error: unexpected eof while reading wad header\n";
 		}
 	}
+	void Close() { if (g_fwad) fclose(g_fwad); g_fwad = nullptr; }
 	~WadUnpacker() {
-		if (g_fwad) fclose(g_fwad);
+		Close();
 		if (m_decomp_buf) free(m_decomp_buf);
 	}
 	FILE *g_fwad = nullptr;
 	uint8_t *m_decomp_buf = nullptr;
-	uint32_t g_compr_bytes = 1, g_compr_bytes_remain = 0;
-	uint8_t *g_pCallbackAt = nullptr;
 
-	void EncryptDecryptWadString(uint8_t *str, uint32_t length)
-	{
-		__int64 v2;
-		__int64 v3;
-		__int64 v4;
-		uint32_t v5;
-		uint32_t v7;
-		__int64 v8;
-		int v9;
-		int v10;
-		int v11;
-		int v12;
-		const uint8_t *v13;
-		int v14;
-		v2 = uint32_t(length - 1);
-		if (length >= 1) {
-			v3 = v2 + 1;
-			if (uint64_t(v2 + 1) <= 1) {
-				v4 = 0;
-			LABEL_7:
-				v12 = int(length - v4);
-				v4 = (uint32_t)v4;
-				v13 = &g_cypher[(uint32_t)v4];
-				do {
-					v14 = ((uint8_t)v13[-7 * (v4 / 7)] + 26 * (v12 / 26) - v12 - 65) ^ (uint8_t)*str;
-					--v12;
-					++v13;
-					*str++ = v14;
-					++v4;
-				} while (v12);
-				return;
-			}
-			v4 = v3 & 0x1FFFFFFFELL;
-			v5 = 0;
-			uint8_t *v6a = str + 1;
-			v7 = 1;
-			str += v3 & 0x1FFFFFFFELL;
-			v8 = v3 & 0x1FFFFFFFELL;
-			v9 = length;
-			do {
-				v10 = 26 * (v9 / 26) - v9;
-				v11 = ((uint8_t)g_cypher[v7 % 7] + 1 - v9 + 26 * ((v9 - 1) / 26) - 65) ^ (uint8_t)*v6a;
-				v9 -= 2;
-				v8 -= 2LL;
-				v7 += 2;
-				*(v6a - 1) ^= g_cypher[v5 % 7] + v10 - 65;
-				*v6a = v11;
-				v6a += 2;
-				v5 += 2;
-			} while (v8);
-			if (v3 != v4)
-				goto LABEL_7;
+	void EncryptDecryptWadString(uint8_t *str, uint32_t length) {
+		static const uint8_t g_cypher[7] = { 0x35, 0x2e, 0x51, 0x58, 0x32, 0x59, 0x30 };
+		for (uint32_t i = 0; i < length; i++) {
+			auto j = length - i;
+			str[i] ^= (g_cypher[i % 7] - (j % 26) - 65);
 		}
 	}
-	enum class WAD_ASSET_TYPE : uint32_t {
-		GDE,
-		SKY,
-		COLL,
-		BOG,
-		SND,
-		ENTITY,
-		MOBY,
-		TIE,
-		SHRUB,
-		TEXTURE,
-		SHADER,
-		PARTICLE,
-		UI,
-		GLOBAL,
-		NAV,
-		PVAR_INCLUDE,
-		TUNING_INCLUDE,
-		CNT
-	};
+	struct ci_less {
+		struct nocase_compare {
+			bool operator() (const uint8_t &c1, const uint8_t &c2) const { return tolower(c1) < tolower(c2); }
+		};
+		bool operator() (const std::string &s1, const std::string &s2) const {
+			return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(), nocase_compare());
+		}
+	}; 
+	struct WAD_FILE_HEADER;
+	using WadList = std::map<std::string, WAD_FILE_HEADER *, ci_less>;
 	struct WAD_FILE_HEADER {
 		uint32_t m_nameICRC32 = 0;
-		char m_filePath[96] = {};
+		char m_filePath[FILE_PATH_SIZE] = {};
 		WAD_ASSET_TYPE m_assetType = WAD_ASSET_TYPE::CNT;
 		uint32_t m_fileLength = 0;
 		uint32_t m_seqNo = 0; //started from 0, increments by 1 and unique (we invert it to mark "visited")
@@ -308,13 +262,10 @@ struct WadUnpacker {
 		const char *AssetType() {
 			WAD_ASSET_TYPE corr = WAD_ASSET_TYPE::CNT;
 			if (m_assetType < WAD_ASSET_TYPE::CNT) corr = m_assetType;
-			const char *assetNames[(int)WAD_ASSET_TYPE::CNT + 1] = { "gde", "sky", "coll", "bog", "snd", "entity", "moby",
-				"tie", "shrub", "texture", "shader", "particle", "ui", "global", "nav", "pvar_include",
-				"tuning_include", "???" };
-			return assetNames[(int)corr];
+			return ::AssetType((int)corr);
 		}
-		uint32_t dump(bool bDumpMode, std::map<std::string, WAD_FILE_HEADER *> *pList) {
-			//also used to fast find WAD_FILE_HEADER index[0...1023] (8 * ((ty | (32 * ty)) ^ sign & 1023):
+		uint32_t dump(bool bDumpMode, WadList *pList) {
+			//also used to fast find WAD_FILE_HEADER index[0...(HASH_BUCKETS - 1)] (8 * ((ty | (32 * ty)) ^ sign & (HASH_BUCKETS - 1)):
 			assert(m_assetType < WAD_ASSET_TYPE::CNT); //not used yet: WAT_LINK = 0x19
 			assert(m_crypted == 0 || m_crypted == 1);
 			assert(f80 == 0); //copied to link with m_crypted and m_fileLength
@@ -325,17 +276,19 @@ struct WadUnpacker {
 			assert(fA8 == 0);
 			assert(fB0 == 0);
 			assert(fB8 == 0);
-#ifdef _DEBUG
 			char filePath[sizeof(m_filePath) + 1] = {};
 			memcpy(filePath, m_filePath, sizeof(m_filePath));
+			std::string fix;
 			if (m_nameICRC32 != SIG_CalcCaseInsensitiveSignature(filePath)) {
 				assert(m_filePath[sizeof(m_filePath) - 1] != 0);
 				//name overflow
 				std::string fixed = filePath;
-				if (fixed == "Workouts/Return_to_Running_Plan_On_Demand/Week_8/8_6_10minjog5x1minquick1mineasy10mineasycopy.xm")
-					fixed += "l";
-				else if(fixed == "bikes/Frames/Specialized_Roubaix/Textures/SpecializedRuby_UltregraUDI2_TurquoiseHyperGreenBlack.")
-					fixed += "tgax";
+				if (fixed == "Workouts/Return_to_Running_Plan_On_Demand/Week_8/8_6_10minjog5x1minquick1mineasy10mineasycopy.xm") {
+					fix = "l";
+				} else if (fixed == "bikes/Frames/Specialized_Roubaix/Textures/SpecializedRuby_UltregraUDI2_TurquoiseHyperGreenBlack.") {
+					fix = "tgax";
+				}
+				fixed += fix;
 				std::cout << "[name fixed] ";
 				assert(m_nameICRC32 == SIG_CalcCaseInsensitiveSignature(fixed.c_str()));
 			}
@@ -344,11 +297,10 @@ struct WadUnpacker {
 			for (size_t idx = strlen(filePath); idx < sizeof(filePath); idx++) {
 				assert(filePath[idx] == 0);
 			}
-#endif //_DEBUG
 			if (m_seqNo & 0x80000000) {
 				if (bDumpMode) std::cout << " id:" << ~m_seqNo << " skipped (already saved)\n";
 			} else {
-				char path[sizeof(m_filePath)] = {};
+				char path[sizeof(m_filePath) + 5] = {}; //maximum overflow is 'tgax'
 				int lastDelimiter = -1;
 				for (int i = 0; i < sizeof(m_filePath); i++) {
 					char cin = m_filePath[i];
@@ -359,6 +311,7 @@ struct WadUnpacker {
 						path[i] = '\\';
 						break;
 					case '"': case '*': case '<': case '>': case '?': case '|': case ':':
+						assert(false);
 						path[i] = '#';
 						break;
 					default:
@@ -366,6 +319,8 @@ struct WadUnpacker {
 						break;
 					}
 				}
+				if (fix.length()) strcat_s(path, fix.c_str());
+				(*pList)[path] = this;
 				if (bDumpMode) {
 					if (lastDelimiter != -1) {
 						path[lastDelimiter] = 0;
@@ -383,11 +338,6 @@ struct WadUnpacker {
 					}
 					std::cout << ' ' << m_fileLength << " bytes saved OK\n";
 					fclose(f);
-#ifdef DEBUG
-					(*pList)[path] = this;
-#endif //DEBUG
-				} else {
-					(*pList)[path] = this;
 				}
 				m_seqNo = ~m_seqNo;
 			}
@@ -396,8 +346,8 @@ struct WadUnpacker {
 	};
 	struct WAD_HEADER {
 		char m_fileSignature[4] = {};
-		char m_wadFilePath[96] = {};
-		uint32_t m_unk = 0;
+		char m_wadFilePath[FILE_PATH_SIZE] = {};
+		uint32_t m_wadFilePathCrc32 = 0;
 		WAD_FILE_HEADER *m_assets[(int)WAD_ASSET_TYPE::CNT] = {};
 		uint32_t m_crc32 = 0;
 		uint32_t m_version = 0;
@@ -405,46 +355,27 @@ struct WadUnpacker {
 		uint32_t m_compressed_size = 0;
 		WAD_HEADER() { static_assert(256 == sizeof(WAD_HEADER)); }
 		void dump(bool bDumpMode) {
+			auto crc = SIG_CalcCaseInsensitiveSignature("f:\\Projects\\ZwiftApp\\assets\\global.wad");
 			if (bDumpMode) {
 				char wadFilePath[sizeof(m_wadFilePath) + 1] = {};
 				memcpy(wadFilePath, m_wadFilePath, sizeof(m_wadFilePath));
 #ifdef _DEBUG
-				//assert(wadFilePath[0] == ':'); //not every time
 				for (size_t idx = strlen(wadFilePath); idx < sizeof(wadFilePath); idx++) {
 					assert(wadFilePath[idx] == 0);
 				}
+				//0x7dc80dd6 is SIG_CalcCaseInsensitiveSignature of "f:\\Projects\\ZwiftApp\\assets\\global.wad"
+				//but we have no full path here (first symbol is :)
+				//assert(wadFilePath[0] == ':'); //and even it is not every time
 				//auto wadFilePathSign = SIG_CalcCaseInsensitiveSignature(m_wadFilePath);
-				//assert(m_unk == wadFilePathSign); //maybe, build server path used? did not found this field usage in-game
-				//for example, 0x2c5ec066 for noesis.wad
-				assert(m_unk != 0);
+				//assert(m_wadFilePathCrc32 == wadFilePathSign); //did not found this field usage in-game
+				assert(m_wadFilePathCrc32 != 0);
 #endif
 				std::cout << "WADv" << m_version << " int_name: '" << wadFilePath << "'; decompr_sz: " << m_decompressed_size <<
 					", compr_sz: " << m_compressed_size << std::endl;
 			}
 		}
 	};
-	uint8_t *WAD_DecompCallback(uint8_t *pDest) {
-		uint32_t new_compr_bytes_remain;
-		uint32_t readNow;
-		if (g_compr_bytes_remain) {
-			new_compr_bytes_remain = g_compr_bytes_remain - 0x80000;
-			if (!(g_compr_bytes_remain >> 19))
-				new_compr_bytes_remain = 0;
-			readNow = (g_compr_bytes_remain >> 19) ? 0x80000 : g_compr_bytes_remain;
-			g_compr_bytes_remain = new_compr_bytes_remain;
-			int percent = (100 - 100 * new_compr_bytes_remain / g_compr_bytes);
-			if (g_bDumpMode) std::cout << percent << "%\r";
-			if (m_wcxProcess && m_wcxProcess(nullptr, -percent) == 0) return 0LL;
-			if (readNow) {
-				if (readNow != fread_s(pDest + 0x80000, readNow, 1, readNow, g_fwad)) {
-					if (g_bDumpMode) std::cerr << "\nwad_unpack error: could not read in decomp callback!\n";
-					return 0LL;
-				}
-			}
-		}
-		return pDest + 0x80000;
-	}
-	std::map<std::string, WAD_FILE_HEADER *> m_list;
+	WadList	m_list;
 #ifdef _DEBUG
 	std::map<uint32_t, uint32_t> m_seqCheck;
 #endif
@@ -459,6 +390,7 @@ struct WadUnpacker {
 		for (int assetIdx = 0; assetIdx < (int)WAD_ASSET_TYPE::CNT; assetIdx++) {
 			if (wh->m_assets[assetIdx]) {
 				auto pfh = (WAD_FILE_HEADER *)(bwh + (uint64_t)wh->m_assets[assetIdx]);
+				assert((int)pfh->m_assetType == assetIdx);
 				wh->m_assets[assetIdx] = pfh;
 				if (pfh->m_crypted)
 					EncryptDecryptWadString(pfh->FirstChar(), pfh->m_fileLength);
@@ -468,6 +400,7 @@ struct WadUnpacker {
 				}
 				while (pfh->m_nextFileSameAsset) {
 					auto pnfh = (WAD_FILE_HEADER *)(bwh + (uint64_t)pfh->m_nextFileSameAsset);
+					assert(pfh->m_assetType == pnfh->m_assetType);
 					pfh->m_nextFileSameAsset = pnfh;
 					if (pnfh->m_link) {
 						pnfh->m_link = (WAD_FILE_HEADER *)(bwh + (uint64_t)pnfh->m_link);
@@ -480,7 +413,7 @@ struct WadUnpacker {
 			}
 		}
 		auto ptrAfterHeader = (int64_t *)(bwh + sizeof(WAD_HEADER));
-		for (int64_t dirIdx = 0; dirIdx != 1024; dirIdx++) {
+		for (int64_t dirIdx = 0; dirIdx != HASH_BUCKETS; dirIdx++) {
 			auto dirOffset = ptrAfterHeader[dirIdx];
 			if (dirOffset) {
 				auto dirPtr = (WAD_FILE_HEADER *)(bwh + dirOffset);
@@ -498,280 +431,336 @@ struct WadUnpacker {
 		}
 #ifdef _DEBUG
 		uint32_t min = 0xFFFFFFFF, max = 0;
-		for (auto chk : m_seqCheck) {
-			assert(chk.second == 2);
-			if (chk.first > max) max = chk.first;
-			if (chk.first < min) min = chk.first;
+		if (m_seqCheck.size()) {
+			for (auto chk : m_seqCheck) {
+				assert(chk.second == 2);
+				if (chk.first > max) max = chk.first;
+				if (chk.first < min) min = chk.first;
+			}
+			assert(min == 0);
+			assert(max == m_seqCheck.size() - 1);
 		}
-		assert(min == 0);
-		assert(max == m_seqCheck.size() - 1);
 		for (auto chk : m_list) {
 			auto hash = chk.second->m_nameICRC32;
 			auto ty = (int)chk.second->m_assetType;
-			auto bucketIdx = ((ty | (32 * ty)) ^ hash) & 1023;
+			auto bucketIdx = ((ty | (32 * ty)) ^ hash) & (HASH_BUCKETS - 1);
 			auto bucket = ((WAD_FILE_HEADER **)(m_decomp_buf + sizeof(WAD_HEADER)))[bucketIdx];
 			while (bucket != chk.second) {
 				bucket = bucket->m_nextFileSameHash;
 				assert(bucket); //если мы сломались тут, значит hash не соответствует bucket 
 			}
 		}
-#endif
+		FILE *f[(int)WAD_ASSET_TYPE::CNT] = {};
+		for (int i = 0; i < (int)WAD_ASSET_TYPE::CNT; i++) { fopen_s(f + i, (::AssetType(i) + std::string(".lst")).c_str(), "a"); }
+		for (auto chk : m_list) {
+			auto ty = chk.second->m_assetType;
+			switch (ty) {
+			case WAD_ASSET_TYPE::GDE: //by extension .gde
+			case WAD_ASSET_TYPE::SHADER: //by extension end: 'sh'
+			case WAD_ASSET_TYPE::TEXTURE: //by extension .tgax/.ztx
+			case WAD_ASSET_TYPE::GLOBAL:
+				assert(GuessAssetType(chk.first.c_str()) == ty);
+				break;
+			default:
+				assert(::AssetType(int(ty)) == nullptr);
+			}
+			fprintf_s(f[(int)ty], "%96s\n", chk.second->m_filePath);
+		}
+		for (auto pf : f) { fclose(pf); }
+#endif //_DEBUG
 	}
 	int TJZIP_ParseDictionaryCode(uint8_t **pSrcPtr, uint8_t **pDestPtr, uint32_t *crc32) {
-		uint8_t *v3;
-		uint8_t *v4;
-		uint32_t v5;
-		uint8_t *v9;
-		int v10;
-		int v11;
-		uint32_t v12;
-		int v13;
+		int32_t backOff = 0;
+		int len = 0;
 		int result;
-		int32_t v15;
-		uint8_t *v16;
-		int v17;
-		uint8_t *v18;
-		int v19;
-		uint8_t *v20;
-		int v21;
-		uint8_t *v22;
-		uint8_t *v23;
-		int v24;
-		uint8_t *v25;
-		uint8_t v26;
-		uint8_t *v27;
-		int v28;
-		int v29;
-		int v30;
-		uint8_t *v31;
-		uint32_t v32;
-
-		v3 = *pDestPtr;
-		v4 = *pSrcPtr + 1;
-		v5 = **pSrcPtr;
-		*pSrcPtr = v4;
-		if (g_pCallbackAt && g_pCallbackAt - 32 <= v4) {
-			g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-			v4 = *pSrcPtr;
+		auto code = **pSrcPtr;
+		(*pSrcPtr)++;
+		auto chr1 = **pSrcPtr;
+		(*pSrcPtr)++;
+		uint8_t chr2, chr3;
+		switch (code & 0xE0) {
+		case 0xE0:
+			chr2 = **pSrcPtr;
+			(*pSrcPtr)++;
+			if ((code & 0xF) != 0) {
+				len = (code & 0xF) + 3;
+				backOff = (code << 10) & 0x4000 | (chr1 >> 2 << 8) | chr2;
+				result = chr1 & 3;
+			} else {
+				chr3 = **pSrcPtr;
+				(*pSrcPtr)++;
+				if (chr1) {
+					len = chr1 + 18;
+					backOff = (code << 10) & 0x4000 | (chr2 >> 2 << 8) | chr3;
+					result = chr2 & 3;
+				} else {
+					auto chr4 = **pSrcPtr;
+					(*pSrcPtr)++;
+					auto chr5 = **pSrcPtr;
+					(*pSrcPtr)++;
+					len = chr3 | (chr2 << 8);
+					result = chr4 & 3;
+					if (len)
+						backOff = (code << 10) & 0x4000 | (chr4 >> 2 << 8) | chr5;
+				}
+			}
+			break;
+		case 0xC0:
+			chr2 = **pSrcPtr;
+			(*pSrcPtr)++;
+			len = (code & 0x1F) + 4;
+			backOff = chr2 | (chr1 >> 2 << 8);
+			result = chr1 & 3;
+			break;
+		default:
+			len = (code >> 5) + 4;
+			result = code & 3;
+			backOff = chr1 | (((code >> 2) & 3) << 8);
+			break;
 		}
-		v11 = *v4;
-		v9 = v4 + 1;
-		v10 = v11;
-		*pSrcPtr = v9;
-		if (g_pCallbackAt && g_pCallbackAt - 32 <= v9)
-			g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-		v12 = v5 & 0xE0;
-		if (v12 <= 0xBF) {
-			v13 = (v5 >> 5) + 4;
-			result = v5 & 3;
-			v15 = v10 & 0xFFFFFCFF | (((v5 >> 2) & 3) << 8);
-			goto LABEL_33;
-		}
-		if (v12 != 224) {
-			if (v12 != 192)
-				return 0;
-			v16 = *pSrcPtr + 1;
-			v17 = **pSrcPtr;
-			*pSrcPtr = v16;
-			if (g_pCallbackAt && g_pCallbackAt - 32 <= v16)
-				g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-			v13 = (v5 & 0x1F) + 4;
-			v15 = v17 & 0xFFFFC0FF | ((uint8_t)v10 >> 2 << 8);
-			goto LABEL_32;
-		}
-		v18 = *pSrcPtr + 1;
-		v19 = **pSrcPtr;
-		*pSrcPtr = v18;
-		if (g_pCallbackAt && g_pCallbackAt - 32 <= v18)
-			g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-		if ((v5 & 0xF) != 0) {
-			v13 = (v5 & 0xF) + 3;
-		LABEL_31:
-			v15 = (v5 << 10) & 0x4000 | ((uint8_t)v10 >> 2 << 8) | v19;
-		LABEL_32:
-			result = v10 & 3;
-			goto LABEL_33;
-		}
-		v20 = *pSrcPtr + 1;
-		v21 = **pSrcPtr;
-		*pSrcPtr = v20;
-		if (g_pCallbackAt && g_pCallbackAt - 32 <= v20)
-			g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-		if (v10) {
-			v13 = v10 + 18;
-			v10 = (v10 & 0xFFFFFF00) | v19;
-			v19 = v21;
-			goto LABEL_31;
-		}
-		v25 = *pSrcPtr + 1;
-		v26 = **pSrcPtr;
-		*pSrcPtr = v25;
-		if (g_pCallbackAt && g_pCallbackAt - 32 <= v25) {
-			g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-			v25 = *pSrcPtr;
-		}
-		v29 = *v25;
-		v27 = v25 + 1;
-		v28 = v29;
-		*pSrcPtr = v27;
-		if (g_pCallbackAt && g_pCallbackAt - 32 <= v27) {
-			v30 = v28;
-			v31 = WAD_DecompCallback(g_pCallbackAt);
-			v28 = v30;
-			g_pCallbackAt = v31;
-		}
-		v32 = v21 & 0xFFFF00FF | ((uint8_t)v19 << 8);
-		result = v26 & 3;
-		if (v32) {
-			v15 = (v5 << 10) & 0x4000 | (v26 >> 2 << 8) | v28;
-			v13 = v32;
-		LABEL_33:
-			v22 = *pDestPtr;
-			v23 = &v3[-v15];
-			do {
-				--v13;
-				*v22 = *v23;
-				v24 = *v23++;
-				*crc32 = g_crc32Table[(uint8_t)*crc32 ^ v24] ^ (*crc32 >> 8);
-				v22 = *pDestPtr + 1;
-				*pDestPtr = v22;
-			} while (v13);
+		auto pDict = (*pDestPtr) - backOff;
+		while(len--) {
+			auto chr = *pDict++;
+			**pDestPtr = chr;
+			(*pDestPtr)++;
+			*crc32 = g_crc32Table[(uint8_t)*crc32 ^ chr] ^ (*crc32 >> 8);
 		}
 		return result;
 	}
 	void TJZIP_ParseRawDataBlock(uint8_t **pSrcPtr, uint8_t **pDestPtr, uint32_t *crc32) {
-		uint8_t *srcPtr;
-		int chr;
-		int v8;
-		uint8_t *nextSrcPtr;
-		int nextChr;
-		uint8_t *v11;
-		int v12;
-		int v13;
-		int v15;
-		uint8_t v16;
-		int v17;
-		int v18;
-		uint8_t v19;
-		int v20;
-		uint8_t *v21;
-		uint8_t *v22;
-
-		srcPtr = *pSrcPtr;
-		chr = **pSrcPtr;
-		if (!chr) {
-			nextSrcPtr = srcPtr + 1;
-			*pSrcPtr = srcPtr + 1;
-			if (g_pCallbackAt && g_pCallbackAt - 32 <= nextSrcPtr) {
-				g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-				nextSrcPtr = *pSrcPtr;
-			}
-			v11 = nextSrcPtr + 2;
-			nextChr = *nextSrcPtr;
-			*pSrcPtr = nextSrcPtr + 1;
-			v12 = nextSrcPtr[1];
-			*pSrcPtr = nextSrcPtr + 2;
-			if (v12) {
-				v13 = v12 << 8;
-				v8 = v13 | nextChr;
-			LABEL_12:
-				if (g_pCallbackAt && g_pCallbackAt - 32 <= v11) {
-					g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-					if (!v8)
-						return;
-					goto LABEL_21;
-				}
+		uint8_t chr0 = **pSrcPtr;
+		(*pSrcPtr)++;
+		int len;
+		if (chr0) {
+			len = chr0 + 2;
+		} else {
+			uint8_t chr1 = **pSrcPtr;
+			(*pSrcPtr)++;
+			uint8_t chr2 = **pSrcPtr;
+			(*pSrcPtr)++;
+			if (chr2) {
+				len = (chr2 << 8) | chr1;
 			} else {
-				v15 = nextSrcPtr[2];
-				*pSrcPtr = nextSrcPtr + 3;
-				if (v15) {
-					v16 = nextSrcPtr[3];
-					v11 = nextSrcPtr + 4;
-					*pSrcPtr = nextSrcPtr + 4;
-					v17 = (v15 << 16) | (v16 << 8);
-					v8 = v17 | nextChr;
-					goto LABEL_12;
+				uint8_t chr3 = **pSrcPtr;
+				(*pSrcPtr)++;
+				uint8_t chr4 = **pSrcPtr;
+				(*pSrcPtr)++;
+				if (chr3) {
+					len = (chr3 << 16) | (chr4 << 8) | chr1;
 				} else {
-					v18 = nextSrcPtr[3];
-					*pSrcPtr = nextSrcPtr + 4;
-					v19 = nextSrcPtr[4];
-					*pSrcPtr = nextSrcPtr + 5;
-					v11 = nextSrcPtr + 6;
-					v20 = (v18 << 24) | (uint16_t)(v19 << 8) | (nextSrcPtr[5] << 16);
-					*pSrcPtr = v11;
-					v8 = v20 | nextChr;
-					goto LABEL_12;
+					uint8_t chr5 = **pSrcPtr;
+					(*pSrcPtr)++;
+					uint8_t chr6 = **pSrcPtr;
+					(*pSrcPtr)++;
+					len = (chr4 << 24) | (chr5 << 8) | (chr6 << 16) | chr1;
 				}
 			}
-			if (!v8)
-				return;
-			goto LABEL_21;
 		}
-		*pSrcPtr = srcPtr + 1;
-		v8 = chr + 2;
-		if (g_pCallbackAt && g_pCallbackAt - 32 <= srcPtr + 1)
-			g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-	LABEL_21:
-		v21 = *pDestPtr;
-		do {
-			*v21 = **pSrcPtr;
-			v22 = *pSrcPtr + 1;
+		while(len--) {
+			**pDestPtr = **pSrcPtr;
 			*crc32 = g_crc32Table[(uint8_t)*crc32 ^ **pSrcPtr] ^ (*crc32 >> 8);
-			*pSrcPtr = v22;
-			if (g_pCallbackAt && g_pCallbackAt - 32 <= v22)
-				g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-			--v8;
-			v21 = *pDestPtr + 1;
-			*pDestPtr = v21;
-		} while (v8);
+			(*pSrcPtr)++;
+			(*pDestPtr)++;
+		}
 	}
-	uint32_t TJZIP_Decompress(uint8_t *pDecompressPtr, uint8_t *m_decomp_buf, uint32_t compressed_size, uint32_t *crc32,
-		uint8_t *pCallbackAt) {
-		int dCode;
-		uint8_t *srcPtr_;
-		int cnt;
-		uint8_t *destPtr_;
-		int chr;
-		uint8_t *destPtr;
-		uint8_t *srcPtr;
-
-		destPtr = m_decomp_buf;
-		srcPtr = pDecompressPtr;
+	uint32_t TJZIP_Decompress(uint8_t *pDecompressPtr, uint8_t *m_decomp_buf, uint32_t compressed_size, uint32_t *crc32) {
+		uint8_t *destPtr = m_decomp_buf;
+		uint8_t *srcPtr = pDecompressPtr;
 		*crc32 = 0;
-		g_pCallbackAt = pCallbackAt;
 		TJZIP_ParseRawDataBlock(&srcPtr, &destPtr, crc32);
 		while (srcPtr - pDecompressPtr < (int)compressed_size) {
-			dCode = TJZIP_ParseDictionaryCode(&srcPtr, &destPtr, crc32);
+			int dCode = TJZIP_ParseDictionaryCode(&srcPtr, &destPtr, crc32);
 			if (dCode != 3) {
-				srcPtr_ = srcPtr;
-				if (srcPtr - pDecompressPtr < (int)compressed_size) {
-					cnt = dCode;
-					if (dCode) {
-						destPtr_ = destPtr;
-						do {
-							*destPtr_ = *srcPtr_;
-							chr = *srcPtr_++;
+				if (dCode == 0) {
+					TJZIP_ParseRawDataBlock(&srcPtr, &destPtr, crc32);
+				} else {
+					if (srcPtr - pDecompressPtr < (int)compressed_size) {
+						for (int i = 0; i < dCode; i++) {
+							uint8_t chr = *srcPtr++;
+							*destPtr++ = chr;
 							*crc32 = g_crc32Table[(uint8_t)*crc32 ^ chr] ^ (*crc32 >> 8);
-							if (g_pCallbackAt - 32 <= srcPtr_)
-								g_pCallbackAt = WAD_DecompCallback(g_pCallbackAt);
-							--cnt;
-							++destPtr_;
-						} while (cnt);
-						destPtr = destPtr_;
-						srcPtr = srcPtr_;
-					} else {
-						TJZIP_ParseRawDataBlock(&srcPtr, &destPtr, crc32);
+						}
 					}
 				}
 			}
 			if (pDecompressPtr < m_decomp_buf != srcPtr < destPtr)
-				return 0LL;
+				return 0;
 		}
 		*crc32 = ~*crc32;
 		return uint32_t(destPtr - m_decomp_buf);
 	}
-
-	std::map<std::string, WAD_FILE_HEADER *>::const_iterator m_curPosition;
+	void TJZIP_OutputRaw(uint8_t **ppDest, uint8_t *src, size_t n) {
+		if (n <= 2) {
+			*(*ppDest - 2) |= n;
+		} else if (n <= 257) {
+			**ppDest = uint8_t(n - 2);
+			++(*ppDest);
+		} else if (n <= 65535) {
+			**ppDest = 0;
+			++(*ppDest);
+			**ppDest = uint8_t(n);
+			++(*ppDest);
+			**ppDest = uint8_t(n >> 8);
+			++(*ppDest);
+		} else if (0 == (n >> 24)) {
+			**ppDest = 0;
+			++(*ppDest);
+			**ppDest = uint8_t(n);
+			++(*ppDest);
+			**ppDest = 0;
+			++(*ppDest);
+			**ppDest = uint8_t(n >> 16);
+			++(*ppDest);
+			**ppDest = uint8_t(n >> 8);
+			++ *ppDest;
+		} else if (!(n >> 28)) {
+			**ppDest = 0;
+			++(*ppDest);
+			**ppDest = uint8_t(n);
+			++(*ppDest);
+			**ppDest = 0;
+			++(*ppDest);
+			**ppDest = 0;
+			++(*ppDest);
+			**ppDest = uint8_t(n >> 8);
+			++(*ppDest);
+			**ppDest = uint8_t(n >> 24);
+			++(*ppDest);
+			**ppDest = uint8_t(n >> 16);
+			++(*ppDest);
+		} else {
+			assert(false);
+			return;
+		}
+		memcpy(*ppDest, src, n);
+		*ppDest += n;
+	}
+	void TJZIP_OutputCode(uint8_t **ppDest, uint32_t offs, uint32_t len) {
+		if (offs <= 0x3FF && len <= 9) {
+			**ppDest = ((offs >> 6) & 0xC | (32 * len)) + 0x80;
+			++(*ppDest);
+			**ppDest = offs;
+			++(*ppDest);
+		} else if (!(offs >> 14) && len <= 0x23) {
+			**ppDest = (len + 60) | 0xC0;
+			(*ppDest)++;
+			**ppDest = (offs >> 6) & 0xFC;
+			(*ppDest)++;
+			**ppDest = offs;
+			++(*ppDest);
+		} else {
+			if (offs >> 15) { assert(false); return; }
+			if (len <= 0x12) {
+				**ppDest = (offs >> 10) & 0x10 | (len + 29) | 0xE0;
+				(*ppDest)++;
+				**ppDest = (offs >> 6) & 0xFC;
+				(*ppDest)++;
+				**ppDest = offs;
+				++(*ppDest);
+			} else if (len <= 0x111) {
+				**ppDest = (offs >> 10) & 0x10 | 0xE0;
+				(*ppDest)++;
+				**ppDest = len - 18;
+				(*ppDest)++;
+				**ppDest = (offs >> 6) & 0xFC;
+				(*ppDest)++;
+				**ppDest = offs;
+				++(*ppDest);
+			} else if (!HIWORD(len)) {
+				**ppDest = (offs >> 10) & 0x10 | 0xE0;
+				++(*ppDest);
+				**ppDest = 0;
+				++(*ppDest);
+				**ppDest = len >> 8;
+				++(*ppDest);
+				**ppDest = len;
+				++(*ppDest);
+				**ppDest = (offs >> 6) & 0xFC;
+				++(*ppDest);
+				**ppDest = offs;
+				++(*ppDest);
+			} else {
+				assert(false);
+			}
+		}
+	}
+	uint32_t TJZIP_Compress(uint8_t *pSrc, uint32_t pSrcLength, uint8_t *pDest, uint32_t *crc32) {
+		uint8_t *pDestCur = pDest;
+		uint8_t *pSrcCur = pSrc;
+		auto pSrcEnd = &pSrc[pSrcLength - 1];
+		uint8_t *dictionary = (uint8_t *)calloc(1, 0x8000000u);
+		uint32_t offs = 0;
+		uint8_t *dictSentence = nullptr;
+		auto *pSrcCur_ = pSrc;
+		auto v9 = pSrcCur_ + 1;
+		uint32_t hash;
+		int four[4] = {};
+		goto LABEL_5;
+	LABEL_2:
+		v9 = pSrcCur_ + 1;
+	LABEL_3:
+		if (v9 <= pSrcEnd) {
+			do {
+				while (1) {
+					pSrcCur_ = v9;
+					if (v9 + 3 > pSrcEnd)
+						goto LABEL_2;
+				LABEL_5:
+					four[0] = pSrcCur_[0];
+					four[1] = pSrcCur_[1];
+					four[2] = pSrcCur_[2];
+					four[3] = pSrcCur_[3];
+					v9 = pSrcCur_ + 1;
+					hash = 16777619 * ((16777619 * ((16777619 * ((16777619 * (four[0] ^ 0x811C9DC5)) ^ four[1])) ^ four[2])) ^ four[3]);
+					hash = hash & 0xFFFFFF ^ (hash >> 24);
+					dictSentence = *(uint8_t **)&dictionary[8 * hash];
+					if (dictSentence) {
+						if (pSrcCur_ - dictSentence >= 0)
+							offs = uint32_t(pSrcCur_ - dictSentence);
+						else
+							assert(0);
+							//offs = dictSentence - pSrcCur_;
+						if (offs < 4 || pSrcEnd - pSrcCur_ < 4)
+							goto LABEL_3;
+						if (!(offs >> 15))
+							break;
+					}
+LABEL_28:
+					*(uint64_t *)&dictionary[8 * hash] = (uint64_t)pSrcCur_;
+					if (v9 > pSrcEnd)
+						goto LABEL_32;
+				}
+				if (dictSentence[0] != four[0] || dictSentence[1] != four[1] || dictSentence[2] != four[2] || dictSentence[3] != four[3]) {
+					goto LABEL_28;
+				}
+				uint32_t len = 4LL;
+				if (pSrcCur_ + len < pSrcEnd) {
+					do {
+						if (pSrcCur_ == dictSentence + len)
+							break;
+						if (dictSentence[len] != pSrcCur_[len])
+							break;
+						++len;
+					} while (&pSrcCur_[len] < pSrcEnd);
+				}
+				if (pSrcCur == pSrcCur_)
+					*(pDestCur - 2) |= 3u;
+				else
+					TJZIP_OutputRaw(&pDestCur, pSrcCur, pSrcCur_ - pSrcCur);
+				TJZIP_OutputCode(&pDestCur, offs, len);
+				pSrcCur = &pSrcCur_[len];
+				v9 = pSrcCur;
+			} while (pSrcCur <= pSrcEnd);
+		}
+LABEL_32:
+		if (pSrcCur != v9) TJZIP_OutputRaw(&pDestCur, pSrcCur, v9 - pSrcCur);
+		*crc32 = 0;
+		for (auto p = pSrc; p <= pSrcEnd; p++) *crc32 = g_crc32Table[(uint8_t)*crc32 ^ *p] ^ (*crc32 >> 8);
+		*crc32 = ~*crc32;
+		free(dictionary);
+		return uint32_t(pDestCur - pDest);
+	}
+	WadList::const_iterator m_curPosition;
 	bool ReadHeader(tHeaderData *HeaderData) {
 		if (m_curPosition == m_list.cend()) {
 			m_curPosition = m_list.cbegin();
@@ -782,10 +771,195 @@ struct WadUnpacker {
 		HeaderData->FileAttr = (m_curPosition->second->m_crypted) ? 0x2 : 0;
 		return true;
 	}
+	int DeleteFiles(char *DeleteList) {
+		while (*DeleteList) {
+			auto len = strlen(DeleteList);
+			auto last = DeleteList + len - 1;
+			if (len > 3 && *last == '*' && last[-1] == '.' && last[-2] == '*') {
+				std::list<std::string> todel;
+				std::string path(DeleteList, last - 3);
+				for (auto i : m_list)
+					if (i.first.find(path) == 0) todel.push_back(i.first);
+				for (auto i : todel)
+					m_list.erase(i);
+			} else {
+				/*auto erased = */ m_list.erase(DeleteList);
+				//assert(erased);
+			}
+			DeleteList += len + 1;
+		}
+		return Save();
+	}
+	int PackFiles(char *SubPath, char *SrcPath, char *AddList, int Flags) {
+		std::list<WAD_FILE_HEADER *> pool;
+		//std::list<std::string> srcList;
+		int ret = 0;
+		while (*AddList) {
+			while (*AddList == '\\') AddList++;
+			char *name = AddList, *nextAdd = AddList + strlen(AddList) + 1;
+			if (nextAdd[-2] != '\\') {
+				char arcPathName[MAX_PATH] = {}, srcPathName[MAX_PATH] = {};
+				if (SubPath && *SubPath) {
+					strcpy_s(arcPathName, SubPath);
+					auto pos = strlen(arcPathName);
+					if (pos < MAX_PATH && arcPathName[pos - 1] != '\\') arcPathName[pos] = '\\';
+				}
+				if (0 == (Flags & PK_PACK_SAVE_PATHS)) {
+					char *newName = nextAdd;
+					while (--newName > name) {
+						if (*newName == '\\') {
+							newName++;
+							break;
+						}
+					}
+					name = newName;
+				}
+				strcat_s(arcPathName, name);
+				if (SrcPath && *SrcPath) {
+					strcpy_s(srcPathName, SrcPath);
+					auto pos = strlen(srcPathName);
+					if (pos < MAX_PATH && srcPathName[pos - 1] != '\\') srcPathName[pos] = '\\';
+				}
+				strcat_s(srcPathName, AddList);
+				FILE *f = nullptr;
+				fopen_s(&f, srcPathName, "rb");
+				if (f == nullptr) {
+					ret = E_EREAD;
+					break;
+				}
+				//if (Flags & PK_PACK_MOVE_FILES) srcList.push_back(srcPathName);
+				fseek(f, 0, SEEK_END);
+				auto fileSize = ftell(f);
+				fseek(f, 0, SEEK_SET);
+				if (fileSize > 1024 * 1024 * 1024) {
+					ret = E_NO_MEMORY;
+					fclose(f);
+					break;
+				}
+				auto fh = (WAD_FILE_HEADER *)calloc(1, fileSize + sizeof(WAD_FILE_HEADER));
+				if (fh == nullptr) {
+					ret = E_NO_MEMORY;
+					fclose(f);
+					break;
+				}
+				pool.push_back(fh);
+				fh->m_nameICRC32 = SIG_CalcCaseInsensitiveSignature(arcPathName);
+				auto copy = strlen(arcPathName);
+				if (copy > FILE_PATH_SIZE) copy = FILE_PATH_SIZE;
+				memcpy(fh->m_filePath, arcPathName, copy);
+				for (auto &ch : fh->m_filePath) if (ch == '\\') ch = '/';
+				fh->m_assetType = GuessAssetType(srcPathName);
+				fh->m_fileLength = (uint32_t)fileSize;
+				if (fileSize != fread_s(fh->FirstChar(), fileSize, 1, fileSize, f)) {
+					ret = E_EREAD;
+					fclose(f);
+					break;
+				}
+				fclose(f);
+				//all other fh fields should be set on save
+				m_list[arcPathName] = fh;
+			}
+			AddList = nextAdd;
+		}
+		if (ret == 0)
+			ret = Save();
+		m_list.clear(); //good to clear after asve and before pool free
+		m_curPosition = m_list.cbegin();
+		for (auto pi : pool) free(pi);
+		if (ret) return ret;
+		/*if (Flags & PK_PACK_MOVE_FILES) {
+			BOOL allDeleted = 1;
+			for (auto s : srcList) {
+				allDeleted &= ::DeleteFileA(s.c_str());
+			}
+			//if (allDeleted == 0) return E_
+		}*/
+		return 0;
+	}
+	int Save() {
+		int ret = 0;
+		Close();
+		//I hope we should not keep original sequence and m_crypted flag
+		//WAD_FILE_HEADER: f80 and links are saved as 0 (FIXME when this fields will used)
+		FILE *f = nullptr;
+		fopen_s(&f, m_wadFileName.c_str(), "wb");
+		if (f == nullptr) {
+			return E_EWRITE;
+		}
+		uint32_t seqNo = 0;
+		WAD_HEADER wad_header;
+		memcpy_s(wad_header.m_fileSignature, sizeof(wad_header.m_fileSignature), "ZWF!", 4);
+		size_t nameOffset = 0;
+		if (m_wadFileName.length() > sizeof(wad_header.m_wadFilePath)) {
+			nameOffset = m_wadFileName.length() - sizeof(wad_header.m_wadFilePath);
+		}
+		memcpy_s(wad_header.m_wadFilePath, sizeof(wad_header.m_wadFilePath), m_wadFileName.c_str() + nameOffset, 
+			m_wadFileName.length() - nameOffset);
+		wad_header.m_wadFilePathCrc32 = SIG_CalcCaseInsensitiveSignature(m_wadFileName.c_str());
+		wad_header.m_version = WAD_VERSION;
+		WAD_FILE_HEADER *lastAssets[(int)WAD_ASSET_TYPE::CNT] = {};
+		WAD_FILE_HEADER *buckets[HASH_BUCKETS] = {}, *lastBuckets[HASH_BUCKETS] = {};
+		uint64_t offset = sizeof(WAD_HEADER) + sizeof(buckets);
+		for (auto i: m_list) {
+			i.second->m_seqNo = seqNo++;
+			i.second->m_nextFileSameHash  = nullptr;
+			i.second->m_nextFileSameAsset = nullptr;
+			i.second->m_crypted = false;
+			int ty = (int)i.second->m_assetType;
+			WAD_FILE_HEADER **ppAsset = wad_header.m_assets + ty;
+			if (*ppAsset == nullptr) {
+				*ppAsset = (WAD_FILE_HEADER *)offset;
+			} else {
+				lastAssets[ty]->m_nextFileSameAsset = (WAD_FILE_HEADER *)offset;
+			}
+			lastAssets[ty] = i.second;
+			auto bucketIdx = ((ty | (32 * ty)) ^ i.second->m_nameICRC32) & (HASH_BUCKETS - 1);
+			WAD_FILE_HEADER **ppBucket = buckets + bucketIdx;
+			if (*ppBucket == nullptr) {
+				*ppBucket = (WAD_FILE_HEADER *)offset;
+			} else {
+				lastBuckets[bucketIdx]->m_nextFileSameHash = (WAD_FILE_HEADER *)offset;
+			}
+			lastBuckets[bucketIdx] = i.second;
+			offset += sizeof(WAD_FILE_HEADER) + i.second->m_fileLength;
+		}
+		wad_header.m_decompressed_size = (uint32_t)offset - sizeof(WAD_HEADER);
+		auto compBufSize = offset + 7 + 7 * (offset / 256);
+		uint8_t *decompBuf = (uint8_t *)calloc(1, offset), *compBuf = (uint8_t *)calloc(1, compBufSize);
+		if (decompBuf && compBuf) {
+			offset = sizeof(buckets);
+			memcpy_s(decompBuf, offset, buckets, offset);
+			for (auto i : m_list) {
+				auto size = sizeof(WAD_FILE_HEADER);
+				memcpy_s(decompBuf + offset, size, i.second, size);
+				offset += size;
+				memcpy_s(decompBuf + offset, i.second->m_fileLength, i.second->FirstChar(), i.second->m_fileLength);
+				offset += i.second->m_fileLength;
+			}
+			wad_header.m_compressed_size = TJZIP_Compress(decompBuf, wad_header.m_decompressed_size, compBuf, &wad_header.m_crc32);
+			/*FILE *ftmp = nullptr;
+			fopen_s(&ftmp, "c:\\tmp\\compress.bin", "wb");
+			fwrite(decompBuf, wad_header.m_decompressed_size, 1, ftmp);
+			fclose(ftmp);*/
+			assert(wad_header.m_compressed_size <= compBufSize);
+			int ret = 0;
+			if (sizeof(wad_header) != fwrite(&wad_header, 1, sizeof(wad_header), f))
+				ret = E_EWRITE;
+			else if (wad_header.m_compressed_size != fwrite(compBuf, 1, wad_header.m_compressed_size, f))
+				ret = E_EWRITE;
+			free(decompBuf);
+			free(compBuf);
+		} else {
+			if (decompBuf) free(decompBuf);
+			if (compBuf) free(compBuf);
+			ret = E_NO_MEMORY;
+		}
+		fclose(f);
+		return ret;
+	}
 };
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
 	int ret = 0;
 	switch(argc) {
 	case 2:
@@ -798,8 +972,17 @@ int main(int argc, char **argv)
 			getline(std::cin, fn);
 			if (fn.length() == 0) break;
 			WadUnpacker next(fn.c_str());
+			assert(0 == int(next));
 			std::cout << "Result: " << int(next) << std::endl;
 			if (ret == 0) ret = int(next);
+#ifdef _DEBUG
+#if 0 //test
+			next.m_wadFileName = "c:\\Users\\build\\Downloads\\tmp\\assets" + next.m_wadFileName.substr(1 + strlen("c:\\Program Files(x86)\\Zwift\\assets"));
+			next.Save();
+			WadUnpacker check(next.m_wadFileName.c_str());
+			assert(0 == int(check));
+#endif
+#endif
 		}
 		break;
 	default: //too many args
@@ -810,6 +993,11 @@ int main(int argc, char **argv)
 	return ret;
 }
 extern "C" {
+/*OpenArchive should perform all necessary operations when an archive is to be opened.
+OpenArchive should return a unique handle representing the archive. The handle should remain valid until CloseArchive is called. 
+If an error occurs, you should return zero, and specify the error by setting OpenResult member of ArchiveData.
+You can use the ArchiveData to query information about the archive being open, and store the information in ArchiveData to some location 
+that can be accessed via the handle. */
 	__declspec(dllexport) HANDLE __stdcall OpenArchive(tOpenArchiveData *ArchiveData) {
 		auto ret = new WadUnpacker(ArchiveData->ArcName, false);
 		if (ret->g_ret != 0) {
@@ -819,13 +1007,38 @@ extern "C" {
 		}
 		return ret;
 	}
+/*Totalcmd calls ReadHeader to find out what files are in the archive.
+ReadHeader is called as long as it returns zero (as long as the previous call to this function returned zero). Each time it is called, 
+HeaderData is supposed to provide Totalcmd with information about the next file contained in the archive. When all files in the archive 
+have been returned, ReadHeader should return E_END_ARCHIVE which will prevent ReaderHeader from being called again. If an error occurs, 
+ReadHeader should return one of the error values or 0 for no error.
+hArcData contains the handle returned by OpenArchive. The programmer is encouraged to store other information in the location that can 
+be accessed via this handle. For example, you may want to store the position in the archive when returning files information in ReadHeader.
+In short, you are supposed to set at least PackSize, UnpSize, FileTime, and FileName members of tHeaderData. Totalcmd will use this 
+information to display content of the archive when the archive is viewed as a directory.*/
 	__declspec(dllexport) int __stdcall ReadHeader(HANDLE hArcData, tHeaderData *HeaderData) {
 		auto obj = (WadUnpacker *)hArcData;
-		return (obj && obj->ReadHeader(HeaderData)) ? 0 : E_END_ARCHIVE;
+		return (hArcData != INVALID_HANDLE_VALUE && obj && obj->ReadHeader(HeaderData)) ? 0 : E_END_ARCHIVE;
 	}
+/*ProcessFile should unpack the specified file or test the integrity of the archive.
+ProcessFile should return zero on success, or one of the error values otherwise.
+hArcData contains the handle previously returned by you in OpenArchive. Using this, you should be able to find out information (such as 
+the archive filename) that you need for extracting files from the archive.
+Unlike PackFiles, ProcessFile is passed only one filename. Either DestName contains the full path and file name and DestPath is NULL, or 
+DestName contains only the file name and DestPath the file path. This is done for compatibility with unrar.dll.
+When Total Commander first opens an archive, it scans all file names with OpenMode==PK_OM_LIST, so ReadHeader() is called in a loop with 
+calling ProcessFile(...,PK_SKIP,...). When the user has selected some files and started to decompress them, Total Commander again calls 
+ReadHeader() in a loop. For each file which is to be extracted, Total Commander calls ProcessFile() with Operation==PK_EXTRACT immediately 
+after the ReadHeader() call for this file. If the file needs to be skipped, it calls it with Operation==PK_SKIP.
+Each time DestName is set to contain the filename to be extracted, tested, or skipped. To find out what operation out of these last three 
+you should apply to the current file within the archive, Operation is set to one of the following:
+Constant Value Description
+PK_SKIP 0 Skip this file
+PK_TEST 1 Test file integrity
+PK_EXTRACT 2 Extract to disk */
 	__declspec(dllexport) int __stdcall ProcessFile(HANDLE hArcData, int Operation, char *DestPath, char *DestName) {
 		auto obj = (WadUnpacker *)hArcData;
-		if (obj == nullptr || obj->m_curPosition == obj->m_list.cend()) return E_NO_FILES;
+		if (hArcData == INVALID_HANDLE_VALUE || obj == nullptr || obj->m_curPosition == obj->m_list.cend()) return E_NO_FILES;
 		if (Operation == PK_EXTRACT) {
 			char fullPath[260] = {};
 			if (DestPath)
@@ -854,18 +1067,61 @@ extern "C" {
 		obj->m_curPosition++;
 		return 0;
 	}
+/*CloseArchive should perform all necessary operations when an archive is about to be closed.
+CloseArchive should return zero on success, or one of the error values otherwise. It should free all the resources associated with the 
+open archive. The parameter hArcData refers to the value returned by a programmer within a previous call to OpenArchive.*/
 	__declspec(dllexport) int __stdcall CloseArchive(HANDLE hArcData) {
 		auto obj = (WadUnpacker *)hArcData;
-		if (obj) delete obj;
+		if (hArcData != INVALID_HANDLE_VALUE && obj) delete obj;
 		return 0;
 	}
 	__declspec(dllexport) void __stdcall SetChangeVolProc(HANDLE hArcData, tChangeVolProc pChangeVolProc1) {}
 	__declspec(dllexport) void __stdcall SetProcessDataProc(HANDLE hArcData, tProcessDataProc pProcessDataProc) {
 		auto obj = (WadUnpacker *)hArcData;
-		if (obj) obj->m_wcxProcess = pProcessDataProc;
+		if (hArcData != INVALID_HANDLE_VALUE && obj) obj->m_wcxProcess = pProcessDataProc;
 	}
-	__declspec(dllexport) int __stdcall GetBackgroundFlags() { return BACKGROUND_UNPACK; }
-	__declspec(dllexport) int __stdcall GetPackerCaps() { return PK_CAPS_BY_CONTENT | PK_CAPS_SEARCHTEXT; }
+/*GetBackgroundFlags is called to determine whether a plugin supports background packing or unpacking.
+GetBackgroundFlags should return one of the following values:
+Constant               Value Description
+BACKGROUND_UNPACK        1 Calls to OpenArchive, ReadHeader(Ex), ProcessFile and CloseArchive are thread-safe (unpack in background)
+BACKGROUND_PACK          2 Calls to PackFiles are thread-safe (pack in background)
+BACKGROUND_MEMPACK       4 Calls to StartMemPack, PackToMem and DoneMemPack are thread-safe
+To make your packer plugin thread-safe, you should remove any global variables which aren't the same for all pack or unpack operations.
+For example, the path to the ini file name can remain global, but something like the compression ratio, or file handles need to be stored
+separately. 
+Packing: The PackFiles function is just a single call, so you can store all variables on the stack (local variables of that function).
+Unpacking: You can allocate a struct containing all the variables you need across function calls, like the compression method and ratio,
+and state variables, and return a pointer to this struct as a result to OpenArchive. This pointer will then passed to all other functions
+like ReadHeader as parameter hArcData. 
+Pack in memory: You can do the same in StartMemPack as described under Unpacking.*/
+	__declspec(dllexport) int __stdcall GetBackgroundFlags() { return BACKGROUND_UNPACK | BACKGROUND_PACK | BACKGROUND_MEMPACK; }
+/*GetPackerCaps tells Totalcmd what features your packer plugin supports.
+Implement GetPackerCaps to return a combination of the following values:
+Constant                Value Description
+PK_CAPS_NEW               1 Can create new archives
+PK_CAPS_MODIFY            2 Can modify existing archives
+PK_CAPS_MULTIPLE          4 Archive can contain multiple files
+PK_CAPS_DELETE            8 Can delete files
+PK_CAPS_OPTIONS          16 Has options dialog
+PK_CAPS_MEMPACK          32 Supports packing in memory
+PK_CAPS_BY_CONTENT       64 Detect archive type by content
+PK_CAPS_SEARCHTEXT      128 Allow searching for text in archives created with this plugin
+PK_CAPS_HIDE            256 Don't show packer icon, don't open with Enter but with Ctrl+PgDn
+PK_CAPS_ENCRYPT         512 Plugin supports encryption.
+Omitting PK_CAPS_NEW and PK_CAPS_MODIFY means PackFiles will never be called and so you don't have to implement PackFiles. Omitting 
+PK_CAPS_MULTIPLE means PackFiles will be supplied with just one file. Leaving out PK_CAPS_DELETE means DeleteFiles will never be called;
+leaving out PK_CAPS_OPTIONS means ConfigurePacker will not be called. PK_CAPS_MEMPACK enables the functions StartMemPack, PackToMem and
+DoneMemPack. If PK_CAPS_BY_CONTENT is returned, Totalcmd calls the function CanYouHandleThisFile when the user presses Ctrl+PageDown on an
+unknown archive type. Finally, if PK_CAPS_SEARCHTEXT is returned, Total Commander will search for text inside files packed with this
+plugin. This may not be a good idea for certain plugins like the diskdir plugin, where file contents may not be available. If PK_CAPS_HIDE
+is set, the plugin will not show the file type as a packer. This is useful for plugins which are mainly used for creating files, e.g. to
+create batch files, avi files etc. The file needs to be opened with Ctrl+PgDn in this case, because Enter will launch the associated
+application.
+Important note:
+If you change the return values of this function, e.g. add packing support, you need to reinstall the packer plugin in Total Commander,
+otherwise it will not detect the new capabilities.*/
+	__declspec(dllexport) int __stdcall GetPackerCaps() { return PK_CAPS_BY_CONTENT | PK_CAPS_SEARCHTEXT | PK_CAPS_NEW |
+		PK_CAPS_MODIFY | PK_CAPS_MULTIPLE | PK_CAPS_DELETE; }
 	__declspec(dllexport) BOOL __stdcall CanYouHandleThisFile(char *FileName) {
 		FILE *f = nullptr;
 		fopen_s(&f, FileName, "rb");
@@ -876,6 +1132,45 @@ extern "C" {
 			return buf[0] == 'Z' && buf[1] == 'W' && buf[2] == 'F' && buf[3] == '!';
 		}
 		return 0;
+	}
+/*PackFiles specifies what should happen when a user creates, or adds files to the archive.
+PackFiles should return zero on success, or one of the error codes otherwise.
+PackedFile refers to the archive that is to be created or modified. The string contains the full path.
+SubPath is either NULL, when the files should be packed with the paths given with the file names, or not NULL when they should be placed 
+below the given subdirectory within the archive. Example:
+    SubPath="subdirectory"
+    Name in AddList="subdir2\filename.ext"
+-> File should be packed as "subdirectory\subdir2\filename.ext"
+SrcPath contains path to the files in AddList. SrcPath and AddList together specify files that are to be packed into PackedFile. Each 
+string in AddList is zero-delimited (ends in zero), and the AddList string ends with an extra zero byte, i.e. there are two zero bytes 
+at the end of AddList.
+Flags can contain a combination of the following values reflecting the user choice from within Totalcmd:
+Constant                 Value Description
+PK_PACK_MOVE_FILES         1 Delete original after packing
+PK_PACK_SAVE_PATHS         2 Save path names of files
+PK_PACK_ENCRYPT            4 Ask user for password, then encrypt file with that password */
+	__declspec(dllexport) int __stdcall PackFiles(char *PackedFile, char *SubPath, char *SrcPath, char *AddList, int Flags) {
+		WadUnpacker exist(PackedFile, false);
+		exist.Close();
+		FILE *f = nullptr;
+		auto err = fopen_s(&f, PackedFile, "a");
+		if (f) fclose(f);
+		if (err != 0 || f == nullptr) {
+			return E_EWRITE;
+		}
+		return exist.PackFiles(SubPath, SrcPath, AddList, Flags);
+	}
+/*DeleteFiles should delete the specified files from the archive
+DeleteFiles should return zero on success, or one of the error codes otherwise.
+PackedFile contains full path and name of the the archive.
+DeleteList contains the list of files that should be deleted from the archive. The format of this string is the same as AddList
+within PackFiles.*/
+	__declspec(dllexport) int __stdcall DeleteFiles(char *PackedFile, char *DeleteList) {
+		WadUnpacker ret(PackedFile, false);
+		if (ret.g_ret != 0) {
+			return E_BAD_ARCHIVE;
+		}
+		return ret.DeleteFiles(DeleteList);
 	}
 }
 BOOL WINAPI DllMain(

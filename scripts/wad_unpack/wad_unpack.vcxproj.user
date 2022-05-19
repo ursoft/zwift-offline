@@ -9,7 +9,7 @@
     <LocalDebuggerWorkingDirectory>c:\Users\build\Downloads\tmp\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ConsoleDebug|x64'">
-    <LocalDebuggerCommandArguments>c:\Users\build\source\repos\wad_unpack\x64\ConsoleRelease\noesis.wad</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>c:\Users\build\Downloads\tmp\assets\Worlds\world9\data_1.wad</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerWorkingDirectory>c:\Users\build\Downloads\tmp\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
@@ -19,7 +19,7 @@
     <LocalDebuggerWorkingDirectory>c:\Users\build\Downloads\tmp\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ConsoleRelease|x64'">
-    <LocalDebuggerCommandArguments>c:\Users\build\source\repos\wad_unpack\x64\ConsoleRelease\noesis.wad</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>c:\Users\build\Downloads\tmp\assets\Worlds\world9\data_1.wad</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerWorkingDirectory>c:\Users\build\Downloads\tmp\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
