@@ -5,3 +5,11 @@ __pycache__/
 build/
 dist/
 logs/
+/scripts/textures/Zwift_02.dds
+/scripts/textures/Zwift_02.tgax
+/scripts/textures/Zwift_02.tgax.org
+/scripts/ZwiftApp/glfw_bin
+/scripts/ZwiftApp/1.32.1_106405
+/scripts/ZwiftApp/.vs/ZwiftApp/v17
+/scripts/ZwiftApp/.vs/ZwiftApp/FileContentIndex
+/scripts/ZwiftApp/x64/Debug

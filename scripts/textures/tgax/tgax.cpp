@@ -198,6 +198,7 @@ int main(int argc, char **argv) {
 		cerr << "Zwift tgax utility.\nUsage example:\n1. tgax.exe file.ztx\n2. tgax.exe file.tgax\n3. tgax.exe file.dds\n";
 		return 1;
 	}
+	int ret = 0;
 	for (int i = 1; i < argc; i++) {
 		const char* phase = "ifstream open";
 		g_in_path = argv[i];
@@ -270,7 +271,7 @@ int main(int argc, char **argv) {
 					GFX_CreateTextureFromTGAX(&decompr_data[0], decompr_size);
 				} else {
 					cerr << "Zwift tgax utility@GFX_CreateTextureFromZTX(): size mismatch (" << act_decompr_size << ")\n";
-					return 4;
+					ret |= 2;
 				}
 			} else if (header[0] == 'D' && header[1] == 'D' && header[2] == 'S' && header[3] == ' ') {
 				phase = "dds read header";
@@ -313,18 +314,15 @@ int main(int argc, char **argv) {
 				in.read((char*)&decompr_data[sizeof(header)], in_size - sizeof(header));
 				if (in_size > sizeof(TGAX_HEADER)) {
 					GFX_CreateTextureFromTGAX(&decompr_data[0], in_size);
-				}
-				else {
+				} else {
 					cerr << "Zwift tgax utility@GFX_CreateTextureFromTGAX(): size mismatch (" << in_size << ")\n";
-					return 3;
+					ret |= 8;
 				}
 			}
-
-		}
-		catch (exception e) {
+		} catch (exception e) {
 			cerr << "Zwift tgax utility@" << phase << ": in=" << g_in_path << " out=" << g_out_path << ": exception: " << e.what() << endl;
-			return 2;
+			ret |= 4;
 		}
 	}
-	return 0;
+	return ret;
 }
