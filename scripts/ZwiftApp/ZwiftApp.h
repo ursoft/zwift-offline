@@ -5,6 +5,8 @@
 #include "stdio.h"
 #include <cstdint>
 #include <string>
+#include <sstream> 
+#include <vector> 
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
@@ -15,5 +17,6 @@
 #include "resource.h"
 
 void resize(GLFWwindow *wnd, int w, int h);
-void InitApplication(int argc, char **argv);
-extern bool InitApplicationOK;
+void InitApplication(const std::vector<std::string> &argv);
+void EndGameSession(bool bShutDown);
+extern bool InitApplicationOK, byte_7FF6D5F638EB /*about app finish?*/;

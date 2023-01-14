@@ -47,121 +47,44 @@ void CheckEnvironment() {
     CloseHandle(Toolhelp32Snapshot);
 }
 GLFWwindow *g_mainWindow;
-bool InitApplicationOK = true;
+bool InitApplicationOK = true, byte_7FF6D5F638EB = false;
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd) {
     CheckEnvironment();
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_ZWIFTAPP, szWindowClass, MAX_LOADSTRING);
     if (hInstance) MyRegisterClass(hInstance);
-
-    int64_t v6 = 0;
-    size_t cmdLen = strlen(lpCmdLine);
-    std::string cmdLine(lpCmdLine, cmdLen);
-
-#if 0
-    v9 = v56;
-    p_wCmdLine = (__int128*)&wCmdLine;
-    v11 = wCmdLine;
-    v12 = v55;
-    if (v56 >= 0x10)
-        p_wCmdLine = (__int128*)wCmdLine;
-    v44 = 0i64;
-    *(_OWORD*)Block = 0i64;
-    if (v55 >= 0x10)
-    {
-        v13 = v55 | 0xF;
-        if ((v55 | 0xF) > 0x7FFFFFFFFFFFFFFFi64)
-            v13 = 0x7FFFFFFFFFFFFFFFi64;
-        *(_QWORD*)&v60 = sub_1400C2FF0(v13 + 1);
-        v14 = (__int128*)v60;
-        memmove((void*)v60, p_wCmdLine, v12 + 1);
-    }
-    else
-    {
-        v13 = 15i64;
-        v60 = *p_wCmdLine;
-        v14 = (__int128*)v60;
-    }
-    v15 = 0;
-    v62 = v13;
-    v61 = v12;
-    v57[0] = 0i64;
-    *(_QWORD*)v46 = &unk_141259E18;
-    v58 = 0i64;
-    v48 = (int*)&unk_1411F7940;
-    v59 = 15i64;
-    v51[0] = (__int64)&std::istream::`vftable';
-        v51[1] = 0i64;
-    v51[6] = 0i64;
-    v52 = 0i64;
-    v50 = 128;
-    v47 = 0i64;
-    sub_1400CFD90((struct std::ios_base*)v51);
-    *(__int64*)((char*)&v49[-1] + v48[1]) = (__int64)&std::ostream::`vftable';
-        * (_DWORD*)((char*)&v47 + v48[1] + 4) = v48[1] - 16;
-    *(_QWORD*)((char*)v46 + *(int*)(*(_QWORD*)v46 + 4i64)) = &std::iostream::`vftable';
-        * (_DWORD*)((char*)&v45.hIconSm + *(int*)(*(_QWORD*)v46 + 4i64) + 4) = *(_DWORD*)(*(_QWORD*)v46 + 4i64) - 32;
-    *(_QWORD*)((char*)v46 + *(int*)(*(_QWORD*)v46 + 4i64)) = &std::basic_stringstream<char, std::char_traits<char>, std::allocator<char>>::`vftable';
-        * (_DWORD*)((char*)&v45.hIconSm + *(int*)(*(_QWORD*)v46 + 4i64) + 4) = *(_DWORD*)(*(_QWORD*)v46 + 4i64) - 152;
-    sub_1400CFA50(v49);
-    v16 = &v60;
-    v49[0] = (__int64)&std::stringbuf::`vftable';
-        if (v13 >= 0x10)
-            v16 = v14;
-    sub_14010F6B0(v49, v16, v12, 0i64);
-    v54 = 23586;
-    wCmdLine = v57;
-    v19 = sub_1406B4B10((int)v46, (int)&wCmdLine, v17, v18, v40, SBYTE8(v40), (int)v41, v42);
-    v20 = (void**)Block[1];
-    if ((*(_BYTE*)(*(int*)(*(_QWORD*)v19 + 4i64) + v19 + 16) & 6) == 0)
-    {
-        do
-        {
-            if (v20 == (void**)v6)
-            {
-                sub_1400C62E0(Block, v20, v57);
-                v6 = v44;
-                v20 = (void**)Block[1];
+    //--launcher_version=1.1.4 --token={"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ._kPfXO8MdM7j0meG4MVzprSa-3pdQqKyzYMHm4d494w","expires_in":1000021600,"id_token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y","not-before-policy":1408478984,"refresh_expires_in":611975560,"refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ.5e1X1imPlVfXfhDHE_OGmG9CNGvz7hpPYPXcNkPJ5lw","scope":"","session_state":"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3","token_type":"bearer"}
+    //OutputDebugStringA(lpCmdLine);
+    std::vector<std::string> argv;
+    argv.push_back(__argv[0]);
+    std::istringstream cmd_parser(lpCmdLine);
+    while (cmd_parser.good()) {
+        std::string param;
+        int ch = cmd_parser.peek();
+        if (ch != '"') {
+            cmd_parser >> param;
+        } else while (cmd_parser.good()) {
+            ch = cmd_parser.peek();
+            cmd_parser.ignore();
+            if (ch == -1)
+                break;
+            else if (ch == '\\') {
+                ch = cmd_parser.peek();
+                cmd_parser.ignore();
+                if (ch == -1)
+                    break;
+            } else if (ch == '"') {
+                if (param.length())
+                    break;
+                else
+                    continue;
             }
-            else
-            {
-                sub_1400C5620(v20, v57);
-                v20 += 4;
-                Block[1] = v20;
-            }
-            v54 = 23586;
-            wCmdLine = v57;
-            v23 = sub_1406B4B10((int)v46, (int)&wCmdLine, v21, v22, v40, SBYTE8(v40), (int)v41, v42);
-        } while ((*(_BYTE*)(*(int*)(*(_QWORD*)v23 + 4i64) + v23 + 16) & 6) == 0);
-    }
-    v41 = 0i64;
-    v40 = 0i64;
-    v24 = *(_QWORD*)sub_140EA84B8();
-    sub_1400C7DD0(&v40, 0i64, v24);
-    v25 = (_QWORD*)*((_QWORD*)&v40 + 1);
-    v26 = (void**)Block[0];
-    for (i = (void**)Block[0]; i != v20; i += 4)
-    {
-        v28 = i;
-        if ((unsigned __int64)i[3] >= 0x10)
-            v28 = *i;
-        wCmdLine = v28;
-        if (v25 == v41)
-        {
-            sub_1400C7DD0(&v40, v25, &wCmdLine);
-            v25 = (_QWORD*)*((_QWORD*)&v40 + 1);
+            param += (char)ch;
         }
-        else
-        {
-            *v25 = v28;
-            v25 = (_QWORD*)(*((_QWORD*)&v40 + 1) + 8i64);
-            *((_QWORD*)&v40 + 1) += 8i64;
-        }
+        if (param.length()) argv.emplace_back(param);
     }
-#endif
     _set_FMA3_enable(0);
-    InitApplication(__argc, __argv);
-    //memset(&v45, 0, 56);
+    InitApplication(argv);
     int iteration = 0;
     HWND hMainWindow = nullptr;
     float fcounter = 0;
@@ -185,74 +108,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
             resize(g_mainWindow, w, h);
         }
     }
-#if 0
-    LOBYTE(v31) = 1;
-    byte_141857556 = 1;
-    sub_1407251D0(v31);
-    v33 = (void*)v40;
-    if ((_QWORD)v40)
-    {
-        if (((unsigned __int64)((unsigned __int64)v41 - v40) & 0xFFFFFFFFFFFFFFF8ui64) >= 0x1000)
-        {
-            v33 = *(void**)(v40 - 8);
-            if ((unsigned __int64)(v40 - (_QWORD)v33 - 8) > 0x1F)
-                goto LABEL_57;
-        }
-        j_j_free(v33);
-        v41 = 0i64;
-        v40 = 0i64;
-    }
-    sub_1400CBF50(v46);
-    if (v59 >= 0x10)
-    {
-        v34 = (void*)v57[0];
-        if (v59 + 1 >= 0x1000)
-        {
-            v34 = *(void**)(v57[0] - 8);
-            if ((unsigned __int64)(v57[0] - (_QWORD)v34 - 8) > 0x1F)
-                goto LABEL_57;
-        }
-        j_j_free(v34);
-    }
-    v58 = 0i64;
-    v59 = 15i64;
-    LOBYTE(v57[0]) = 0;
-    if (v62 >= 0x10)
-    {
-        v35 = (void*)v60;
-        if (v62 + 1 >= 0x1000)
-        {
-            v35 = *(void**)(v60 - 8);
-            if ((unsigned __int64)(v60 - (_QWORD)v35 - 8) > 0x1F)
-                goto LABEL_57;
-        }
-        j_j_free(v35);
-    }
-    if (v26)
-    {
-        for (j = v26; j != v20; j += 4)
-            sub_1400C2C00(j);
-        v37 = v26;
-        if (((v6 - (_QWORD)v26) & 0xFFFFFFFFFFFFFFE0ui64) >= 0x1000)
-        {
-            v26 = (void**)*(v26 - 1);
-            if ((unsigned __int64)((char*)v37 - (char*)v26 - 8) > 0x1F)
-                goto LABEL_57;
-        }
-        j_j_free(v26);
-    }
-    if (v9 >= 0x10)
-    {
-        v38 = v11;
-        if (v9 + 1 < 0x1000 || (v11 = (_BYTE*)*((_QWORD*)v11 - 1), (unsigned __int64)(v38 - v11 - 8) <= 0x1F))
-        {
-            j_j_free(v11);
-            return 0;
-        }
-    LABEL_57:
-        invalid_parameter_noinfo_noreturn();
-    }
-#endif
+    byte_7FF6D5F638EB = true;
+    EndGameSession(true);
     return 0;
 }
 
