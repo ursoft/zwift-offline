@@ -105,11 +105,12 @@
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(SolutionDir)lib\Noesis-3.1.6\Include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)glfw_bin\src\Debug\glfw3.lib;Opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)glfw_bin\src\Debug\glfw3.lib;Opengl32.lib;$(SolutionDir)lib\Noesis-3.1.6\Lib\windows_x86_64\Noesis.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -120,24 +121,33 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(SolutionDir)lib\Noesis-3.1.6\Include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)glfw_bin\src\Release\glfw3.lib;Opengl32.lib;$(SolutionDir)lib\Noesis-3.1.6\Lib\windows_x86_64\Noesis.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/WHOLEARCHIVE:Noesis.lib</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="glfw\include\GLFW\glfw3.h" />
     <ClInclude Include="glfw\include\GLFW\glfw3native.h" />
+    <ClInclude Include="Logging.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="ZMutex.h" />
+    <ClInclude Include="ZNoesis.h" />
     <ClInclude Include="ZwiftApp.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InitApplication.cpp" />
+    <ClCompile Include="Logging.cpp" />
+    <ClCompile Include="ZMutex.cpp" />
+    <ClCompile Include="ZNoesis.cpp" />
     <ClCompile Include="ZwiftApp.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -14,3 +14,5 @@ logs/
 /scripts/ZwiftApp/.vs/ZwiftApp/FileContentIndex
 /scripts/ZwiftApp/x64/Debug
 /scripts/testStdString
+/scripts/ZwiftApp/lib/Noesis-3.1.6
+/scripts/ZwiftApp/x64/Release

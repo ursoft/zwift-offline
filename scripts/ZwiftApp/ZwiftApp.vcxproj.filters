@@ -36,12 +36,30 @@
     <ClInclude Include="glfw\include\GLFW\glfw3native.h">
       <Filter>Header Files\glfw</Filter>
     </ClInclude>
+    <ClInclude Include="Logging.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ZMutex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ZNoesis.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZwiftApp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="InitApplication.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Logging.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ZMutex.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ZNoesis.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
