@@ -84,7 +84,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
         if (param.length()) argv.emplace_back(param);
     }
     _set_FMA3_enable(0);
-    InitApplication(argv);
+    ZwiftInitialize(argv);
     int iteration = 0;
     HWND hMainWindow = nullptr;
     float fcounter = 0;
@@ -158,6 +158,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     }
     return 0;
 }
+void ZwiftExit(int code) {
+    GameCritical::AbortJobs();
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(5000ms); //бред!
+    AUDIO_Shutdown();
+    ShutdownSingletons();
+    exit(code);
+}
+void AUDIO_Shutdown() {}
+void ShutdownSingletons() {}
+void GameCritical_AbortJobs() {}
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
     UNREFERENCED_PARAMETER(lParam);

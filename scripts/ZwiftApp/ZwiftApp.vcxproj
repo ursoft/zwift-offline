@@ -105,12 +105,14 @@
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(SolutionDir)lib\Noesis-3.1.6\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)lib/Noesis-3.0.12/Include;$(SolutionDir)lib/Wwise_v2021.1.11/SDK/include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)glfw_bin\src\Debug\glfw3.lib;Opengl32.lib;$(SolutionDir)lib\Noesis-3.1.6\Lib\windows_x86_64\Noesis.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glfw3.lib;Opengl32.lib;Noesis.lib;AkSoundEngine.lib;AkMemoryMgr.lib;AkMusicEngine.lib;AkStreamMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)glfw_bin/src/$(ConfigurationName);$(SolutionDir)lib/Noesis-3.0.12/Lib/windows_x86_64;$(SolutionDir)lib/Wwise_v2021.1.11/x64_vc170/$(ConfigurationName)(StaticCRT)/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -121,31 +123,45 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)lib\Noesis-3.1.6\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)lib/Noesis-3.0.12/Include;$(SolutionDir)lib/Wwise_v2021.1.11/SDK/include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)glfw_bin\src\Release\glfw3.lib;Opengl32.lib;$(SolutionDir)lib\Noesis-3.1.6\Lib\windows_x86_64\Noesis.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glfw3.lib;Opengl32.lib;Noesis.lib;AkSoundEngine.lib;AkMemoryMgr.lib;AkMusicEngine.lib;AkStreamMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/WHOLEARCHIVE:Noesis.lib</AdditionalOptions>
+      <AdditionalLibraryDirectories>$(SolutionDir)glfw_bin/src/$(ConfigurationName);$(SolutionDir)lib/Noesis-3.0.12/Lib/windows_x86_64;$(SolutionDir)lib/Wwise_v2021.1.11/x64_vc170/$(ConfigurationName)(StaticCRT)/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Audio.h" />
+    <ClInclude Include="Console.h" />
+    <ClInclude Include="FitnessDeviceManager.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="GameCritical.h" />
     <ClInclude Include="glfw\include\GLFW\glfw3.h" />
     <ClInclude Include="glfw\include\GLFW\glfw3native.h" />
     <ClInclude Include="Logging.h" />
+    <ClInclude Include="RenderTarget.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="UI_Dialogs.h" />
     <ClInclude Include="ZMutex.h" />
     <ClInclude Include="ZNoesis.h" />
     <ClInclude Include="ZwiftApp.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Audio.cpp" />
+    <ClCompile Include="Console.cpp" />
+    <ClCompile Include="FitnessDeviceManager.cpp" />
+    <ClCompile Include="GameCritical.cpp" />
     <ClCompile Include="InitApplication.cpp" />
     <ClCompile Include="Logging.cpp" />
+    <ClCompile Include="RenderTarget.cpp" />
+    <ClCompile Include="UI_Dialogs.cpp" />
     <ClCompile Include="ZMutex.cpp" />
     <ClCompile Include="ZNoesis.cpp" />
     <ClCompile Include="ZwiftApp.cpp" />

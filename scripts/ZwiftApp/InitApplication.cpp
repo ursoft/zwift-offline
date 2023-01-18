@@ -22,14 +22,14 @@ void resize(GLFWwindow *wnd, int w, int h) {
     g_view_x = 0.0f;
     g_view_y = 0.0f;
     if (g_view_w / g_view_h > 1.78) {
-        g_view_w = g_aspect_16x9 * g_view_h;
+        g_view_w = g_UI_AspectRatio * g_view_h;
         g_view_x = ((float)g_width - g_view_w) * 0.5f;
     }
     if (auto pNoesisGUI = g_pNoesisGUI.lock()) {
         pNoesisGUI->sub_7FF6D4A23DC0(g_width, g_height, 0/*v7*/, 0/*rx_w*/);
     }
 }
-void InitApplication(const std::vector<std::string> &argv) {
+void ZwiftInitialize(const std::vector<std::string> &argv) {
 	//TODO
 }
 
