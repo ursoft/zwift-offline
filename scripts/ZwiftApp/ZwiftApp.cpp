@@ -40,14 +40,18 @@ void CheckEnvironment() {
             ExitProcess(0);
         }
         auto LastError = GetLastError();
-        printf /*sub_1400DCA30*/("CreateProcess failed (%d).\n", LastError);
+        printf("CreateProcess failed (%d).\n", LastError);
         lpCaption = "ERROR ZA1";
     }
     MessageBoxA(nullptr, "Could not run Update process. Zwift may not be up to date.", lpCaption, MB_ICONERROR);
     CloseHandle(Toolhelp32Snapshot);
 }
 GLFWwindow *g_mainWindow;
-bool InitApplicationOK = true, byte_7FF6D5F638EB = false;
+bool g_InitApplicationOK = true, g_bShutdown = false;
+struct zwiftUpdateContext {};
+void doFrameWorldID(zwiftUpdateContext *ptr);
+//TODO: __declspec(thread) - see tls0_dtr (GameAssertHandler::PushContext), TlsCallbackDtr
+//TODO: global variables ctrs/dtrs: _initterm, some_global_ctr
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd) {
     CheckEnvironment();
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -88,8 +92,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
     int iteration = 0;
     HWND hMainWindow = nullptr;
     float fcounter = 0;
+    zwiftUpdateContext zuc = {};
     while (!glfwWindowShouldClose(g_mainWindow)) {
-        if (InitApplicationOK) {
+        if (g_InitApplicationOK) {
             hMainWindow = glfwGetWin32Window(g_mainWindow);
             if (GetActiveWindow() != hMainWindow) {
                 fcounter += 1 / 60.0f;
@@ -101,20 +106,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
                 }
             }
         }
-        //doFrameWorldID(&v45);
+        doFrameWorldID(&zuc);
         if (++iteration == 1) {
             int w, h;
             glfwGetWindowSize(g_mainWindow, &w, &h);
             resize(g_mainWindow, w, h);
         }
     }
-    byte_7FF6D5F638EB = true;
+    g_bShutdown = true;
     EndGameSession(true);
     return 0;
 }
 
-ATOM MyRegisterClass(HINSTANCE hInstance)
-{
+ATOM MyRegisterClass(HINSTANCE hInstance) {
     WNDCLASSEXW wcex = {};
     wcex.cbSize = sizeof(WNDCLASSEX);
     wcex.style          = CS_HREDRAW | CS_VREDRAW;
@@ -183,4 +187,8 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+void doFrameWorldID(zwiftUpdateContext *ptr) {
+    //TODO
 }

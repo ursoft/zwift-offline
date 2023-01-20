@@ -7,3 +7,9 @@ void AUDIO_Init() {
 	AK::MemoryMgr::GetDefaultSettings(g_memSettings);
 	//TODO
 }
+
+void GAME_AudioUpdate(GameWorld *, Camera *camera, float a3) {
+	if (camera && g_pGameWorld) {
+		//TODO
+	}
+}

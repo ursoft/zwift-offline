@@ -65,6 +65,8 @@
     <ClInclude Include="ZwiftApp.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="GameWorld.h" />
+    <ClInclude Include="EventSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZwiftApp.cpp">
@@ -102,6 +104,12 @@
     </ClCompile>
     <ClCompile Include="lib\tinyxml2\tinyxml2.cpp">
       <Filter>Source Files\xml</Filter>
+    </ClCompile>
+    <ClCompile Include="GameWorld.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="EventSystem.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

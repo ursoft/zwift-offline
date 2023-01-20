@@ -30,9 +30,12 @@ void resize(GLFWwindow *wnd, int w, int h) {
     }
 }
 void ZwiftInitialize(const std::vector<std::string> &argv) {
+    g_MainThread = GetCurrentThreadId();
+    DWORD startTime = timeGetTime();
+    auto evSysInst = EventSystem::GetInst();
 	//TODO
+    //evSysInst->Subscribe(EV_SLIPPING_ON, nullptr);
 }
 
 void EndGameSession(bool bShutDown) {
-	//TODO
 }
