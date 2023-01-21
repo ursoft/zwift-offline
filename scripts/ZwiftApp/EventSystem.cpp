@@ -22,7 +22,7 @@ void EventSystem::TriggerEvent(EVENT_ID e, int arg, ...) {
 			eo(e, va);
 		}
 		if (auto si = m_osubs.find(e); si != m_osubs.end()) for (auto eo : si->second) {
-			eo->m_callback(e, va);
+			eo->HandleEvent(e, va);
 		}
 	}
 }

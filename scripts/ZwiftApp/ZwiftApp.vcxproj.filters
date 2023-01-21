@@ -15,6 +15,9 @@
     <Filter Include="Source Files\xml">
       <UniqueIdentifier>{1dbbed56-b0ff-48b7-bac5-1fb9c69d9fee}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\consts">
+      <UniqueIdentifier>{f6f6ce66-b9d0-4bb6-84bb-9c1af96dcfc6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="glfw\include\GLFW\glfw3.h">
@@ -67,6 +70,14 @@
     </ClInclude>
     <ClInclude Include="GameWorld.h" />
     <ClInclude Include="EventSystem.h" />
+    <ClInclude Include="consts\glfw3.h">
+      <Filter>Source Files\consts</Filter>
+    </ClInclude>
+    <ClInclude Include="consts\libzwiftjni.so.h">
+      <Filter>Source Files\consts</Filter>
+    </ClInclude>
+    <ClInclude Include="CrashReporting.h" />
+    <ClInclude Include="Experimentation.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZwiftApp.cpp">
@@ -109,6 +120,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="EventSystem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="consts\libzwiftjni.so.c">
+      <Filter>Source Files\consts</Filter>
+    </ClCompile>
+    <ClCompile Include="CrashReporting.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Experimentation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

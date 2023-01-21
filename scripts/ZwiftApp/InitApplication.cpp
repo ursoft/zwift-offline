@@ -29,10 +29,16 @@ void resize(GLFWwindow *wnd, int w, int h) {
         pNoesisGUI->sub_7FF6D4A23DC0(g_width, g_height, 0/*v7*/, 0/*rx_w*/);
     }
 }
+
+std::unique_ptr<CrashReporting> g_sCrashReportingUPtr;
 void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_MainThread = GetCurrentThreadId();
     DWORD startTime = timeGetTime();
     auto evSysInst = EventSystem::GetInst();
+    assert(g_sCrashReportingUPtr.get() == nullptr);
+    CrashReporting::Initialize(evSysInst);
+    Experimentation::Initialize(evSysInst);
+    assert(g_sExperimentationUPtr.get() != nullptr);
 	//TODO
     //evSysInst->Subscribe(EV_SLIPPING_ON, nullptr);
 }

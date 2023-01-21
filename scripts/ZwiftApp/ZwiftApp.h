@@ -50,6 +50,8 @@ const char *GAMEPATH(const char *path);
 #include "Audio.h"
 #include "GameWorld.h"
 #include "EventSystem.h"
+#include "CrashReporting.h"
+#include "Experimentation.h"
 
 //last:
 #undef NDEBUG

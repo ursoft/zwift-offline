@@ -26,12 +26,25 @@ enum EVENT_ID {
 	EV_SENS_DISCONN = 0x1A,
 	EV_SENS_RECONN = 0x1B,
 	EV_ROUTE_CH = 0x1C,
-}; 
+	EV_1d = 0x1D,
+	EV_1e = 0x1E,
+	EV_1f = 0x1F,
+	EV_20 = 0x20,
+	EV_21 = 0x21,
+	EV_22 = 0x22,
+	EV_23 = 0x23,
+	EV_24 = 0x24,
+	EV_25 = 0x25,
+	EV_26 = 0x26,
+	EV_27 = 0x27,
+	EV_28 = 0x28,
+};
 typedef void (*EventCallback)(EVENT_ID, va_list);
 
 class EventObject {
 public:
-	EventCallback m_callback;
+	virtual void HandleEvent(EVENT_ID, va_list) = 0;
+	virtual ~EventObject() {}
 };
 
 class EventSystem { //136 bytes
