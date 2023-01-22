@@ -14,6 +14,7 @@
 #include <mutex>
 #include <map>
 #include <unordered_map>
+#include <functional>
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
@@ -26,9 +27,9 @@
 void resize(GLFWwindow *wnd, int w, int h);
 void ZwiftInitialize(const std::vector<std::string> &argv);
 void EndGameSession(bool bShutDown);
+void ShutdownSingletons();
 void ZwiftExit(int code);
 void AUDIO_Shutdown();
-void ShutdownSingletons();
 #include "Logging.h"
 #include "GameCritical.h"
 #include "ZMutex.h"

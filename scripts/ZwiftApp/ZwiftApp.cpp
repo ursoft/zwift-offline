@@ -171,7 +171,6 @@ void ZwiftExit(int code) {
     exit(code);
 }
 void AUDIO_Shutdown() {}
-void ShutdownSingletons() {}
 void GameCritical_AbortJobs() {}
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {

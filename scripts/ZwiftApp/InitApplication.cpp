@@ -44,4 +44,19 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
 }
 
 void EndGameSession(bool bShutDown) {
+    //TODO
+    //UI_CloseDialog(UID_CONNECTION_NOTIFICATIONS);
+    ShutdownSingletons();
+    //TODO
+    Log("ZwiftApp Gracefully Shutdown");
+    //TODO
+}
+
+void ShutdownSingletons() {
+    assert(g_sCrashReportingUPtr.get() != nullptr);
+    //CrashReporting::AddBreadcrumb(0i64, "Shutting down VideoCapture");
+    //...TODO
+    //CrashReporting::AddBreadcrumb(0i64, "Shutting down Experimentation");
+    g_sExperimentationUPtr.reset();
+    //TODO
 }

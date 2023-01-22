@@ -24,7 +24,10 @@ struct Feature {
 	const char *c_str();
 	static const char *c_str(FeatureID id);
 };
-
+template<class T> struct FeatureValue {
+	T m_val;
+	bool m_filled = false;
+};
 class ZwiftDispatcher { //size=8
 	char data[8];
 public:
@@ -32,29 +35,61 @@ public:
 	void Assert(bool bPredicate);
 	void Assert(bool bPredicate, const char *errMsg);
 };
-class FeatureStateMachine { //size=72
-public:
-	template<class T> T GetFeatureVariable(const std::string &name) {
+struct FeatureVariable { //9 int64_t
+	std::string m_name;
+	void *m_type;
+	union u {
+		int64_t m_i64;
+		bool m_bool;
+		double m_dbl;
+	} m_uval;
+	std::string m_str;
+	operator bool() { return m_uval.m_bool; }
+	operator int64_t() { return m_uval.m_i64; }
+	operator double() { return m_uval.m_dbl; }
+	operator std::string() { return m_str; }
+};
+struct FeatureStateMachine { //size=72 Experiment::Impl::FeatureStateMachine<zu::ZwiftDispatcher>
+	int m_enabled;
+	std::vector<FeatureVariable> m_variables;
+	bool OnRequest(std::function<void(bool)> func);
+	template<class T> FeatureValue<T> GetFeatureVariable(const std::string &name) {
+		for (auto i : m_variables) {
+			if (i.m_name == name) {
+				//assert(); //TODO: соответствие типа переменной i.m_type и Т
+				return FeatureValue<T>{ T(i), true };
+			}
+		}
+		return FeatureValue<T>{ T(), false };
 	}
 };
+class ZNetAdapter {
 
-class Experimentation : public EventObject { //sizeof=0x1E48
+};
+extern ZNetAdapter g_znetAdapter;
+class Experimentation : public EventObject { //sizeof=0x1E48; vtblExperimentation+0=DTR
 	FeatureStateMachine m_fsms[FID_CNT];
+	FeatureValue<std::string> m_eventTypeAttr;
+	ZNetAdapter *m_pNA;
+	EventSystem *m_event_system;
+	std::string m_str[5]; //TODO
+
 public:
+	Experimentation(ZNetAdapter *, EventSystem *ev);
+
+	void HandleEvent(EVENT_ID e, va_list args) override; //vtblEvent
+	virtual ~Experimentation() { /*todo*/ }                                          //vtblExp+0
+	bool IsEnabled(FeatureID id, std::function<void(bool /*Experiment::Variant*/)>); //vtblExp+1
+	bool IsEnabled(FeatureID id, bool overrideIfNot /*Experiment::Variant*/);        //vtblExp+2
+	bool IsEnabled(FeatureID id);                                                    //vtblExp+3
+	void HandleLogout();                                                             //vtblExp+4
+	//todo void Unregister(Experiment::CallbackID<Experiment::Feature>)              //vtblExp+5
+	template <class T> FeatureValue<T> Get(FeatureID id, const std::string &name) {  //vtblExp+6: bool, vtblExp+7: int64, vtblExp+8: double, vtblExp+9: String
+		return m_fsms[id].GetFeatureVariable<T>(name);
+	}
+	void SetEventTypeAttribute(const std::string_view &src);                         //vtblExp+10
+
 	static void Initialize(EventSystem *ev);
-	Experimentation(EventSystem *ev);
-	void HandleEvent(EVENT_ID e, va_list args) override;
-	virtual ~Experimentation() { /*todo*/ }
-	bool IsEnabled(FeatureID) { return false; }
-	//todo bool IsEnabled(FeatureID, Experiment::Variant)
-    //todo bool IsEnabled(Experiment::Feature, std::function<void()(Experiment::Variant)>)
-	void HandleLogout();
-	//todo void Unregister(Experiment::CallbackID<Experiment::Feature>)
-	bool GetBool(FeatureID, std::string const &);
-	int64_t GetInt64(FeatureID, std::string const &);
-	double GetDouble(FeatureID, std::string const &);
-	std::string GetString(FeatureID, std::string const &);
-	void SetEventTypeAttribute(std::string_view);
 };
 
 extern std::unique_ptr<Experimentation> g_sExperimentationUPtr;

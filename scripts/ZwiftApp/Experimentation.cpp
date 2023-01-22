@@ -1,10 +1,10 @@
 #include "ZwiftApp.h"
 #include "Experimentation.h"
 std::unique_ptr<Experimentation> g_sExperimentationUPtr;
-
+ZNetAdapter g_znetAdapter;
 void Experimentation::Initialize(EventSystem *ev) {
 	assert(g_sExperimentationUPtr.get() == nullptr);
-	g_sExperimentationUPtr.reset(new Experimentation(ev));
+	g_sExperimentationUPtr.reset(new Experimentation(&g_znetAdapter, ev));
 	assert(g_sExperimentationUPtr.get() != nullptr);
 }
 const FeatureMetadata g_featureMetadata[FID_CNT] = { //FillFeatureMetadata
@@ -123,41 +123,24 @@ const char *Feature::c_str(FeatureID id) {
     return g_tlsFeatureMetadataCont[id];
 }
 
-Experimentation::Experimentation(EventSystem *ev) {
-	//todo: init members
-	/*
-  ptrExp->vptr1 = &off_7FF7B32C3638;
-  ptrExp->vptr_ev = &off_7FF7B32C3708;
-  *(_QWORD *)&ptrExp->field_1D50 = 0i64;
-  *(_QWORD *)&ptrExp->field_1D58 = 0i64;
-  *(_QWORD *)&ptrExp->field_1D68 = 0i64;
-  *(_QWORD *)&ptrExp->field_1D70 = 15i64;
-  ptrExp->field_1D58 = 0;
-  *(_QWORD *)&ptrExp->field_1D78 = 0i64;
-  *(_QWORD *)&ptrExp->field_1D88 = 0i64;
-  *(_QWORD *)&ptrExp->field_1D90 = 15i64;
-  ptrExp->field_1D78 = 0;
-  *(_QWORD *)&ptrExp->field_1D98 = 0i64;
-  *(_QWORD *)&ptrExp->field_1DA8 = 0i64;
-  *(_QWORD *)&ptrExp->field_1DB0 = 15i64;
-  ptrExp->field_1D98 = 0;
-  *(_QWORD *)&ptrExp->field_1DB8 = 0i64;
-  *(_QWORD *)&ptrExp->field_1DC8 = 0i64;
-  *(_QWORD *)&ptrExp->field_1DD0 = 15i64;
-  ptrExp->field_1DB8 = 0;
-  ptrExp->field_1DF8 = 0;
-  *(_QWORD *)&ptrExp->field_1E00 = 0i64;
-  *(_QWORD *)&ptrExp->field_1E10 = 0i64;
-  *(_QWORD *)&ptrExp->field_1E18 = 15i64;
-  ptrExp->field_1E00 = 0;
-  *(_QWORD *)&ptrExp->field_1E20 = &unk_7FF7B39548D9;
-  ptrExp->m_event_system = ev;
+Experimentation::Experimentation(ZNetAdapter *na, EventSystem *ev) : m_pNA(na), m_event_system(ev){
+    //TODO *(_QWORD *)&ptrExp->m_after_fsms = 0i64;
+    /*
   *(_QWORD *)&ptrExp->field_1E30 = 0i64;
   *(_QWORD *)&ptrExp->field_1E38 = 0i64;
   *(_QWORD *)&ptrExp->field_1E40 = 0i64;	*/
 	ev->Subscribe(EV_RESET, this);
 	ev->Subscribe(EV_28, this);
 }
+bool Experimentation::IsEnabled(FeatureID id) { return m_fsms[id].m_enabled == 1; }
+bool Experimentation::IsEnabled(FeatureID id, bool overrideIfNot /*Experiment::Variant*/) { return overrideIfNot ? overrideIfNot : IsEnabled(id); }
+bool Experimentation::IsEnabled(FeatureID id, std::function<void(bool /*Experiment::Variant*/)> func) {
+    FeatureStateMachine *m = m_fsms + id;
+    if (m->OnRequest(func)) { //not sure
+        //TODO
+    }
+}
+
 void Experimentation::HandleEvent(EVENT_ID e, va_list args) {
     if (e == EV_RESET) {
         //TODO
@@ -175,4 +158,14 @@ inline void ZwiftDispatcher::Assert(bool bPredicate) {
 
 inline void ZwiftDispatcher::Assert(bool bPredicate, const char *errMsg) {
 	_ASSERT_EXPR(bPredicate, errMsg);
+}
+
+bool FeatureStateMachine::OnRequest(std::function<void(bool)> func) {
+    //TODO
+    return false;
+}
+
+void Experimentation::SetEventTypeAttribute(const std::string_view &src) {
+    m_eventTypeAttr.m_filled = true;
+    m_eventTypeAttr.m_val = src;
 }
