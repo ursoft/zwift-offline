@@ -78,6 +78,7 @@
     </ClInclude>
     <ClInclude Include="CrashReporting.h" />
     <ClInclude Include="Experimentation.h" />
+    <ClInclude Include="BLEModule.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZwiftApp.cpp">
@@ -129,6 +130,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Experimentation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BLEModule.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -39,7 +39,25 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     CrashReporting::Initialize(evSysInst);
     Experimentation::Initialize(evSysInst);
     assert(g_sExperimentationUPtr.get() != nullptr);
-	//TODO
+    BLEModule::Initialize(g_sExperimentationUPtr.get());
+    /*
+    v9 = (EventSystem *)GameAssertHandler::Initialize(v8);
+    v10 = (PlayerAchievementService *)EventSystem::GetInst(v9);
+    PlayerAchievementService::Initialize(v10, v11);
+    NoesisPerfAnalytics::Initialize(v7);
+    ClientTelemetry::Initialize(v7, Inst);
+    GroupEvents::Initialize(v7);
+    zwift::localization::UnitTypeManager::Initialize(Inst, 0LL, v12);
+    PlayerProfileCache::Initialize(Inst, v13);
+    GoalsManager::Initialize(Inst, v14);
+    v16 = (ZNet::NetworkService *)Cloud::CloudSyncManager::Initialize(Inst, v15);
+    ZNet::NetworkService::Initialize(v16);
+    v17 = (ZNet::NetworkService *)Experiment::Impl::Experimentation<Experiment::Feature, Experiment::Impl::ZNetAdapter, zu::ZwiftDispatcher>::Instance();
+    v18 = (EventSystem *)ZNet::NetworkService::Instance(v17);
+    v19 = EventSystem::GetInst(v18);
+    DataRecorder::Initialize(v17, v18, v19);
+    Experiment::Feature::Feature(v291, 83LL);*/
+    //TODO
     //evSysInst->Subscribe(EV_SLIPPING_ON, nullptr);
 }
 

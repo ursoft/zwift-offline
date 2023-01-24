@@ -49,10 +49,15 @@ struct FeatureVariable { //9 int64_t
 	operator double() { return m_uval.m_dbl; }
 	operator std::string() { return m_str; }
 };
+struct FeaRequestResult {
+	bool m_succ;
+	int64_t m_unk;
+};
 struct FeatureStateMachine { //size=72 Experiment::Impl::FeatureStateMachine<zu::ZwiftDispatcher>
 	int m_enabled;
 	std::vector<FeatureVariable> m_variables;
-	bool OnRequest(std::function<void(bool)> func);
+	int m_field20;
+	FeaRequestResult OnRequest(std::function<void(bool)> func);
 	template<class T> FeatureValue<T> GetFeatureVariable(const std::string &name) {
 		for (auto i : m_variables) {
 			if (i.m_name == name) {
@@ -66,20 +71,28 @@ struct FeatureStateMachine { //size=72 Experiment::Impl::FeatureStateMachine<zu:
 class ZNetAdapter {
 
 };
+struct ExpIsEnabledResult {
+	FeatureID m_id;
+	int64_t m_unk;
+};
+struct UserAttributes {
+	void *m_somePointer;
+	FeatureValue<std::string> m_eventTypeAttr;
+	std::string m_str[5];
+};
 extern ZNetAdapter g_znetAdapter;
 class Experimentation : public EventObject { //sizeof=0x1E48; vtblExperimentation+0=DTR
 	FeatureStateMachine m_fsms[FID_CNT];
-	FeatureValue<std::string> m_eventTypeAttr;
+	UserAttributes m_userAttributes;
 	ZNetAdapter *m_pNA;
 	EventSystem *m_event_system;
-	std::string m_str[5]; //TODO
-
+	std::vector<FeatureID> m_ids;
 public:
 	Experimentation(ZNetAdapter *, EventSystem *ev);
 
 	void HandleEvent(EVENT_ID e, va_list args) override; //vtblEvent
 	virtual ~Experimentation() { /*todo*/ }                                          //vtblExp+0
-	bool IsEnabled(FeatureID id, std::function<void(bool /*Experiment::Variant*/)>); //vtblExp+1
+	ExpIsEnabledResult IsEnabled(FeatureID id, std::function<void(bool /*Experiment::Variant*/)>); //vtblExp+1
 	bool IsEnabled(FeatureID id, bool overrideIfNot /*Experiment::Variant*/);        //vtblExp+2
 	bool IsEnabled(FeatureID id);                                                    //vtblExp+3
 	void HandleLogout();                                                             //vtblExp+4
@@ -88,8 +101,9 @@ public:
 		return m_fsms[id].GetFeatureVariable<T>(name);
 	}
 	void SetEventTypeAttribute(const std::string_view &src);                         //vtblExp+10
-
+	void RequestFeatureData(FeatureID id);
 	static void Initialize(EventSystem *ev);
+	void BulkRequestFeatureData(const std::vector<FeatureID> &ids);
 };
 
 extern std::unique_ptr<Experimentation> g_sExperimentationUPtr;

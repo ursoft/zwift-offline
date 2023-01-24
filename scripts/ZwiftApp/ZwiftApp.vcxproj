@@ -83,6 +83,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Audio.h" />
+    <ClInclude Include="BLEModule.h" />
     <ClInclude Include="Console.h" />
     <ClInclude Include="consts\glfw3.h" />
     <ClInclude Include="consts\libzwiftjni.so.h" />
@@ -107,6 +108,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Audio.cpp" />
+    <ClCompile Include="BLEModule.cpp" />
     <ClCompile Include="Console.cpp" />
     <ClCompile Include="consts\libzwiftjni.so.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

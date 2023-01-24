@@ -53,6 +53,7 @@ const char *GAMEPATH(const char *path);
 #include "EventSystem.h"
 #include "CrashReporting.h"
 #include "Experimentation.h"
+#include "BLEModule.h"
 
 //last:
 #undef NDEBUG

@@ -122,50 +122,84 @@ const char *Feature::c_str(FeatureID id) {
     }
     return g_tlsFeatureMetadataCont[id];
 }
-
 Experimentation::Experimentation(ZNetAdapter *na, EventSystem *ev) : m_pNA(na), m_event_system(ev){
-    //TODO *(_QWORD *)&ptrExp->m_after_fsms = 0i64;
-    /*
-  *(_QWORD *)&ptrExp->field_1E30 = 0i64;
-  *(_QWORD *)&ptrExp->field_1E38 = 0i64;
-  *(_QWORD *)&ptrExp->field_1E40 = 0i64;	*/
+    m_userAttributes.m_somePointer = nullptr;
 	ev->Subscribe(EV_RESET, this);
 	ev->Subscribe(EV_28, this);
 }
 bool Experimentation::IsEnabled(FeatureID id) { return m_fsms[id].m_enabled == 1; }
 bool Experimentation::IsEnabled(FeatureID id, bool overrideIfNot /*Experiment::Variant*/) { return overrideIfNot ? overrideIfNot : IsEnabled(id); }
-bool Experimentation::IsEnabled(FeatureID id, std::function<void(bool /*Experiment::Variant*/)> func) {
+ExpIsEnabledResult Experimentation::IsEnabled(FeatureID id, std::function<void(bool)> func) {
     FeatureStateMachine *m = m_fsms + id;
-    if (m->OnRequest(func)) { //not sure
-        //TODO
+    FeaRequestResult res = m->OnRequest(func);
+    ExpIsEnabledResult ret{ id, res.m_unk };
+    if (res.m_succ) {
+        if (!m_userAttributes.m_somePointer) {
+            m_ids.push_back(id);
+        } else {
+            RequestFeatureData(id);
+        }
     }
+    return ret;
 }
-
 void Experimentation::HandleEvent(EVENT_ID e, va_list args) {
     if (e == EV_RESET) {
-        //TODO
+        static thread_local std::vector<FeatureID> tlsFeatureMetafataIDs;
+        assert(nullptr == m_userAttributes.m_somePointer);
+        m_userAttributes.m_somePointer = va_arg(args, void *);
+        { //Experiment::Feature::BulkRequestFeatures
+            for (const auto &i : g_featureMetadata) {                
+                if (/*m_turnedOff ???*/ i.m_unk[0] == 0) tlsFeatureMetafataIDs.push_back(i.m_id);
+            }
+        }
+        BulkRequestFeatureData(tlsFeatureMetafataIDs);
+        assert(nullptr != m_userAttributes.m_somePointer);
     } else if (e == EV_28) {
-        //TODO
+        for (auto &s : m_userAttributes.m_str) {
+            s = va_arg(args, std::string);
+        }
     }
 }
-
 inline ZwiftDispatcher::ZwiftDispatcher() {
 }
-
 inline void ZwiftDispatcher::Assert(bool bPredicate) {
 	assert(bPredicate);
 }
-
 inline void ZwiftDispatcher::Assert(bool bPredicate, const char *errMsg) {
 	_ASSERT_EXPR(bPredicate, errMsg);
 }
-
-bool FeatureStateMachine::OnRequest(std::function<void(bool)> func) {
+FeaRequestResult FeatureStateMachine::OnRequest(std::function<void(bool)> func) {
     //TODO
-    return false;
+    return {};
 }
-
 void Experimentation::SetEventTypeAttribute(const std::string_view &src) {
-    m_eventTypeAttr.m_filled = true;
-    m_eventTypeAttr.m_val = src;
+    m_userAttributes.m_eventTypeAttr.m_filled = true;
+    m_userAttributes.m_eventTypeAttr.m_val = src;
+}
+void Experimentation::RequestFeatureData(FeatureID id) {
+    //TODO
+}
+void Experimentation::BulkRequestFeatureData(const std::vector<FeatureID> &ids) {
+    std::vector<std::string> rqs;
+    std::vector<FeatureID> rqf;
+    for (auto id : ids) {
+        auto &fsm = m_fsms[id];
+        if (0 == fsm.m_field20) {
+            fsm.m_field20 = 1;
+            rqs.push_back(Feature::c_str(id));
+            rqf.push_back(id);
+            continue;
+        }
+        auto dec = fsm.m_field20 - 1;
+        if (dec) {
+            if (dec == 1 && fsm.m_enabled)
+                continue;
+            assert(false);
+        }
+        assert(fsm.m_enabled == 0);
+    }
+    //from assert(fsm.m_enabled == 0); to label40 - before break
+    //TODO:from label40 here (line220)
+    // (line 479) ZNetAdapter::GetFeatureVariants(m_pNA, &m_userAttributes, &rqs, f1, f2)
+    //dtrs
 }
