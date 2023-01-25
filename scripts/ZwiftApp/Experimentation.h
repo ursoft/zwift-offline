@@ -14,7 +14,8 @@ enum FeatureID { FID_PPDATA=0x1D, FID_RLOG=0x1E, FID_FQUERY=0x1F, FID_VID_CAP=0x
 struct FeatureMetadata { //40 bytes
 	FeatureID m_id;
 	const char *m_name;
-	int32_t m_unk[5];
+	int32_t m_deprecated;
+	int32_t m_unk[4];
 	//int m_notused; always 0
 };
 extern const FeatureMetadata g_featureMetadata[];
@@ -35,7 +36,7 @@ public:
 	void Assert(bool bPredicate);
 	void Assert(bool bPredicate, const char *errMsg);
 };
-struct FeatureVariable { //9 int64_t
+struct FeatureVariable { //9 int64_t Experiment::Impl::FeatureVariable<zu::ZwiftDispatcher>
 	std::string m_name;
 	void *m_type;
 	union u {
@@ -53,11 +54,22 @@ struct FeaRequestResult {
 	bool m_succ;
 	int64_t m_unk;
 };
+enum ExpVariant { EXP_UNASSIGNED, EXP_ENABLED, EXP_DISABLED, EXP_NONE, EXP_UNKNOWN, EXP_CNT }; //Experiment::Variant
+extern const char *g_expVarNames[EXP_CNT];
+typedef std::function<void(ExpVariant)> FeatureCallback;
+struct RegisteredCallback { //size=8*9=72?
+	int64_t m_cntId;
+	FeatureCallback m_func;
+	RegisteredCallback(int64_t cnt, const FeatureCallback &func) : m_cntId(cnt), m_func(func) {}
+};
 struct FeatureStateMachine { //size=72 Experiment::Impl::FeatureStateMachine<zu::ZwiftDispatcher>
-	int m_enabled;
+	ExpVariant m_enableStatus;
 	std::vector<FeatureVariable> m_variables;
 	int m_field20;
-	FeaRequestResult OnRequest(std::function<void(bool)> func);
+	int64_t m_rqCounter;
+	std::vector<RegisteredCallback> m_callbacks;
+	FeaRequestResult OnRequest(const FeatureCallback &func);
+	void OnResponse(ExpVariant res, const std::vector<FeatureVariable> &resExt);
 	template<class T> FeatureValue<T> GetFeatureVariable(const std::string &name) {
 		for (auto i : m_variables) {
 			if (i.m_name == name) {
@@ -68,12 +80,12 @@ struct FeatureStateMachine { //size=72 Experiment::Impl::FeatureStateMachine<zu:
 		return FeatureValue<T>{ T(), false };
 	}
 };
-class ZNetAdapter {
+struct ZNetAdapter {
 
 };
 struct ExpIsEnabledResult {
 	FeatureID m_id;
-	int64_t m_unk;
+	int64_t m_unk; //ExpVariant?
 };
 struct UserAttributes {
 	void *m_somePointer;
@@ -92,8 +104,8 @@ public:
 
 	void HandleEvent(EVENT_ID e, va_list args) override; //vtblEvent
 	virtual ~Experimentation() { /*todo*/ }                                          //vtblExp+0
-	ExpIsEnabledResult IsEnabled(FeatureID id, std::function<void(bool /*Experiment::Variant*/)>); //vtblExp+1
-	bool IsEnabled(FeatureID id, bool overrideIfNot /*Experiment::Variant*/);        //vtblExp+2
+	ExpIsEnabledResult IsEnabled(FeatureID id, const FeatureCallback &func);         //vtblExp+1
+	ExpVariant IsEnabled(FeatureID id, ExpVariant overrideIfUn);                     //vtblExp+2
 	bool IsEnabled(FeatureID id);                                                    //vtblExp+3
 	void HandleLogout();                                                             //vtblExp+4
 	//todo void Unregister(Experiment::CallbackID<Experiment::Feature>)              //vtblExp+5
