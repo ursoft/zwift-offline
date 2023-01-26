@@ -1,4 +1,5 @@
 #include "ZwiftApp.h"
+#include <cmath>
 
 #define MAX_LOADSTRING 100
 HINSTANCE hInst;                                // current instance

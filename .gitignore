@@ -20,3 +20,7 @@ logs/
 /scripts/ZwiftApp/lib/Wwise_v2021.1.11
 /scripts/Patcher/x64/Debug
 /scripts/ZwiftApp/consts
+/scripts/ZwiftApp/lib/~Noesis-3.0.12
+/scripts/ZwiftApp/lib/~Noesis-3.1.6
+/scripts/ZwiftApp/lib/~Wwise_v2021.1.11
+/scripts/ZwiftApp/lib/~protobuf_3.19

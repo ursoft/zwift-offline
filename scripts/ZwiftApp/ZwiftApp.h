@@ -16,6 +16,8 @@
 #include <unordered_map>
 #include <functional>
 
+#include "FeatureRequest.pb.h"
+
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
 #define OVR_OS_WIN32

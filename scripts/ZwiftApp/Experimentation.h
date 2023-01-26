@@ -80,9 +80,6 @@ struct FeatureStateMachine { //size=72 Experiment::Impl::FeatureStateMachine<zu:
 		return FeatureValue<T>{ T(), false };
 	}
 };
-struct ZNetAdapter {
-
-};
 struct ExpIsEnabledResult {
 	FeatureID m_id;
 	int64_t m_unk; //ExpVariant?
@@ -91,6 +88,9 @@ struct UserAttributes {
 	void *m_somePointer;
 	FeatureValue<std::string> m_eventTypeAttr;
 	std::string m_str[5];
+};
+struct ZNetAdapter {
+	protobuf::FeatureRequest *FormFeatureRequest(UserAttributes *ua);
 };
 extern ZNetAdapter g_znetAdapter;
 class Experimentation : public EventObject { //sizeof=0x1E48; vtblExperimentation+0=DTR
