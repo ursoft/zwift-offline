@@ -40,4 +40,19 @@ RUN git clone https://github.com/Microsoft/vcpkg.git `
 #protobuf layer
 RUN C:\vcpkg\vcpkg.exe install protobuf:x64-windows-static
 
+#icu
+RUN C:\vcpkg\vcpkg install icu:x64-windows-static
+
+#openssl
+RUN C:\vcpkg\vcpkg install openssl:x64-windows-static
+
+#stuff
+RUN C:\vcpkg\vcpkg install curl[ssl]:x64-windows-static tinyxml2:x64-windows-static
+
+#wwise
+RUN curl -SL -o c:\Wwise_v2021.1.11.zip https://www.googleapis.com/drive/v3/files/1Q5lhYKAZ6gLuLfBsNJ77EUVkuLehiaB-?alt=media^&key=AIzaSyCe8S1RwtJK0aPavBFJzaM_or6L_dENsRo
+
+#noesis
+RUN curl -SL -o c:\Noesis-3.0.12.zip https://www.googleapis.com/drive/v3/files/1V4u2MFtPojK-U0PaV1Ot_OaEfb2GTm2y?alt=media^&key=AIzaSyCe8S1RwtJK0aPavBFJzaM_or6L_dENsRo
+
 ENTRYPOINT ["cmd.exe", "/k", "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\Common7\\Tools\\VsDevCmd.bat", "-arch=amd64", "-host_arch=amd64" ]

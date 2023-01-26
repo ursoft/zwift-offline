@@ -64,12 +64,12 @@ target_include_directories(ZwiftApp PRIVATE
   ${Protobuf_INCLUDE_DIRS}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${Boost_INCLUDE_DIRS}
-  ${noesis_SOURCE_DIR}/Include
-  ${wwise_SOURCE_DIR}/SDK/include
+  ${noesis_DIR}/Include
+  ${wwise_DIR}/SDK/include
 )
 target_link_directories(ZwiftApp PRIVATE 
-  ${noesis_SOURCE_DIR}/Lib/windows_x86_64
-  ${wwise_SOURCE_DIR}/x64_vc170/${CMAKE_BUILD_TYPE}\(StaticCRT\)/lib
+  ${noesis_DIR}/Lib/windows_x86_64
+  ${wwise_DIR}/x64_vc170/${CMAKE_BUILD_TYPE}\(StaticCRT\)/lib
 )
 
 target_link_libraries(ZwiftApp PRIVATE 
@@ -80,4 +80,8 @@ target_link_libraries(ZwiftApp PRIVATE
   Opengl32.lib
   AkSoundEngine.lib AkMemoryMgr.lib AkMusicEngine.lib AkStreamMgr.lib
   ${CMAKE_CURRENT_BINARY_DIR}/glfw/lib/glfw3.lib
+  CURL::libcurl
+  OpenSSL::SSL OpenSSL::Crypto
+  tinyxml2::tinyxml2
+  ICU::uc
 )

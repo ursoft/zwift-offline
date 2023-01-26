@@ -1,19 +1,14 @@
 #gui
-include(FetchContent)
-FetchContent_Declare( #3.0.12
-  noesis
-  URL https://www.googleapis.com/drive/v3/files/1V4u2MFtPojK-U0PaV1Ot_OaEfb2GTm2y?alt=media&key=AIzaSyCe8S1RwtJK0aPavBFJzaM_or6L_dENsRo
-  DOWNLOAD_NAME Noesis-3.0.12.zip
-)
-FetchContent_Populate(noesis)
+set (noesis_DIR ${CMAKE_CURRENT_BINARY_DIR}/../Noesis-3.0.12)
+if(NOT EXISTS ${noesis_DIR})
+  file(ARCHIVE_EXTRACT INPUT c:/Noesis-3.0.12.zip DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/..)
+endif()
 
 #audio
-FetchContent_Declare( #2021.1.11
-  wwise
-  URL https://www.googleapis.com/drive/v3/files/1Q5lhYKAZ6gLuLfBsNJ77EUVkuLehiaB-?alt=media&key=AIzaSyCe8S1RwtJK0aPavBFJzaM_or6L_dENsRo
-  DOWNLOAD_NAME Wwise_v2021.1.11.zip
-)
-FetchContent_Populate(wwise)
+set (wwise_DIR ${CMAKE_CURRENT_BINARY_DIR}/../Wwise_v2021.1.11)
+if(NOT EXISTS ${wwise_DIR})
+  file(ARCHIVE_EXTRACT INPUT c:/Wwise_v2021.1.11.zip DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/..)
+endif()
 
 #protobuf
 set(Protobuf_USE_STATIC_LIBS ON)
@@ -39,3 +34,20 @@ ExternalProject_Add(glfw
                  -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
   BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/glfw/lib/glfw3.lib
 )
+
+#decNumber
+include(FetchContent)
+FetchContent_Declare(decNumber
+  GIT_REPOSITORY https://github.com/dnotq/decNumber.git
+  SOURCE_DIR     ${CMAKE_CURRENT_BINARY_DIR}/decNumber
+  GIT_TAG        8852ef5b4339d611f493e94a791f3543b6ee81cd
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ""
+)
+FetchContent_MakeAvailable(decNumber)
+
+find_package(CURL CONFIG REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(tinyxml2 CONFIG REQUIRED)
+find_package(ICU REQUIRED COMPONENTS uc dt in io)
