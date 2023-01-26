@@ -3,7 +3,7 @@ all:
 	protoc --python_out=. segment-result.proto
 	protoc --python_out=. profile.proto
 	protoc --python_out=. per-session-info.proto
-	protoc --python_out=. login-response.proto
+	protoc --python_out=. login.proto
 	protoc --python_out=. world.proto
 	protoc --python_out=. goal.proto
 	protoc --python_out=. zfiles.proto
@@ -12,6 +12,7 @@ all:
 	protoc --python_out=. hash-seeds.proto
 	protoc --python_out=. events.proto
 	protoc --python_out=. variants.proto
+	protoc --python_out=. playback.proto
 
 clean:
 	rm -f *_pb2.py *_pb2.pyc

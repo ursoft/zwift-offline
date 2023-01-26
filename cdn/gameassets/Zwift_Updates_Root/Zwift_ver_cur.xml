@@ -1,9 +1,9 @@
 <Zwift
-version="1.0.100984"
-sversion="1.25.1 (100984)"
-gbranch="build/100984-rc-1.25.1.2-1.25.1"
-gcommit="498d0aab8dbf7eeeaeb40341722e0874b5b84834"
+version="1.0.106405"
+sversion="1.32.1 (106405)"
+gbranch="rc/1.32.1"
+gcommit="29711afada1750b5d7c4ecf94c1b517a7545e3e8"
 GAME_URL="https://us-or-rly101.zwift.com"
-manifest="Zwift_1.0.100984_61f16c09_manifest.xml"
-manifest_checksum="1546991030"
-ver_cur_checksum="-1911643548"/>
+manifest="Zwift_1.0.106405_f39c1a18_manifest.xml"
+manifest_checksum="-1848179889"
+ver_cur_checksum="2020951881"/>

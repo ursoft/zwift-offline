@@ -1,6 +1,106 @@
 {
   "variants": [
     {
+      "name": "zwift_launcher_osx_metal",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_26_2_data_encryption",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_27_0_disable_encryption_bypass",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_29_training_partners_survey",
+      "values": {}
+    },
+    {
+      "name": "game_1_31_fquery",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_32_server_power_curves",
+      "values": {
+        "fields": {
+          "view_enabled": {
+            "boolValue": false
+          }
+        }
+      }
+    },
+    {
+      "name": "game_1_28_enable_workout_hud_hiding",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_28_display_pr_hud_in_dynamic_workouts",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_28_fix_leaderboard_hud_starting_display_road_time",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_28_render_profile_screen_drop_down_box_title_text",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_28_avoid_aborting_current_timing_sector_when_minimizing",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_29_integrate_road_and_bike_type_into_braking_performance",
+      "values": {}
+    },
+    {
+      "name": "game_1_29_use_relay_spline_time_in_meetup_position_late_joiner",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_29_ignore_private_meetups_in_group_event_processing_logic",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_30_clear_powerups_on_event_start",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_32_enable_autobraking_in_watopia",
+      "values": {}
+    },
+    {
+      "name": "game_1_31_workout_network_service",
+      "values": {}
+    },
+    {
+      "name": "game_1_31_enable_join_zwifter",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_32_meetups_rubberbanding_v2",
+      "values": {}
+    },
+    {
+      "name": "game_1_26_ninety_day_prs",
+      "value": true,
+      "values": {}
+    },
+    {
       "name": "game_1_14_draftlock_fix",
       "values": {}
     },
@@ -9,31 +109,12 @@
       "values": {}
     },
     {
-      "name": "pack_dynamics_30_global",
-      "value": true,
-      "values": {}
-    },
-    {
-      "name": "pack_dynamics_30_makuri",
-      "value": true,
-      "values": {}
-    },
-    {
-      "name": "pack_dynamics_30_london",
-      "value": true,
-      "values": {}
-    },
-    {
-      "name": "pack_dynamics_30_watopia",
-      "value": true,
-      "values": {}
-    },
-    {
-      "name": "pack_dynamics_30_exclude_events",
+      "name": "game_1_30_for_you_carousel",
       "values": {}
     },
     {
       "name": "game_1_19_system_alerts",
+      "value": true,
       "values": {}
     },
     {
@@ -52,10 +133,6 @@
     },
     {
       "name": "game_1_18_new_welcome_ride",
-      "values": {}
-    },
-    {
-      "name": "game_1_18_holiday_mode",
       "values": {}
     },
     {
@@ -104,10 +181,6 @@
       "values": {}
     },
     {
-      "name": "game_1_24_apple_novus_ble_refactor",
-      "values": {}
-    },
-    {
       "name": "game_1_21_ble_data_guard_v2",
       "values": {}
     },
@@ -117,6 +190,7 @@
     },
     {
       "name": "game_1_21_add_device_jet_black_swb",
+      "value": true,
       "values": {}
     },
     {
@@ -139,11 +213,6 @@
       "values": {}
     },
     {
-      "name": "game_1_21_android_novus_ble_refactor",
-      "value": true,
-      "values": {}
-    },
-    {
       "name": "game_1_21_0_gpu_deprecation_warning_message",
       "value": true,
       "values": {}
@@ -154,7 +223,7 @@
       "values": {}
     },
     {
-      "name": "game_1_21_ble_dll_v2",
+      "name": "game_1_27_ble_dll_v2",
       "value": true,
       "values": {}
     },
@@ -172,10 +241,6 @@
       "values": {}
     },
     {
-      "name": "game_1_22_ble_device_name_hash_v2",
-      "values": {}
-    },
-    {
       "name": "game_1_23_3_wahoo_direct_connect_trainer",
       "value": true,
       "values": {}
@@ -190,11 +255,7 @@
       "values": {}
     },
     {
-      "name": "game_1_23_ble_cycling_speed_pairing_fix",
-      "values": {}
-    },
-    {
-      "name": "game_1_25_0_gmplay_2246_cull_inaudible_entity_audio",
+      "name": "game_1_30_ble_cycling_speed_pairing_exception",
       "value": true,
       "values": {}
     },
@@ -209,14 +270,35 @@
       "values": {}
     },
     {
-      "name": "game_1_25_pack_steering_collision_reduction",
+      "name": "game_training_partners",
+      "value": true,
       "values": {
         "fields": {
-          "game_1_25_pack_steering_collision_reduction": {
+          "route_spawning_enabled": {
+            "boolValue": false
+          },
+          "screenshots_enabled": {
+            "boolValue": true
+          },
+          "SOLO_WORKOUT_recording_disabled": {
+            "boolValue": false
+          },
+          "spawn_enabled": {
+            "boolValue": true
+          },
+          "route_recording_enabled": {
+            "boolValue": false
+          },
+          "recording_enabled": {
             "boolValue": true
           }
         }
       }
+    },
+    {
+      "name": "game_upload_route_results_v2",
+      "value": true,
+      "values": {}
     },
     {
       "name": "game_1_25_wdc_error_dialogs",
@@ -224,22 +306,224 @@
     },
     {
       "name": "game_1_25_extended_pedal_asssit",
+      "value": true,
       "values": {
         "fields": {
+          "initialDropInFrames": {
+            "numberValue": 1000.0
+          },
           "initialDropInTime": {
             "numberValue": 10000.0
           },
           "extendedDropInTime": {
             "numberValue": 60000.0
-          },
-          "initialDropInFrames": {
-            "numberValue": 1000.0
           }
         }
       }
     },
     {
       "name": "game_1_25_flat_grade_while_in_ui",
+      "values": {}
+    },
+    {
+      "name": "game_1_26_club_attribution",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_27_fix_training_plan_summary_no_stats",
+      "values": {}
+    },
+    {
+      "name": "game_1_29_ble_middleware",
+      "values": {}
+    },
+    {
+      "name": "game_1_26_memorable_screenshots",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_27_atv_remote_gestures",
+      "value": true,
+      "values": {
+        "fields": {
+          "ATVPopDelay": {
+            "numberValue": 0.15
+          },
+          "ATVPopInitDelay": {
+            "numberValue": 0.22
+          },
+          "ATVPopInitDist": {
+            "numberValue": 250.0
+          },
+          "ATVMoveSensitivity": {
+            "varintValue": "5"
+          },
+          "ATVFriction": {
+            "numberValue": 0.9
+          },
+          "ATVPopDist": {
+            "numberValue": 175.0
+          }
+        }
+      }
+    },
+    {
+      "name": "game_1_27_hardware_restriction",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_27_goal_notable_moment",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_28_hub_firmware_update",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_ftms_spindown_fix",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_27_dynamic_campaigns_filter",
+      "values": {}
+    },
+    {
+      "name": "bike_override_using_triggers",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "kit_override_using_triggers",
+      "values": {}
+    },
+    {
+      "name": "game_1_29_get_started_workouts",
+      "values": {}
+    },
+    {
+      "name": "game_1_28_ftms_road_grade_lookahead_time_exposed",
+      "values": {}
+    },
+    {
+      "name": "game_1_29_event_carousel",
+      "value": true,
+      "values": {
+        "fields": {
+          "NUM_CARDS": {
+            "varintValue": "6"
+          }
+        }
+      }
+    },
+    {
+      "name": "game_1_30_ble_cycling_speed_pairing_opt",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_29_new_local_trainer_profile",
+      "values": {}
+    },
+    {
+      "name": "game_1_29_fix_stuck_zpower",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_29_client_recommendations",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_workout_partners",
+      "values": {}
+    },
+    {
+      "name": "game_1_29_level_60_cap_raise",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_30_position_accuracy_over_network_global",
+      "values": {}
+    },
+    {
+      "name": "game_1_30_position_accuracy_over_network_london",
+      "values": {}
+    },
+    {
+      "name": "game_1_29_logout_for_windows_and_mac",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_30_pack_dynamics_v4",
+      "value": true,
+      "values": {
+        "fields": {
+          "reducedPowerPercentage": {
+            "numberValue": 98.0
+          },
+          "powerCeilingPercentage": {
+            "numberValue": 110.0
+          },
+          "speedDifferenceHigh": {
+            "numberValue": 3.0
+          },
+          "brakingAmount": {
+            "numberValue": 0.5
+          },
+          "cdaPenaltyMultiplier": {
+            "numberValue": 1.0
+          },
+          "downhillSlopeLimit": {
+            "numberValue": -200.0
+          },
+          "minDraftLimitFlat": {
+            "varintValue": "39"
+          },
+          "minSpeedLimitDown": {
+            "numberValue": 45.0
+          },
+          "minSpeedLimitFlat": {
+            "numberValue": 26.0
+          },
+          "minSpeedLimitShallowDown": {
+            "numberValue": 38.0
+          },
+          "minDraftLimitDown": {
+            "varintValue": "95"
+          },
+          "minDraftLimitShallowDown": {
+            "varintValue": "44"
+          }
+        }
+      }
+    },
+    {
+      "name": "game_1_30_campaign_fullscreen_modal",
+      "value": true,
+      "values": {
+        "fields": {
+          "shortNames": {
+            "stringValue": "tomi2022,tdz2023ride"
+          }
+        }
+      }
+    },
+    {
+      "name": "game_1_30_enable_scale_setting_for_mobile",
+      "values": {}
+    },
+    {
+      "name": "game_1_30_set_default_mobile_scale_to_small",
+      "value": true,
       "values": {}
     },
     {
@@ -257,22 +541,118 @@
       "values": {}
     },
     {
-      "name": "game_1_25_watchdog_timer",
+      "name": "game_1_31_rlog",
       "values": {
         "fields": {
-          "timeoutInterval": {
-            "numberValue": 30.0
+          "DISABLED_LEVELS": {
+            "stringValue": "DEBUG,INFO,WARNING"
+          },
+          "DISABLED_TYPES": {
+            "stringValue": ""
           }
         }
       }
     },
     {
-      "name": "game_1_17_noesis_enabled",
+      "name": "game_1_28_event_core_feed_service",
+      "values": {}
+    },
+    {
+      "name": "game_1_29_event_query_interval",
+      "value": true,
+      "values": {
+        "fields": {
+          "GROUP_EVENT_QUERY_RATE_SECONDS": {
+            "numberValue": 15.0
+          }
+        }
+      }
+    },
+    {
+      "name": "game_1_29_set_thread_names",
+      "values": {}
+    },
+    {
+      "name": "game_1_28_watchdog_timer",
+      "values": {
+        "fields": {
+          "mainTimeoutInterval": {
+            "numberValue": 30.0
+          },
+          "loadingTimeoutInterval": {
+            "numberValue": 60.0
+          },
+          "reportTimeoutsOnLoad": {
+            "boolValue": false
+          },
+          "renderTimeoutInterval": {
+            "numberValue": 30.0
+          },
+          "abortEnabled": {
+            "boolValue": false
+          }
+        }
+      }
+    },
+    {
+      "name": "game_1_31_pp_data",
       "value": true,
       "values": {}
     },
     {
+      "name": "game_1_18_holiday_mode",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_29_hand_cycle",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_1_32_pack_dynamics_v4_global",
+      "value": true,
+      "values": {
+        "fields": {
+          "watopia": {
+            "boolValue": false
+          },
+          "auto_braking_visuals": {
+            "boolValue": false
+          },
+          "double_draft_global": {
+            "boolValue": false
+          },
+          "global": {
+            "boolValue": false
+          },
+          "auto_braking_visuals_events": {
+            "boolValue": true
+          },
+          "makuri": {
+            "boolValue": false
+          }
+        }
+      }
+    },
+    {
+      "name": "game_1_29_player_hightlight",
+      "values": {}
+    },
+    {
+      "name": "game_1_17_noesis_enabled",
+      "value": true,
+      "values": {
+        "fields": {
+          "RenderDevice": {
+            "varintValue": "0"
+          }
+        }
+      }
+    },
+    {
       "name": "game_1_20_home_screen",
+      "value": true,
       "values": {}
     },
     {
@@ -281,20 +661,29 @@
       "values": {}
     },
     {
+      "name": "workout_training_v2_release",
+      "value": true,
+      "values": {}
+    },
+    {
+      "name": "game_VideoCapture",
+      "values": {}
+    },
+    {
       "name": "game_1_23_workout_auto_pause",
       "values": {
         "fields": {
-          "reenableERGPowerThreshold": {
-            "numberValue": 10.0
+          "workoutAutoPauseTime": {
+            "numberValue": 3.0
           },
           "rampUpTime": {
             "numberValue": 10.0
           },
-          "workoutAutoPauseTime": {
-            "numberValue": 3.0
-          },
           "minERGModeDisableTime": {
             "numberValue": 5.0
+          },
+          "reenableERGPowerThreshold": {
+            "numberValue": 10.0
           }
         }
       }

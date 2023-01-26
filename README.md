@@ -17,6 +17,7 @@ There are three ways with which to install and run zoffline depending on your pl
 To install zoffline on Windows:
 
 * Download the latest zoffline release from https://github.com/zoffline/zwift-offline/releases
+  * If you want the pace partners, download the source code package and extract the ``pace_partners`` directory to the same folder zoffline is in.
 * Run the downloaded zoffline.exe
   * Once run, zoffline will create a ``storage`` directory in the same folder it's in to store your Zwift progress.
 * Start Zwift with zoffline.exe running (__after completing step 2__ or running __configure_client__ script from https://github.com/zoffline/zwift-offline/releases/tag/zoffline_helper)
@@ -24,24 +25,23 @@ To install zoffline on Windows:
 * When done with Zwift, press Ctrl+C in the command line to close zoffline.
 </details>
 
-<details><summary>Linux, Windows, or Mac OS X (from source)</summary>
-To install zoffline on Linux, Windows, or Mac OS X:
+<details><summary>Linux, Windows, or macOS (from source)</summary>
+To install zoffline on Linux, Windows, or macOS:
 
 * Install Python 3 (https://www.python.org/downloads/) if not already installed
   * On Windows, installing Python via the Microsoft Store is highly recommend! If using a Python installer, ensure that in the first Python installer screen "Add Python 3.x to PATH" is checked.
-  * Python 2 remains supported for now, but it is not recommended.
-* Install dependencies: flask, flask_sqlalchemy, flask-login, pyjwt, gevent, python-protobuf, protobuf3_to_dict, stravalib (optional)
-  * e.g., on Linux/Mac: ``pip3 install flask flask_sqlalchemy flask-login pyjwt gevent protobuf protobuf3_to_dict stravalib``
-  * e.g., on Windows in command prompt: ``pip install flask flask_sqlalchemy flask-login pyjwt gevent protobuf protobuf3_to_dict stravalib``
-    * You may need to use ``C:\Users\<username>\AppData\Local\Programs\Python\Python39\Scripts\pip.exe`` instead of just ``pip``
+* Install dependencies: flask, flask_sqlalchemy, flask-login, pyjwt, gevent, python-protobuf, pycryptodome, stravalib (optional)
+  * e.g., on Linux/Mac: ``pip3 install flask flask_sqlalchemy flask-login pyjwt gevent protobuf pycryptodome stravalib``
+  * e.g., on Windows in command prompt: ``pip install flask flask_sqlalchemy flask-login pyjwt gevent protobuf pycryptodome stravalib``
+    * You may need to use ``C:\Users\<username>\AppData\Local\Programs\Python\Python<version>\Scripts\pip.exe`` instead of just ``pip``
 * Clone or download this repo
 * If you are not running zoffline on the same PC that Zwift is running: create a ``server-ip.txt`` file in the ``storage`` directory containing the IP address of the PC running zoffline.
 * Run standalone.py before starting Zwift
   * e.g., on Linux/Mac: ``sudo ./standalone.py``
     * sudo is needed because we're binding to the privileged ports 80 and 443.
-    * If using Python 3, but Python 3 is not your system default run ``sudo python3 standalone.py``
+    * If Python 3 is not your system default run ``sudo python3 standalone.py``
   * e.g., on Windows in command prompt: ``python standalone.py``
-    * You may need to use ``C:\Users\<username>\AppData\Local\Programs\Python\Python39\python.exe`` instead of just ``python``
+    * You may need to use ``C:\Users\<username>\AppData\Local\Programs\Python\Python<version>\python.exe`` instead of just ``python``
 * Start Zwift with standalone.py running (__after completing step 2__)
 * Note: When upgrading zoffline, be sure to retain the ``storage`` directory. It contains your Zwift progress state.
 
@@ -53,7 +53,7 @@ zoffline can be installed on the same machine as Zwift or another local machine.
  
 * Install Docker
 * Create the docker container with:<br>
-  ``docker create --name zwift-offline -p 443:443 -p 80:80 -p 3022:3022/udp -p 3023:3023 -v </path/to/host/storage>:/usr/src/app/zwift-offline/storage -e TZ=<timezone> zoffline/zoffline``
+  ``docker create --name zwift-offline -p 443:443 -p 80:80 -p 3024:3024/udp -p 3025:3025 -p 53:53/udp -v </path/to/host/storage>:/usr/src/app/zwift-offline/storage -e TZ=<timezone> zoffline/zoffline``
   * You can optionally exclude ``-v </path/to/host/storage>:/usr/src/app/zwift-offline/storage`` if you don't care if your Zwift progress state is retained across zoffline updates (unlikely).
   * The path you pass to ``-v`` will likely need to be world readable and writable.
   * A list of valid ``<timezone>`` values (e.g. America/New_York) can be found [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
@@ -69,6 +69,7 @@ zoffline can be installed on the same machine as Zwift or another local machine.
 * Install docker-compose
 * Either use the ``docker-compose.yml`` file in this repo which will build from the Dockerfile, or use this example compose file:
    ```
+  version: "3.3"
   services:
       zoffline:
            image: zoffline/zoffline:latest
@@ -80,8 +81,8 @@ zoffline can be installed on the same machine as Zwift or another local machine.
            ports:
               - 80:80
               - 443:443
-              - 3022:3022/udp
-              - 3023:3023
+              - 3024:3024/udp
+              - 3025:3025
            restart: unless-stopped    
    ```
 * If you are not running zoffline on the same PC that Zwift is running: create a ``server-ip.txt`` file in the ``storage`` directory containing the IP address of the PC running zoffline.
@@ -94,17 +95,16 @@ zoffline can be installed on the same machine as Zwift or another local machine.
 <details><summary>Windows Instructions</summary>
 
 * Install Zwift
-  * If your Zwift version is 1.0.100984, you're all set.
+  * If your Zwift version is 1.0.106405, you're all set.
   * If Zwift is not installed, install it before installing zoffline.
-  * If your Zwift version is newer than 1.0.100984 and zoffline is running from source: copy ``C:\Program Files (x86)\Zwift\Zwift_ver_cur.xml`` to zoffline's ``cdn/gameassets/Zwift_Updates_Root/`` overwriting the existing file.
-  * If your Zwift version is newer than 1.0.100984 and zoffline is not running from source: wait for zoffline to be updated.
+  * If your Zwift version is newer than 1.0.106405 and zoffline is running from source: copy ``C:\Program Files (x86)\Zwift\Zwift_ver_cur.xml`` to zoffline's ``cdn/gameassets/Zwift_Updates_Root/`` overwriting the existing file.
+  * If your Zwift version is newer than 1.0.106405 and zoffline is not running from source: wait for zoffline to be updated.
 * __NOTE:__ instead of performing the steps below you can instead just run the __configure_client__ script from https://github.com/zoffline/zwift-offline/releases/tag/zoffline_helper
 * On your Windows machine running Zwift, copy the following files in this repo to a known location:
-  * ``ssl/cert-zwift-com.p12``
-  * ``ssl/cert-zwift-com.pem``
+  * [ssl/cert-zwift-com.p12](https://github.com/zoffline/zwift-offline/raw/master/ssl/cert-zwift-com.p12)
+  * [ssl/cert-zwift-com.pem](https://github.com/zoffline/zwift-offline/raw/master/ssl/cert-zwift-com.pem)
 * Open Command Prompt as an admin, cd to that location and run
   * ``certutil.exe -importpfx Root cert-zwift-com.p12``
-    * For Windows 7: run ``certutil.exe -importpfx cert-zwift-com.p12`` instead
   * If you're prompted for a password, just leave it blank. There is no password.
 * Open Notepad as an admin and open ``C:\Program Files (x86)\Zwift\data\cacert.pem``
   * Append the contents of ``ssl/cert-zwift-com.pem`` to cacert.pem
@@ -120,15 +120,15 @@ to generate your own certificates and do the same.
 
 </details>
 
-<details><summary>Mac OS X Instructions</summary>
+<details><summary>macOS Instructions</summary>
 
 * Install Zwift
-  * If your Zwift version is 1.0.100984, you're all set.
+  * If your Zwift version is 1.0.106405, you're all set.
   * If Zwift is not installed, install it before installing zoffline.
-  * If your Zwift version is newer than 1.0.100984: copy ``~/Library/Application Support/Zwift/ZwiftMac_ver_cur.xml`` to zoffline's ``cdn/gameassets/Zwift_Updates_Root/`` overwriting the existing file.
+  * If your Zwift version is newer than 1.0.106405: copy ``~/Library/Application Support/Zwift/ZwiftMac_ver_cur.xml`` to zoffline's ``cdn/gameassets/Zwift_Updates_Root/`` overwriting the existing file.
 * On your Mac machine running Zwift, copy the following files in this repo to a known location:
-  * ``ssl/cert-zwift-com.p12``
-  * ``ssl/cert-zwift-com.pem``
+  * [ssl/cert-zwift-com.p12](https://github.com/zoffline/zwift-offline/raw/master/ssl/cert-zwift-com.p12)
+  * [ssl/cert-zwift-com.pem](https://github.com/zoffline/zwift-offline/raw/master/ssl/cert-zwift-com.pem)
 * Open Keychain Access, select "System" under "Keychains", select "Certificates" under "Category"
     * Click "File - Import Items..." and import ``ssl/cert-zwift-com.p12``
     * Right click "\*.zwift.com", select "Get Info" and under "Trust" choose "When using this certificate: Always Trust".
@@ -136,7 +136,7 @@ to generate your own certificates and do the same.
 * Using a text editor open ``~/Library/Application Support/Zwift/data/cacert.pem``
   * Append the contents of ``ssl/cert-zwift-com.pem`` to cacert.pem
 * Using a text editor (with admin privileges) open ``/Applications/Zwift.app/Contents/Info.plist``
-  * Append these keys:
+  * Insert in the main dict:
     ```
     <key>NSAppTransportSecurity</key>
    	<dict>
@@ -152,7 +152,7 @@ to generate your own certificates and do the same.
         </dict>
    	</dict>
     ```
-* For Big Sur run ``sudo codesign --force --deep --sign - /Applications/Zwift.app`` in terminal. See https://github.com/zoffline/zwift-offline/issues/132 for extra details.
+* Run ``sudo codesign --force --deep --sign - /Applications/Zwift.app`` in terminal. See https://github.com/zoffline/zwift-offline/issues/132 for extra details.
 * Using a text editor (with admin privileges) open ``/etc/hosts``
   * Append this line: ``<zoffline ip> us-or-rly101.zwift.com secure.zwift.com cdn.zwift.com launcher.zwift.com``
     <br />(Where ``<zoffline ip>`` is the ip address of the machine running zoffline. If
@@ -264,7 +264,7 @@ To obtain your current profile:
   * Run without arguments to use default values.
 * Open http://localhost:8000/ and authorize.
 * Move the resulting ``strava_token.txt`` (saved in whatever directory you ran ``strava_auth.py`` in) into the ``storage/<player_id>`` directory.
-  * If multiplayer is enabled, use the profile button in the launcher window to import your file.
+  * If multiplayer is enabled, use the Strava button in the launcher window to authorize.
 
 </details>
 
@@ -272,9 +272,9 @@ To obtain your current profile:
 
 <details><summary>Expand</summary>
 
-* Install dependencies: garmin-uploader, cryptography (optional)
-  * e.g., on Linux/Mac: ``pip3 install garmin-uploader cryptography``
-  * e.g., on Windows in command prompt: ``pip install garmin-uploader cryptography``
+* Install dependencies: garmin-uploader
+  * e.g., on Linux/Mac: ``pip3 install garmin-uploader``
+  * e.g., on Windows in command prompt: ``pip install garmin-uploader``
     * You may need to use ``C:\Users\<username>\AppData\Local\Programs\Python\Python39\Scripts\pip.exe`` instead of just ``pip``
   * You may need to use the cloudscraper branch if upload fails: ``pip uninstall -y garmin-uploader ; pip install git+https://github.com/La0/garmin-uploader.git@cloudscraper``
   * If cloudscraper doesn't work you can try the selenium method: ``pip uninstall -y garmin-uploader ; pip install git+https://github.com/ursoft/garmin-uploader.git@cloudscraper selenium webdriver_manager``
@@ -296,7 +296,7 @@ To enable support for multiple users perform the steps below. zoffline's previou
 
 * Create a ``multiplayer.txt`` file in the ``storage`` directory.
 * If you are not running zoffline on the same PC that Zwift is running: create a ``server-ip.txt`` file in the ``storage`` directory containing the IP address of the PC running zoffline.
-  * TCP ports 80, 443, 3023 and UDP port 3022 will need to be open on the PC running zoffline if its running remotely.
+  * TCP ports 80, 443, 3025 and UDP port 3024 will need to be open on the PC running zoffline if its running remotely.
 * Start Zwift and create an account in the new Zwift launcher (desktop solution only, for Android go to `https://<zoffline ip>/signup/`, in-app registration does not work yet) and upload your ``profile.bin``, ``strava_token.txt``, and/or ``garmin_credentials.txt`` if you have them.
   * This account will only exist on your zoffline server and has no relation with your actual Zwift account.
 
@@ -309,7 +309,7 @@ Create a ``server-ip.txt`` file in the ``storage`` directory containing the IP a
 <details><summary>Android (non-rooted device)</summary>
 
 * Install apk-mitm (https://github.com/shroudedcode/apk-mitm)
-* Copy the file ``ssl/cert-zwift-com.pem`` in this repo and the Zwift Companion apk (e.g. ``zca.apk``) to a known location
+* Copy the file [ssl/cert-zwift-com.pem](https://github.com/zoffline/zwift-offline/raw/master/ssl/cert-zwift-com.pem) in this repo and the Zwift Companion apk (e.g. ``zca.apk``) to a known location
 * Open Command Prompt, cd to that location and run
   * ``apk-mitm --certificate cert-zwift-com.pem zca.apk``
 * Copy ``zca-patched.apk`` to your phone and install it
@@ -361,27 +361,24 @@ Docker
 
 * Python 3 (https://www.python.org/downloads/)
   * On Windows, installing Python via the Microsoft Store is highly recommend! If using a Python installer, ensure that in the first Python installer screen "Add Python 3.x to PATH" is checked.
-  * Python 2 remains supported for now, but it is not recommended.
 * Flask (http://flask.pocoo.org/)
   * ``pip3 install flask``
 * python-protobuf (https://pypi.org/project/protobuf/)
   * ``pip3 install protobuf``
-* protobuf3_to_dict (https://github.com/kaporzhu/protobuf-to-dict)
-  * ``pip3 install protobuf3_to_dict``
 * pyJWT (https://pyjwt.readthedocs.io/)
   * ``pip3 install pyjwt``
-* flask-login (https://flask-login.readthedocs.io/en/latest/)
+* Flask-Login (https://flask-login.readthedocs.io/en/latest/)
   * ``pip3 install flask-login``
-* FlaskSQLAlchemy (https://flask-sqlalchemy.palletsprojects.com/en/2.x/)
+* Flask-SQLAlchemy (https://flask-sqlalchemy.palletsprojects.com/en/latest/)
   * ``pip3 install flask_sqlalchemy``
 * gevent (http://www.gevent.org/)
   * ``pip3 install gevent``
+* pycryptodome (https://pypi.org/project/pycryptodome/)
+  * ``pip3 install pycryptodome``
 * OPTIONAL: stravalib (https://github.com/hozn/stravalib)
   * ``pip3 install stravalib``
 * OPTIONAL: garmin-uploader (https://github.com/La0/garmin-uploader)
   * ``pip3 install garmin-uploader``
-* OPTIONAL: cryptography (https://cryptography.io/en/latest/)
-  * ``pip3 install cryptography``
 
 
 ## Note

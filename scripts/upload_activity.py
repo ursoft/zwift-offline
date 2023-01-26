@@ -31,9 +31,9 @@ import json
 import os
 import requests
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import protobuf.activity_pb2 as activity_pb2
-import protobuf.profile_pb2 as profile_pb2
+sys.path.append(os.path.join(sys.path[0], 'protobuf')) # otherwise import in .proto does not work
+import activity_pb2
+import profile_pb2
 
 try:
     input = raw_input
