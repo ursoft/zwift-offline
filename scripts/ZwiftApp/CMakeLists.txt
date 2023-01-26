@@ -59,7 +59,6 @@ set_property(TARGET ZwiftApp PROPERTY
   MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   
 set_property(TARGET ZwiftApp PROPERTY CXX_STANDARD 20)
-ExternalProject_Get_Property(glfw install_dir)
 
 target_include_directories(ZwiftApp PRIVATE
   ${Protobuf_INCLUDE_DIRS}
