@@ -13,7 +13,7 @@ GameWorld::~GameWorld() { //onGameWorldDtr
 }
 
 WorldIDs GameWorld::WorldID() {
-    assert(m_WorldID < g_WORLD_COUNT);
+    zassert(m_WorldID < g_WORLD_COUNT);
     return m_WorldID;
 }
 

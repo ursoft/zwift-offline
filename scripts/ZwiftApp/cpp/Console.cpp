@@ -33,7 +33,7 @@ void CONSOLE_Init() {
 int g_knownCommandsCounter;
 ConsoleCommandFuncs g_knownCommands[256];
 void CONSOLE_AddCommand(const char *name, CMD_bool f1, CMD_static_str f2, CMD_ac_search f3, CMD_string f4) {
-	assert(g_knownCommandsCounter < sizeof(g_knownCommands) / sizeof(g_knownCommands[0]));
+	zassert(g_knownCommandsCounter < sizeof(g_knownCommands) / sizeof(g_knownCommands[0]));
 	ConsoleCommandFuncs newObj { name, f1, f2, f3, f4 };
 	for (int i = 0; i < g_knownCommandsCounter; i++)
 		if (g_knownCommands[i] == newObj)
@@ -43,7 +43,7 @@ void CONSOLE_AddCommand(const char *name, CMD_bool f1, CMD_static_str f2, CMD_ac
 
 DWORD g_MainThread;
 const char *GAMEPATH(const char *path) {
-	assert(g_MainThread == GetCurrentThreadId());
+	zassert(g_MainThread == GetCurrentThreadId());
 	return path;
 }
 

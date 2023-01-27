@@ -35,10 +35,10 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_MainThread = GetCurrentThreadId();
     DWORD startTime = timeGetTime();
     auto evSysInst = EventSystem::GetInst();
-    assert(g_sCrashReportingUPtr.get() == nullptr);
+    zassert(g_sCrashReportingUPtr.get() == nullptr);
     CrashReporting::Initialize(evSysInst);
     Experimentation::Initialize(evSysInst);
-    assert(g_sExperimentationUPtr.get() != nullptr);
+    zassert(g_sExperimentationUPtr.get() != nullptr);
     BLEModule::Initialize(g_sExperimentationUPtr.get());
     /*
     v9 = (EventSystem *)GameAssertHandler::Initialize(v8);
@@ -71,7 +71,7 @@ void EndGameSession(bool bShutDown) {
 }
 
 void ShutdownSingletons() {
-    assert(g_sCrashReportingUPtr.get() != nullptr);
+    zassert(g_sCrashReportingUPtr.get() != nullptr);
     //CrashReporting::AddBreadcrumb(0i64, "Shutting down VideoCapture");
     //...TODO
     //CrashReporting::AddBreadcrumb(0i64, "Shutting down Experimentation");

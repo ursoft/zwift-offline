@@ -3,5 +3,11 @@
     ""
   ],
   "SelectedNode": "\\framework.h",
-  "PreviewInSolutionExplorer": false
+  "PreviewInSolutionExplorer": false,
+  "OutputFoldersPerTargetSystem": {
+    "Local Machine": [
+      "..\\..\\..\\ZwiftApp_build\\Debug-host",
+      "1.32.1_106405"
+    ]
+  }
 }

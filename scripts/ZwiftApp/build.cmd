@@ -2,8 +2,20 @@
 setlocal enabledelayedexpansion
 
 set CFG=Debug
+set LIB_CFG=Debug
 if "%1"=="Release" (
   set CFG=Release
+  set LIB_CFG=Release
+) else (
+  if "%1"=="RelWithDebInfo" (
+    set CFG=RelWithDebInfo
+    set LIB_CFG=Release
+  ) else (
+    if "%1" neq "" (
+      echo build.cmd ERROR: cfg '%1' is not supported yet
+      exit /b 1
+    )
+  )
 )
 
 set SRC_FOLDER=%~dp0
@@ -40,14 +52,14 @@ if "%ENV%"=="host" (
 )
 
 if "%VCPKG_ROOT%"=="" (
-  echo Warning: VCPKG_ROOT is empty, using fallback: VCPKG_ROOT=%VCPKG_ROOT_FB%
+  echo build.cmd Warning: VCPKG_ROOT is empty, using fallback: VCPKG_ROOT=%VCPKG_ROOT_FB%
   set VCPKG_ROOT=%VCPKG_ROOT_FB%
 )
 if "%VSCMD_VER%"=="" (
   call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
 )
 if "%VSCMD_VER%"=="" (
-  echo You need to install Visual Studio 2022 and call VsDevCmd x64 before launching build.cmd
+  echo build.cmd ERROR: You need to install Visual Studio 2022 and call VsDevCmd x64 before launching build.cmd
   exit /b 1
 )
 

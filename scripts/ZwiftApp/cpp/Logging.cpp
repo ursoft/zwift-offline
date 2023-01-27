@@ -116,3 +116,11 @@ void LogLev(LOG_LEVEL level, const char *fmt, ...) {
         doLogInternal(level, LT_NONE, fmt, va);
     }
 }
+
+bool ZwiftBeforeAbort(const char *cond, const char *file, unsigned line, char a4) {
+    //TODO
+    return true;
+}
+void ZwiftAssert_Abort() {
+    //TODO
+}

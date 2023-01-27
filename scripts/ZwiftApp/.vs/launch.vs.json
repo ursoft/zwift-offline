@@ -1,0 +1,13 @@
+{
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "ZwiftApp.exe (Install)",
+      "name": "ZwiftApp.exe (Install)",
+      "args": ["1", "2"]
+    }
+  ]
+}

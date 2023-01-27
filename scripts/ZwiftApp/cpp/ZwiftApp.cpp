@@ -5,12 +5,45 @@
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+GLFWwindow *g_mainWindow;
 
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 void CheckEnvironment() {
+#ifndef NDEBUG
+    /* testing if libs are linked properly */
+    AK::MemoryMgr::GetDefaultSettings(g_memSettings); //Wwize, not debuggable
+    Noesis::GUI::SetLicense("NS_LICENSE_NAME", "NS_LICENSE_KEY"); //NOESIS, not debuggable
+
+    protobuf::FeatureRequest fr; //Google protobuf
+    fr.set_userid(123);
+    auto bs = fr.ByteSize();
+    
+    auto hMainWindow = glfwGetWin32Window(g_mainWindow); //glfw
+
+    boost::asio::io_context io_context; //boost ASIO, openssl
+    boost::asio::ip::tcp::resolver resolver(io_context);
+    boost::asio::ssl::context ctx(boost::asio::ssl::context::sslv23);
+    io_context.run(); //nothing to do
+
+    ::ERR_clear_error(); //openssl
+
+    z_stream strm{}; //zlib
+    auto ret = deflateInit(&strm, 6);
+
+    tinyxml2::XMLDocument doc; //tinyxml2
+    doc.LoadFile("");
+
+    auto curl = curl_easy_init(); //curl
+    curl_easy_cleanup(curl);
+
+    decContextTestEndian(0); //decNumber
+
+    UErrorCode err = U_ZERO_ERROR;
+    auto conv = ucnv_open("utf-8", &err);
+#endif // !NDEBUG
     PROCESSENTRY32W pe = {};
     pe.dwSize = sizeof(PROCESSENTRY32W);
     HANDLE Toolhelp32Snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -47,7 +80,6 @@ void CheckEnvironment() {
     MessageBoxA(nullptr, "Could not run Update process. Zwift may not be up to date.", lpCaption, MB_ICONERROR);
     CloseHandle(Toolhelp32Snapshot);
 }
-GLFWwindow *g_mainWindow;
 bool g_InitApplicationOK = true, g_bShutdown = false;
 struct zwiftUpdateContext {};
 void doFrameWorldID(zwiftUpdateContext *ptr);

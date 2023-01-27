@@ -12,3 +12,10 @@ void LogLev(LOG_LEVEL level, const char *fmt, ...);
 void LogDebug(const char *fmt, ...);
 void LogAnt(const char *msg);
 void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void *dummy_a4, const char *msg);
+
+bool ZwiftBeforeAbort(const char *cond, const char *file, unsigned line, char a4);
+void ZwiftAssert_Abort();
+
+#define zassert(c) \
+  if (IsDebuggerPresent()) __debugbreak(); \
+  if (ZwiftBeforeAbort(#c, __FILE__, __LINE__, 0)) ZwiftAssert_Abort();

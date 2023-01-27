@@ -4,9 +4,9 @@ const char *g_expVarNames[EXP_CNT] = { "unassigned", "enabled", "disabled", "non
 std::unique_ptr<Experimentation> g_sExperimentationUPtr;
 ZNetAdapter g_znetAdapter;
 void Experimentation::Initialize(EventSystem *ev) {
-	assert(g_sExperimentationUPtr.get() == nullptr);
+	zassert(g_sExperimentationUPtr.get() == nullptr);
 	g_sExperimentationUPtr.reset(new Experimentation(&g_znetAdapter, ev));
-	assert(g_sExperimentationUPtr.get() != nullptr);
+	zassert(g_sExperimentationUPtr.get() != nullptr);
 }
 const FeatureMetadata g_featureMetadata[FID_CNT] = { //FillFeatureMetadata
     //variants.txt[zwift_launcher_osx_metal] not used here (maybe because of windows)
@@ -149,7 +149,7 @@ ExpIsEnabledResult Experimentation::IsEnabled(FeatureID id, const FeatureCallbac
 void Experimentation::HandleEvent(EVENT_ID e, va_list args) {
     if (e == EV_RESET) {
         static thread_local std::vector<FeatureID> tlsFeatureMetafataIDs;
-        assert(nullptr == m_userAttributes.m_somePointer);
+        zassert(nullptr == m_userAttributes.m_somePointer);
         m_userAttributes.m_somePointer = va_arg(args, void *);
         { //Experiment::Feature::BulkRequestFeatures
             for (const auto &i : g_featureMetadata) {                
@@ -157,7 +157,7 @@ void Experimentation::HandleEvent(EVENT_ID e, va_list args) {
             }
         }
         BulkRequestFeatureData(tlsFeatureMetafataIDs);
-        assert(nullptr != m_userAttributes.m_somePointer);
+        zassert(nullptr != m_userAttributes.m_somePointer);
     } else if (e == EV_28) {
         for (auto &s : m_userAttributes.m_str) {
             s = va_arg(args, std::string);
@@ -167,7 +167,7 @@ void Experimentation::HandleEvent(EVENT_ID e, va_list args) {
 inline ZwiftDispatcher::ZwiftDispatcher() {
 }
 inline void ZwiftDispatcher::Assert(bool bPredicate) {
-	assert(bPredicate);
+	zassert(bPredicate);
 }
 inline void ZwiftDispatcher::Assert(bool bPredicate, const char *errMsg) {
 	_ASSERT_EXPR(bPredicate, errMsg);
@@ -199,9 +199,9 @@ void Experimentation::BulkRequestFeatureData(const std::vector<FeatureID> &ids) 
         if (dec) {
             if (dec == 1 && fsm.m_enableStatus != EXP_UNASSIGNED)
                 continue;
-            assert(false);
+            zassert(false);
         }
-        assert(fsm.m_enableStatus == EXP_UNASSIGNED);
+        zassert(fsm.m_enableStatus == EXP_UNASSIGNED);
     }
     //from assert(fsm.m_enableStatus == EXP_UNASSIGNED); to label40 - before break
     //TODO:from label40 here (line220)

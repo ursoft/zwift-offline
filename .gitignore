@@ -24,3 +24,6 @@ logs/
 /scripts/ZwiftApp/lib/~Noesis-3.1.6
 /scripts/ZwiftApp/lib/~Wwise_v2021.1.11
 /scripts/ZwiftApp/lib/~protobuf_3.19
+/scripts/ZwiftApp/.vs/CMake Overview
+/scripts/ZwiftApp/.vs/cmake.db
+/scripts/ZwiftApp/.vs/slnx.sqlite

@@ -1,0 +1,22 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "installRoot": "${projectDir}\\1.32.1_106405",
+      "cmakeCommandArgs": "-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DVCPKG_TARGET_TRIPLET=x64-windows-static -DBoost_NO_WARN_NEW_VERSIONS=1",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "environments": [
+        { "NOESIS_ID": "Noesis-3.0.12" },
+        { "WWISE_ID": "Wwise_v2021.1.11" },
+        { "NOESIS_DIR": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Noesis-3.0.12" },
+        { "WWISE_DIR": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Wwise_v2021.1.11" },
+        { "LIB_CFG": "Debug" }
+      ],
+      "buildRoot": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Debug-host"
+    }
+  ]
+}

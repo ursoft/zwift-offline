@@ -1,20 +1,5 @@
 #pragma once
-#include "framework.h"
-#include <tlhelp32.h>
-#include <psapi.h>
-#include <timeapi.h>
-
-#include <stdio.h>
-#include <cstdint>
-#include <string>
-#include <sstream> 
-#include <vector> 
-#include <chrono>
-#include <thread>
-#include <mutex>
-#include <map>
-#include <unordered_map>
-#include <functional>
+#include "pch.h"
 
 #include "FeatureRequest.pb.h"
 
@@ -41,7 +26,6 @@ extern float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
 extern int g_width, g_height;
 const float g_UI_AspectRatio = 1.7777778f; //16x9
 
-#include "NoesisPCH.h"
 #include "ZNoesis.h"
 #include "UI_Dialogs.h"
 #include "Console.h"
@@ -56,7 +40,3 @@ const char *GAMEPATH(const char *path);
 #include "CrashReporting.h"
 #include "Experimentation.h"
 #include "BLEModule.h"
-
-//last:
-#undef NDEBUG
-#include <cassert> 
