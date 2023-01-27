@@ -1,3 +1,5 @@
+Docker
+======
 1. Install Docker Desktop (https://docs.docker.com/desktop/install/windows-install/). I used Hyper-V instead of WSL-2 (I suppose, windows containers should use it).
 2. Switch to windows containers: 
 HOST>"C:\Program Files\Docker\Docker\DockerCLI.exe" -SwitchDaemon
@@ -13,3 +15,16 @@ C:\>cl /EHsc main.cpp
 C:\>main.exe
 Hello World!
 C:\>ZwiftApp\build.cmd
+
+Static variables
+================
+(NtCurrentTeb()->ThreadLocalStoragePointer + TlsIndex)[72]  - __declspec(thread) bool g_CurrentThreadNameSet
+(NtCurrentTeb()->ThreadLocalStoragePointer + TlsIndex)[73]  - __declspec(thread) bool (??? around g_Task_cv_mutex lock@ZwiftAbort)
+(NtCurrentTeb()->ThreadLocalStoragePointer + TlsIndex)[192] - static variables pOnce counter (__declspec(thread) int _Init_thread_epoch)
+(NtCurrentTeb()->ThreadLocalStoragePointer + TlsIndex)[196] - __declspec(thread) bool (??? _dyn_tls_on_demand_init) also 136,144 etc@tls_stuff,tls_stuff2,3,4,5,6,7,8 TlsCallbackCtr
+(NtCurrentTeb()->ThreadLocalStoragePointer + TlsIndex)[208] - __declspec(thread) bool (??? _tlregdtor) also 224
+
+Other static libs
+~~~~~~~~~~~~~~~~~
+turn off https://github.com/getsentry/sentry-native
+add https://github.com/open-source-parsers/jsoncpp

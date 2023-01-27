@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+//#include "pch.h"
 
 #include "FeatureRequest.pb.h"
 
@@ -40,3 +40,4 @@ const char *GAMEPATH(const char *path);
 #include "CrashReporting.h"
 #include "Experimentation.h"
 #include "BLEModule.h"
+#include "Thread.h"

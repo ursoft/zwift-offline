@@ -121,6 +121,9 @@ bool ZwiftBeforeAbort(const char *cond, const char *file, unsigned line, char a4
     //TODO
     return true;
 }
+struct someTls {
+
+};
+thread_local someTls g_someTls;
 void ZwiftAssert_Abort() {
-    //TODO
 }

@@ -16,6 +16,6 @@ void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void 
 bool ZwiftBeforeAbort(const char *cond, const char *file, unsigned line, char a4);
 void ZwiftAssert_Abort();
 
-#define zassert(c) \
+#define zassert(c) if(!(c)) { \
   if (IsDebuggerPresent()) __debugbreak(); \
-  if (ZwiftBeforeAbort(#c, __FILE__, __LINE__, 0)) ZwiftAssert_Abort();
+  if (ZwiftBeforeAbort(#c, __FILE__, __LINE__, 0)) ZwiftAssert_Abort(); }

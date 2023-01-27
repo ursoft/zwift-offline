@@ -119,7 +119,7 @@ const FeatureMetadata g_featureMetadata[FID_CNT] = { //FillFeatureMetadata
 };
 const char *Feature::c_str() { return c_str(m_id); }
 const char *Feature::c_str(FeatureID id) {
-    static thread_local std::unordered_map<FeatureID, const char *> g_tlsFeatureMetadataCont; //неэффективно
+    static std::unordered_map<FeatureID, const char *> g_tlsFeatureMetadataCont;
     if (g_tlsFeatureMetadataCont.size() == 0) {
         for (auto i : g_featureMetadata)
             g_tlsFeatureMetadataCont[i.m_id] = i.m_name;
@@ -148,7 +148,7 @@ ExpIsEnabledResult Experimentation::IsEnabled(FeatureID id, const FeatureCallbac
 }
 void Experimentation::HandleEvent(EVENT_ID e, va_list args) {
     if (e == EV_RESET) {
-        static thread_local std::vector<FeatureID> tlsFeatureMetafataIDs;
+        static std::vector<FeatureID> tlsFeatureMetafataIDs;
         zassert(nullptr == m_userAttributes.m_somePointer);
         m_userAttributes.m_somePointer = va_arg(args, void *);
         { //Experiment::Feature::BulkRequestFeatures
