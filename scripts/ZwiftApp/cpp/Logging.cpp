@@ -49,7 +49,7 @@ bool ShouldLog(LOG_LEVEL level) {
 }
 void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_len) {
     if (g_canUseLogging) {
-        if (g_LogMutexIdx != -1 && /*TODO g_typedLogMetafata[40 * ty] &&*/ ZwiftEnterCriticalSection(g_LogMutexIdx)) {
+        if (g_LogMutexIdx != -1 && /*TODO g_typedLogMetadata[40 * ty] &&*/ ZwiftEnterCriticalSection(g_LogMutexIdx)) {
             __time64_t now = _time64(nullptr);
             tm t;
             _localtime64_s(&t, &now);
@@ -69,8 +69,8 @@ void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_l
     }
 }
 void doLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *fmt, va_list args) {
-    char buf[1024] = {};
-    if (g_canUseLogging && g_LogMutexIdx != -1 /*TODO && g_typedLogMetafata[40 * ty]*/) {
+    char buf[1024];
+    if (g_canUseLogging && g_LogMutexIdx != -1 /*TODO && g_typedLogMetadata[40 * ty]*/) {
         int cnt1 = sprintf_s(buf, "%s%s", g_logLevelNames[level], g_logTypeNames[ty]);
         if (cnt1 < 0) cnt1 = 0;
         int cnt2 = sprintf_s(&buf[cnt1], 1024 - cnt1, fmt, 0, args);
@@ -116,14 +116,48 @@ void LogLev(LOG_LEVEL level, const char *fmt, ...) {
         doLogInternal(level, LT_NONE, fmt, va);
     }
 }
-
-bool ZwiftBeforeAbort(const char *cond, const char *file, unsigned line, char a4) {
-    //TODO
-    return true;
+bool GameAssertHandler::OnBeforeAbort(const char *cond, const char *file, unsigned line, PVOID *BackTrace, int nframes) {
+    //IMPROVE не записывать падение одного места много раз
+    Log("ASSERT: \"%s\", file=%s, line=%d", cond, file, line);
+    //CrashReporting_stuffAbort(cond, file, (unsigned int)line, BackTrace, nframes);
+    return !GameAssertHandler::s_disableAbort;
 }
-struct someTls {
+void GameAssertHandler::OnAbort() {
+    if (!GameAssertHandler::s_disableAbort)
+        ZwiftExit(-1);
+}
+bool GameAssertHandler::s_disableAbort;
 
-};
-thread_local someTls g_someTls;
+thread_local bool g_abortProcessing;
+std::mutex g_abortMutex;
+GameAssertHandler *g_abortListener;
+
+void ZwiftAssert_SetHandler(GameAssertHandler *ptr) {
+    if (!g_abortProcessing)
+        g_abortListener = ptr;
+}
+
+bool ZwiftBeforeAbort(const char *cond, const char *file, unsigned line) {
+    if (g_abortProcessing) return false;
+    bool ret = true;
+    g_abortProcessing = true;
+    g_abortMutex.lock();
+    if (g_abortListener) {
+        PVOID BackTrace[32] = {};
+        auto frames = RtlCaptureStackBackTrace(1u, sizeof(BackTrace)/sizeof(PVOID), BackTrace, nullptr);
+        ret = g_abortListener->OnBeforeAbort(cond, file, line, BackTrace, frames);
+        if (!ret) {
+            g_abortMutex.unlock();
+            g_abortProcessing = false;
+        }
+    }
+    return ret;
+}
 void ZwiftAssert_Abort() {
+    if (g_abortProcessing) {
+        if (g_abortListener)
+            g_abortListener->OnAbort();
+        g_abortMutex.unlock();
+        g_abortProcessing = false;
+    }
 }

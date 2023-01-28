@@ -55,4 +55,7 @@ RUN curl -SL -o c:\Wwise_v2021.1.11.zip https://www.googleapis.com/drive/v3/file
 #noesis
 RUN curl -SL -o c:\Noesis-3.0.12.zip https://www.googleapis.com/drive/v3/files/1V4u2MFtPojK-U0PaV1Ot_OaEfb2GTm2y?alt=media^&key=AIzaSyCe8S1RwtJK0aPavBFJzaM_or6L_dENsRo
 
+#json
+RUN C:\vcpkg\vcpkg install jsoncpp:x64-windows-static
+
 ENTRYPOINT [ "cmd.exe", "/k", "C:\\ZwiftApp\\docker\\bootstrap.cmd" ]

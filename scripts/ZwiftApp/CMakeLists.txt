@@ -56,6 +56,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   tinyxml2::tinyxml2
   ICU::uc ICU::dt ICU::in ICU::uc ICU::io
   decNumber
+  jsoncpp_object jsoncpp_static JsonCpp::JsonCpp
 )
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ./)

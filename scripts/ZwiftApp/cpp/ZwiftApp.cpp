@@ -41,8 +41,11 @@ void CheckEnvironment() {
 
     decContextTestEndian(0); //decNumber
 
-    UErrorCode err = U_ZERO_ERROR;
+    UErrorCode err = U_ZERO_ERROR; //ICU
     auto conv = ucnv_open("utf-8", &err);
+
+    Json::Value root; //jsoncpp
+    std::cout << root;
 #endif // !NDEBUG
     PROCESSENTRY32W pe = {};
     pe.dwSize = sizeof(PROCESSENTRY32W);

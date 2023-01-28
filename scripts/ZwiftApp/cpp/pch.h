@@ -34,3 +34,5 @@ extern "C" {
 #include <unicode/ucnv_err.h>
 #include <unicode/uloc.h>
 #include <unicode/uchar.h>
+
+#include <json/json.h>

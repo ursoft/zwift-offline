@@ -12,7 +12,7 @@ if "%1"=="Release" (
     set LIB_CFG=Release
   ) else (
     if "%1" neq "" (
-      echo build.cmd ERROR: cfg '%1' is not supported yet
+      echo build.cmd ERROR: cfg '%1' is not supported yet (use Debug, Release or RelWithDebInfo)
       exit /b 1
     )
   )
