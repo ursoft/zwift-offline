@@ -47,6 +47,9 @@ bool ShouldLog(LOG_LEVEL level) {
         LoadLogLevelSettings();
     return level >= g_MinLogLevel;
 }
+LogWriteHandler g_logWriteHandler;
+void SetLogWriteHandler(LogWriteHandler h) { g_logWriteHandler = h; }
+
 void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_len) {
     if (g_canUseLogging) {
         if (g_LogMutexIdx != -1 && /*TODO g_typedLogMetadata[40 * ty] &&*/ ZwiftEnterCriticalSection(g_LogMutexIdx)) {
@@ -62,9 +65,8 @@ void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_l
                 fflush(g_logFile);
             }
             ZwiftLeaveCriticalSection(g_LogMutexIdx);
-            //TODO: notification
-            //if (qword_7FF6D5DF6328)
-            //    qword_7FF6D5DF6328(level, ty, msg);
+            if (g_logWriteHandler)
+                g_logWriteHandler(level, ty, msg);
         }
     }
 }

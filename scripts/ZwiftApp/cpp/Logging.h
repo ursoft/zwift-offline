@@ -13,6 +13,9 @@ void LogDebug(const char *fmt, ...);
 void LogAnt(const char *msg);
 void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void *dummy_a4, const char *msg);
 
+typedef void (*LogWriteHandler)(LOG_LEVEL level, LOG_TYPE ty, const char *msg);
+void SetLogWriteHandler(LogWriteHandler h);
+
 bool ZwiftBeforeAbort(const char *cond, const char *file, unsigned line);
 void ZwiftAssert_Abort();
 
