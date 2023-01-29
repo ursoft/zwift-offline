@@ -5,7 +5,7 @@
       "generator": "Ninja",
       "configurationType": "Debug",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "installRoot": "${projectDir}\\1.32.1_106405",
+      "installRoot": "${projectDir}\\1.32.1_106405-Debug",
       "cmakeCommandArgs": "-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DVCPKG_TARGET_TRIPLET=x64-windows-static -DBoost_NO_WARN_NEW_VERSIONS=1",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
@@ -16,7 +16,8 @@
         { "WWISE_DIR": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Wwise_v2021.1.11" },
         { "LIB_CFG": "Debug" }
       ],
-      "buildRoot": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Debug-host"
+      "buildRoot": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Debug-host",
+      "intelliSenseMode": "windows-msvc-x64"
     }
   ]
 }

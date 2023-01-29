@@ -4,7 +4,8 @@
 #include <psapi.h>
 #include <timeapi.h>
 
-#include <stdio.h>
+#include <iostream>
+#include <cstdio>
 #include <cstdint>
 #include <string>
 #include <sstream> 
@@ -16,6 +17,8 @@
 #include <unordered_map>
 #include <functional>
 #include <cassert> 
+#include <ctime>
+#include <cmath>
 
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>
@@ -36,3 +39,4 @@ extern "C" {
 #include <unicode/uchar.h>
 
 #include <json/json.h>
+#include <gtest/gtest.h>

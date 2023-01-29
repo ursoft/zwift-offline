@@ -1,5 +1,4 @@
 #include "ZwiftApp.h"
-#include <cmath>
 
 #define MAX_LOADSTRING 100
 HINSTANCE hInst;                                // current instance
@@ -12,41 +11,6 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 void CheckEnvironment() {
-#ifndef NDEBUG
-    /* testing if libs are linked properly */
-    AK::MemoryMgr::GetDefaultSettings(g_memSettings); //Wwize, not debuggable
-    Noesis::GUI::SetLicense("NS_LICENSE_NAME", "NS_LICENSE_KEY"); //NOESIS, not debuggable
-
-    protobuf::FeatureRequest fr; //Google protobuf
-    fr.set_userid(123);
-    auto bs = fr.ByteSize();
-    
-    auto hMainWindow = glfwGetWin32Window(g_mainWindow); //glfw
-
-    boost::asio::io_context io_context; //boost ASIO, openssl
-    boost::asio::ip::tcp::resolver resolver(io_context);
-    boost::asio::ssl::context ctx(boost::asio::ssl::context::sslv23);
-    io_context.run(); //nothing to do
-
-    ::ERR_clear_error(); //openssl
-
-    z_stream strm{}; //zlib
-    auto ret = deflateInit(&strm, 6);
-
-    tinyxml2::XMLDocument doc; //tinyxml2
-    doc.LoadFile("");
-
-    auto curl = curl_easy_init(); //curl
-    curl_easy_cleanup(curl);
-
-    decContextTestEndian(0); //decNumber
-
-    UErrorCode err = U_ZERO_ERROR; //ICU
-    auto conv = ucnv_open("utf-8", &err);
-
-    Json::Value root; //jsoncpp
-    std::cout << root;
-#endif // !NDEBUG
     PROCESSENTRY32W pe = {};
     pe.dwSize = sizeof(PROCESSENTRY32W);
     HANDLE Toolhelp32Snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -89,6 +53,9 @@ void doFrameWorldID(zwiftUpdateContext *ptr);
 //TODO: __declspec(thread) - see tls0_dtr (GameAssertHandler::PushContext), TlsCallbackDtr
 //TODO: global variables ctrs/dtrs: _initterm, some_global_ctr
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd) {
+    non_zwift::ConsoleHandler nz_ch(1024);
+    nz_ch.LaunchUnitTests(__argc, __argv);
+
     CheckEnvironment();
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_ZWIFTAPP, szWindowClass, MAX_LOADSTRING);
@@ -226,4 +193,53 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 
 void doFrameWorldID(zwiftUpdateContext *ptr) {
     //TODO
+}
+
+//Unit Tests
+TEST(SmokeTest, Linkage) { //testing if libs are linked properly
+    AK::MemoryMgr::GetDefaultSettings(g_memSettings); //Wwize, not debuggable
+    Noesis::GUI::SetLicense("NS_LICENSE_NAME", "NS_LICENSE_KEY"); //NOESIS, not debuggable
+    EXPECT_TRUE(g_memSettings.pfAllocVM != nullptr) << "AK::MemoryMgr";
+
+    protobuf::FeatureRequest fr; //Google protobuf
+    fr.set_userid(123);
+    auto bs = fr.ByteSize();
+    EXPECT_EQ(2, bs) << "protobuf::ByteSize";
+
+    boost::asio::io_context io_context; //boost ASIO, openssl
+    boost::asio::ip::tcp::resolver resolver(io_context);
+    boost::asio::ssl::context ctx(boost::asio::ssl::context::sslv23);
+    auto iocr = io_context.run(); //nothing to do
+    EXPECT_EQ(0, iocr) << "io_context.run";
+
+    z_stream strm{}; //zlib
+    auto di = deflateInit(&strm, 6);
+    EXPECT_EQ(0, di) << "deflateInit";
+
+    tinyxml2::XMLDocument doc; //tinyxml2
+    auto err_xml = doc.LoadFile("");
+    EXPECT_EQ(tinyxml2::XML_ERROR_FILE_NOT_FOUND, err_xml) << "doc.LoadFile";
+
+    auto curl = curl_easy_init(); //curl
+    EXPECT_TRUE(curl != nullptr) << "curl_easy_init";
+    curl_easy_cleanup(curl);
+
+    auto dec = decContextTestEndian(0); //decNumber
+    EXPECT_EQ(0, dec) << "decContextTestEndian";
+
+    UErrorCode uc_err = U_AMBIGUOUS_ALIAS_WARNING; //ICU
+    auto conv = ucnv_open("utf-8", &uc_err);
+    EXPECT_EQ(U_AMBIGUOUS_ALIAS_WARNING, uc_err) << "ucnv_open err";
+    EXPECT_TRUE(conv != nullptr) << "ucnv_open";
+
+    Json::Value json(123); //jsoncpp
+    std::string jss(json.toStyledString());
+    EXPECT_STREQ("123\n", jss.c_str()) << "json.toStyledString";
+
+    auto hMainWindow = glfwGetWin32Window(g_mainWindow); //glfw
+    EXPECT_TRUE(hMainWindow  == nullptr) << "glfwGetWin32Window";
+
+    char openssl_err[128];
+    ERR_error_string_n(SSL_ERROR_WANT_READ, openssl_err, sizeof(openssl_err));
+    EXPECT_STREQ("error:00000002:lib(0)::reason(2)", openssl_err) << "SSL_ERROR_WANT_READ";
 }

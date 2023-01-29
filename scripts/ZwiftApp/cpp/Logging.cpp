@@ -1,20 +1,60 @@
 #include "ZwiftApp.h"
-#include <ctime>
 
-LOG_LEVEL g_MinLogLevel = LL_NOT_SET_YET;
+LOG_LEVEL g_MinLogLevel = LL_CNT; // NOT_SET_YET;
 bool g_useLogLevelSettings;
 FILE *g_logFile;
-LOG_LEVEL g_noesisLogLevels[5] = { LL_DEBUG, LL_DEBUG, LL_INFO, LL_WARNING, LL_ERROR };
+LOG_LEVEL g_noesisLogLevels[NLL_CNT] = { LL_DEBUG /*NLL_TRACE*/, LL_DEBUG, LL_INFO, LL_WARNING, LL_ERROR};
 int g_LogMutexIdx = -1;
 bool g_canUseLogging;
-const char *g_logLevelNames[] = { "", "DEBUG LEVEL: ", "INFO LEVEL: ", "WARNING LEVEL: ", "ERROR LEVEL: ", "FATAL LEVEL: " /*TODO: SetupLogTypes*/};
-const char *g_logTypeNames[] = { "", "WARN : ", "ERROR: ", "> ", "", "FILE : ", "NETWORK:", "NETCLIENT:", "ANT  : ", "ANT  : ", "BLE  : ", "STEERING : ",
+const char *g_logLevelNames[LL_CNT] = { "", "DEBUG LEVEL: ", "INFO LEVEL: ", "WARNING LEVEL: ", "ERROR LEVEL: ", "FATAL LEVEL: " };
+const char *g_logTypeNames[LOG_CNT] = { "", "WARN : ", "ERROR: ", "> ", "", "FILE : ", "NETWORK:", "NETCLIENT:", "ANT  : ", "ANT  : ", "BLE  : ", "STEERING : ",
     "VIDEO_CAPTURE : ", "BRAKING: ", "AUTOBRAKING: ", "AUTOMATION: " };
+struct LogType { //40 bytes
+    std::string m_name;
+    bool m_enabled, m_bool2 /* TODO: find where used */;
+};
+LogType g_LogTypes[LOG_CNT] = {
+    { "LOG_GENERAL",            true, true },  //00
+    { "LOG_WARNING",            true, true },  //01
+    { "LOG_ERROR",              true, true },  //02
+    { "LOG_COMMAND",            true, true },  //03
+    { "LOG_COMMAND_OUTPUT",     true, true },  //04
+    { "LOG_ASSET",              true, false }, //05
+    { "LOG_NETWORK",            true, true },  //06
+    { "LOG_ZNETWORK_INTERNAL",  true, false }, //07
+    { "LOG_ANT",                true, false }, //08
+    { "LOG_ANT_IMPORTANT",      true, true },  //09
+    { "LOG_BLE",                true, true },  //10
+    { "LOG_STEERING",           true, false }, //11
+    { "LOG_VIDEO_CAPTURE",      true, false }, //12
+    { "LOG_BRAKING",            true, false }, //13
+    { "LOG_AUTOBRAKING",        true, false }, //14
+    { "LOG_AUTOMATION",         true, false }, //15
+};
 
+std::vector<std::string> ParseSuppressedLogs(const char *ls) {
+    return ZStringUtil::Split(ls, ',');
+}
+void InitLogging(const std::vector<std::string> &supprLogs) {
+    for (const auto &sup : supprLogs) {
+        int logId = -1;
+        if (1 != sscanf(sup.c_str(), "%d", &logId)) {
+            int cnt = 0;
+            for (int cnt = 0; cnt < LOG_CNT; cnt++) {
+                if (g_LogTypes[cnt].m_name == sup) {
+                    logId = cnt;
+                    break;
+                }
+            }
+        }
+        if (logId >= 0 && logId < LOG_CNT)
+            g_LogTypes[logId].m_enabled = false;
+    }
+}
 void LoadLogLevelSettings() {
     if (g_useLogLevelSettings) {
+        auto gll = g_UserConfigDoc.FindElement("ZWIFT\\GAME_LOG_LEVEL", false);
 #if 0 //TODO
-    v1 = XMLDoc::SetCStr((__int64)&g_UserConfigDoc, "ZWIFT\\GAME_LOG_LEVEL", 0);
     v2 = v1;
     if (v1
         && ((v3 = *(_QWORD *)(v1 + 48)) == 0 || !(*(__int64(__fastcall **)(__int64))(*(_QWORD *)v3 + 16i64))(v3)
@@ -43,7 +83,7 @@ void LoadLogLevelSettings() {
     g_MinLogLevel = LL_VERBOSE;
 }
 bool ShouldLog(LOG_LEVEL level) {
-    if (g_MinLogLevel == LL_NOT_SET_YET)
+    if (g_MinLogLevel == LL_CNT /*NOT_SET_YET*/)
         LoadLogLevelSettings();
     return level >= g_MinLogLevel;
 }
@@ -52,7 +92,7 @@ void SetLogWriteHandler(LogWriteHandler h) { g_logWriteHandler = h; }
 
 void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_len) {
     if (g_canUseLogging) {
-        if (g_LogMutexIdx != -1 && /*TODO g_typedLogMetadata[40 * ty] &&*/ ZwiftEnterCriticalSection(g_LogMutexIdx)) {
+        if (g_LogMutexIdx != -1 && g_LogTypes[ty].m_enabled && ZwiftEnterCriticalSection(g_LogMutexIdx)) {
             __time64_t now = _time64(nullptr);
             tm t;
             _localtime64_s(&t, &now);
@@ -72,7 +112,7 @@ void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_l
 }
 void doLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *fmt, va_list args) {
     char buf[1024];
-    if (g_canUseLogging && g_LogMutexIdx != -1 /*TODO && g_typedLogMetadata[40 * ty]*/) {
+    if (g_canUseLogging && g_LogMutexIdx != -1 && g_LogTypes[ty].m_enabled) {
         int cnt1 = sprintf_s(buf, "%s%s", g_logLevelNames[level], g_logTypeNames[ty]);
         if (cnt1 < 0) cnt1 = 0;
         int cnt2 = sprintf_s(&buf[cnt1], 1024 - cnt1, fmt, 0, args);
@@ -91,22 +131,22 @@ void Log(const char *fmt, ...) {
     if (!ShouldLog(LL_DEBUG)) return;
     va_list va;
     va_start(va, fmt);
-    LogInternal(LT_NONE, fmt, va);
+    LogInternal(LOG_GENERAL, fmt, va);
 }
-//LogDebug, LogAnt, LogNoesis stored as pointers somewhere
+//LogDebug, LogNetInt, LogNoesis stored as pointers somewhere
 void LogDebug(const char *fmt, ...) {
     if (!ShouldLog(LL_DEBUG)) return;
     va_list va;
     va_start(va, fmt);
-    doLogInternal(LL_DEBUG, LT_NONE, fmt, va);
+    doLogInternal(LL_DEBUG, LOG_GENERAL, fmt, va);
 }
-void LogAnt(const char *msg) {
+void LogNetInt(const char *msg) {
     if (msg && ShouldLog(LL_DEBUG))
-        execLogInternal(LL_DEBUG, LT_ANT1, msg, strnlen_s(msg, 16384));
+        execLogInternal(LL_DEBUG, LOG_ZNETWORK_INTERNAL, msg, strnlen_s(msg, 16384));
 }
 void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void *dummy_a4, const char *msg) {
     LOG_LEVEL l = LL_ERROR;
-    if (noesisLevel < NoesisLogLevels_5)
+    if (noesisLevel < NLL_CNT)
         l = g_noesisLogLevels[noesisLevel];
     LogLev(l, "[NOESIS] %s", msg ? msg : "(null)");
 }
@@ -115,7 +155,7 @@ void LogLev(LOG_LEVEL level, const char *fmt, ...) {
     if (ShouldLog(level)) {
         va_list va;
         va_start(va, fmt);
-        doLogInternal(level, LT_NONE, fmt, va);
+        doLogInternal(level, LOG_GENERAL, fmt, va);
     }
 }
 bool GameAssertHandler::OnBeforeAbort(const char *cond, const char *file, unsigned line, PVOID *BackTrace, int nframes) {

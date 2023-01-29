@@ -57,6 +57,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   ICU::uc ICU::dt ICU::in ICU::uc ICU::io
   decNumber
   jsoncpp_object jsoncpp_static JsonCpp::JsonCpp
+  GTest::gtest 
 )
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ./)

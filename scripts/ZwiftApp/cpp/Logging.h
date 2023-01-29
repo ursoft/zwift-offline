@@ -1,16 +1,16 @@
 #pragma once
 enum LOG_TYPE {
-	LT_NONE = 0, LT_WARN = 1, LT_ERROR = 2, LT_TERMINAL = 3, LT_NONAMED = 4, LT_FILE = 5, LT_NETWORK = 6, LT_ANT1 = 7, LT_ANT2 = 8, LT_BLE = 9, LT_STEERING = 10, LT_VIDEOCAPTURE = 11,
-	LT_BRAKING = 12, LT_AUTOBRAKING = 13, LT_AUTOMATION = 14
+    LOG_GENERAL = 0, LOG_WARNING = 1, LOG_ERROR = 2, LOG_COMMAND = 3, LOG_COMMAND_OUTPUT = 4, LOG_ASSET = 5, LOG_NETWORK = 6, LOG_ZNETWORK_INTERNAL = 7, LOG_ANT = 8, LOG_ANT_IMPORTANT = 9, LOG_BLE = 10, LOG_STEERING = 11, 
+    LOG_VIDEO_CAPTURE = 12, LOG_BRAKING = 13, LOG_AUTOBRAKING = 14, LOG_AUTOMATION = 15, LOG_CNT = 16
 };
-enum LOG_LEVEL { LL_VERBOSE = 0, LL_DEBUG = 1, LL_INFO = 2, LL_WARNING = 3, LL_ERROR = 4, LL_FATAL = 5, LL_NOT_SET_YET = 6 };
-enum NoesisLogLevel { NoesisLogLevels_0 = 0, NoesisLogLevels_1 = 1, NoesisLogLevels_2 = 2, NoesisLogLevels_3 = 3, NoesisLogLevels_4 = 4, NoesisLogLevels_5 = 5 };
+enum LOG_LEVEL { LL_VERBOSE = 0, LL_DEBUG = 1, LL_INFO = 2, LL_WARNING = 3, LL_ERROR = 4, LL_FATAL = 5, LL_CNT = 6 };
+enum NoesisLogLevel { NLL_TRACE = 0, NLL_DEBUG = 1, NLL_INFO = 2, NLL_WARNING = 3, NLL_ERROR = 4, NLL_CNT = 5 };
 
 void LogTyped(LOG_TYPE type, const char *fmt, ...);
 void Log(const char *fmt, ...);
 void LogLev(LOG_LEVEL level, const char *fmt, ...);
 void LogDebug(const char *fmt, ...);
-void LogAnt(const char *msg);
+void LogNetInt(const char *msg);
 void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void *dummy_a4, const char *msg);
 
 typedef void (*LogWriteHandler)(LOG_LEVEL level, LOG_TYPE ty, const char *msg);
@@ -32,3 +32,5 @@ public:
 extern GameAssertHandler s_instance;
 
 void ZwiftAssert_SetHandler(GameAssertHandler *ptr);
+std::vector<std::string> ParseSuppressedLogs(const char *ls);
+void InitLogging(const std::vector<std::string> &supprLogs);

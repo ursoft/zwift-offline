@@ -1,13 +1,14 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\cpp",
+    "\\docker"
   ],
-  "SelectedNode": "\\framework.h",
   "PreviewInSolutionExplorer": false,
   "OutputFoldersPerTargetSystem": {
     "Local Machine": [
       "..\\..\\..\\ZwiftApp_build\\Debug-host",
-      "1.32.1_106405"
+      "1.32.1_106405-Debug"
     ]
   }
 }

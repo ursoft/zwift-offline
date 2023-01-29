@@ -58,4 +58,7 @@ RUN curl -SL -o c:\Noesis-3.0.12.zip https://www.googleapis.com/drive/v3/files/1
 #json
 RUN C:\vcpkg\vcpkg install jsoncpp:x64-windows-static
 
+#gtest
+RUN C:\vcpkg\vcpkg install gtest:x64-windows-static
+
 ENTRYPOINT [ "cmd.exe", "/k", "C:\\ZwiftApp\\docker\\bootstrap.cmd" ]
