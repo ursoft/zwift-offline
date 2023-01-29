@@ -126,7 +126,7 @@ const char *Feature::c_str(FeatureID id) {
     }
     return g_tlsFeatureMetadataCont[id];
 }
-Experimentation::Experimentation(ZNetAdapter *na, EventSystem *ev) : m_pNA(na), m_event_system(ev){
+Experimentation::Experimentation(ZNetAdapter *na, EventSystem *ev) : EventObject(ev), m_pNA(na) {
     m_userAttributes.m_somePointer = nullptr;
 	ev->Subscribe(EV_RESET, this);
 	ev->Subscribe(EV_28, this);

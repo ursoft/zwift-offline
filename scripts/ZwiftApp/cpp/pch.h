@@ -1,4 +1,5 @@
 #pragma once
+#define NOMINMAX
 #include "framework.h"
 #include <tlhelp32.h>
 #include <psapi.h>
@@ -19,6 +20,7 @@
 #include <cassert> 
 #include <ctime>
 #include <cmath>
+#include <algorithm>
 
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>

@@ -97,7 +97,6 @@ class Experimentation : public EventObject { //sizeof=0x1E48; vtblExperimentatio
 	FeatureStateMachine m_fsms[FID_CNT];
 	UserAttributes m_userAttributes;
 	ZNetAdapter *m_pNA;
-	EventSystem *m_event_system;
 	std::vector<FeatureID> m_ids;
 public:
 	Experimentation(ZNetAdapter *, EventSystem *ev);

@@ -40,10 +40,9 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     Experimentation::Initialize(evSysInst);
     zassert(g_sExperimentationUPtr.get() != nullptr);
     BLEModule::Initialize(g_sExperimentationUPtr.get());
-    /*
-    v9 = (EventSystem *)GameAssertHandler::Initialize(v8);
-    v10 = (PlayerAchievementService *)EventSystem::GetInst(v9);
-    PlayerAchievementService::Initialize(v10, v11);
+    GameAssertHandler::Initialize();
+    PlayerAchievementService::Initialize(evSysInst);
+    /* line 573
     NoesisPerfAnalytics::Initialize(v7);
     ClientTelemetry::Initialize(v7, Inst);
     GroupEvents::Initialize(v7);

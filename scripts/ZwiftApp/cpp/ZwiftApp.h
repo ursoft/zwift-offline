@@ -2,6 +2,7 @@
 #include "pch.h"
 
 #include "FeatureRequest.pb.h"
+#include "Achievements.pb.h"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
@@ -44,3 +45,5 @@ const char *GAMEPATH(const char *path);
 #include "XMLDoc.h"
 #include "ZStringUtil.h"
 #include "CRC.h"
+#include "ZNet.h"
+#include "PlayerAchievementService.h"

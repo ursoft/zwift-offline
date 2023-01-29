@@ -27,9 +27,10 @@ class GameAssertHandler {
 public:
     bool OnBeforeAbort(const char *cond, const char *file, unsigned line, PVOID *BackTrace, int nframes);
     void OnAbort();
+    static void Initialize();
     static bool s_disableAbort;
+    static GameAssertHandler s_instance;
 };
-extern GameAssertHandler s_instance;
 
 void ZwiftAssert_SetHandler(GameAssertHandler *ptr);
 std::vector<std::string> ParseSuppressedLogs(const char *ls);

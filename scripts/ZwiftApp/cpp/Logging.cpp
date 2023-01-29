@@ -169,6 +169,17 @@ void GameAssertHandler::OnAbort() {
         ZwiftExit(-1);
 }
 bool GameAssertHandler::s_disableAbort;
+GameAssertHandler GameAssertHandler::s_instance;
+void GameAssertHandler::Initialize() {
+    g_sExperimentationUPtr->IsEnabled(FID_ASSERTD, [](ExpVariant val) {
+        if(val == EXP_ENABLED) {
+            GameAssertHandler::s_disableAbort = 1;
+            Log("Experiment service disabled assert abort");
+        }
+    });
+    ZwiftAssert_SetHandler(&s_instance);
+    GameAssertHandler::s_disableAbort = true;
+}
 
 thread_local bool g_abortProcessing;
 std::mutex g_abortMutex;

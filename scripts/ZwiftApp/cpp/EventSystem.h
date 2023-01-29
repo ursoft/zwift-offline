@@ -40,13 +40,14 @@ enum EVENT_ID {
 	EV_28 = 0x28,
 };
 typedef void (*EventCallback)(EVENT_ID, va_list);
-
+class EventSystem;
 class EventObject {
 public:
+	EventSystem *m_eventSystem;
+	EventObject(EventSystem *e) : m_eventSystem(e) {}
 	virtual void HandleEvent(EVENT_ID, va_list) = 0;
 	virtual ~EventObject() {}
 };
-
 class EventSystem { //136 bytes
 	static EventSystem *g_eventSystem;
 	std::unordered_map<EVENT_ID, std::vector<EventCallback> > m_fsubs;

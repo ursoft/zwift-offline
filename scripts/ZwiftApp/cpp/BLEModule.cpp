@@ -9,7 +9,7 @@ void BLEModule::Initialize(Experimentation *exp) {
 
 void BLEModule::HandleEvent(EVENT_ID, va_list) { /*TODO*/ }
 
-BLEModule::BLEModule(Experimentation *exp) {
+BLEModule::BLEModule(Experimentation *exp) : EventObject(exp->m_eventSystem) {
 	//TODO
 	//exp->IsEnabled(FID_LOG_BLE, [](bool) {});
 }
