@@ -1,24 +1,24 @@
 #include "ZwiftApp.h"
 std::unique_ptr<PlayerAchievementService> g_sPlayerAchievementServicePtr;
 void PlayerAchievementService::Initialize(EventSystem *ev) {
-	zassert(g_sPlayerAchievementServicePtr.get() == nullptr);
-	g_sPlayerAchievementServicePtr.reset(new PlayerAchievementService(ev));
+    zassert(g_sPlayerAchievementServicePtr.get() == nullptr);
+    g_sPlayerAchievementServicePtr.reset(new PlayerAchievementService(ev));
 }
 PlayerAchievementService *PlayerAchievementService::Instance() {
-	zassert(g_sPlayerAchievementServicePtr.get() != nullptr);
-	return g_sPlayerAchievementServicePtr.get();
+    zassert(g_sPlayerAchievementServicePtr.get() != nullptr);
+    return g_sPlayerAchievementServicePtr.get();
 }
 bool PlayerAchievementService::IsInitialized() {
-	return !!g_sPlayerAchievementServicePtr.get();
+    return g_sPlayerAchievementServicePtr.get() != nullptr;
 }
 PlayerAchievementService::PlayerAchievementService(EventSystem *ev) : EventObject(ev) {
     m_repeatPeriod = 15;
-	ev->Subscribe(EV_RESET, this);
+    ev->Subscribe(EV_RESET, this);
     m_lastPeriodEnd = timeGetTime();
     //TODO
 }
 void PlayerAchievementService::HandleEvent(EVENT_ID e, va_list va) {
-	if (e == EV_RESET) {
+    if (e == EV_RESET) {
         if (m_field18) {
             m_field18 = nullptr;
             memset(m_bitField, 0, sizeof(m_bitField));
@@ -61,13 +61,13 @@ void PlayerAchievementService::LoadAchievementsSuccess(const protobuf::Achieveme
     }
 }
 void PlayerAchievementService::LoadRideHistory() {
-	//TODO
+    //TODO
 }
 void PlayerAchievementService::PersistAchievements() {
     auto data = listPlayerAchievements();
     if (data.size()) {
         m_stateSave = SLS_INPROCESS;
-	    //TODO
+        //TODO
     }
 }
 void PlayerAchievementService::PersistAchievementsFailure(std::vector<int>, ZNet::Error) {
@@ -116,8 +116,8 @@ std::vector<int> PlayerAchievementService::listPlayerAchievements() {
     return ret;
 }
 PlayerAchievementService::~PlayerAchievementService() {
-	m_eventSystem->Unsubscribe(EV_RESET, this);
-	/*TODO
+    m_eventSystem->Unsubscribe(EV_RESET, this);
+    /*TODO
   v5[0] = (__int64)"PlayerAchievementService";
   v5[1] = 24i64;
   sub_7FF658A17260((__int128 ***)&this->field_28, (__int64)v5);

@@ -38,15 +38,14 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     zassert(g_sCrashReportingUPtr.get() == nullptr);
     CrashReporting::Initialize(evSysInst);
     Experimentation::Initialize(evSysInst);
-    auto exp = g_sExperimentationUPtr.get();
-    zassert(exp != nullptr);
+    auto exp = Experimentation::Instance();
     BLEModule::Initialize(exp);
     GameAssertHandler::Initialize();
     PlayerAchievementService::Initialize(evSysInst);
     NoesisPerfAnalytics::Initialize(exp);
     ClientTelemetry::Initialize(exp, evSysInst);
-    /* line 600
-    GroupEvents::Initialize(v7);
+    GroupEvents::Initialize(exp);
+    /* line 627
     zwift::localization::UnitTypeManager::Initialize(Inst, 0LL, v12);
     PlayerProfileCache::Initialize(Inst, v13);
     GoalsManager::Initialize(Inst, v14);
@@ -73,8 +72,58 @@ void EndGameSession(bool bShutDown) {
 void ShutdownSingletons() {
     zassert(g_sCrashReportingUPtr.get() != nullptr);
     //CrashReporting::AddBreadcrumb(0i64, "Shutting down VideoCapture");
-    //...TODO
-    //CrashReporting::AddBreadcrumb(0i64, "Shutting down Experimentation");
-    g_sExperimentationUPtr.reset();
-    //TODO
+    VideoCapture::ShutdownVideoCapture();
+    //CrashReporting::AddBreadcrumb(0i64, "Shutting down Powerups");
+    Powerups::g_pPowerups.reset(); //DestroyPowerups
+    //CrashReporting::AddBreadcrumb(0i64, "Shutting down IoCpp");
+    IoCPP::Set(nullptr);
+    //CrashReporting::AddBreadcrumb(0i64, "Shutting down NoesisPerfAnalytics");
+    if (NoesisPerfAnalytics::IsInitialized())
+        NoesisPerfAnalytics::Shutdown();
+    //CrashReporting::AddBreadcrumb(0i64, "Shutting down GoalsManager");
+    GoalsManager::Shutdown();
+   //CrashReporting::AddBreadcrumb(0i64, "Shutting down UnitTypeManager");
+    UnitTypeManager::Shutdown();
+    //CrashReporting::AddBreadcrumb(0i64, "Shutting down ClientTelemetry");
+    ClientTelemetry::Shutdown();
+    //CrashReporting::AddBreadcrumb(0i64, "Shutting down SaveActivityService");
+    if (SaveActivityService::IsInitialized())
+        SaveActivityService::Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down ConnectionManager");
+    if (ConnectionManager::IsInitialized())
+        ConnectionManager::DestroyInstance();
+    //CrashReporting::AddBreadcrumb("Shutting down GameAssertHandler");
+    GameAssertHandler::Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down Localization");
+    LOC_Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down GroupEvents");
+    zassert("sExperimentationUPtr.get() != nullptr");
+    GroupEvents::Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down PlayerAchievementService");
+    if (PlayerAchievementService::IsInitialized())
+        PlayerAchievementService::Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down HoloReplayManager");
+    if (HoloReplayManager::IsInitialized())
+        HoloReplayManager::Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down BLEModule");
+    if (BLEModule::IsInitialized())
+        BLEModule::Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down DataRecorder");
+    if (DataRecorder::IsInitialized())
+        DataRecorder::Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down Experimentation");
+    if (Experimentation::IsInitialized())
+        Experimentation::Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down ZFeatureManager");
+    if (ZFeatureManager::IsInitialized())
+        ZFeatureManager::Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down ZNet::NetworkService");
+    if (ZNet::NetworkService::IsInitialized())
+        ZNet::NetworkService::Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down zwift_network");
+    ZNETWORK_Shutdown();
+    //CrashReporting::AddBreadcrumb("Shutting down CrashReporting");
+    CrashReporting::Shutdown();
+    if (EventSystem::IsInitialized())
+        EventSystem::Destroy();
 }

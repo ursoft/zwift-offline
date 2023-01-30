@@ -4,9 +4,9 @@ const char *g_expVarNames[EXP_CNT] = { "unassigned", "enabled", "disabled", "non
 std::unique_ptr<Experimentation> g_sExperimentationUPtr;
 ZNetAdapter g_znetAdapter;
 void Experimentation::Initialize(EventSystem *ev) {
-	zassert(g_sExperimentationUPtr.get() == nullptr);
-	g_sExperimentationUPtr.reset(new Experimentation(&g_znetAdapter, ev));
-	zassert(g_sExperimentationUPtr.get() != nullptr);
+    zassert(g_sExperimentationUPtr.get() == nullptr);
+    g_sExperimentationUPtr.reset(new Experimentation(&g_znetAdapter, ev));
+    zassert(g_sExperimentationUPtr.get() != nullptr);
 }
 const FeatureMetadata g_featureMetadata[FID_CNT] = { //FillFeatureMetadata
     //variants.txt[zwift_launcher_osx_metal] not used here (maybe because of windows)
@@ -128,8 +128,8 @@ const char *Feature::c_str(FeatureID id) {
 }
 Experimentation::Experimentation(ZNetAdapter *na, EventSystem *ev) : EventObject(ev), m_pNA(na) {
     m_userAttributes.m_somePointer = nullptr;
-	ev->Subscribe(EV_RESET, this);
-	ev->Subscribe(EV_28, this);
+    ev->Subscribe(EV_RESET, this);
+    ev->Subscribe(EV_28, this);
 }
 bool Experimentation::IsEnabled(FeatureID id) { return m_fsms[id].m_enableStatus == EXP_ENABLED; }
 ExpVariant Experimentation::IsEnabled(FeatureID id, ExpVariant overrideIfUn) { return (overrideIfUn != EXP_UNASSIGNED) ? overrideIfUn : m_fsms[id].m_enableStatus; }
@@ -167,10 +167,10 @@ void Experimentation::HandleEvent(EVENT_ID e, va_list args) {
 inline ZwiftDispatcher::ZwiftDispatcher() {
 }
 inline void ZwiftDispatcher::Assert(bool bPredicate) {
-	zassert(bPredicate);
+    zassert(bPredicate);
 }
 inline void ZwiftDispatcher::Assert(bool bPredicate, const char *errMsg) {
-	_ASSERT_EXPR(bPredicate, errMsg);
+    _ASSERT_EXPR(bPredicate, errMsg);
 }
 FeaRequestResult FeatureStateMachine::OnRequest(const FeatureCallback &func) {
     m_rqCounter++;

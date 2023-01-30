@@ -1,8 +1,8 @@
 #pragma once
 class GameCritical
 {
-	static int s_jobCount;
-	static bool s_shouldAbortJobs;
+    static int s_jobCount;
+    static bool s_shouldAbortJobs;
     static std::mutex s_mutex;
     static DWORD s_threadWithLock;
     bool m_locked = false;

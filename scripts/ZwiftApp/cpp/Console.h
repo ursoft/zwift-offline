@@ -42,14 +42,14 @@ std::string CMD_ListVars4(const char *);
 
 //extern int g_knownCommandsCounter;
 struct ConsoleCommandFuncs {
-	const char *m_name;
-	CMD_bool m_bool;
-	CMD_static_str m_static_str;
-	CMD_ac_search m_ac_search;
-	CMD_string m_string;
-	bool operator==(ConsoleCommandFuncs const &peer) const {
-		return m_name == peer.m_name; //no dynamic strings etc
-	};
+    const char *m_name;
+    CMD_bool m_bool;
+    CMD_static_str m_static_str;
+    CMD_ac_search m_ac_search;
+    CMD_string m_string;
+    bool operator==(ConsoleCommandFuncs const &peer) const {
+        return m_name == peer.m_name; //no dynamic strings etc
+    };
 };
 //extern ConsoleCommandFuncs g_knownCommands[];
 bool COMMAND_RunCommandsFromFile(const char *name);
@@ -57,11 +57,11 @@ bool COMMAND_RunCommand(const char *cmd);
 
 //non-zwift: console redirection (useful for debugging and unit testing)
 namespace non_zwift {
-	class ConsoleHandler {
-		bool m_releaseNeed;
-	public:
-		ConsoleHandler(int16_t minLength);
-		bool LaunchUnitTests(int argc, char **argv);
-		~ConsoleHandler();
-	};
+    class ConsoleHandler {
+        bool m_releaseNeed;
+    public:
+        ConsoleHandler(int16_t minLength);
+        bool LaunchUnitTests(int argc, char **argv);
+        ~ConsoleHandler();
+    };
 }

@@ -1,7 +1,7 @@
 #include "ZwiftApp.h"
 
 namespace ZStringUtil {
-	std::vector<std::string> Split(const std::string &src, char delim) {
+    std::vector<std::string> Split(const std::string &src, char delim) {
         std::stringstream ss(src);
         std::vector<std::string> ret;
         while (ss.good()) {
@@ -10,5 +10,5 @@ namespace ZStringUtil {
             ret.push_back(substr);
         }
         return ret;
-	}
+    }
 }

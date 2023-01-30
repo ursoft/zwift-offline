@@ -12,109 +12,121 @@ enum FeatureID { FID_PPDATA=0x1D, FID_RLOG=0x1E, FID_FQUERY=0x1F, FID_VID_CAP=0x
     FID_PLAYERH=0x5B, FID_POS_G=0x5C, FID_POS_L=0x5D, FID_LO_WM=0x5E, FID_PACKDYN=0x5F, FID_CAMPAIG=0x60, FID_ENABLES=0x61, FID_SETDEFA=0x63, FID_PD4=0x66, FID_CNT=104 };
 
 struct FeatureMetadata { //40 bytes
-	FeatureID m_id;
-	const char *m_name;
-	int32_t m_deprecated;
-	int32_t m_unk[4];
-	//int m_notused; always 0
+    FeatureID m_id;
+    const char *m_name;
+    int32_t m_deprecated;
+    int32_t m_unk[4];
+    //int m_notused; always 0
 };
 extern const FeatureMetadata g_featureMetadata[];
 struct Feature {
-	FeatureID m_id;
-	FeatureID ToIndex() { return m_id; }
-	const char *c_str();
-	static const char *c_str(FeatureID id);
+    FeatureID m_id;
+    FeatureID ToIndex() { return m_id; }
+    const char *c_str();
+    static const char *c_str(FeatureID id);
 };
 template<class T> struct FeatureValue {
-	T m_val;
-	bool m_filled = false;
+    T m_val;
+    bool m_filled = false;
 };
 class ZwiftDispatcher { //size=8
-	char data[8];
+    char data[8];
 public:
-	ZwiftDispatcher();
-	void Assert(bool bPredicate);
-	void Assert(bool bPredicate, const char *errMsg);
+    ZwiftDispatcher();
+    void Assert(bool bPredicate);
+    void Assert(bool bPredicate, const char *errMsg);
 };
 struct FeatureVariable { //9 int64_t Experiment::Impl::FeatureVariable<zu::ZwiftDispatcher>
-	std::string m_name;
-	void *m_type;
-	union u {
-		int64_t m_i64;
-		bool m_bool;
-		double m_dbl;
-	} m_uval;
-	std::string m_str;
-	operator bool() { return m_uval.m_bool; }
-	operator int64_t() { return m_uval.m_i64; }
-	operator double() { return m_uval.m_dbl; }
-	operator std::string() { return m_str; }
+    std::string m_name;
+    void *m_type;
+    union u {
+        int64_t m_i64;
+        bool m_bool;
+        double m_dbl;
+    } m_uval;
+    std::string m_str;
+    operator bool() { return m_uval.m_bool; }
+    operator int64_t() { return m_uval.m_i64; }
+    operator double() { return m_uval.m_dbl; }
+    operator std::string() { return m_str; }
 };
 struct FeaRequestResult {
-	bool m_succ;
-	int64_t m_unk;
+    bool m_succ;
+    int64_t m_unk;
 };
 enum ExpVariant { EXP_UNASSIGNED, EXP_ENABLED, EXP_DISABLED, EXP_NONE, EXP_UNKNOWN, EXP_CNT }; //Experiment::Variant
 extern const char *g_expVarNames[EXP_CNT];
 typedef std::function<void(ExpVariant)> FeatureCallback;
 struct RegisteredCallback { //size=8*9=72?
-	int64_t m_cntId;
-	FeatureCallback m_func;
-	RegisteredCallback(int64_t cnt, const FeatureCallback &func) : m_cntId(cnt), m_func(func) {}
+    int64_t m_cntId;
+    FeatureCallback m_func;
+    RegisteredCallback(int64_t cnt, const FeatureCallback &func) : m_cntId(cnt), m_func(func) {}
 };
 struct FeatureStateMachine { //size=72 Experiment::Impl::FeatureStateMachine<zu::ZwiftDispatcher>
-	ExpVariant m_enableStatus;
-	std::vector<FeatureVariable> m_variables;
-	int m_field20;
-	int64_t m_rqCounter;
-	std::vector<RegisteredCallback> m_callbacks;
-	FeaRequestResult OnRequest(const FeatureCallback &func);
-	void OnResponse(ExpVariant res, const std::vector<FeatureVariable> &resExt);
-	template<class T> FeatureValue<T> GetFeatureVariable(const std::string &name) {
-		for (auto &i : m_variables) {
-			if (i.m_name == name) {
-				//assert(); //TODO: соответствие типа переменной i.m_type и Т
-				return FeatureValue<T>{ T(i), true };
-			}
-		}
-		return FeatureValue<T>{ T(), false };
-	}
+    ExpVariant m_enableStatus;
+    std::vector<FeatureVariable> m_variables;
+    int m_field20;
+    int64_t m_rqCounter;
+    std::vector<RegisteredCallback> m_callbacks;
+    FeaRequestResult OnRequest(const FeatureCallback &func);
+    void OnResponse(ExpVariant res, const std::vector<FeatureVariable> &resExt);
+    template<class T> FeatureValue<T> GetFeatureVariable(const std::string &name) {
+        for (auto &i : m_variables) {
+            if (i.m_name == name) {
+                //assert(); //TODO: соответствие типа переменной i.m_type и Т
+                return FeatureValue<T>{ T(i), true };
+            }
+        }
+        return FeatureValue<T>{ T(), false };
+    }
 };
 struct ExpIsEnabledResult {
-	FeatureID m_id;
-	int64_t m_unk; //ExpVariant?
+    FeatureID m_id;
+    int64_t m_unk; //ExpVariant?
 };
 struct UserAttributes {
-	void *m_somePointer;
-	FeatureValue<std::string> m_eventTypeAttr;
-	std::string m_str[5];
+    void *m_somePointer;
+    FeatureValue<std::string> m_eventTypeAttr;
+    std::string m_str[5];
 };
 struct ZNetAdapter {
-	protobuf::FeatureRequest *FormFeatureRequest(UserAttributes *ua);
+    protobuf::FeatureRequest *FormFeatureRequest(UserAttributes *ua);
 };
 extern ZNetAdapter g_znetAdapter;
 class Experimentation : public EventObject { //sizeof=0x1E48; vtblExperimentation+0=DTR
-	FeatureStateMachine m_fsms[FID_CNT];
-	UserAttributes m_userAttributes;
-	ZNetAdapter *m_pNA;
-	std::vector<FeatureID> m_ids;
+    FeatureStateMachine m_fsms[FID_CNT];
+    UserAttributes m_userAttributes;
+    ZNetAdapter *m_pNA;
+    std::vector<FeatureID> m_ids;
+    static inline std::unique_ptr<Experimentation> g_ExperimentationUPtr;
 public:
-	Experimentation(ZNetAdapter *, EventSystem *ev);
+    Experimentation(ZNetAdapter *, EventSystem *ev);
 
-	void HandleEvent(EVENT_ID e, va_list args) override; //vtblEvent
-	virtual ~Experimentation() { /*todo*/ }                                          //vtblExp+0
-	ExpIsEnabledResult IsEnabled(FeatureID id, const FeatureCallback &func);         //vtblExp+1
-	ExpVariant IsEnabled(FeatureID id, ExpVariant overrideIfUn);                     //vtblExp+2
-	bool IsEnabled(FeatureID id);                                                    //vtblExp+3
-	void HandleLogout();                                                             //vtblExp+4
-	//todo void Unregister(Experiment::CallbackID<Experiment::Feature>)              //vtblExp+5
-	template <class T> FeatureValue<T> Get(FeatureID id, const std::string &name) {  //vtblExp+6: bool, vtblExp+7: int64, vtblExp+8: double, vtblExp+9: String
-		return m_fsms[id].GetFeatureVariable<T>(name);
-	}
-	void SetEventTypeAttribute(const std::string_view &src);                         //vtblExp+10
-	void RequestFeatureData(FeatureID id);
-	static void Initialize(EventSystem *ev);
-	void BulkRequestFeatureData(const std::vector<FeatureID> &ids);
+    void HandleEvent(EVENT_ID e, va_list args) override; //vtblEvent
+    virtual ~Experimentation() { /*todo*/ }                                          //vtblExp+0
+    ExpIsEnabledResult IsEnabled(FeatureID id, const FeatureCallback &func);         //vtblExp+1
+    ExpVariant IsEnabled(FeatureID id, ExpVariant overrideIfUn);                     //vtblExp+2
+    bool IsEnabled(FeatureID id);                                                    //vtblExp+3
+    void HandleLogout();                                                             //vtblExp+4
+    //todo void Unregister(Experiment::CallbackID<Experiment::Feature>)              //vtblExp+5
+    template <class T> FeatureValue<T> Get(FeatureID id, const std::string &name) {  //vtblExp+6: bool, vtblExp+7: int64, vtblExp+8: double, vtblExp+9: String
+        return m_fsms[id].GetFeatureVariable<T>(name);
+    }
+    void SetEventTypeAttribute(const std::string_view &src);                         //vtblExp+10
+    void RequestFeatureData(FeatureID id);
+    static bool IsInitialized() { return g_ExperimentationUPtr.get() != nullptr; }
+    static void Shutdown() { g_ExperimentationUPtr.reset(); }
+    static Experimentation *Instance() { zassert(g_ExperimentationUPtr.get() != nullptr); return g_ExperimentationUPtr.get(); }
+    static void Initialize(EventSystem *ev);
+    void BulkRequestFeatureData(const std::vector<FeatureID> &ids);
 };
 
-extern std::unique_ptr<Experimentation> g_sExperimentationUPtr;
+class ZFeatureManager {
+    inline static std::unique_ptr<ZFeatureManager> g_FeatureManager;
+public:
+    ZFeatureManager() {}
+    //static void Initialize(Experimentation *exp);
+    static bool IsInitialized() { return g_FeatureManager.get() != nullptr; }
+    static ZFeatureManager *Instance() { zassert(g_FeatureManager.get() != nullptr); return g_FeatureManager.get(); }
+    static void Shutdown() { g_FeatureManager.reset(); }
+};

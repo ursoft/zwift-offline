@@ -16,22 +16,38 @@ void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void 
 typedef void (*LogWriteHandler)(LOG_LEVEL level, LOG_TYPE ty, const char *msg);
 void SetLogWriteHandler(LogWriteHandler h);
 
-bool ZwiftBeforeAbort(const char *cond, const char *file, unsigned line);
-void ZwiftAssert_Abort();
-
-#define zassert(c) if(!(c)) { \
-  if (IsDebuggerPresent()) __debugbreak(); \
-  if (ZwiftBeforeAbort(#c, __FILE__, __LINE__)) ZwiftAssert_Abort(); }
-
 class GameAssertHandler {
+    static inline bool s_disableAbort;
 public:
-    bool OnBeforeAbort(const char *cond, const char *file, unsigned line, PVOID *BackTrace, int nframes);
-    void OnAbort();
     static void Initialize();
-    static bool s_disableAbort;
-    static GameAssertHandler s_instance;
+    static void Shutdown();
+    static void DisableAbort() { s_disableAbort = true; }
+
+    bool BeforeAbort(const char *cond, const char *file, unsigned line, PVOID *BackTrace, int nframes);
+    void Abort();
+    //static void CheckOnceFlag(const char *, int);
+    //static void ComputeAssertHash(const char *, int);
+    //static void GetOnceInfo(const char *, int);
+    //static void NotifyCrashReporting(const char *, const char *, int, void **, uint);
+    //static void PopContext();
+    //static void PushContext(const char *, zu::Value &&);
+    //static void SetOnceFlag(const char *, int);
+};
+class ZwiftAssert {
+    static inline std::mutex g_abortMutex;
+    static inline thread_local bool g_abortProcessing;
+    static inline GameAssertHandler *g_abortListener;
+public:
+    static void SetHandler(GameAssertHandler *ptr) { if (!g_abortProcessing) g_abortListener = ptr; }
+    static void Abort();
+    static bool BeforeAbort(const char *cond, const char *file, unsigned line);
+    static bool IsBeingDebugged() { return IsDebuggerPresent(); }
+    //static void Test_(bool, const char *, const char *, const char *, int, bool);
 };
 
-void ZwiftAssert_SetHandler(GameAssertHandler *ptr);
+#define zassert(c) if(!(c)) { \
+  if (ZwiftAssert::IsBeingDebugged()) __debugbreak(); \
+  if (ZwiftAssert::BeforeAbort(#c, __FILE__, __LINE__)) ZwiftAssert::Abort(); }
+
 std::vector<std::string> ParseSuppressedLogs(const char *ls);
 void InitLogging(const std::vector<std::string> &supprLogs);
