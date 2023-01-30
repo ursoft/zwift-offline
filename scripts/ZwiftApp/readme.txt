@@ -27,6 +27,4 @@ Static variables
 Other static libs
 ~~~~~~~~~~~~~~~~~
 turn off https://github.com/getsentry/sentry-native
-add https://github.com/open-source-parsers/jsoncpp
-gtest
 

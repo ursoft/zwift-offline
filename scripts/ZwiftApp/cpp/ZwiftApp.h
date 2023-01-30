@@ -47,3 +47,4 @@ const char *GAMEPATH(const char *path);
 #include "CRC.h"
 #include "ZNet.h"
 #include "PlayerAchievementService.h"
+#include "NoesisPerfAnalytics.h"

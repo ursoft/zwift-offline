@@ -1,12 +1,14 @@
 #pragma once
 
-enum Achievement { ACH_CNT };
-enum PlayerAchievementServiceLoadingState { PAS_LOADING = 1, PAS_SAVING = 1, PAS_LOADED = 2 };
+enum Achievement { ACH_CNT = 512 };
 class PlayerAchievementService : public EventObject {
 	uint64_t m_ridemask;
-	DWORD m_start;
-	PlayerAchievementServiceLoadingState m_state_load, m_state_save;
-	uint8_t m_bitField[16 /*TODO*/];
+	DWORD m_lastPeriodEnd, m_repeatPeriod;
+	bool m_changeFlag;
+	void *m_field18;
+	enum AchSaveLoadState { SLS_INITIAL = 0, SLS_INPROCESS = 1, SLS_DONE = 2, SLS_FAILED = 3 };
+	AchSaveLoadState m_stateLoad, m_stateSave;
+	uint8_t m_bitField[ACH_CNT / 8];
 public:
 	static void Initialize(EventSystem *ev);
 	PlayerAchievementService(EventSystem *ev);
@@ -17,19 +19,19 @@ public:
 	bool HasAchievement(Achievement a) { return m_bitField[a / 8] & (1 << (a & 7)); }
 	static PlayerAchievementService *Instance();
 	static bool IsInitialized();
-	bool IsLoaded() { return m_state_load == PAS_LOADED; }
-	bool IsLoading() { return m_state_load == PAS_LOADING; }
-	bool IsSaving() { return m_state_save == PAS_SAVING; }
+	bool IsLoaded() { return m_stateLoad == SLS_DONE; }
+	bool IsLoading() { return m_stateLoad == SLS_INPROCESS; }
+	bool IsSaving() { return m_stateSave == SLS_INPROCESS; }
 	void LoadAchievements();
-	void LoadAchievementsFailure(ZNet::Error, uint32_t);
-	void LoadAchievementsSuccess(const protobuf::Achievements &a, uint32_t);
+	void LoadAchievementsFailure(ZNet::Error, void *);
+	void LoadAchievementsSuccess(const protobuf::Achievements &a, void *);
 	void LoadRideHistory();
 	void PersistAchievements();
 	void PersistAchievementsFailure(std::vector<int>, ZNet::Error);
 	void PersistAchievementsSuccess();
 	void SetAchievement(Achievement);
 	void Shutdown();
-	void Update(float dt);
-	void listPlayerAchievements();
+	void Update(float t);
+	std::vector<int> listPlayerAchievements();
 	~PlayerAchievementService();
 };
