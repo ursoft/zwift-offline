@@ -38,13 +38,14 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     zassert(g_sCrashReportingUPtr.get() == nullptr);
     CrashReporting::Initialize(evSysInst);
     Experimentation::Initialize(evSysInst);
-    zassert(g_sExperimentationUPtr.get() != nullptr);
-    BLEModule::Initialize(g_sExperimentationUPtr.get());
+    auto exp = g_sExperimentationUPtr.get();
+    zassert(exp != nullptr);
+    BLEModule::Initialize(exp);
     GameAssertHandler::Initialize();
     PlayerAchievementService::Initialize(evSysInst);
-    /* line 573
-    NoesisPerfAnalytics::Initialize(v7);
-    ClientTelemetry::Initialize(v7, Inst);
+    NoesisPerfAnalytics::Initialize(exp);
+    ClientTelemetry::Initialize(exp, evSysInst);
+    /* line 600
     GroupEvents::Initialize(v7);
     zwift::localization::UnitTypeManager::Initialize(Inst, 0LL, v12);
     PlayerProfileCache::Initialize(Inst, v13);

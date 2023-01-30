@@ -71,7 +71,7 @@ struct FeatureStateMachine { //size=72 Experiment::Impl::FeatureStateMachine<zu:
 	FeaRequestResult OnRequest(const FeatureCallback &func);
 	void OnResponse(ExpVariant res, const std::vector<FeatureVariable> &resExt);
 	template<class T> FeatureValue<T> GetFeatureVariable(const std::string &name) {
-		for (auto i : m_variables) {
+		for (auto &i : m_variables) {
 			if (i.m_name == name) {
 				//assert(); //TODO: соответствие типа переменной i.m_type и Т
 				return FeatureValue<T>{ T(i), true };

@@ -48,3 +48,4 @@ const char *GAMEPATH(const char *path);
 #include "ZNet.h"
 #include "PlayerAchievementService.h"
 #include "NoesisPerfAnalytics.h"
+#include "ClientTelemetry.h"

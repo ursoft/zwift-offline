@@ -52,7 +52,7 @@ void NoesisPerfAnalytics::AfterOnscreenRender() {
 			uint64_t FPS = 1.0 / frameTimeSec;
 			if (FPS < MAX_FPS) {
 				++m_fpsDistribution[FPS];
-				++m_fpsDistribution[MAX_FPS];
+				++m_framesCounter;
 			}
 			if (frameTimeSec > m_maxFrameTime) m_maxFrameTime = frameTimeSec;
 			if (frameTimeSec < m_minFrameTime) m_minFrameTime = frameTimeSec;
@@ -72,7 +72,7 @@ void NoesisPerfAnalytics::AfterStartGameDoneLoading() {
 }
 void NoesisPerfAnalytics::AfterUpdateRouteSelectionModel() {
 	if (m_enabled && m_worldSelected) {
-		//TODO m_field_4F0
+		//TODO m_pps
 	}
 }
 void NoesisPerfAnalytics::BeforeStartGameTransitionToLoadingScreen() {
@@ -89,18 +89,18 @@ void NoesisPerfAnalytics::HomeScreenElementLoaded() {
 	if (m_enabled && m_homeScreenPendingElements > 0) {
 		m_homeScreenPendingElements--;
 		if (m_homeScreenPendingElements == 0) {
-			//TODO m_field_4F0
+			//TODO m_pps
 		}
 	}
 }
 void NoesisPerfAnalytics::OnFullyLoadedHomeScreen() {
 	if (m_enabled) {
-		//TODO m_field_4F0
+		//TODO m_pps
 	}
 }
 void NoesisPerfAnalytics::OnInitialLoadedHomeScreen() {
 	if (m_enabled) {
-		//TODO m_field_4F0
+		//TODO m_pps
 	}
 }
 void NoesisPerfAnalytics::OnWorldSelected() {
