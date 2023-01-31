@@ -1,5 +1,4 @@
 #include "ZwiftApp.h"
-#include "BLEModule.h"
 
 void BLEModule::Initialize(Experimentation *exp) {
     g_BLEModule.reset(new BLEModule(exp));

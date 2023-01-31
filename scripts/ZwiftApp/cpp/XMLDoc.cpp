@@ -338,8 +338,10 @@ void XMLDoc::Save() {
 void XMLDoc::SaveAs(const char *, bool) {
     //TODO
 }
-void XMLDoc::SetBool(const char *, bool, bool) {
-    //TODO
+void XMLDoc::SetBool(const char *path, bool val , bool enableCreate) {
+    auto Element = FindElement(path, enableCreate);
+    if (Element)
+        Element->SetText(val);
 }
 void XMLDoc::SetCStr(const char *path, const char *text, bool enableCreate) {
     tinyxml2::XMLElement *ret = enableCreate ? FindElement(path, true) : FindNextElement(path, false, false);

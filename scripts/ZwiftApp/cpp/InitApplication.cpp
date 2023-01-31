@@ -45,8 +45,8 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     NoesisPerfAnalytics::Initialize(exp);
     ClientTelemetry::Initialize(exp, evSysInst);
     GroupEvents::Initialize(exp);
-    /* line 627
-    zwift::localization::UnitTypeManager::Initialize(Inst, 0LL, v12);
+    UnitTypeManager::Initialize(evSysInst, false);
+    /* line 651
     PlayerProfileCache::Initialize(Inst, v13);
     GoalsManager::Initialize(Inst, v14);
     v16 = (ZNet::NetworkService *)Cloud::CloudSyncManager::Initialize(Inst, v15);

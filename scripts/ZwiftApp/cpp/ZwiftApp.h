@@ -60,3 +60,5 @@ const char *GAMEPATH(const char *path);
 #include "Localization.h"
 #include "HoloReplayManager.h"
 #include "DataRecorder.h"
+#include "BikeManager.h"
+#include "BikeEntity.h"
