@@ -46,8 +46,8 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     ClientTelemetry::Initialize(exp, evSysInst);
     GroupEvents::Initialize(exp);
     UnitTypeManager::Initialize(evSysInst, false);
+    PlayerProfileCache::Initialize(evSysInst);
     /* line 651
-    PlayerProfileCache::Initialize(Inst, v13);
     GoalsManager::Initialize(Inst, v14);
     v16 = (ZNet::NetworkService *)Cloud::CloudSyncManager::Initialize(Inst, v15);
     ZNet::NetworkService::Initialize(v16);

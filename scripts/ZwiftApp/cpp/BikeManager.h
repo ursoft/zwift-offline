@@ -1,5 +1,6 @@
 #pragma once
 class BikeEntity;
+class PrivateAttributesHelper;
 class BikeManager {
     inline static std::unique_ptr<BikeManager> g_pBikeManager;
 public:
@@ -10,4 +11,5 @@ public:
     //static void Initialize(EventSystem *ev, bool b);
     //~BikeManager();
     BikeEntity *m_mainBike;
+    PrivateAttributesHelper *m_pah;
 };

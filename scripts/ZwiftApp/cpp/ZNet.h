@@ -23,3 +23,6 @@ namespace ZNet {
     };
 }
 void ZNETWORK_Shutdown();
+uint64_t ZNETWORK_GetNetworkSyncedTimeGMT();
+bool ZNETWORK_IsLoggedIn();
+
