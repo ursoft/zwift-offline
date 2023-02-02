@@ -6,8 +6,16 @@ void ZNETWORK_Shutdown() {
         g_NetworkOn = false;
     }
 }
-void zwift_network::shutdown_zwift_network() {
-    //TODO
+namespace zwift_network {
+    void shutdown_zwift_network() {
+        //TODO
+    }
+    void get_goals(int64_t playerId) { 
+        //TODO
+    }
+    void save_goal(const protobuf::Goal &g) {
+        //TODO
+    }
 }
 uint64_t g_serverTime;
 double g_accumulatedTime;

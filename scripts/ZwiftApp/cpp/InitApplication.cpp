@@ -47,15 +47,68 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     GroupEvents::Initialize(exp);
     UnitTypeManager::Initialize(evSysInst, false);
     PlayerProfileCache::Initialize(evSysInst);
-    /* line 651
-    GoalsManager::Initialize(Inst, v14);
-    v16 = (ZNet::NetworkService *)Cloud::CloudSyncManager::Initialize(Inst, v15);
-    ZNet::NetworkService::Initialize(v16);
-    v17 = (ZNet::NetworkService *)Experiment::Impl::Experimentation<Experiment::Feature, Experiment::Impl::ZNetAdapter, zu::ZwiftDispatcher>::Instance();
-    v18 = (EventSystem *)ZNet::NetworkService::Instance(v17);
-    v19 = EventSystem::GetInst(v18);
-    DataRecorder::Initialize(v17, v18, v19);
-    Experiment::Feature::Feature(v291, 83LL);*/
+    GoalsManager::Initialize(evSysInst);
+    ZNet::NetworkService::Initialize();
+    //TODO v16 = (ZNet::NetworkService *)Cloud::CloudSyncManager::Initialize(Inst, v15);
+    DataRecorder::Initialize(exp, ZNet::NetworkService::Instance(), evSysInst);
+    Thread::Initialize(exp);
+    //TODO option::Parser::workhorse
+    GFX_SetLoadedAssetMode(true);
+    char userPath[MAX_PATH] = {};
+    if (OS_GetUserPath(userPath)) {
+        char downloadPath[MAX_PATH] = {};
+        sprintf_s(downloadPath, "%s/Zwift/", userPath);
+        gDownloader.SetLocalPath(downloadPath);
+    }
+    /* line 691
+  Downloader::SetServerURLPath((Downloader *)&gDownloader, "https://cdn.zwift.com/gameassets/");
+  LOBYTE(v241[0]) = 36;
+  v241[2] = "_ZN6google8protobuf16RepeatedPtrFieldINS0_11MessageLiteEE12SwapElementsEii" + 16;
+  *(_OWORD *)((char *)v241 + 1) = *(_OWORD *)"MapSchedule_v2.xml";
+  Downloader::Download(
+    &gDownloader,
+    v241,
+    0LL,
+    Downloader::m_noFileTime,
+    0xFFFFFFFFLL,
+    GAME_onFinishedDownloadingMapSchedule);
+  if ( ((__int64)v241[0] & 1) != 0 )
+    operator delete(v241[2]);
+  memset(v241, 0, 24);
+  g_bUpdateCheckInProgress = 1;
+  v32 = (void *)operator new(0x20uLL);
+  v33 = Downloader::m_noFileTime;
+  v241[2] = v32;
+  *(_OWORD *)v241 = xmmword_1DA2B90;
+  strcpy((char *)v32, "ZwiftAndroid_ver_cur.xml");
+  Downloader::Download(&gDownloader, v241, 0LL, v33, 0xFFFFFFFFLL, OnDownloadVerCur_End);
+  if ( ((__int64)v241[0] & 1) != 0 )
+    operator delete(v241[2]);
+  Downloader::Update((Downloader *)&gDownloader);
+  ZMUTEX_SystemInitialize();
+  LogInitialize();
+  OS_Initialize();
+  InitICUBase();
+  g_LauncherVersion[2] = 0u;
+  g_LauncherVersion[3] = 0u;
+  g_LauncherVersion[0] = 0u;
+  g_LauncherVersion[1] = 0u;
+  if ( s )
+  {
+    Log("Launcher Version : %s", s);
+    v34 = s;
+    v35 = strlen(s);
+    if ( v35 >= 0x40 )
+      v36 = 64LL;
+    else
+      v36 = v35;
+    __memcpy_chk(g_LauncherVersion, v34, v36, 64LL);
+  }
+  g_WorldTime = dword_1E2D810[(unsigned int)timeGetTime() % 3];
+  SetupGameCameras();
+  XMLDoc::UserLoad((XMLDoc *)&g_UserConfigDoc, "prefs.xml");
+   
+    */
     //TODO
     //evSysInst->Subscribe(EV_SLIPPING_ON, nullptr);
 }

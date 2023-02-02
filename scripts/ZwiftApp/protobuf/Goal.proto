@@ -1,0 +1,34 @@
+syntax = "proto3";
+package protobuf;
+import "Profile.proto"; //enum Sport
+message Goal {
+	uint64 id = 1;
+	uint64 player_id = 2;
+	Sport sport = 3;
+	string name = 4; // i.e. "Monthly time goal"
+	GoalType type = 5;
+	GoalPeriod periodicity = 6;
+	float target_distance = 7;  //in meters. set to dur for dur goals
+	float target_duration = 8;  //in minutes. set to dist for dist goals
+	float actual_distance = 9;  //in meters. is also set for dur goals?
+	float actual_duration = 10; //in minutes. is also set for dist goals?
+	uint64 created_on = 11;     //in ms since epoch
+	uint64 period_end_date = 12;
+	GoalStatus status = 13;
+    string timezone = 14;
+}
+message Goals {
+    repeated Goal goals = 1;
+}
+enum GoalType {
+    DISTANCE = 0;
+    TIME = 1;
+}
+enum GoalPeriod {
+    WEEKLY = 0;
+    MONTHLY = 1;
+}
+enum GoalStatus {
+    ACTIVE = 0;
+    RETIRED = 1;
+}

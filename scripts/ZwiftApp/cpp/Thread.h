@@ -1,6 +1,7 @@
 #pragma once
 namespace Thread {
-    bool SetCurrentThreadName(LPWSTR name);
+    void Initialize(Experimentation *);
+    bool SetCurrentThreadName(LPCWSTR name);
     void SetThreadNamingEnabled(bool en);
-    bool SetCurrentThreadNameOnce(LPWSTR name);
+    bool SetCurrentThreadNameOnce(LPCWSTR name);
 }
