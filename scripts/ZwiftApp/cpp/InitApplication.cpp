@@ -58,23 +58,11 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     if (OS_GetUserPath(userPath)) {
         char downloadPath[MAX_PATH] = {};
         sprintf_s(downloadPath, "%s/Zwift/", userPath);
-        gDownloader.SetLocalPath(downloadPath);
+        g_mDownloader.SetLocalPath(downloadPath);
     }
+    g_mDownloader.SetServerURLPath("https://cdn.zwift.com/gameassets/");
+    g_mDownloader.Download("MapSchedule_v2.xml", 0LL, Downloader::m_noFileTime, -1, GAME_onFinishedDownloadingMapSchedule);
     /* line 691
-  Downloader::SetServerURLPath((Downloader *)&gDownloader, "https://cdn.zwift.com/gameassets/");
-  LOBYTE(v241[0]) = 36;
-  v241[2] = "_ZN6google8protobuf16RepeatedPtrFieldINS0_11MessageLiteEE12SwapElementsEii" + 16;
-  *(_OWORD *)((char *)v241 + 1) = *(_OWORD *)"MapSchedule_v2.xml";
-  Downloader::Download(
-    &gDownloader,
-    v241,
-    0LL,
-    Downloader::m_noFileTime,
-    0xFFFFFFFFLL,
-    GAME_onFinishedDownloadingMapSchedule);
-  if ( ((__int64)v241[0] & 1) != 0 )
-    operator delete(v241[2]);
-  memset(v241, 0, 24);
   g_bUpdateCheckInProgress = 1;
   v32 = (void *)operator new(0x20uLL);
   v33 = Downloader::m_noFileTime;

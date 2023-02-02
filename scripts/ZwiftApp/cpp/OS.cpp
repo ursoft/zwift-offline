@@ -14,14 +14,9 @@ bool OS_GetUserPath(char *dest) {
     static bool pathOK;
     if (pathOK == false) {
         if (SHGetFolderPathA(nullptr, CSIDL_PERSONAL, nullptr, 0, pszPath) < 0 || !CheckDataPath(pszPath)) {
-            if (SHGetFolderPathA(nullptr, CSIDL_DESKTOP, nullptr, 0, pszPath) < 0) {
+            if (SHGetFolderPathA(nullptr, CSIDL_DESKTOP, nullptr, 0, pszPath) < 0 || !CheckDataPath(pszPath)) {
                 MessageBoxA(nullptr, "There was an error accessing your Documents folder. There was also an error accessing your Desktop as a fal"
                     "lback. This means Zwift can't save any files. Please contact Zwift Support.", "Error accessing writable storage", MB_OK);
-                return false;
-            }
-            if (!CheckDataPath(pszPath)) {
-                MessageBoxA(nullptr, "There was an error accessing your Documents folder. There was also an error trying to create a Zwift folder"
-                    " on your desktop as a fall-back. This means Zwift can't save any files. Please contact Zwift Support.", "Error accessing writable storage", MB_OK);
                 return false;
             }
         }

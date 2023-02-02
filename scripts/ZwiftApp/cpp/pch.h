@@ -21,6 +21,7 @@
 #include <ctime>
 #include <cmath>
 #include <algorithm>
+#include <deque>
 
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>

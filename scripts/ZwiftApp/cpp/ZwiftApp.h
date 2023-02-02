@@ -68,3 +68,4 @@ const char *GAMEPATH(const char *path);
 #include "GFX.h"
 #include "Downloader.h"
 #include "OS.h"
+#include "GAME.h"
