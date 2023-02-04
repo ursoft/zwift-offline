@@ -69,3 +69,4 @@ const char *GAMEPATH(const char *path);
 #include "Downloader.h"
 #include "OS.h"
 #include "GAME.h"
+#include "tHigFile.h"

@@ -24,3 +24,26 @@ bool OS_GetUserPath(char *dest) {
     }
     return true;
 }
+bool OS_IsOnBattery() {
+    struct _SYSTEM_POWER_STATUS SystemPowerStatus;
+    auto v0 = GetSystemPowerStatus(&SystemPowerStatus);
+    if (!v0 || SystemPowerStatus.ACLineStatus == 1)
+        return false;
+    return v0;
+}
+UINT g_timeResolution;
+void OS_Initialize() {
+    UINT uPeriod = OS_IsOnBattery() ? 0 : 1;
+    if (!timeBeginPeriod(uPeriod)) {
+        g_timeResolution = uPeriod;
+        Log("[OS]: Time resolution(%llu)", g_timeResolution * 1000);
+    }
+    Log("[OS]: Initialized");
+}
+void OS_Shutdown() {
+    if (g_timeResolution) {
+        timeEndPeriod(g_timeResolution);
+        g_timeResolution = 0;
+    }
+    Log("[OS]: Shutdown");
+}

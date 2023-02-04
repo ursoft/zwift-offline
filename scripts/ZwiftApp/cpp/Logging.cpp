@@ -201,3 +201,43 @@ void ZwiftAssert::Abort() {
         g_abortProcessing = false;
     }
 }
+void LogInitialize() {
+    char PathName[MAX_PATH]{'.'}, FileName[MAX_PATH], v18[MAX_PATH], Buffer[MAX_PATH];
+    if (OS_GetUserPath(PathName)) {
+        sprintf_s(PathName, "%s\\Zwift", PathName);
+        CreateDirectoryA(PathName, nullptr);
+        sprintf_s(PathName, "%s\\Logs", PathName);
+        CreateDirectoryA(PathName, nullptr);
+        //TODO: g_LogLines and g_LogLineTypes are used in CONSOLE_Draw, but are not filled in release build yet
+        /*v0 = g_LogLines;
+        memset(g_LogLines, 0, sizeof(g_LogLines));
+        for (i = 0; i < 0x3E8; ++i) {
+            v2 = j__malloc_base(0x400ui64);
+            *v0 = v2;
+            memset(v2, 0, 0x400ui64);
+            ++v0;
+        }*/
+        g_canUseLogging = true;
+        //memset(g_LogLineTypes, 0, 0xFA0ui64);
+        g_LogMutexIdx = ZMUTEX_Create("log");
+        strcpy(v18, PathName);
+        sprintf(PathName, "%s/%s.txt", PathName, "Log");
+        strcpy(Buffer, v18);
+        for (int j = 9; j > 0; --j) {
+            sprintf_s(Buffer, "%s/%s (old %d).txt", v18, "Log", j);
+            sprintf_s(FileName, "%s/%s (old %d).txt", v18, "Log", j + 1);
+            rename(Buffer, FileName);
+        }
+        sprintf_s(FileName, "%s/%s (old %d).txt", v18, "Log", 10);
+        DeleteFileA(FileName);
+        rename(PathName, Buffer);
+        g_logFile = fopen(PathName, "w");
+        auto Time = _time64(nullptr);
+        auto lt = _localtime64(&Time);
+        Log("Log Time: %d:%02d:%02d %d-%02d-%02d", lt->tm_hour, lt->tm_min, lt->tm_sec, lt->tm_year + 1900, lt->tm_mon + 1, lt->tm_mday);
+        Log("Game Version: 1.32.1(106405) Ursoft fake/1.32.1");
+        Log("Config:       Shipping");
+        Log("Device:       PC");
+        tHigFile::SetLogHandler(LogDebug);
+    }
+}

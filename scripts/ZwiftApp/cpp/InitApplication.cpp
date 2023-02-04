@@ -62,7 +62,9 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     }
     g_mDownloader.SetServerURLPath("https://cdn.zwift.com/gameassets/");
     g_mDownloader.Download("MapSchedule_v2.xml", 0LL, Downloader::m_noFileTime, -1, GAME_onFinishedDownloadingMapSchedule);
-    /* line 691
+    //TODO: check GFX driver if no "<data>\Zwift\olddriver.ok" exist
+    //line 1030
+    /*
   g_bUpdateCheckInProgress = 1;
   v32 = (void *)operator new(0x20uLL);
   v33 = Downloader::m_noFileTime;
@@ -71,11 +73,12 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
   strcpy((char *)v32, "ZwiftAndroid_ver_cur.xml");
   Downloader::Download(&gDownloader, v241, 0LL, v33, 0xFFFFFFFFLL, OnDownloadVerCur_End);
   if ( ((__int64)v241[0] & 1) != 0 )
-    operator delete(v241[2]);
-  Downloader::Update((Downloader *)&gDownloader);
-  ZMUTEX_SystemInitialize();
-  LogInitialize();
-  OS_Initialize();
+    operator delete(v241[2]);*/
+    g_pDownloader->Update();
+    ZMUTEX_SystemInitialize();
+    LogInitialize(); //TODO: move up
+    OS_Initialize();
+    /*
   InitICUBase();
   g_LauncherVersion[2] = 0u;
   g_LauncherVersion[3] = 0u;
