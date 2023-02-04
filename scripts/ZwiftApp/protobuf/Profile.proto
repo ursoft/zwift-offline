@@ -20,8 +20,8 @@ enum PlayerType {
     ZWIFT_STAFF = 3;
     AMBASSADOR = 4;
     VERIFIED = 5;
-    ZED = 6;
-    ZAC = 7;
+    ZED = 6; //Zwift Experience Dealer
+    ZAC = 7; //Zomer Avond Competitie
     PRO_TRIATHLETE = 8;
     PRO_RUNNER = 9;
 }

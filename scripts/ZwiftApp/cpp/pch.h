@@ -22,6 +22,7 @@
 #include <cmath>
 #include <algorithm>
 #include <deque>
+#include <filesystem>
 
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>

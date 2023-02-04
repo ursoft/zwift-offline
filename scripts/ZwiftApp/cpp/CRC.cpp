@@ -73,3 +73,48 @@ uint32_t SIG_CalcCaseInsensitiveSignature(const char *str) {
     }
     return 0;
 }
+bool CCRC32::FileCRC(const char *name, uint32_t *dest, uint64_t block) {
+    bool ret = false;
+    *dest = -1;
+    auto f = fopen(name, "rb");
+    if (f) {
+        auto mem = (uint8_t *)malloc(block);
+        if (mem) {
+            while (1) {
+                auto r = fread(mem, 1u, block, f);
+                if (!r)
+                    break;
+                for (auto i = 0; i != r; ++i)
+                    *dest = g_crc32Table[(uint8_t(*dest) ^ mem[i])] ^ ((*dest) >> 8);
+            }
+            free(mem);
+            fclose(f);
+            ret = true;
+            *dest = ~*dest;
+        } else {
+            fclose(f);
+        }
+    }
+    return ret;
+}
+uint32_t CCRC32::FileCRC(const char *name) {
+    uint32_t ret;
+    if (FileCRC(name, &ret, 0x100000uLL))
+        return ret;
+    else
+        return -1;
+}
+uint32_t CCRC32::FullCRC(const uint8_t *buf, uint64_t sz) {
+    if (!sz)
+        return 0;
+    DWORD v3 = -1;
+    do {
+        auto v4 = *buf++;
+        --sz;
+        v3 = g_crc32Table[(uint8_t)v3 ^ v4] ^ (v3 >> 8);
+    } while (sz);
+    return ~v3;
+}
+void CCRC32::FullCRC(const uint8_t *buf, uint64_t sz, uint32_t *ret) {
+    *ret = FullCRC(buf, sz);
+}
