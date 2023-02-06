@@ -5,13 +5,13 @@ CRITICAL_SECTION g_CriticalSections[ZM_CNT];
 const char *g_MutexNames[ZM_CNT];
 void ZwiftLeaveCriticalSection(int idx) {
     if (idx >= 0) {
-        zassert(g_CriticalSectionsAvailable[idx]);
+        zassert(!g_CriticalSectionsAvailable[idx]);
         LeaveCriticalSection(g_CriticalSections + idx);
     }
 }
 bool ZwiftEnterCriticalSection(int idx) {
     if (idx >= 0) {
-        zassert(g_CriticalSectionsAvailable[idx]);
+        zassert(!g_CriticalSectionsAvailable[idx]);
         EnterCriticalSection(g_CriticalSections + idx);
     }
     return true;

@@ -1,12 +1,10 @@
 #include "ZwiftApp.h"
 const char *g_expVarNames[EXP_CNT] = { "unassigned", "enabled", "disabled", "none", "unknown" };
-
-std::unique_ptr<Experimentation> g_sExperimentationUPtr;
 ZNetAdapter g_znetAdapter;
 void Experimentation::Initialize(EventSystem *ev) {
-    zassert(g_sExperimentationUPtr.get() == nullptr);
-    g_sExperimentationUPtr.reset(new Experimentation(&g_znetAdapter, ev));
-    zassert(g_sExperimentationUPtr.get() != nullptr);
+    zassert(g_ExperimentationUPtr.get() == nullptr);
+    g_ExperimentationUPtr.reset(new Experimentation(&g_znetAdapter, ev));
+    zassert(g_ExperimentationUPtr.get() != nullptr);
 }
 const FeatureMetadata g_featureMetadata[FID_CNT] = { //FillFeatureMetadata
     //variants.txt[zwift_launcher_osx_metal] not used here (maybe because of windows)

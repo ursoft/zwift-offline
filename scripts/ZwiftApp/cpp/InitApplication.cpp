@@ -29,8 +29,17 @@ void resize(GLFWwindow *wnd, int w, int h) {
         pNoesisGUI->sub_7FF6D4A23DC0(g_width, g_height, 0/*v7*/, 0/*rx_w*/);
     }
 }
-
+#include "optionparser.h"
+enum optionIndex { UNKNOWN, LAUNCHER, TOKEN };
+const option::Descriptor g_countOptsMetadata[] = { 
+    {UNKNOWN,  0, "" , "",                 option::Arg::None,     "USAGE: ZwiftAdmin [options]\n\nOptions:"},
+    {LAUNCHER, 0, "l", "launcher_version", option::Arg::Optional, "  --launcher_version=1.0.8 \tThe version of the Launcher"},
+    {TOKEN,    0, "t", "token",            option::Arg::Optional, "  --token=jsonToken \tLogin Token"},
+    {UNKNOWN,  0, "" , "",                 option::Arg::None,     "\nExamples:\n  example --launcher_version=1.0.8 --token=jsonToken\n"}, {}};
 std::unique_ptr<CrashReporting> g_sCrashReportingUPtr;
+void LauncherUpdate(const std::string &launcherVersion) {
+    //omit if launcherVersion < "1.1.1" -> restart and update
+}
 void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_MainThread = GetCurrentThreadId();
     DWORD startTime = timeGetTime();
@@ -49,57 +58,54 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     PlayerProfileCache::Initialize(evSysInst);
     GoalsManager::Initialize(evSysInst);
     ZNet::NetworkService::Initialize();
-    //TODO v16 = (ZNet::NetworkService *)Cloud::CloudSyncManager::Initialize(Inst, v15);
+    //omit: v16 = (ZNet::NetworkService *)Cloud::CloudSyncManager::Initialize(Inst, v15);
     DataRecorder::Initialize(exp, ZNet::NetworkService::Instance(), evSysInst);
     Thread::Initialize(exp);
-    //TODO option::Parser::workhorse
+    //exam: --launcher_version=1.1.4 --token={"access_token":"_a_t_","expires_in":1000021600,"id_token":"_id_t","not-before-policy":1408478984,"refresh_expires_in":611975560,"refresh_token":"_r_t_","scope":"","session_state":"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3","token_type":"bearer"}
+    int useful_argc = __argc; char **myargv = __argv;
+    useful_argc -= (useful_argc > 0); myargv += (useful_argc > 0); // skip program name argv[0] if present
+    option::Stats stats(g_countOptsMetadata, useful_argc, myargv);
+    std::vector<option::Option> options(stats.options_max);
+    std::vector<option::Option> buffer(stats.buffer_max);
+    option::Parser parse(g_countOptsMetadata, useful_argc, myargv, &options[0], &buffer[0]);
+    auto launcherVer = options[LAUNCHER].arg;
+    if (launcherVer)
+        LauncherUpdate(launcherVer);
     GFX_SetLoadedAssetMode(true);
-    char userPath[MAX_PATH] = {};
-    if (OS_GetUserPath(userPath)) {
+    auto userPath = OS_GetUserPath();
+    if (userPath) {
         char downloadPath[MAX_PATH] = {};
         sprintf_s(downloadPath, "%s/Zwift/", userPath);
         g_mDownloader.SetLocalPath(downloadPath);
     }
     g_mDownloader.SetServerURLPath("https://cdn.zwift.com/gameassets/");
     g_mDownloader.Download("MapSchedule_v2.xml", 0LL, Downloader::m_noFileTime, -1, GAME_onFinishedDownloadingMapSchedule);
-    //TODO: check GFX driver if no "<data>\Zwift\olddriver.ok" exist
-    //line 1030
-    /*
-  g_bUpdateCheckInProgress = 1;
-  v32 = (void *)operator new(0x20uLL);
-  v33 = Downloader::m_noFileTime;
-  v241[2] = v32;
-  *(_OWORD *)v241 = xmmword_1DA2B90;
-  strcpy((char *)v32, "ZwiftAndroid_ver_cur.xml");
-  Downloader::Download(&gDownloader, v241, 0LL, v33, 0xFFFFFFFFLL, OnDownloadVerCur_End);
-  if ( ((__int64)v241[0] & 1) != 0 )
-    operator delete(v241[2]);*/
+    //omit: check GFX driver if no "<data>\Zwift\olddriver.ok" exist
     g_pDownloader->Update();
     ZMUTEX_SystemInitialize();
-    LogInitialize(); //TODO: move up
+    LogInitialize(); //TODO: move up so logging early stages is available too
     OS_Initialize();
-    /*
-  InitICUBase();
-  g_LauncherVersion[2] = 0u;
-  g_LauncherVersion[3] = 0u;
-  g_LauncherVersion[0] = 0u;
-  g_LauncherVersion[1] = 0u;
-  if ( s )
-  {
-    Log("Launcher Version : %s", s);
-    v34 = s;
-    v35 = strlen(s);
-    if ( v35 >= 0x40 )
-      v36 = 64LL;
-    else
-      v36 = v35;
-    __memcpy_chk(g_LauncherVersion, v34, v36, 64LL);
-  }
-  g_WorldTime = dword_1E2D810[(unsigned int)timeGetTime() % 3];
-  SetupGameCameras();
-  XMLDoc::UserLoad((XMLDoc *)&g_UserConfigDoc, "prefs.xml");
-   
-    */
+    u_setDataDirectory("data");
+    InitICUBase();
+    //omit watchdog init
+    if (launcherVer) {
+        Log("Launcher Version : %s", launcherVer);
+        //OMIT g_launcherVer - it used only at PrepareAnalytics
+    } else {
+        Log("Legacy Launcher Used");
+    }
+    const float arrInitWorldTimes[] = { 4.f / 3.f, 16.f / 3.f, 11.f / 3.f };
+    g_WorldTime = arrInitWorldTimes[timeGetTime() % _countof(arrInitWorldTimes)];
+    SetupGameCameras();
+    g_UserConfigDoc.UserLoad("prefs.xml");
+    GAME_GetSuppressedLogTypes();
+    GAME_SetUseErgModeInWorkouts(g_UserConfigDoc.GetBool("ZWIFT\\WORKOUTS\\USE_ERG", true, true));
+    UnitTypeManager::Instance()->SetUseMetric(g_UserConfigDoc.GetBool("ZWIFT\\CONFIG\\METRIC", false, true));
+    NotableMomentsManager::Init();
+    evSysInst->TriggerEvent(EV_SENS_RECONN, 0);
+    g_MaintainFullscreenForBroadcast = g_UserConfigDoc.GetBool("ZWIFT\\CONFIG\\MAINTAIN_FOCUS_FOR_BROADCAST", false, true);
+    g_removeFanviewHints = g_UserConfigDoc.GetBool("ZWIFT\\CONFIG\\REMOVE_FANVIEW_HINTS", false, true);
+    LOC_Init();
     //TODO
     //evSysInst->Subscribe(EV_SLIPPING_ON, nullptr);
 }

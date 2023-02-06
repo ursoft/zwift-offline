@@ -381,9 +381,16 @@ void XMLDoc::SetVEC4(const char *, const VEC4 &, bool) {
 void XMLDoc::SetVEC4(tinyxml2::XMLElement *, const VEC4 &) {
     //TODO
 }
-bool XMLDoc::UserLoad(const char *) {
-    //TODO
-    return true;
+bool XMLDoc::UserLoad(const char *fileName) {
+    auto up = OS_GetUserPath();
+    if (up) {
+        sprintf_s(m_path, "%s\\Zwift", up);
+        CreateDirectoryA(m_path, nullptr);
+        sprintf_s(m_path, "%s/%s", m_path, fileName);
+        m_loadResult = (m_tiny_doc.LoadFile(m_path) == 0);
+        return m_loadResult;
+    }
+    return false;
 }
 void XMLDoc::UserSaveAs(const char *, bool) {
     //TODO

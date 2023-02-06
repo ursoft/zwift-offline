@@ -49,6 +49,6 @@ public:
 #define zassert(c) if(!(c)) { \
   if (ZwiftAssert::IsBeingDebugged()) __debugbreak(); \
   if (ZwiftAssert::BeforeAbort(#c, __FILE__, __LINE__)) ZwiftAssert::Abort(); }
-
+extern bool g_useLogLevelSettings;
 std::vector<std::string> ParseSuppressedLogs(const char *ls);
-void InitLogging(const std::vector<std::string> &supprLogs);
+void LogSetSuppressedLogTypes(const std::vector<std::string> &supprLogs);

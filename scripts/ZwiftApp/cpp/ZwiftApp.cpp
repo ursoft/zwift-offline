@@ -47,15 +47,17 @@ void CheckEnvironment() {
     MessageBoxA(nullptr, "Could not run Update process. Zwift may not be up to date.", lpCaption, MB_ICONERROR);
     CloseHandle(Toolhelp32Snapshot);
 }
-bool g_InitApplicationOK = true, g_bShutdown = false;
+bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints = false, g_bShutdown = false;
 struct zwiftUpdateContext {};
 void doFrameWorldID(zwiftUpdateContext *ptr);
 //TODO: __declspec(thread) - see tls0_dtr (GameAssertHandler::PushContext), TlsCallbackDtr
 //TODO: global variables ctrs/dtrs: _initterm, some_global_ctr
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd) {
     non_zwift::ConsoleHandler nz_ch(1024);
-    nz_ch.LaunchUnitTests(__argc, __argv);
-
+    if (auto ut = getenv("ZWIFT_UT"); ut && *ut == '1')
+        nz_ch.LaunchUnitTests(__argc, __argv);
+    if (auto zg = getenv("ZWIFT_GAME"); zg != nullptr && *zg == '0')
+        return 0;
     CheckEnvironment();
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_ZWIFTAPP, szWindowClass, MAX_LOADSTRING);
@@ -97,7 +99,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
     float fcounter = 0;
     zwiftUpdateContext zuc = {};
     while (!glfwWindowShouldClose(g_mainWindow)) {
-        if (g_InitApplicationOK) {
+        if (g_MaintainFullscreenForBroadcast) {
             hMainWindow = glfwGetWin32Window(g_mainWindow);
             if (GetActiveWindow() != hMainWindow) {
                 fcounter += 1 / 60.0f;
@@ -231,6 +233,7 @@ TEST(SmokeTest, Linkage) { //testing if libs are linked properly
     auto conv = ucnv_open("utf-8", &uc_err);
     EXPECT_EQ(U_AMBIGUOUS_ALIAS_WARNING, uc_err) << "ucnv_open err";
     EXPECT_TRUE(conv != nullptr) << "ucnv_open";
+    ucnv_close(conv);
 
     Json::Value json(123); //jsoncpp
     std::string jss(json.toStyledString());

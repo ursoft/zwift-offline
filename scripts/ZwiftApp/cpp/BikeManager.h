@@ -6,7 +6,7 @@ class BikeManager {
 public:
     //BikeManager(EventSystem *, bool);
     //static void Shutdown() { g_pBikeManager.reset(); }
-    static BikeManager *Instance() { zassert(g_pBikeManager.get() != nullptr); return g_pBikeManager.get(); }
+    static BikeManager *Instance() { /*TODO*/g_pBikeManager.reset(new BikeManager()); zassert(g_pBikeManager.get() != nullptr); return g_pBikeManager.get(); }
     //static bool IsInitialized() { return g_pBikeManager.get() != nullptr; }
     //static void Initialize(EventSystem *ev, bool b);
     //~BikeManager();

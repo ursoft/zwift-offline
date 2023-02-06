@@ -33,7 +33,7 @@ LogType g_LogTypes[LOG_CNT] = {
 std::vector<std::string> ParseSuppressedLogs(const char *ls) {
     return ZStringUtil::Split(ls, ',');
 }
-void InitLogging(const std::vector<std::string> &supprLogs) {
+void LogSetSuppressedLogTypes(const std::vector<std::string> &supprLogs) {
     for (const auto &sup : supprLogs) {
         int logId = -1;
         if (1 != sscanf(sup.c_str(), "%d", &logId)) {
@@ -112,7 +112,7 @@ void doLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *fmt, va_list args) 
     if (g_canUseLogging && g_LogMutexIdx != -1 && g_LogTypes[ty].m_enabled) {
         int cnt1 = sprintf_s(buf, "%s%s", g_logLevelNames[level], g_logTypeNames[ty]);
         if (cnt1 < 0) cnt1 = 0;
-        int cnt2 = sprintf_s(&buf[cnt1], 1024 - cnt1, fmt, 0, args);
+        int cnt2 = vsnprintf_s(&buf[cnt1], 1024 - cnt1, _TRUNCATE, fmt, args);
         if (cnt2 >= 0)
             execLogInternal(level, ty, buf, cnt1 + cnt2);
     }
@@ -203,8 +203,9 @@ void ZwiftAssert::Abort() {
 }
 void LogInitialize() {
     char PathName[MAX_PATH]{'.'}, FileName[MAX_PATH], v18[MAX_PATH], Buffer[MAX_PATH];
-    if (OS_GetUserPath(PathName)) {
-        sprintf_s(PathName, "%s\\Zwift", PathName);
+    auto userPath = OS_GetUserPath();
+    if (userPath) {
+        sprintf_s(PathName, "%s\\Zwift", userPath);
         CreateDirectoryA(PathName, nullptr);
         sprintf_s(PathName, "%s\\Logs", PathName);
         CreateDirectoryA(PathName, nullptr);

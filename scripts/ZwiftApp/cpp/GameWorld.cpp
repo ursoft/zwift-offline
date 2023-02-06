@@ -3,6 +3,7 @@
 
 int g_WORLD_COUNT;
 GameWorld *g_pGameWorld;
+float g_WorldTime;
 
 inline GameWorld::GameWorld() {
     //TODO

@@ -1,14 +1,15 @@
 {
-  "ExpandedNodes": [
-    "",
-    "\\cpp",
-    "\\docker"
-  ],
-  "PreviewInSolutionExplorer": false,
   "OutputFoldersPerTargetSystem": {
     "Local Machine": [
       "..\\..\\..\\ZwiftApp_build\\Debug-host",
       "1.32.1_106405-Debug"
     ]
-  }
+  },
+  "ExpandedNodes": [
+    "",
+    "\\cpp",
+    "\\docker"
+  ],
+  "SelectedNode": "\\cpp\\NotableMomentsManager.cpp",
+  "PreviewInSolutionExplorer": false
 }

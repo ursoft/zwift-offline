@@ -24,7 +24,7 @@ void AUDIO_Shutdown();
 #include "GameCritical.h"
 #include "ZMutex.h"
 
-extern bool InitApplicationOK, byte_7FF6D5F638EB /*about app finish?*/;
+extern bool g_MaintainFullscreenForBroadcast, g_removeFanviewHints;
 extern float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
 extern int g_width, g_height;
 const float g_UI_AspectRatio = 1.7777778f; //16x9
@@ -70,3 +70,6 @@ const char *GAMEPATH(const char *path);
 #include "OS.h"
 #include "GAME.h"
 #include "tHigFile.h"
+#include "ICU.h"
+#include "CameraManager.h"
+#include "NotableMomentsManager.h"

@@ -8,11 +8,12 @@ struct VEC3 {
 struct VEC2 {
     GLfloat d[2];
 };
-
 class XMLDoc { //1736 bytes
     tinyxml2::XMLDocument m_tiny_doc;
     std::string m_root_name;
     std::map<uint32_t, tinyxml2::XMLElement *> m_map;
+    char m_path[MAX_PATH] = {};
+    bool m_loadResult = false;
 public:
     XMLDoc();
     ~XMLDoc();
@@ -38,7 +39,7 @@ public:
     tinyxml2::XMLElement *FindFirstElement(tinyxml2::XMLNode *, const char *, bool, bool);
     tinyxml2::XMLElement *FindNextElement(const char *path, bool b1, bool enableCreate);
     tinyxml2::XMLElement *FindNextMatchingElement(tinyxml2::XMLNode *from, int pidx, const std::vector<std::string> &path, bool goDown);
-    bool GetBool(const char *, bool, bool);
+    bool GetBool(const char *path, bool def, bool a4);
     const char *GetCStr(const char *, const char *, bool);
     float GetF32(const char *, float, bool);
     float *GetF32Array(const char *, bool);

@@ -19,5 +19,6 @@ public:
 };
 
 extern int g_WORLD_COUNT;
+extern float g_WorldTime;
 extern GameWorld *g_pGameWorld;
 extern std::map<int, GameWorld::WorldDef *> g_allWorlds;
