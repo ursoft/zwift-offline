@@ -47,7 +47,7 @@ void CheckEnvironment() {
     MessageBoxA(nullptr, "Could not run Update process. Zwift may not be up to date.", lpCaption, MB_ICONERROR);
     CloseHandle(Toolhelp32Snapshot);
 }
-bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints = false, g_bShutdown = false;
+bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints = false, g_bShutdown = false, g_ShowGraph = false;
 struct zwiftUpdateContext {};
 void doFrameWorldID(zwiftUpdateContext *ptr);
 //TODO: __declspec(thread) - see tls0_dtr (GameAssertHandler::PushContext), TlsCallbackDtr

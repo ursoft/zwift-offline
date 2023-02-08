@@ -16,6 +16,7 @@ public:
     WorldIDs WorldID();
     WorldDef *GetWorldDef();
     float GetSeaLevel();
+    static void LoadWorldsData();
 };
 
 extern int g_WORLD_COUNT;

@@ -41,3 +41,18 @@ void LOC_Init() {
         g_UserConfigDoc.SetCStr("ZWIFT\\CONFIG\\LANGUAGE", oslang, true);
     }
 }
+void LOC_SetLanguageChangeCallback(void (*cb)(LOC_LANGS)) {
+    g_languageChangeCallback = cb;
+}
+void LanguageChangeCallback(LOC_LANGS lang) {
+    //TODO
+}
+void LOC_Initialize(void *data, size_t length, uint32_t what) {
+    //TODO
+}
+void LOC_Initialize(const char *fileName, uint32_t what) {
+    //TODO
+}
+void LOC_LoadStringTable(const char *fileName) {
+    //TODO
+}

@@ -73,3 +73,8 @@ const char *GAMEPATH(const char *path);
 #include "ICU.h"
 #include "CameraManager.h"
 #include "NotableMomentsManager.h"
+#include "WADManager.h"
+#include "ProfanityFilter.h"
+#include "FitnessDeviceManager.h"
+#include "RaceDictionary.h"
+#include "ANIM.h"
