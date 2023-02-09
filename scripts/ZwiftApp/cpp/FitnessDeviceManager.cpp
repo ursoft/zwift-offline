@@ -1,4 +1,4 @@
-#include "FitnessDeviceManager.h"
+#include "ZwiftApp.h"
 void FitnessDeviceManager::TrainerSetSimGrade(float v) { 
     /*TODO*/ 
 }

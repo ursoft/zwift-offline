@@ -34,3 +34,6 @@ bool ZNETWORK_IsLoggedIn() {
     //TODO
     return false;
 }
+void ZNETWORK_Initialize() {
+    //TODO
+}

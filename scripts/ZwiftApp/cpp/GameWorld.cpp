@@ -1,8 +1,4 @@
 #include "ZwiftApp.h"
-#include "GameWorld.h"
-int g_WORLD_COUNT;
-GameWorld *g_pGameWorld;
-float g_WorldTime;
 inline GameWorld::GameWorld() {
     //TODO
 }
@@ -13,7 +9,6 @@ WorldIDs GameWorld::WorldID() {
     zassert(m_WorldID < g_WORLD_COUNT);
     return m_WorldID;
 }
-std::map<int, GameWorld::WorldDef *> g_allWorlds; 
 GameWorld::WorldDef *GameWorld::GetWorldDef() {
     auto ret = g_allWorlds.find(m_WorldID);
     if (ret == g_allWorlds.end()) {

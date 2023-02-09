@@ -81,4 +81,4 @@ public:
     void SetDebugMessage(char *);
     void SetLastModDate(FILE *, int64_t, const std::string &);
 };
-extern Downloader g_mDownloader, *g_pDownloader;
+inline Downloader g_mDownloader, *g_pDownloader;

@@ -1,11 +1,13 @@
 #pragma once
-class ConnectionManager {
-    inline static std::unique_ptr<ConnectionManager> g_ConnectionManagerUPtr;
+class ConnectionManager { // 0x138 bytes
 public:
     ConnectionManager();
     ~ConnectionManager();
-    static bool IsInitialized() { return g_ConnectionManagerUPtr.get() != nullptr; }
     static void DestroyInstance();
+    void Subscribe(SaveActivityService *serv);
     void Unsubscribe(SaveActivityService *serv);
-    static ConnectionManager *Instance() { zassert(IsInitialized()); return g_ConnectionManagerUPtr.get(); }
+    static ConnectionManager *Instance();
+    static bool IsInitialized();
+    static void Initialize();
 };
+inline std::unique_ptr<ConnectionManager> g_ConnectionManagerUPtr;

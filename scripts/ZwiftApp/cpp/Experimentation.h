@@ -55,7 +55,7 @@ struct FeaRequestResult {
     int64_t m_unk;
 };
 enum ExpVariant { EXP_UNASSIGNED, EXP_ENABLED, EXP_DISABLED, EXP_NONE, EXP_UNKNOWN, EXP_CNT }; //Experiment::Variant
-extern const char *g_expVarNames[EXP_CNT];
+inline const char *g_expVarNames[EXP_CNT] = { "unassigned", "enabled", "disabled", "none", "unknown" };
 typedef std::function<void(ExpVariant)> FeatureCallback;
 struct RegisteredCallback { //size=8*9=72?
     int64_t m_cntId;
@@ -92,7 +92,7 @@ struct UserAttributes {
 struct ZNetAdapter {
     protobuf::FeatureRequest *FormFeatureRequest(UserAttributes *ua);
 };
-extern ZNetAdapter g_znetAdapter;
+inline ZNetAdapter g_znetAdapter;
 class Experimentation : public EventObject { //sizeof=0x1E48; vtblExperimentation+0=DTR
     FeatureStateMachine m_fsms[FID_CNT];
     UserAttributes m_userAttributes;

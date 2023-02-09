@@ -1,6 +1,4 @@
 #include "ZwiftApp.h"
-#include "FitnessDeviceManager.h"
-
 void SetupConsoleCommands() {
     CONSOLE_Init();
     CONSOLE_AddCommand("loadconfig", CMD_LoadConfig);
@@ -22,16 +20,12 @@ void SetupConsoleCommands() {
     CONSOLE_AddCommand("enroll_in_trainingplan", CMD_EnrollInTrainingPlan);
     CONSOLE_AddCommand("show_ui", CMD_ShowUI);
 }
-
 void CONSOLE_Init() {
     CONSOLE_AddCommand("help", CMD_Help);
     CONSOLE_AddCommand("togglelog", CMD_ToggleLog);
     CONSOLE_AddCommand("set", CMD_Set, nullptr, CMD_Set3, CMD_Set4);
     CONSOLE_AddCommand("listvars", CMD_ListVars, nullptr, nullptr, CMD_ListVars4);
 }
-
-int g_knownCommandsCounter;
-ConsoleCommandFuncs g_knownCommands[256];
 void CONSOLE_AddCommand(const char *name, CMD_bool f1, CMD_static_str f2, CMD_ac_search f3, CMD_string f4) {
     zassert(g_knownCommandsCounter < sizeof(g_knownCommands) / sizeof(g_knownCommands[0]));
     ConsoleCommandFuncs newObj { name, f1, f2, f3, f4 };
@@ -40,13 +34,10 @@ void CONSOLE_AddCommand(const char *name, CMD_bool f1, CMD_static_str f2, CMD_ac
             return;
     g_knownCommands[g_knownCommandsCounter++];
 }
-
-DWORD g_MainThread;
 const char *GAMEPATH(const char *path) {
     zassert(g_MainThread == GetCurrentThreadId());
     return path;
 }
-
 bool COMMAND_RunCommandsFromFile(const char *name) {
     char buf[1024 + 4];
     sprintf_s(buf, "data/configs/%s.txt", name);
@@ -105,12 +96,11 @@ bool CMD_TrainerSetSimGrade(const char *arg) {
 bool CMD_ListDevices(const char *) {
     return true;
 }
-int g_TrainerDelay;
 bool CMD_SetTrainerDelay(const char *arg) {
     int v;
     if (sscanf_s(arg, "%d", &v) != 1)
         return false;
-    g_TrainerDelay = v;
+    g_trainerDelay = v;
     return true;
 }
 bool CMD_Focus(const char *) {
@@ -143,7 +133,6 @@ bool CMD_Help(const char *) {
         LogTyped(LOG_COMMAND_OUTPUT, "%s", g_knownCommands[i].m_name);
     return true;
 }
-bool g_ShowLog;
 bool CMD_ToggleLog(const char *) {
     g_ShowLog = !g_ShowLog;
     return true;
@@ -163,7 +152,6 @@ bool CMD_ListVars(const char *) {
 std::string CMD_ListVars4(const char *) {
     return "";
 }
-
 //non-zwift: console redirection (useful for debugging and unit testing)
 //https://stackoverflow.com/questions/191842/how-do-i-get-console-output-in-c-with-a-windows-program
 namespace non_zwift {

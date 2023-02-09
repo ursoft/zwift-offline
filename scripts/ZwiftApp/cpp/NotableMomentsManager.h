@@ -19,5 +19,5 @@ public:
     void OnNotableMoment_LevelUp(VEC3, int, int);
     void OnNotableMoment_GotJersey(VEC3, uint32_t, const char *, int, void *);
 };
-extern bool g_pNotableMomentsMgrInited;
-extern NotableMomentsManager g_pNotableMomentsMgr;
+inline bool g_pNotableMomentsMgrInited;
+inline NotableMomentsManager g_pNotableMomentsMgr;

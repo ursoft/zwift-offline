@@ -1,5 +1,4 @@
 #include "ZwiftApp.h"
-Downloader g_mDownloader, *g_pDownloader;
 std::deque<Downloader::CompletedFile>::iterator Downloader::FindCompleted(const std::string &path) {
     std::deque<CompletedFile>::iterator it = m_filesCompleted.begin();
     for (; it != m_filesCompleted.end(); it++)

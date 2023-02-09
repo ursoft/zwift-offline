@@ -1,5 +1,4 @@
 #include "ZwiftApp.h"
-int g_nGoalsAdded;
 GoalsManager::GoalsManager(EventSystem *ev) : EventObject(ev) {
     ev->Subscribe(EV_RESET, this);
     //TODO - simple field ctrs?

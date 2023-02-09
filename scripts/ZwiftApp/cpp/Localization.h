@@ -1,7 +1,7 @@
 #pragma once
 enum LOC_LANGS { LOC_CNT = 9 };
-extern LOC_LANGS g_CurrentLanguage;
-extern void (*g_languageChangeCallback) (LOC_LANGS val);
+inline LOC_LANGS g_CurrentLanguage;
+inline void (*g_languageChangeCallback) (LOC_LANGS val);
 void LOC_Init();
 void LOC_Shutdown();
 bool LOC_SetLanguageFromString(const char *lang, bool cb);

@@ -75,4 +75,4 @@ public:
     void UserSaveAs(const char *, bool);
 };
 
-extern XMLDoc g_UserConfigDoc;
+inline XMLDoc g_UserConfigDoc;

@@ -1,15 +1,12 @@
 #include "ZwiftApp.h"
-
 #define MAX_LOADSTRING 100
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 GLFWwindow *g_mainWindow;
-
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
-
 void CheckEnvironment() {
     PROCESSENTRY32W pe = {};
     pe.dwSize = sizeof(PROCESSENTRY32W);
@@ -47,7 +44,6 @@ void CheckEnvironment() {
     MessageBoxA(nullptr, "Could not run Update process. Zwift may not be up to date.", lpCaption, MB_ICONERROR);
     CloseHandle(Toolhelp32Snapshot);
 }
-bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints = false, g_bShutdown = false, g_ShowGraph = false;
 struct zwiftUpdateContext {};
 void doFrameWorldID(zwiftUpdateContext *ptr);
 //TODO: __declspec(thread) - see tls0_dtr (GameAssertHandler::PushContext), TlsCallbackDtr
@@ -122,7 +118,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
     EndGameSession(true);
     return 0;
 }
-
 ATOM MyRegisterClass(HINSTANCE hInstance) {
     WNDCLASSEXW wcex = {};
     wcex.cbSize = sizeof(WNDCLASSEX);
@@ -175,9 +170,9 @@ void ZwiftExit(int code) {
     ShutdownSingletons();
     exit(code);
 }
-void AUDIO_Shutdown() {}
-void GameCritical_AbortJobs() {}
-
+void GameCritical_AbortJobs() {
+    //TODO
+}
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
     UNREFERENCED_PARAMETER(lParam);
     switch (message) {
@@ -192,11 +187,12 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
     }
     return (INT_PTR)FALSE;
 }
-
 void doFrameWorldID(zwiftUpdateContext *ptr) {
     //TODO
 }
-
+void ZWIFT_UpdateLoading(const uint16_t *, bool) {
+    //TODO
+}
 //Unit Tests
 TEST(SmokeTest, Linkage) { //testing if libs are linked properly
     AK::MemoryMgr::GetDefaultSettings(g_memSettings); //Wwize, not debuggable

@@ -5,7 +5,6 @@ enum LOG_TYPE {
 };
 enum LOG_LEVEL { LL_VERBOSE = 0, LL_DEBUG = 1, LL_INFO = 2, LL_WARNING = 3, LL_ERROR = 4, LL_FATAL = 5, LL_CNT = 6 };
 enum NoesisLogLevel { NLL_TRACE = 0, NLL_DEBUG = 1, NLL_INFO = 2, NLL_WARNING = 3, NLL_ERROR = 4, NLL_CNT = 5 };
-
 void LogTyped(LOG_TYPE type, const char *fmt, ...);
 void Log(const char *fmt, ...);
 void LogLev(LOG_LEVEL level, const char *fmt, ...);
@@ -13,10 +12,8 @@ void LogDebug(const char *fmt, ...);
 void LogNetInt(const char *msg);
 void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void *dummy_a4, const char *msg);
 void LogInitialize();
-
 typedef void (*LogWriteHandler)(LOG_LEVEL level, LOG_TYPE ty, const char *msg);
 void SetLogWriteHandler(LogWriteHandler h);
-
 class GameAssertHandler {
     static inline bool s_disableAbort;
 public:
@@ -45,10 +42,10 @@ public:
     static bool IsBeingDebugged() { return IsDebuggerPresent(); }
     //static void Test_(bool, const char *, const char *, const char *, int, bool);
 };
-
 #define zassert(c) if(!(c)) { \
   if (ZwiftAssert::IsBeingDebugged()) __debugbreak(); \
   if (ZwiftAssert::BeforeAbort(#c, __FILE__, __LINE__)) ZwiftAssert::Abort(); }
-extern bool g_useLogLevelSettings;
 std::vector<std::string> ParseSuppressedLogs(const char *ls);
 void LogSetSuppressedLogTypes(const std::vector<std::string> &supprLogs);
+
+inline bool g_useLogLevelSettings;

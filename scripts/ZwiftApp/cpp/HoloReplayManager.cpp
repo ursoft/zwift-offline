@@ -1,3 +1,4 @@
 #include "ZwiftApp.h"
-
-HoloReplayManager::HoloReplayManager() {}
+HoloReplayManager::HoloReplayManager(EventSystem *ev, XMLDoc *doc) {
+    //TODO
+}

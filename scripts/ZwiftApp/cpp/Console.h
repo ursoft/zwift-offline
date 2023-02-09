@@ -21,7 +21,7 @@ bool CMD_ChangeRes(const char *);
 bool CMD_ChangeShadowRes(const char *);
 bool CMD_TrainerSetSimGrade(const char *);
 bool CMD_ListDevices(const char *);
-extern int g_trainerDelay;
+inline int g_trainerDelay;
 bool CMD_SetTrainerDelay(const char *);
 bool CMD_Focus(const char *);
 bool CMD_RaceResults(const char *);
@@ -32,7 +32,7 @@ bool CMD_Benchmark(const char *);
 bool CMD_EnrollInTrainingPlan(const char *);
 bool CMD_ShowUI(const char *);
 bool CMD_Help(const char *);
-extern bool g_ShowLog;
+inline bool g_ShowLog;
 bool CMD_ToggleLog(const char *);
 bool CMD_Set(const char *);
 CMD_AutoCompleteParamSearchResults CMD_Set3(const char *);
@@ -40,7 +40,7 @@ std::string CMD_Set4(const char *);
 bool CMD_ListVars(const char *);
 std::string CMD_ListVars4(const char *);
 
-//extern int g_knownCommandsCounter;
+inline int g_knownCommandsCounter;
 struct ConsoleCommandFuncs {
     const char *m_name;
     CMD_bool m_bool;
@@ -51,7 +51,7 @@ struct ConsoleCommandFuncs {
         return m_name == peer.m_name; //no dynamic strings etc
     };
 };
-//extern ConsoleCommandFuncs g_knownCommands[];
+inline ConsoleCommandFuncs g_knownCommands[256];
 bool COMMAND_RunCommandsFromFile(const char *name);
 bool COMMAND_RunCommand(const char *cmd);
 

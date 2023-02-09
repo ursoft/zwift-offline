@@ -1,6 +1,5 @@
 #include "ZwiftApp.h"
 LOG_LEVEL g_MinLogLevel = LL_CNT; // NOT_SET_YET;
-bool g_useLogLevelSettings;
 FILE *g_logFile;
 LOG_LEVEL g_noesisLogLevels[NLL_CNT] = { LL_DEBUG /*NLL_TRACE*/, LL_DEBUG, LL_INFO, LL_WARNING, LL_ERROR};
 int g_LogMutexIdx = -1;

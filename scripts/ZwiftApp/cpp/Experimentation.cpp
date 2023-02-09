@@ -1,6 +1,4 @@
 #include "ZwiftApp.h"
-const char *g_expVarNames[EXP_CNT] = { "unassigned", "enabled", "disabled", "none", "unknown" };
-ZNetAdapter g_znetAdapter;
 void Experimentation::Initialize(EventSystem *ev) {
     zassert(g_ExperimentationUPtr.get() == nullptr);
     g_ExperimentationUPtr.reset(new Experimentation(&g_znetAdapter, ev));

@@ -1,6 +1,4 @@
 #include "ZwiftApp.h"
-LOC_LANGS g_CurrentLanguage;
-void (*g_languageChangeCallback) (LOC_LANGS val);
 void LOC_Shutdown() {
     //TODO
 }

@@ -1,5 +1,4 @@
 #include "ZwiftApp.h"
-XMLDoc g_UserConfigDoc;
 XMLDoc::XMLDoc() {
     //TODO
 }

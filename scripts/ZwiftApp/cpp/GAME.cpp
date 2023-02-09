@@ -1,5 +1,4 @@
 #include "ZwiftApp.h"
-bool g_bMapSchedule_DLFailed, g_bMapSchedule_Ready;
 void ParseXMLMapSchedule() {
     //TODO
 }
@@ -24,7 +23,6 @@ void GAME_GetSuppressedLogTypes() {
             LogSetSuppressedLogTypes(ParseSuppressedLogs(str));
     }
 }
-bool g_UseErgModeInWorkouts;
 void GAME_SetUseErgModeInWorkouts(bool val) {
     g_UseErgModeInWorkouts = val;
     g_UserConfigDoc.SetBool("ZWIFT\\WORKOUTS\\USE_ERG", val, true);

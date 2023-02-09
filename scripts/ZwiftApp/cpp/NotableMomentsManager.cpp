@@ -45,5 +45,3 @@ void NotableMomentsManager::Init() {
     bool IsMomentNotableEnoughForServer(const NotableMoment &);
     bool IsMomentNotableEnoughForServer(const NotableMomentType &);
 */
-bool g_pNotableMomentsMgrInited;
-NotableMomentsManager g_pNotableMomentsMgr;

@@ -1,5 +1,5 @@
 #pragma once
-extern int g_nGoalsAdded;
+inline int g_nGoalsAdded;
 class GoalsManager : public EventObject { //176 bytes
     inline static std::unique_ptr<GoalsManager> s_pSelf;
     protobuf::Goals m_goals;

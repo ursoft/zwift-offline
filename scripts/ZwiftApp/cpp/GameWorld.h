@@ -19,7 +19,7 @@ public:
     static void LoadWorldsData();
 };
 
-extern int g_WORLD_COUNT;
-extern float g_WorldTime;
-extern GameWorld *g_pGameWorld;
-extern std::map<int, GameWorld::WorldDef *> g_allWorlds;
+inline int g_WORLD_COUNT;
+inline float g_WorldTime;
+inline GameWorld *g_pGameWorld;
+inline std::map<int, GameWorld::WorldDef *> g_allWorlds;

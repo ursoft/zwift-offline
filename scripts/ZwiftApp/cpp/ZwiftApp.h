@@ -14,28 +14,12 @@
 
 #include "../res/resource.h"
 
-void resize(GLFWwindow *wnd, int w, int h);
-void ZwiftInitialize(const std::vector<std::string> &argv);
-void EndGameSession(bool bShutDown);
-void ShutdownSingletons();
-void ZwiftExit(int code);
-void AUDIO_Shutdown();
 #include "Logging.h"
 #include "GameCritical.h"
 #include "ZMutex.h"
-
-extern bool g_MaintainFullscreenForBroadcast, g_removeFanviewHints;
-extern float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
-extern int g_width, g_height;
-const float g_UI_AspectRatio = 1.7777778f; //16x9
-
 #include "ZNoesis.h"
 #include "UI_Dialogs.h"
 #include "Console.h"
-
-extern DWORD g_MainThread;
-const char *GAMEPATH(const char *path);
-
 #include "RenderTarget.h"
 #include "Audio.h"
 #include "GameWorld.h"
@@ -78,3 +62,31 @@ const char *GAMEPATH(const char *path);
 #include "FitnessDeviceManager.h"
 #include "RaceDictionary.h"
 #include "ANIM.h"
+#include "JM.h"
+#include "LanExerciseDeviceManager.h"
+#include "VRAM.h"
+#include "GDE.h"
+#include "MATERIAL.h"
+#include "CFont2D.h"
+
+inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion;
+inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
+inline int g_width, g_height;
+const float g_UI_AspectRatio = 1.7777778f; //16x9
+inline int32_t g_MinimalUI, g_bFullScreen, WINWIDTH, WINHEIGHT, VSYNC, GFX_TIER;
+inline uint32_t PREFERRED_MONITOR, GPU;
+inline DWORD g_MainThread;
+const char *GAMEPATH(const char *path);
+
+void resize(GLFWwindow *wnd, int w, int h);
+void ZwiftInitialize(const std::vector<std::string> &argv);
+void EndGameSession(bool bShutDown);
+void ShutdownSingletons();
+void ZwiftExit(int code);
+void ZWIFT_UpdateLoading(const uint16_t *, bool);
+void ZWIFT_UpdateCaretPosition(int, int);
+void ZWIFT_ShowDialog(int);
+void ZWIFT_SetupUIViewport();
+void ZWIFT_SetupDeviceViewport();
+void ZWIFT_SetJoystickValues(float, float, float, float, float, float, bool, bool, bool, bool, bool, bool);
+

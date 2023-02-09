@@ -1,10 +1,5 @@
 #include "ZwiftApp.h"
 
-float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
-int g_width, g_height;
-
-std::weak_ptr<NoesisLib::NoesisGUI> g_pNoesisGUI;
-
 void resize(GLFWwindow *wnd, int w, int h) {
     if (!w) w = 1;
     if (!h) h = 1;
@@ -33,8 +28,8 @@ void resize(GLFWwindow *wnd, int w, int h) {
 enum optionIndex { UNKNOWN, LAUNCHER, TOKEN };
 const option::Descriptor g_countOptsMetadata[] = { 
     {UNKNOWN,  0, "" , "",                 option::Arg::None,     "USAGE: ZwiftAdmin [options]\n\nOptions:"},
-    {LAUNCHER, 0, "l", "launcher_version", option::Arg::Optional, "  --launcher_version=1.0.8 \tThe version of the Launcher"},
-    {TOKEN,    0, "t", "token",            option::Arg::Optional, "  --token=jsonToken \tLogin Token"},
+    {LAUNCHER, 0, "l", "launcher_version", option::Arg::Optional, "  --launcher_version=1.0.8     The version of the Launcher"},
+    {TOKEN,    0, "t", "token",            option::Arg::Optional, "  --token=jsonToken     Login Token"},
     {UNKNOWN,  0, "" , "",                 option::Arg::None,     "\nExamples:\n  example --launcher_version=1.0.8 --token=jsonToken\n"}, {}};
 std::unique_ptr<CrashReporting> g_sCrashReportingUPtr;
 void LauncherUpdate(const std::string &launcherVersion) {
@@ -126,7 +121,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     auto wadhLoc = g_WADManager.GetWadFileHeaderByItemName(
         "Localization/Localization.xml", WAD_ASSET_TYPE::GLOBAL, nullptr, nullptr);
     if (wadhLoc)
-        LOC_Initialize(&wadhLoc->m_firstChar, wadhLoc->m_fileLength, 0);
+        LOC_Initialize(wadhLoc->FirstChar(), wadhLoc->m_fileLength, 0);
     LOC_LoadStringTable("data/Localization/Workouts/Loc_WOSelection.xml");
     /* not need, I think if (sub_7FF7196E5900(&v315, &crasher, &argv_) && v315 < 0xA)
     {
@@ -135,382 +130,27 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         MessageBoxW(0i64, v303, Text_0, 0);
         ZwiftExit(-1);
     }*/
-#if 0
     JM_Initialize();
     ANIM_PostInit();
     AUDIO_Init();
-    g_MinimalUI = XMLDoc::GetS32(&g_UserConfigDoc, "ZWIFT\\CONFIG\\MINIMAL_UI", 0, v106) == 0;// GFX_Initialize (no param)
-    g_WorkoutDistortion = XMLDoc::GetBool(&g_UserConfigDoc, "ZWIFT\\CONFIG\\WORKOUTDISTORTION", 1, 1);
-    g_bFullScreen = XMLDoc::GetS32(&g_UserConfigDoc, "ZWIFT\\CONFIG\\FULLSCREEN", 0, v107) != 0;
-    WINWIDTH = XMLDoc::GetS32(&g_UserConfigDoc, "ZWIFT\\CONFIG\\WINWIDTH", 0, v108);
-    WINHEIGHT = XMLDoc::GetS32(&g_UserConfigDoc, "ZWIFT\\CONFIG\\WINHEIGHT", 0, v110);
-    PREFERRED_MONITOR = XMLDoc::GetU32(&g_UserConfigDoc, "ZWIFT\\CONFIG\\PREFERRED_MONITOR", 0xFFFFFFFF, v112);
-    VSYNC = XMLDoc::GetS32(&g_UserConfigDoc, "ZWIFT\\CONFIG\\VSYNC", 1u, v114);
-    GPU = XMLDoc::GetU32(&g_UserConfigDoc, "ZWIFT\\CONFIG\\GPU", 0xFFFFFFFF, v116);
-    GFX_TIER = XMLDoc::GetS32(&g_UserConfigDoc, "ZWIFT\\CONFIG\\GFX_TIER", 0xFFFFFFFF, v118);
-    Log("Initializing graphics window of size %d x %d", WINWIDTH, WINHEIGHT, v120);
-    v366 = 0;
-    v368 = 0;
-    v369 = 0;
-    v373 = 0;
-    LODWORD(v376._Myend) = 0;
-    *&v364 = WINWIDTH;
-    v365 = WINHEIGHT;
-    v367 = g_bFullScreen;
-    v374 = PREFERRED_MONITOR;
-    v375 = 0i64;
-    v376._Myfirst = 0i64;
-    v376._Mylast = qword_7FF71A893CD0;
-    v370 = VSYNC;
-    v371 = GPU;
-    v372 = GFX_TIER;
-    WORD2(v376._Myend) = 266;
-    if (!GFX_Initialize(&v364))
-    {
-        Log("Failed initializing graphics", v121, v122, v123);
-        v304 = GetText("LOC_ERROR_NO_GRAPHICS");
-        MsgBoxAndExit(v304);
-    }
-    RendererName = GFX_GetRendererName();
-    v396._Bx._Ptr = 0i64;
-    v396._Mysize = 0i64;
-    v396._Myres = 15i64;
-    v125 = -1i64;
-    do
-        ++v125;
-    while (RendererName[v125]);
-    string_assign(&v396, RendererName, v125);
-    VendorName = GFX_GetVendorName();
-    path._Bx._Ptr = 0i64;
-    path._Mysize = 0i64;
-    path._Myres = 15i64;
-    v127 = -1i64;
-    do
-        ++v127;
-    while (VendorName[v127]);
-    string_assign(&path, VendorName, v127);
-    coa1.vptr = 0i64;
-    v387 = 0i64;
-    v388 = 0i64;
-    v128 = &v396;
-    v313 = v396._Myres >= 0x10ui64;
-    v129 = v396._Bx._Ptr;
-    if (v396._Myres >= 0x10ui64)
-        v128 = v396._Bx._Ptr;
-    Mysize = v396._Mysize;
-    if (v396._Mysize >= 0x10ui64)
-    {
-        v131 = v396._Mysize | 0xF;
-        argv_ = (v396._Mysize | 0xF);
-        if ((v396._Mysize | 0xFui64) > 0x7FFFFFFFFFFFFFFFi64)
-            v131 = 0x7FFFFFFFFFFFFFFFi64;
-        coa1.vptr = stl_allocator_new(v131 + 1);
-        memmove(coa1.vptr, v128, Mysize + 1);
-    } else
-    {
-        coa1 = v128->_Bx;
-        v131 = 15i64;
-    }
-    v132 = Mysize;
-    v388 = v131;
-    v387 = Mysize;
-    Str[0] = 0i64;
-    v398 = 0i64;
-    v399 = 0i64;
-    p_path = &path;
-    Myres = path._Myres;
-    v312 = path._Myres >= 0x10ui64;
-    v135 = path._Bx._Ptr;
-    if (path._Myres >= 0x10ui64)
-        p_path = path._Bx._Ptr;
-    v136 = path._Mysize;
-    if (path._Mysize >= 0x10ui64)
-    {
-        v137 = path._Mysize | 0xF;
-        argv_ = (path._Mysize | 0xF);
-        if ((path._Mysize | 0xFui64) > 0x7FFFFFFFFFFFFFFFi64)
-            v137 = 0x7FFFFFFFFFFFFFFFi64;
-        Str[0] = stl_allocator_new(v137 + 1);
-        memmove(Str[0], p_path, v136 + 1);
-        v399 = v137;
-        v131 = v388;
-        v132 = v387;
-    } else
-    {
-        *Str = p_path->_Bx;
-        v399 = 15i64;
-    }
-    v398 = v136;
-    p_coa1 = &coa1;
-    if (v131 < 0x10)
-    {
-        v140 = &coa1 + v132;
-        v139 = &coa1;
-    } else
-    {
-        v139 = coa1.vptr;
-        v140 = coa1.vptr + v132;
-        p_coa1 = coa1.vptr;
-    }
-    std::foreach(&argv_, v139, v140, p_coa1, toupper);
-    v141 = Str;
-    if (v399 < 0x10)
-    {
-        v143 = Str + v398;
-        v142 = Str;
-    } else
-    {
-        v142 = Str[0];
-        v143 = &Str[0][v398];
-        v141 = Str[0];
-    }
-    std::foreach(&argv_, v142, v143, v141, toupper);
-    if (Mysize)
-    {
-        v144 = &coa1;
-        if (v388 >= 0x10)
-            v144 = coa1.vptr;
-        if (strstr(v144, "HD GRAPHICS 2"))
-            goto LABEL_220;
-        v145 = &coa1;
-        if (v388 >= 0x10)
-            v145 = coa1.vptr;
-        if (strstr(v145, "HD GRAPHICS 3"))
-        {
-        LABEL_220:
-            if (v398)
-            {
-                v146 = Str;
-                if (v399 >= 0x10)
-                    v146 = Str[0];
-                if (strstr(v146, "INTEL"))
-                {
-                    v305 = sub_7FF71917CB40(&argv_, &path, word_7FF71A2A1168);
-                    sub_7FF71917CBB0(&coa2, v305, &v396);
-                    j_vector_dtr(&argv_);
-                    v306 = sub_7FF7190E67D0(&coa2);
-                    v307 = GetText("LOC_UPDATE_GFX_MESSAGE");
-                    sprintf_s(Text, 0x400ui64, v307, v306);
-                    v308 = sub_7FF71999156C(Text);
-                    v309 = GetText_0("LOC_UPDATE_GFX_TITLE");
-                    MessageBoxW(0i64, v308, v309, 0);
-                    ZwiftExit(-1);
-                }
-            }
-        }
-    }
-    if (v399 >= 0x10)
-    {
-        v147 = Str[0];
-        if (v399 + 1 >= 0x1000)
-        {
-            v147 = *(Str[0] - 1);
-            if ((Str[0] - v147 - 8) > 0x1F)
-                invalid_parameter_noinfo_noreturn();
-        }
-        j_j_free(v147);
-    }
-    v398 = 0i64;
-    v399 = 15i64;
-    LOBYTE(Str[0]) = 0;
-    if (v388 >= 0x10)
-    {
-        v148 = coa1.vptr;
-        if (v388 + 1 >= 0x1000)
-        {
-            v148 = *(coa1.vptr - 1);
-            if ((coa1.vptr - v148 - 8) > 0x1F)
-                invalid_parameter_noinfo_noreturn();
-        }
-        j_j_free(v148);
-    }
-    v387 = 0i64;
-    v388 = 15i64;
-    LOBYTE(coa1.vptr) = 0;
-    if (v312)
-    {
-        v149 = v135;
-        if ((Myres + 1) >= 0x1000)
-        {
-            v135 = *(v135 - 1);
-            if ((v149 - v135 - 8) > 0x1F)
-                invalid_parameter_noinfo_noreturn();
-        }
-        j_j_free(v135);
-    }
-    path._Mysize = 0i64;
-    path._Myres = 15i64;
-    path._Bx._Buf[0] = 0;
-    if (v313)
-    {
-        v150 = v129;
-        if ((v396._Myres + 1) >= 0x1000)
-        {
-            v129 = *(v129 - 1);
-            if ((v150 - v129 - 8) > 0x1F)
-                invalid_parameter_noinfo_noreturn();
-        }
-        j_j_free(v129);
-    }
-    v396._Mysize = 0i64;
-    v396._Myres = 15i64;
-    v396._Bx._Buf[0] = 0;
-    glfwGetWindowSize(g_mainWindow, &WIN32_WindowWidth, &WIN32_WindowHeight);
-    g_width = WIN32_WindowWidth;
-    v152 = WIN32_WindowHeight;
-    g_height = WIN32_WindowHeight;
-    if (!WIN32_WindowWidth || !WIN32_WindowHeight)
-    {
-        if (IsDebuggerPresent_1())
-            __debugbreak();
-        if (ZwiftAssert::BeforeAbort(
-            "WIN32_WindowWidth != 0 && WIN32_WindowHeight != 0",
-            "D:\\git\\zwift-game-client\\Projects\\ZwiftApp\\CODE\\ZwiftApp.cpp",
-            0x494Au,
-            0))
-        {
-            ZwiftAssert::Abort();
-        }
-        v152 = g_height;
-    }
-    v153 = v152;
-    v154 = g_width;
-    if ((g_width / v152) <= 1.78)
-    {
-        v155 = 0.0;
-    } else
-    {
-        v153 = v152;
-        v154 = VRAM_GetUIAspectRatio() * v152;
-        v155 = (g_width - v154) * 0.5;
-    }
-    g_view_w = v154;
-    g_view_h = v153;
-    g_view_x = v155;
-    g_view_y = 0.0;
-    v156 = 0i64;
-    do
-    {
-        v157 = *(&aZwiftConfig + v156);
-        *(&coa1.vptr + v156++) = v157;
-    } while (v157);                               // end of GFX_Initialize
-    strcpy(&coa1.m_countPtr + 5, "PERF");
-    perf_flags = XMLDoc::GetU32(&g_UserConfigDoc, &coa1, 0xFFFFFFFF, v151);
-    if (perf_flags != (GPF_NO_AUTO_BRIGHT | GFX_PerformanceFlags_2000000 | GFX_PerformanceFlags_1000000 | GFX_PerformanceFlags_800000 | GFX_PerformanceFlags_400000 | GFX_PerformanceFlags_200000 | GFX_PerformanceFlags_100000 | GFX_PerformanceFlags_80000 | GFX_PerformanceFlags_40000 | GFX_PerformanceFlags_20000 | GFX_PerformanceFlags_10000 | GFX_PerformanceFlags_8000 | GFX_PerformanceFlags_4000 | GFX_PerformanceFlags_2000 | GFX_PerformanceFlags_1000 | GFX_PerformanceFlags_800 | GFX_PerformanceFlags_400 | GFX_PerformanceFlags_200 | GFX_PerformanceFlags_100 | GFX_PerformanceFlags_80 | GFX_PerformanceFlags_40 | GFX_PerformanceFlags_20 | GFX_PerformanceFlags_10 | GFX_PerformanceFlags_8 | GFX_PerformanceFlags_4 | GFX_PerformanceFlags_2 | GFX_PerformanceFlags_1 | 0xF8000000))
-        GFX_AddPerformanceFlags_0(perf_flags);
+    GFX_Initialize();
     ZNETWORK_Initialize();
-    if (g_ConnectionManagerUPtr)                // ConnectionManager::Initialize
-    {
-        if (IsDebuggerPresent_1())
-            __debugbreak();
-        if (ZwiftAssert::BeforeAbort(
-            "sConnectionManagerUPtr.get() == nullptr",
-            "D:\\git\\zwift-game-client\\Projects\\ZwiftApp\\CODE\\Connections\\ConnectionManager.cpp",
-            0x1Cu,
-            0))
-        {
-            ZwiftAssert::Abort();
-        }
-    }
-    v159 = operator new(0x138ui64);
-    argv_ = v159;
-    memset(v159, 0, 0x138ui64);
-    v160 = ConnectionManager_ctr(v159);
-    v162 = g_ConnectionManagerUPtr;
-    g_ConnectionManagerUPtr = v160;
-    if (v162)
-        ConnectionManager_dtr(v161, v162);
-    v163 = sub_7FF71916CB60();
-    v164 = EventSystem::GetInst();
-    v165 = ExperimentationInstance();
-    if (!g_SaveActivityServicePtr)
-        goto LABEL_267;
-    if (IsDebuggerPresent_1())
-        __debugbreak();
-    if (ZwiftAssert::BeforeAbort(
-        "sSaveActivityServicePtr.get() == nullptr",
-        "D:\\git\\zwift-game-client\\Projects\\ZwiftApp\\CODE\\SaveActivity\\SaveActivityService.cpp",
-        0x15Cu,
-        0))
-    {
-        ZwiftAssert::Abort();
-    }
-    if (!g_SaveActivityServicePtr)              // SaveActivityService::Initialize
-    {
-    LABEL_267:
-        argv_ = operator new(0x128ui64);
-        v166 = SaveActivityService_ctr(argv_, &g_UserConfigDoc, v165, v164);
-        v167 = g_SaveActivityServicePtr;
-        g_SaveActivityServicePtr = v166;
-        if (v167)
-        {
-            (**v167)(v167, 1i64);
-            v166 = g_SaveActivityServicePtr;
-        }
-        ConnectionManager::Subscribe(v163, v166);
-    }
-    v168 = EventSystem::GetInst();
-    if (g_HoloReplayManagerPtr)                 // HoloReplayManager::Initialize
-    {
-        if (IsDebuggerPresent_1())
-            __debugbreak();
-        if (ZwiftAssert::BeforeAbort(
-            "sHoloReplayManagerPtr.get() == nullptr",
-            "D:\\git\\zwift-game-client\\Projects\\ZwiftApp\\CODE\\FeatureDrivenLocalAI\\HoloReplay\\HoloReplayManager.cpp",
-            0x38u,
-            0))
-        {
-            ZwiftAssert::Abort();
-        }
-    }
-    argv_ = operator new(0x110ui64);
-    v169 = sub_7FF71927C0E0(argv_, v168, &g_UserConfigDoc);
-    v173 = g_HoloReplayManagerPtr;
-    g_HoloReplayManagerPtr = v169;
-    if (v173)
-        HoloReplayManager::Shutdown(v170, v173);
-    if (!g_LanExerciseDeviceManager)            // LanExerciseDeviceManager::Initialize
-    {
-        v174 = operator new(1ui64);
-        argv_ = v174;
-        coa2.vptr = &std::_Func_impl_no_alloc<void (*)(zwift_network::LanExerciseDeviceInfo const &, std::vector<unsigned char> const &), void, zwift_network::LanExerciseDeviceInfo const &, std::vector<unsigned char> const &>::`vftable';
-            coa2.m_countPtr = sub_7FF7192585A0;
-        p_coa2 = &coa2;
-        sub_7FF719997E50(&coa2);
-        if (p_coa2)
-        {
-            v175 = &coa2;
-            LOBYTE(v175) = p_coa2 != &coa2;
-            (*(p_coa2->vptr + 4))(p_coa2, v175);
-            p_coa2 = 0i64;
-        }
-        path._Bx._Ptr = &std::_Func_impl_no_alloc<void (*)(zwift_network::LanExerciseDeviceInfo const &), void, zwift_network::LanExerciseDeviceInfo const &>::`vftable';
-            * (&path._Bx._Ptr + 1) = sub_7FF719258790;
-        v395 = &path;
-        sub_7FF719997E60(&path);
-        if (v395)
-        {
-            v176 = &path;
-            LOBYTE(v176) = v395 != &path;
-            (*(v395->_Bx._Ptr + 4))(v395, v176);
-            v395 = 0i64;
-        }
-        byte_7FF71A8914D0 = 0;
-        sub_7FF71925A970(&qword_7FF71A89BAD8);
-        g_LanExerciseDeviceManager = v174;
-    }
-    Log("Suceeded initializing graphics", v173, v171, v172);
-    LOBYTE(v177) = 1;
-    VRAM_CreateRenderTarget_0(&stru_7FF71A5C5EC0, 2048, 1024, v177, 0, 1);
+    ConnectionManager::Initialize();
+    SaveActivityService::Initialize(&g_UserConfigDoc, exp, evSysInst);
+    HoloReplayManager::Initialize(evSysInst, &g_UserConfigDoc);
+    LanExerciseDeviceManager::Initialize();
+    Log("Suceeded initializing graphics");
+    VRAM_CreateRenderTarget(&g_RTPreviewWindow, 2048, 1024, true, false, true);
     VRAM_EndRenderTo(0);
     MATERIAL_Init();
     GFX_DrawInit();
-    WADManager::LoadWADFile(WADManager::g_WADManager, "assets/fonts/font.wad");
-    g_ChatFontGW = g_GiantFontW;
-    g_ChatFontLW = g_LargeFontW;
-    CFont2D::Load(g_GiantFontW, 3);
-    CFont2D::SetScaleAndKerning(g_GiantFontW, 0.34108528, 0.93000001);
-    ZWIFT_UpdateLoading(0i64, 0);
+    g_WADManager.LoadWADFile("assets/fonts/font.wad");
+    g_ChatFontGW = &g_GiantFontW;
+    g_ChatFontLW = &g_LargeFontW;
+    g_GiantFontW.Load(FS_GIANTW);
+    g_GiantFontW.SetScaleAndKerning(0.34108528, 0.93000001);
+    ZWIFT_UpdateLoading(nullptr, false);
+#if 0
     PerformanceGroup = GFX_GetPerformanceGroup();
     if (PerformanceGroup)
     {
@@ -573,7 +213,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         v188 = 2;
     g_nSkipMipCount = v188;
     ZWIFT_UpdateLoading(0i64, 0);
-    S32 = XMLDoc::GetS32(&g_UserConfigDoc, "ZWIFT\\CONFIG\\BATTPREFS", 0x14u, v189);
+    S32 = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\BATTPREFS", 0x14u, v189);
     GFX_SetMaxFPSOnBattery(S32);
     CStr = XMLDoc::GetCStr(&g_UserConfigDoc, "ZWIFT\\CONFIG\\USER_RESOLUTION_PREF", 0i64, 1);
     if (CStr)
@@ -843,11 +483,11 @@ LABEL_365:
     LogTyped(LOG_ANT_IMPORTANT, v240);
     ZWIFT_UpdateLoading(0i64, 0);
     GAME_Initialize();
-    LODWORD(v241) = sub_7FF719288A40(&g_UserConfigDoc, "ZWIFT\\CONFIG\\TRAINER_EFFECT", COERCE_DOUBLE(1056964608i64), 1).m128_u32[0];
+    LODWORD(v241) = sub_7FF719288A40(&g_UserConfigDoc, "ZWIFT\\CONFIG\    RAINER_EFFECT", COERCE_DOUBLE(1056964608i64), 1).m128_u32[0];
     GAME_SetTrainerSlopeModifier(v241);
     *(*&BikeManager::g_BikeManager->m_mainBike->gapC65[107] + 192i64) = XMLDoc::GetU32(// VirtualBikeComputer::SetTireSize
         &g_UserConfigDoc,
-        "ZWIFT\\CONFIG\\TIRE_CIRC",
+        "ZWIFT\\CONFIG\    IRE_CIRC",
         0x839u,
         v242);
     *&BikeManager::g_BikeManager->m_mainBike->gap498[1916] = SIG_CalcCaseInsensitiveSignature(
@@ -857,7 +497,7 @@ LABEL_365:
     *&BikeManager::g_BikeManager->m_mainBike->gap498[1920] = v243;
     *&v244->m_mainBike->gapC65[1419] = 0i64;
     v244->m_mainBike->gap498[876] = 1;
-    v186 = XMLDoc::GetS32(&g_UserConfigDoc, "ZWIFT\\CONFIG\\POWERSMOOTHING", 1u, v245) == 0;
+    v186 = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\POWERSMOOTHING", 1u, v245) == 0;
     v246 = *&BikeManager::g_BikeManager->m_mainBike->gapC65[107];
     *(v246 + 2208) = !v186;
     g_GlobalMouseOverSID = "Play_SFX_UI_MOUSEOVER_1";
@@ -1331,7 +971,7 @@ LABEL_365:
             UI_CreateDialog(UID_CONNECTION_NOTIFICATIONS, 0i64, 0i64, v2);
         timeGetTime();
         ZWIFT_UpdateLoading(0i64, 0);
-        U32 = XMLDoc::GetU32(&g_UserConfigDoc, "ZWIFT\\DEVICES\\LASTTRAINERDEVICE", 0xFFFFFFFF, v282);
+        U32 = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", 0xFFFFFFFF, v282);
         if ((U32 - 43) <= 0xFFFFFFD3 && (v284 = ZwiftPowers::GetInst(), (Power = ZwiftPowers::GetPower(v284, U32)) != 0))
         {
             *(*&BikeManager::g_BikeManager->m_mainBike->gapC65[107] + 552i64) = Power;
@@ -1361,7 +1001,7 @@ LABEL_365:
         SetIcon();
         Time = time64(0i64) - 14400;                // MAP_SCHEDULE_GMT_4_OFFSET
         GAME_GetMapForTime(&Time);
-        v291 = XMLDoc::GetU32(&g_UserConfigDoc, "ZWIFT\\WORLD", 0, v290);
+        v291 = g_UserConfigDoc.GetU32("ZWIFT\\WORLD", 0, v290);
         if (!GAME_IsWorldIDAvailableViaPrefsFile(v291))
             v291 = 0;
         GFX_SetLoadedAssetMode(0);
