@@ -266,13 +266,57 @@ bool GFX_Initialize() {
         GFX_AddPerformanceFlags(perf_flags);
     return true;
 }
+HWND g_Hwnd;
 bool GFXAPI_Initialize(const GFX_InitializeParams &) {
     //TODO
     return true;
 }
-bool GFX_Initialize(const GFX_InitializeParams &) {
+void GetMonitorCaps(MonitorInfo *dest) {
+    auto hmon = MonitorFromWindow(g_Hwnd, MONITOR_DEFAULTTOPRIMARY);
+    MONITORINFO mi;
+    mi.cbSize = sizeof(mi);
+    GetMonitorInfoA(hmon, &mi);
+    dest->m_width = abs(mi.rcMonitor.left - mi.rcMonitor.right);
+    dest->m_height = abs(mi.rcMonitor.top - mi.rcMonitor.bottom);
+    GetDpiForMonitor(hmon, MDT_RAW_DPI, &dest->m_dpiX, &dest->m_dpiY);
+    dest->m_dpiPhys = dest->m_dpiX;
+    DEVICE_SCALE_FACTOR dsf;
+    GetScaleFactorForMonitor(hmon, &dsf);
+    dest->m_dsf = (float)dsf / 100.0;
+}
+bool GFX_Initialize(const GFX_InitializeParams &ip) {
+    if (GFXAPI_Initialize(ip)) {
+        MonitorInfo mi;
+        GetMonitorCaps(&mi);
+        Log("Screen reported DPI: %d physical DPI: %d Scale: %.2f", mi.m_dpiX, mi.m_dpiPhys, mi.m_dsf);
+        g_bGFXINITIALIZED = true;
+        GFX_MatrixStackInitialize();
+        Log("Calculating Graphics Score");
+        GFXAPI_CalculateGraphicsScore();
+        if (g_GFX_PerformanceFlags & 0x200000)
+            g_renderDetailed = DR_NO;
+        else if (g_GFX_PerformanceFlags & 0x400000)
+            g_renderDetailed = DR_MIDDLE;
+        Log("Initializing Render Targets");
+        VRAM_Initialize(ip.HasPickingBuf);
+        Log("Initializing Texture Systems");
+        GFX_TextureSys_Initialize();
+        g_BlurShaderHandle = GFX_CreateShaderFromFile("Blur", -1);
+        g_debugFont.Load(FS_GIANTW);
+        GDEMESH_Initialize();
+        return true;
+    }
+    return false;
+}
+void GFX_TextureSys_Initialize() {
     //TODO
-    return true;
+}
+uint32_t GFX_CreateShaderFromFile(const char *fileName, int) {
+    //TODO
+    return 0;
+}
+void GFX_MatrixStackInitialize() {
+    //TODO
 }
 bool GFX_Initialize(uint32_t, uint32_t, bool, bool, uint32_t, const char *, const char *) {
     //TODO
@@ -285,9 +329,34 @@ bool GFX_Initialize3DTVSpecs(float, float) {
 void GFX_DrawInit() {
     //TODO
 }
+void GFXAPI_CalculateGraphicsScore() {
+    //TODO
+}
 int64_t GFX_GetPerformanceFlags() {
     return g_GFX_PerformanceFlags;
 }
 void GFX_AddPerformanceFlags(uint64_t f) {
     g_GFX_PerformanceFlags |= f;
 }
+PerformanceGroup GFX_GetPerformanceGroup() {
+    return g_GFX_Performance;
+}
+void GFX_SetMaxFPSOnBattery(float fps) {
+    g_TargetBatteryFPS = fps;
+}
+const char *GFX_GetVersion() {
+    if (g_openglDebug)
+    {
+        if (g_openglCore)
+            return "OpenGL Debug Core";
+        else
+            return "OpenGL Debug";
+    } else {
+        if (!g_openglCore)
+            return "OpenGL";
+    }
+    return "OpenGL Core";
+}
+const char *GFX_GetAPIName() { return g_GL.m_version; }
+const char *GFX_GetVendorName() { return g_GL.m_vendorName; }
+const char *GFX_GetRendererName() { return g_GL.m_renderer; }

@@ -7,4 +7,4 @@ public:
     void Load(FONT_STYLE s);
     void SetScaleAndKerning(float scale, float kerning);
 };
-inline CFont2D *g_ChatFontGW, *g_ChatFontLW, g_GiantFontW, g_LargeFontW;
+inline CFont2D *g_ChatFontGW, *g_ChatFontLW, g_GiantFontW, g_LargeFontW, g_debugFont;

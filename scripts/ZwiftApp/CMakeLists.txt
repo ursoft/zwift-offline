@@ -18,7 +18,7 @@ target_sources(${PROJECT_NAME} PRIVATE
   res/Resource.h
   res/${PROJECT_NAME}.rc
   ${PROTO_SRCS} ${PROTO_HDRS}
-)
+ "cpp/GDE.cpp")
 
 #get_cmake_property(_variableNames VARIABLES)
 #list (SORT _variableNames)
@@ -47,7 +47,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   ${Protobuf_LIBRARIES} #protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite
   ${Boost_LIBRARIES}
   Noesis.lib #NoesisApp.lib
-  Winmm.lib
+  Winmm.lib Shcore
   Opengl32.lib
   AkSoundEngine.lib AkMemoryMgr.lib AkMusicEngine.lib AkStreamMgr.lib
   ${CMAKE_CURRENT_BINARY_DIR}/glfw/lib/glfw3.lib

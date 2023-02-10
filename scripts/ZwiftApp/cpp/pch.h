@@ -1,6 +1,7 @@
 #pragma once
 #define NOMINMAX
 #include "framework.h"
+#include <ShellScalingApi.h>
 #include <tlhelp32.h>
 #include <psapi.h>
 #include <timeapi.h>

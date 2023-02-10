@@ -150,184 +150,106 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_GiantFontW.Load(FS_GIANTW);
     g_GiantFontW.SetScaleAndKerning(0.34108528, 0.93000001);
     ZWIFT_UpdateLoading(nullptr, false);
-#if 0
-    PerformanceGroup = GFX_GetPerformanceGroup();
-    if (PerformanceGroup)
-    {
-        v182 = PerformanceGroup - 1;
-        if (v182)
-        {
-            v183 = v182 - 1;
-            if (v183)
-            {
-                if (v183 == 1)
-                {
-                    Log("Using ultra graphics profile", v179, v180, v181);
-                    g_nSkipMipCount = 0;
-                    COMMAND_RunCommandsFromFile("ultra");
-                }
-            } else
-            {
-                Log("Using high graphics profile", v179, v180, v181);
-                g_nSkipMipCount = 0;
-                COMMAND_RunCommandsFromFile("high");
-            }
-        } else
-        {
-            Log("Using medium graphics profile", v179, v180, v181);
-            g_nSkipMipCount = 1;
-            COMMAND_RunCommandsFromFile("medium");
-        }
-    } else
-    {
-        Log("Using basic graphics profile", v179, v180, v181);
+    switch (GFX_GetPerformanceGroup()) {
+    case GPG_BASIC:
+        Log("Using basic graphics profile");
         g_nSkipMipCount = 2;
         COMMAND_RunCommandsFromFile("basic");
+        break;
+    case GPG_MEDIUM:
+        Log("Using medium graphics profile");
+        g_nSkipMipCount = 1;
+        COMMAND_RunCommandsFromFile("medium");
+        break;
+    case GPG_HIGH:
+        Log("Using high graphics profile");
+        g_nSkipMipCount = 0;
+        COMMAND_RunCommandsFromFile("high");
+        break;
+    case GPG_ULTRA:
+        Log("Using ultra graphics profile");
+        g_nSkipMipCount = 0;
+        COMMAND_RunCommandsFromFile("ultra");
+        break;
     }
-    if ((GFX_GetPerformanceFlags() & 1) != 0)
-    {
-        v184 = 1;
-        if (dword_7FF71A5C60C8 < 1)
-            v184 = dword_7FF71A5C60C8;
-        if (dword_7FF71A5C60C4 > v184)
-            v184 = dword_7FF71A5C60C4;
-        GfxConfig::gLODBias = v184;
+    if (GFX_GetPerformanceFlags() & 3) {
+        GfxConfig::gLODBias = 1;
     }
-    if ((GFX_GetPerformanceFlags() & 2) != 0)
-    {
-        v185 = 1;
-        if (dword_7FF71A5C60C8 < 1)
-            v185 = dword_7FF71A5C60C8;
-        if (dword_7FF71A5C60C4 > v185)
-            v185 = dword_7FF71A5C60C4;
-        GfxConfig::gLODBias = v185;
+    if (GFX_GetPerformanceFlags() & 4)
+        g_nSkipMipCount = 1;
+    if (GFX_GetPerformanceFlags() & 8)
+        g_nSkipMipCount = 2;
+    ZWIFT_UpdateLoading(nullptr, false);
+    GFX_SetMaxFPSOnBattery(float(g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\BATTPREFS", 20, true)));
+    auto s_urp = g_UserConfigDoc.GetCStr("ZWIFT\\CONFIG\\USER_RESOLUTION_PREF", nullptr, true);
+    char cmdRes[32];
+    const char *cmdRes_do = nullptr;
+    if (s_urp) {
+        sprintf_s(cmdRes, "res %s", s_urp);
+        cmdRes_do = cmdRes;
+    } else if (GFX_GetPerformanceFlags() & 0x80) {
+        cmdRes_do = "res 1024x576";
+    } else if (GFX_GetPerformanceFlags() & 0x100) {
+        cmdRes_do = "res 1280x720";
+    } else if (GFX_GetPerformanceFlags() & 0x800) {
+        cmdRes_do = "res 960x720";
+    } else if (GFX_GetPerformanceFlags() & 0x200) {
+        cmdRes_do = "res 1334x750";
+    } else if (GFX_GetPerformanceFlags() & 0x400) {
+        cmdRes_do = "res 1536x864";
+    } else if (GFX_GetPerformanceFlags() & 0x1000) {
+        cmdRes_do = "res 1024x768";
+    } else if (GFX_GetPerformanceFlags() & 0x2000) {
+        cmdRes_do = "res 1280x960";
+    } else if (GFX_GetPerformanceFlags() & 0x4000) {
+        cmdRes_do = "res 1920x1080";
+    } else if (GFX_GetPerformanceFlags() & 0x8000) {
+        cmdRes_do = "res 1536x1152";
+    } else if (GFX_GetPerformanceFlags() & 0x10000) {
+        cmdRes_do = "res 1792x1344";
+    } else if (GFX_GetPerformanceFlags() & 0x20000) {
+        cmdRes_do = "res 2048x1536";
+    } else if (GFX_GetPerformanceFlags() & 0x40000) {
+        cmdRes_do = "res 3840x2160";
     }
-    v186 = (GFX_GetPerformanceFlags() & 4) == 0;
-    v187 = g_nSkipMipCount;
-    if (!v186)
-        v187 = 1;
-    g_nSkipMipCount = v187;
-    v186 = (GFX_GetPerformanceFlags() & 8) == 0;
-    v188 = g_nSkipMipCount;
-    if (!v186)
-        v188 = 2;
-    g_nSkipMipCount = v188;
-    ZWIFT_UpdateLoading(0i64, 0);
-    S32 = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\BATTPREFS", 0x14u, v189);
-    GFX_SetMaxFPSOnBattery(S32);
-    CStr = XMLDoc::GetCStr(&g_UserConfigDoc, "ZWIFT\\CONFIG\\USER_RESOLUTION_PREF", 0i64, 1);
-    if (CStr)
-    {
-        sprintf_s(Text, 0x400ui64, "res %s", CStr);
-        v192 = Text;
-    } else if ((GFX_GetPerformanceFlags() & 0x80u) == 0)
-    {
-        if ((GFX_GetPerformanceFlags() & 0x100) != 0)
-        {
-            v192 = "res 1280x720";
-        } else if ((GFX_GetPerformanceFlags() & 0x800) != 0)
-        {
-            v192 = "res 960x720";
-        } else if ((GFX_GetPerformanceFlags() & 0x200) != 0)
-        {
-            v192 = "res 1334x750";
-        } else if ((GFX_GetPerformanceFlags() & 0x400) != 0)
-        {
-            v192 = "res 1536x864";
-        } else if ((GFX_GetPerformanceFlags() & 0x1000) != 0)
-        {
-            v192 = "res 1024x768";
-        } else if ((GFX_GetPerformanceFlags() & 0x2000) != 0)
-        {
-            v192 = "res 1280x960";
-        } else if ((GFX_GetPerformanceFlags() & 0x4000) != 0)
-        {
-            v192 = "res 1920x1080";
-        } else if ((GFX_GetPerformanceFlags() & 0x8000) != 0)
-        {
-            v192 = "res 1536x1152";
-        } else if ((GFX_GetPerformanceFlags() & 0x10000) != 0)
-        {
-            v192 = "res 1792x1344";
-        } else if ((GFX_GetPerformanceFlags() & 0x20000) != 0)
-        {
-            v192 = "res 2048x1536";
-        } else
-        {
-            if ((GFX_GetPerformanceFlags() & 0x40000) == 0)
-                goto LABEL_334;
-            v192 = "res 3840x2160";
-        }
-    } else
-    {
-        v192 = "res 1024x576";
-    }
-    COMMAND_RunCommand(v192);
-LABEL_334:
-    if ((GFX_GetPerformanceFlags() & 0x10) != 0)
+    if (cmdRes_do) COMMAND_RunCommand(cmdRes_do);
+    if (GFX_GetPerformanceFlags() & 0x10)
         COMMAND_RunCommand("sres 512x512");
-    if ((GFX_GetPerformanceFlags() & 0x20) != 0)
+    if (GFX_GetPerformanceFlags() & 0x20)
         COMMAND_RunCommand("sres 1024x1024");
-    if ((GFX_GetPerformanceFlags() & 0x40) != 0)
+    if (GFX_GetPerformanceFlags() & 0x40)
         COMMAND_RunCommand("sres 2048x2048");
-    if ((GFX_GetPerformanceFlags() & 0x100000) != 0)
+    if (GFX_GetPerformanceFlags() & 0x100000)
         GFX_SetMaxFPSOnBattery(20.0);
-    v193 = (GFX_GetPerformanceFlags() & 0x80000) != 0i64;
-    v194 = GfxConfig::gFXAA;
-    if (v193)
-        v194 = 0;
-    LOBYTE(GfxConfig::gFXAA) = v194;
-    APIName = GFX_GetAPIName();
-    Version = GFX_GetVersion();
-    Log("%s %s initialized", Version, APIName, v197);
-    v198 = GFX_GetVendorName();
-    v201 = "UNKNOWN";
-    v202 = "UNKNOWN";
-    if (v198)
-        LODWORD(v202) = v198;
-    Log("Graphics Vendor: %s", v202, v199, v200);
-    v203 = GFX_GetRendererName();
-    if (v203)
-        LODWORD(v201) = v203;
-    Log("Graphics Renderer: %s", v201, v204, v205);
-    if (GetPhysicallyInstalledSystemMemory(&TotalMemoryInKilobytes))
-        Log("RAM: %dGB", TotalMemoryInKilobytes >> 20, v206, v207);
-    LODWORD(argv_) = _mm_load_si128(&xmmword_7FF71A3CE4A0).m128i_u32[0];
-    _RAX = 0x80000000i64;
-    __asm { cpuid }
-    v213 = _RAX;
-    HIDWORD(argv_) = _RBX;
-    argv__8 = _RCX;
-    argv__12 = _RDX;
-    *g_strCPU = 0i64;
-    xmmword_7FF71A893C20 = 0i64;
-    xmmword_7FF71A893C30 = 0i64;
-    xmmword_7FF71A893C40 = 0i64;
-    xmmword_7FF71A893C50 = 0i64;
-    xmmword_7FF71A893C60 = 0i64;
-    xmmword_7FF71A893C70 = 0i64;
-    xmmword_7FF71A893C80 = 0i64;
-    for (i = 0x80000000; i <= v213; ++i)
-    {
-        _RAX = i;
-        __asm { cpuid }
-        argv_ = __PAIR64__(_RBX, _RAX);
-        argv__8 = _RCX;
-        argv__12 = _RDX;
-        switch (i)
-        {
-        case 0x80000002:
-            *g_strCPU = *&argv_;
-            break;
-        case 0x80000003:
-            xmmword_7FF71A893C20 = *&argv_;
-            break;
-        case 0x80000004:
-            xmmword_7FF71A893C30 = *&argv_;
-            break;
-        }
+    if (GFX_GetPerformanceFlags() & 0x80000) {
+        GfxConfig::gFXAA = 0;
     }
-    Log("CPU: %s", g_strCPU, i, v213);
+    Log("%s %s initialized", GFX_GetVersion(), GFX_GetAPIName());
+    auto v = GFX_GetVendorName();
+    Log("Graphics Vendor: %s", v ? v : "UNKNOWN");
+    auto r = GFX_GetRendererName();
+    Log("Graphics Renderer: %s", r ? r : "UNKNOWN");
+    if (GetPhysicallyInstalledSystemMemory(&g_TotalMemoryInKilobytes))
+        Log("RAM: %dGB", g_TotalMemoryInKilobytes >> 20);
+    int CPUInfo[4] = { -1 };
+    unsigned   nExIds, i = 0;
+    // Get the information associated with each extended ID.
+    __cpuid(CPUInfo, 0x80000000);
+    nExIds = CPUInfo[0];
+    for (i = 0x80000000; i <= nExIds; ++i)
+    {
+        __cpuid(CPUInfo, i);
+        // Interpret CPU brand string
+        if (i == 0x80000002)
+            memcpy(g_strCPU, CPUInfo, sizeof(CPUInfo));
+        else if (i == 0x80000003)
+            memcpy(g_strCPU + 16, CPUInfo, sizeof(CPUInfo));
+        else if (i == 0x80000004)
+            memcpy(g_strCPU + 32, CPUInfo, sizeof(CPUInfo));
+    }
+    //string includes manufacturer, model and clockspeed
+    Log("CPU: %s", g_strCPU);
+#if 0
     if (TotalMemoryInKilobytes <= 0x500000 && g_nSkipMipCount <= 1)
     {
         g_nSkipMipCount = 2;
@@ -471,7 +393,7 @@ LABEL_365:
     string_dtr(&path);
     v237 = EventSystem::GetInst();
     EventSystem::TriggerEvent(v237, EV_28, 1, &v400);
-    ZWIFT_UpdateLoading(0i64, 0);
+    ZWIFT_UpdateLoading(nullptr, false);
     v238 = time64(0i64);
     v239 = GameHolidayManager::Instance();
     GameHolidayManager::SetupCurrentHoliday(v239, v238);
@@ -481,7 +403,7 @@ LABEL_365:
     if (!ANTRECEIVER_IsConnected)
         v240 = "ANT USB receiver NOT found";
     LogTyped(LOG_ANT_IMPORTANT, v240);
-    ZWIFT_UpdateLoading(0i64, 0);
+    ZWIFT_UpdateLoading(nullptr, false);
     GAME_Initialize();
     LODWORD(v241) = sub_7FF719288A40(&g_UserConfigDoc, "ZWIFT\\CONFIG\    RAINER_EFFECT", COERCE_DOUBLE(1056964608i64), 1).m128_u32[0];
     GAME_SetTrainerSlopeModifier(v241);
@@ -506,7 +428,7 @@ LABEL_365:
     g_GlobalSelectSID = "Play_SFX_UI_Menu_Select_1";
     GUI_Initialize(quick_exit, g_IsOnProductionServer == 0);
     GUI_SetDefaultFont(g_GiantFontW);
-    ZWIFT_UpdateLoading(0i64, 0);
+    ZWIFT_UpdateLoading(nullptr, false);
     g_vegetationWind[0] = 1.0;
     g_vegetationWind[3] = 0.2;
     timeGetTime();
@@ -878,7 +800,7 @@ LABEL_365:
         ParticulateManager::Create();
         ParticulateManager::Init();
         AccessoryManager::InitAllAccessories();
-        ZWIFT_UpdateLoading(0i64, 0);
+        ZWIFT_UpdateLoading(nullptr, false);
         timeGetTime();
         v272 = BikeManager::g_BikeManager;
         v273 = ExperimentationInstance();
@@ -891,7 +813,7 @@ LABEL_365:
         g_HandCycleTrainerMeshHandle = LOADER_LoadGdeFile("data/bikes/Trainers/Zwift/HandcycleTrainer.gde", 0);
         g_TreadmillMeshHandle = LOADER_LoadGdeFile("data/Humans/Treadmill/Treadmill.gde", 0);
         g_PaperMeshHandle = LOADER_LoadGdeFile("data/bikes/Frames/DefaultOrange/Paper.gde", 0);
-        ZWIFT_UpdateLoading(0i64, 0);
+        ZWIFT_UpdateLoading(nullptr, false);
         timeGetTime();
         CFont2D::Load(g_SmallFont, 0);
         CFont2D::Load(g_MediumFont, 1);
@@ -964,13 +886,13 @@ LABEL_365:
         PARTICLESYS_Register(v281);
         Bib::InitOnce();
         timeGetTime();
-        ZWIFT_UpdateLoading(0i64, 0);
+        ZWIFT_UpdateLoading(nullptr, false);
         timeGetTime();
         HUD_Initialize();
         if (!UI_DialogPointer(61))
             UI_CreateDialog(UID_CONNECTION_NOTIFICATIONS, 0i64, 0i64, v2);
         timeGetTime();
-        ZWIFT_UpdateLoading(0i64, 0);
+        ZWIFT_UpdateLoading(nullptr, false);
         U32 = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", 0xFFFFFFFF, v282);
         if ((U32 - 43) <= 0xFFFFFFD3 && (v284 = ZwiftPowers::GetInst(), (Power = ZwiftPowers::GetPower(v284, U32)) != 0))
         {
