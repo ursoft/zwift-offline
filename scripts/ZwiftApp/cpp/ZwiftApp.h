@@ -9,9 +9,9 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
 #define OVR_OS_WIN32
+#include "GL/glew.h"
 #include "glfw/include/GLFW/glfw3.h"
 #include "glfw/include/GLFW/glfw3native.h"
-
 #include "../res/resource.h"
 
 #include "Logging.h"
@@ -69,15 +69,9 @@
 #include "MATERIAL.h"
 #include "CFont2D.h"
 
-inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion;
-inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
-inline int g_width, g_height;
-const float g_UI_AspectRatio = 1.7777778f; //16x9
-inline int32_t g_MinimalUI, g_bFullScreen, WINWIDTH, WINHEIGHT, VSYNC, GFX_TIER;
-inline uint32_t PREFERRED_MONITOR, GPU;
 inline DWORD g_MainThread;
-const char *GAMEPATH(const char *path);
 
+const char *GAMEPATH(const char *path);
 void resize(GLFWwindow *wnd, int w, int h);
 void ZwiftInitialize(const std::vector<std::string> &argv);
 void EndGameSession(bool bShutDown);
@@ -89,4 +83,4 @@ void ZWIFT_ShowDialog(int);
 void ZWIFT_SetupUIViewport();
 void ZWIFT_SetupDeviceViewport();
 void ZWIFT_SetJoystickValues(float, float, float, float, float, float, bool, bool, bool, bool, bool, bool);
-
+void MsgBoxAndExit(const char *lpText);

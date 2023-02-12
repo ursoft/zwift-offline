@@ -12,3 +12,4 @@ void LanguageChangeCallback(LOC_LANGS);
 void LOC_Initialize(void *data, size_t length, uint32_t what);
 void LOC_Initialize(const char *fileName, uint32_t what);
 void LOC_LoadStringTable(const char *fileName);
+const char *GetText(const char *loc_name);

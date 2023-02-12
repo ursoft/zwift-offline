@@ -146,7 +146,9 @@ void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void 
         l = g_noesisLogLevels[noesisLevel];
     LogLev(l, "[NOESIS] %s", msg ? msg : "(null)");
 }
-//TODO: one more xref from Noesis
+void glfwZwiftErrorCallback(int code, const char *msg) {
+    Log("GLFW ERROR %d: %s", code, msg);
+}
 void LogLev(LOG_LEVEL level, const char *fmt, ...) {
     if (ShouldLog(level)) {
         va_list va;

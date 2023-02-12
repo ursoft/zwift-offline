@@ -47,5 +47,6 @@ public:
   if (ZwiftAssert::BeforeAbort(#c, __FILE__, __LINE__)) ZwiftAssert::Abort(); }
 std::vector<std::string> ParseSuppressedLogs(const char *ls);
 void LogSetSuppressedLogTypes(const std::vector<std::string> &supprLogs);
+void glfwZwiftErrorCallback(int code, const char *msg);
 
 inline bool g_useLogLevelSettings;

@@ -11,3 +11,6 @@ void VRAM_Initialize(bool aHasPickingBuffer) {
     CONSOLE_AddCommand("sres", CMD_ChangeShadowRes);
     VRAM_CreateAllRenderTargets();
 }
+float VRAM_GetUIAspectRatio() {
+    return g_UI_AspectRatio;
+}

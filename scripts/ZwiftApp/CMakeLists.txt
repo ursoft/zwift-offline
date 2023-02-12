@@ -48,7 +48,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   ${Boost_LIBRARIES}
   Noesis.lib #NoesisApp.lib
   Winmm.lib Shcore
-  Opengl32.lib
+  Opengl32.lib GLEW::GLEW
   AkSoundEngine.lib AkMemoryMgr.lib AkMusicEngine.lib AkStreamMgr.lib
   ${CMAKE_CURRENT_BINARY_DIR}/glfw/lib/glfw3.lib
   CURL::libcurl

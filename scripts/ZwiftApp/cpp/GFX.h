@@ -1,21 +1,22 @@
 #pragma once
 enum AssetCategory { AC_UNK, AC_1, AC_2, AC_CNT };
 struct GFX_InitializeParams {
-    int WINWIDTH;
-    int WINHEIGHT;
-    bool FullScreen;
-    int VSYNC;
-    int GPU;
-    int GFX_TIER;
-    bool HasPickingBuf;
+    int WINWIDTH, WINHEIGHT;
+    bool field_8, FullScreen, GlCoreProfile, HasPickingBuf;
+    uint32_t GlContextVer, VSYNC, GPU, GFX_TIER;
     int PREFERRED_MONITOR;
     char *m_vendorName;
     char *m_renderer;
-    int64_t field_3C;
+    int64_t field_38, field_3C;
     int16_t field_44;
 };
 struct GfxVendorParams {
     const char *m_vendorName, *m_renderer, *m_version;
+};
+struct GfxCaps {
+    bool draw_elements_base_vertex, field_2, ARB_base_instance, instanced_arrays, bglGenVertexArrays, field_6, field_7, field_18, field_19, texture_compression_s3tc;
+    uint8_t max_anisotropy, max_v_attribs, max_color_atchs, max_txt_iu, max_v_txt_iu, max_ctxt_iu;
+    int64_t field_48, field_50;
 };
 enum ZwiftPerfFlags { ZPF_DISABLE_AUTO_BRIGHT = 0x4000000 };
 enum PerformanceGroup { GPG_BASIC, GPG_MEDIUM, GPG_HIGH, GPG_ULTRA, GPG_CNT };
@@ -34,6 +35,13 @@ inline char g_strCPU[0x40];
 inline uint32_t g_BlurShaderHandle;
 enum DetailedRender { DR_NO, DR_MIDDLE, DR_VERBOSE };
 inline DetailedRender g_renderDetailed = DR_VERBOSE;
+inline GLFWwindow *g_mainWindow;
+inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion, g_openglFail;
+inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
+inline int g_width, g_height;
+inline int32_t g_MinimalUI, g_bFullScreen, WINWIDTH, WINHEIGHT, VSYNC, GFX_TIER;
+inline uint32_t PREFERRED_MONITOR, GPU, g_glVersion;
+inline GfxCaps g_gfxCaps;
 
 void GFX_SetLoadedAssetMode(bool);
 bool GFX_Initialize();
@@ -59,3 +67,4 @@ void GFX_MatrixStackInitialize();
 void GFXAPI_CalculateGraphicsScore();
 void GFX_TextureSys_Initialize();
 uint32_t GFX_CreateShaderFromFile(const char *fileName, int);
+bool GFX_CheckExtensions();

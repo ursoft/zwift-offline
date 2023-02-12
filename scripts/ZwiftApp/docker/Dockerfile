@@ -61,4 +61,7 @@ RUN C:\vcpkg\vcpkg install jsoncpp:x64-windows-static
 #gtest
 RUN C:\vcpkg\vcpkg install gtest:x64-windows-static
 
+#glew
+RUN C:\vcpkg\vcpkg install glew:x64-windows-static
+
 ENTRYPOINT [ "cmd.exe", "/k", "C:\\ZwiftApp\\docker\\bootstrap.cmd" ]

@@ -54,3 +54,7 @@ void LOC_Initialize(const char *fileName, uint32_t what) {
 void LOC_LoadStringTable(const char *fileName) {
     //TODO
 }
+const char *GetText(const char *loc_name) {
+    //TODO
+    return "TODO: GetText";
+}

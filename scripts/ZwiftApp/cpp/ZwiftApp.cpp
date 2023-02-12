@@ -3,7 +3,6 @@
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
-GLFWwindow *g_mainWindow;
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
@@ -193,6 +192,11 @@ void doFrameWorldID(zwiftUpdateContext *ptr) {
 void ZWIFT_UpdateLoading(const uint16_t *, bool) {
     //TODO
 }
+void MsgBoxAndExit(const char *lpText) {
+    MessageBoxA(nullptr, lpText, "ERROR", MB_ICONSTOP);
+    exit(-1);
+}
+
 //Unit Tests
 TEST(SmokeTest, Linkage) { //testing if libs are linked properly
     AK::MemoryMgr::GetDefaultSettings(g_memSettings); //Wwize, not debuggable
