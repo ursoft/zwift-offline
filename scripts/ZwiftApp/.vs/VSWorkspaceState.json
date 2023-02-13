@@ -7,9 +7,9 @@
   },
   "ExpandedNodes": [
     "",
-    "\\cpp",
+    "\\cmake",
     "\\docker"
   ],
-  "SelectedNode": "\\cpp\\ZwiftApp.h",
+  "SelectedNode": "\\cmake\\thirdparty.cmake",
   "PreviewInSolutionExplorer": false
 }

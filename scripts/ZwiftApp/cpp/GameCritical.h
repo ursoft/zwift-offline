@@ -1,6 +1,5 @@
 #pragma once
-class GameCritical
-{
+class GameCritical {
     static int s_jobCount;
     static bool s_shouldAbortJobs;
     static std::mutex s_mutex;

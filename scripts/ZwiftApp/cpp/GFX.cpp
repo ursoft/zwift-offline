@@ -6,12 +6,12 @@ bool GFX_Initialize() {
     g_MinimalUI = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\MINIMAL_UI", 0, true) == 0;
     g_WorkoutDistortion = g_UserConfigDoc.GetBool("ZWIFT\\CONFIG\\WORKOUTDISTORTION", true, true);
     g_bFullScreen = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\FULLSCREEN", 0, true) != 0;
-    WINWIDTH = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\WINWIDTH", 0, true);
-    WINHEIGHT = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\WINHEIGHT", 0, true);
-    PREFERRED_MONITOR = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\PREFERRED_MONITOR", -1, true);
-    VSYNC = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\VSYNC", 1, true);
-    GPU = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\GPU", -1, true);
-    GFX_TIER = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\GFX_TIER", -1, true);
+    auto WINWIDTH = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\WINWIDTH", 0, true);
+    auto WINHEIGHT = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\WINHEIGHT", 0, true);
+    auto PREFERRED_MONITOR = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\PREFERRED_MONITOR", -1, true);
+    auto VSYNC = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\VSYNC", 1, true);
+    auto GPU = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\GPU", -1, true);
+    auto GFX_TIER = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\GFX_TIER", -1, true);
     Log("Initializing graphics window of size %d x %d", WINWIDTH, WINHEIGHT);
     GFX_InitializeParams gip{};
     gip.WINWIDTH = WINWIDTH;
@@ -57,8 +57,6 @@ void MainWndCorrectByFrame(GLFWmonitor *m) {
     }
 }
 bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
-    WINWIDTH = gip.WINWIDTH;
-    WINHEIGHT = gip.WINHEIGHT;
     glfwSetErrorCallback(glfwZwiftErrorCallback);
     if (!glfwInit()) {
         Log("Failed GLFW init. Returning");
@@ -109,18 +107,11 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
             cxs = m->width;
         }
     //}
-    bool badWH = (!WINWIDTH || !WINHEIGHT);
-    if (badWH) {
-        WINWIDTH = cxs;
-        WINHEIGHT = cys;
-    }
-    int tryh, tryw;
-    if (gip.FullScreen) {
+    bool badWH = (!gip.WINWIDTH || !gip.WINHEIGHT);
+    auto tryh = gip.WINHEIGHT, tryw = gip.WINWIDTH;
+    if (badWH || gip.FullScreen) {
         tryh = cys;
         tryw = cxs;
-    } else {
-        tryh = WINHEIGHT;
-        tryw = WINWIDTH;
     }
     auto selMon = gip.FullScreen ? pMon : nullptr;
     g_mainWindow = glfwCreateWindow(tryw, tryh, "Zwift", selMon, nullptr);
@@ -128,15 +119,15 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
         glfwWindowHint(GLFW_OPENGL_PROFILE, 0);
-        g_mainWindow = glfwCreateWindow(WINWIDTH, WINHEIGHT, "Zwift", selMon, nullptr);
+        g_mainWindow = glfwCreateWindow(gip.WINWIDTH, gip.WINHEIGHT, "Zwift", selMon, nullptr);
         if (!g_mainWindow) {
             g_openglFail = true;
             glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
             glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
             glfwWindowHint(GLFW_OPENGL_PROFILE, 0);
-            g_mainWindow = glfwCreateWindow(WINWIDTH, WINHEIGHT, "Zwift", selMon, nullptr);
+            g_mainWindow = glfwCreateWindow(gip.WINWIDTH, gip.WINHEIGHT, "Zwift", selMon, nullptr);
             if (!g_mainWindow) {
-                Log("Could not create graphics window of size %d x %d", WINWIDTH, WINHEIGHT);
+                Log("Could not create graphics window of size %d x %d", gip.WINWIDTH, gip.WINHEIGHT);
                 glfwTerminate();
                 MessageBoxA(
                     nullptr,
@@ -156,7 +147,7 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
     if (badWH && !gip.FullScreen) {
         int left, top, right, bottom;
         glfwGetWindowFrameSize(g_mainWindow, &left, &top, &right, &bottom);
-        glfwSetWindowSize(g_mainWindow, WINWIDTH - left - right, WINHEIGHT - top - bottom);
+        glfwSetWindowSize(g_mainWindow, gip.WINWIDTH - left - right, gip.WINHEIGHT - top - bottom);
     }
     GLenum err = glewInit();
     if (GLEW_OK != err) {
@@ -198,34 +189,97 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
         v50 = glVerMajor;
     g_glVersion = v50 & 0x3FF | v51;
     Log("Checking Extensions");
-    if ((g_glVersion & 0xFFC00 | ((g_glVersion & 0x3FF) << 20) | (g_glVersion >> 20) & 0x3FF) < 0x300000
-        && !GLEW_EXT_framebuffer_object) {
+    auto glv = g_glVersion & 0xFFC00 | ((g_glVersion & 0x3FF) << 20) | (g_glVersion >> 20) & 0x3FF;
+    if (glv < 0x300000 && !GLEW_EXT_framebuffer_object) {
         auto err = "EXT_framebuffer_object OpenGL extension is required.  Try updating your video card drivers.";
         LogTyped(LOG_ERROR, err);
         MsgBoxAndExit(err);
     }
-    if ((g_glVersion & 0xFFC00 | ((g_glVersion & 0x3FF) << 20) | (g_glVersion >> 20) & 0x3FF) < 0x300000
-        && !glDeleteFramebuffersEXT) {
+    if (glv < 0x300000 && !glDeleteFramebuffersEXT) {
         auto err = "glDeleteFramebuffersEXT OpenGL extension is required.  Try updating your video card drivers.";
         LogTyped(LOG_ERROR, err);
         MsgBoxAndExit(err);
     }
-    if ((g_glVersion & 0xFFC00 | ((g_glVersion & 0x3FF) << 20) | (g_glVersion >> 20) & 0x3FF) < 0x300000
-        && !glDeleteRenderbuffersEXT) {
+    if (glv < 0x300000 && !glDeleteRenderbuffersEXT) {
         auto err = "glDeleteRenderbuffersEXT OpenGL extension is required.  Try updating your video card drivers.";
         LogTyped(LOG_ERROR, err);
         MsgBoxAndExit(err);
     }
-    if ((g_glVersion & 0xFFC00 | ((g_glVersion & 0x3FF) << 20) | (g_glVersion >> 20) & 0x3FF) < 0x200000
-        && !GLEW_ARB_shader_objects) {
+    if (glv < 0x200000 && !GLEW_ARB_shader_objects) {
         MsgBoxAndExit("ARB_shader_objects OpenGL extension is required.  Try updating your video card drivers.");
     }
-    //TODO
-    //v8 = 0i64;
     if (GFX_CheckExtensions()) {
+        //auto _GLEW_EXT_debug_marker = GLEW_EXT_debug_marker;        //not used = 0
+        //auto _GLEW_NVX_gpu_memory_info = GLEW_NVX_gpu_memory_info;  //not used = 1
+        g_openglCore = glfwGetWindowAttrib(g_mainWindow, GLFW_OPENGL_PROFILE) == GLFW_OPENGL_CORE_PROFILE;
+        Log("[GFX]: %s profile", g_openglCore ? "Core" : "Compatability");
+        auto clamper = glClampColor;
+        auto clamper_arg = GL_CLAMP_READ_COLOR;
+        if (glClampColor) {
+            if (!g_openglCore) {
+                glClampColor(GL_CLAMP_VERTEX_COLOR, GL_FALSE);
+                glClampColor(GL_CLAMP_FRAGMENT_COLOR, GL_FALSE);
+            }
+        } else {
+            clamper = glClampColorARB;
+            if (!g_openglCore) {
+                glClampColorARB(GL_CLAMP_VERTEX_COLOR, GL_FALSE);
+                glClampColorARB(GL_CLAMP_FRAGMENT_COLOR, GL_FALSE);
+            }
+            clamper_arg = GL_CLAMP_FRAGMENT_COLOR;
+        }
+        if (clamper) {
+            clamper(clamper_arg, GL_FALSE);
+        } else {
+            if (!g_openglCore)
+                glEnable(GL_POINT_SMOOTH);
+            glEnable(GL_LINE_SMOOTH);
+            if (g_openglCore) {
+                glGenVertexArrays(1, &g_CoreVA);
+                glBindVertexArray(g_CoreVA);
+            }
+            g_gfxShaderModel = (glv < 0x400C00) ? 1 : 4;
+            if (glv >= 0x300800 || GLEW_ARB_seamless_cube_map)
+                glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+            if (g_gfxCaps.uniform_buffer_object) {
+                glGenBuffers(_countof(g_UBOs), g_UBOs);
+                for (int i = 0; i < _countof(g_UBOs); ++i)
+                    glBindBufferBase(GL_UNIFORM_BUFFER, i, g_UBOs[i]);
+            }
+            g_gfxTier = 0;
+            Log("[GFX]: GFX_Tier %d", g_gfxTier);
+            int rb, gb, bb, ab;
+            glGetIntegerv(GL_RED_BITS, &rb);
+            glGetIntegerv(GL_GREEN_BITS, &gb);
+            glGetIntegerv(GL_BLUE_BITS, &bb);
+            glGetIntegerv(GL_ALPHA_BITS, &ab);
+            if (rb != 8 || gb != 8 || bb != 8 || (g_colorChannels = 3, ab))
+                g_colorChannels = 4;
+            /* TODO v67[0] = 0.5;
+            *(_QWORD *)&v67[1] = 1056964608i64;
+            LOBYTE(v67[3]) = 0;
+            xmmword_7FF72431EE98 = xmmword_7FF723E6E6F0;
+            xmmword_7FF72431EEB8 = *(_OWORD *)v67;
+            xmmword_7FF72431EEA8 = xmmword_7FF723E6E6F0;
+            */
+            GFX_SetFillMode(GFM_02);
+            GFX_SetStencilFunc(false, GCF_07, 0xFFu, 0xFFu, GSO_01, GSO_01, GSO_01);
+            GFX_SetStencilRef(0);
+            for (int at = 0; at < g_gfxCaps.max_color_atchs; at++)
+                GFX_SetColorMask(at, 15);
+        }
         return true;
     }
     return false;
+}
+void GFX_SetColorMask(uint64_t, uint8_t) {
+    //TODO
+}
+void GFX_SetStencilRef(uint8_t ref) {
+    //TODO
+}
+void GFX_SetStencilFunc(bool, GFX_COMPARE_FUNC, uint8_t, uint8_t, GFX_StencilOp, GFX_StencilOp, GFX_StencilOp) {
+    //TODO
 }
 void GetMonitorCaps(MonitorInfo *dest) {
     auto hmon = MonitorFromWindow(g_Hwnd, MONITOR_DEFAULTTOPRIMARY);
@@ -337,140 +391,103 @@ bool GFX_CheckExtensions() {
     glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &tmp);
     g_gfxCaps.max_color_atchs = std::clamp(tmp, 0, 4);
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &tmp);
-    g_gfxCaps.max_txt_iu = std::clamp(tmp, 0, 16);
+    g_gfxCaps.max_tex_iu = std::clamp(tmp, 0, 16);
     glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &tmp);
-    g_gfxCaps.max_v_txt_iu = std::clamp(tmp, 0, 4);
+    g_gfxCaps.max_v_tex_iu = std::clamp(tmp, 0, 4);
     glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &tmp);
-    g_gfxCaps.max_ctxt_iu = std::clamp(tmp, 0, 20);
-#if 0
-    glGetIntegerv(GL_MAX_CLIP_PLANES, &v22);
-    v8 = v22;
-    if (v22 > 1)
-        v8 = 1;
-    g_gfxCaps.field_24 = v8;
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, v15);
-    g_gfxCaps.field_88 = v15[0];
-    glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, v15);
-    g_gfxCaps.field_15 = GLEW_ARB_shader_group_vote != 0;
-    g_gfxCaps.field_8C = v15[0];
-    v9 = g_glVersion;
-    g_gfxCaps.field_16 = GLEW_ARB_shader_ballot != 0;
-    v10 = g_glVersion & 0xFFC00 | ((g_glVersion & 0x3FF) << 20) | ((unsigned int)g_glVersion >> 20) & 0x3FF;
-    if (v10 >= 0x401400 || (g_gfxCaps.field_D = 0, GLEW_ARB_clip_control))
-        g_gfxCaps.field_D = 1;
-    if (v10 >= 0x300800)
-    {
-        glGetIntegerv(GL_MAX_DUAL_SOURCE_DRAW_BUFFERS, v15);
-        g_gfxCaps.field_2F = v15[0];
-        v9 = g_glVersion;
+    g_gfxCaps.max_ctex_iu = std::clamp(tmp, 0, 20);
+    glGetIntegerv(GL_MAX_CLIP_PLANES, &tmp);
+    g_gfxCaps.max_clip_planes = std::clamp(tmp, 0, 1);
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &tmp);
+    g_gfxCaps.max_texture_size = tmp;
+    glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &tmp);
+    g_gfxCaps.shader_group_vote = GLEW_ARB_shader_group_vote != 0;
+    g_gfxCaps.max_3d_texture_size = tmp;
+    g_gfxCaps.shader_ballot = GLEW_ARB_shader_ballot != 0;
+    auto glv = g_glVersion & 0xFFC00 | ((g_glVersion & 0x3FF) << 20) | (g_glVersion >> 20) & 0x3FF;
+    g_gfxCaps.clip_control = (glv >= 0x401400 || GLEW_ARB_clip_control);
+    if (glv >= 0x300800) {
+        glGetIntegerv(GL_MAX_DUAL_SOURCE_DRAW_BUFFERS, &tmp);
+        g_gfxCaps.dual_src_drb = tmp;
     }
-    if ((v9 & 0xFFC00 | ((v9 & 0x3FF) << 20) | (v9 >> 20) & 0x3FF) >= 0x300000 || GLEW_EXT_texture_array)
-    {
-        g_gfxCaps.field_E = 1;
-        glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, v15);
-        g_gfxCaps.field_90 = v15[0];
-        v9 = g_glVersion;
+    if (glv >= 0x300000 || GLEW_EXT_texture_array) {
+        g_gfxCaps.texture_array = true;
+        glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &tmp);
+        g_gfxCaps.max_arr_tex_layers = tmp;
     }
-    v11 = v9 & 0xFFC00 | ((v9 & 0x3FF) << 20) | (v9 >> 20) & 0x3FF;
-    if (v11 >= 0x400000 || GLEW_ARB_texture_cube_map_array)
-        g_gfxCaps.field_F = 1;
-    if (v11 >= 0x300400 || GLEW_ARB_texture_buffer_object || GLEW_EXT_texture_buffer_object)
-    {
-        g_gfxCaps.field_13 = 1;
-        glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, v15);
-        g_gfxCaps.field_94 = v15[0];
-        v9 = g_glVersion;
+    if (glv >= 0x400000 || GLEW_ARB_texture_cube_map_array)
+        g_gfxCaps.tex_cube_map_array = true;
+    if (glv >= 0x300400 || GLEW_ARB_texture_buffer_object || GLEW_EXT_texture_buffer_object) {
+        g_gfxCaps.texture_buffer_object = true;
+        glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &tmp);
+        g_gfxCaps.max_tex_buf = tmp;
     }
-    v12 = v9 & 0xFFC00 | ((v9 & 0x3FF) << 20) | (v9 >> 20) & 0x3FF;
-    if (v12 >= 0x400C00 || (g_gfxCaps.field_10 = 0, GLEW_ARB_texture_view))
-        g_gfxCaps.field_10 = 1;
-    if (v12 >= 0x400800 || (g_gfxCaps.field_12 = 0, GLEW_ARB_texture_storage))
-        g_gfxCaps.field_12 = 1;
-    if (v12 >= 0x300C00 || GL_ARB_texture_swizzle || GLEW_EXT_texture_swizzle)
-    {
-        g_gfxCaps.field_11 = 1;
-        if (v12 >= 0x400800)
-        {
-        LABEL_54:
-            g_gfxCaps.field_B = 1;
-            g_gfxCaps.field_14 = 1;
-            glGetIntegerv(GL_MAX_VERTEX_IMAGE_UNIFORMS, v15);
-            g_gfxCaps.field_2C = v15[0];
-            glGetIntegerv(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, v15);
-            g_gfxCaps.field_2D = v15[0];
-            v9 = g_glVersion;
-            goto LABEL_55;
+    g_gfxCaps.texture_view = (glv >= 0x400C00 || GLEW_ARB_texture_view);
+    g_gfxCaps.texture_storage = (glv >= 0x400800 || GLEW_ARB_texture_storage);
+    g_gfxCaps.texture_swizzle = (glv >= 0x300C00 || GL_ARB_texture_swizzle || GLEW_EXT_texture_swizzle);
+    if (GLEW_ARB_shader_image_load_store || GLEW_EXT_shader_image_load_store || glv >= 0x400800) {
+        g_gfxCaps.field_B = true;
+        g_gfxCaps.field_14 = true;
+        glGetIntegerv(GL_MAX_VERTEX_IMAGE_UNIFORMS, &tmp);
+        g_gfxCaps.max_v_img_uniforms = tmp;
+        glGetIntegerv(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, &tmp);
+        g_gfxCaps.max_f_img_uniforms = tmp;
+    }
+    if (glv >= 0x300400 || GLEW_ARB_uniform_buffer_object) {
+        g_gfxCaps.uniform_buffer_object = true;
+        glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &tmp);
+        g_gfxCaps.max_v_uniform_blocks = tmp;
+        glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &tmp);
+        g_gfxCaps.max_f_uniform_blocks = tmp;
+        glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &tmp);
+        g_gfxCaps.max_uniform_block_sz = tmp;
+        glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &tmp);
+        g_gfxCaps.max_uniform_bo_align = tmp;
+    }
+    g_gfxCaps.conservative_depth = (glv >= 0x400800 || GLEW_ARB_conservative_depth);
+    if ((g_gfxCaps.conservative_depth && glv >= 0x400C00) || GLEW_ARB_shader_storage_buffer_object) {
+        g_gfxCaps.shader_storage_bo = true;
+        glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &tmp);
+        g_gfxCaps.max_v_shb = tmp;
+        glGetIntegerv(GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, &tmp);
+        g_gfxCaps.max_f_shb = tmp;
+        int64_t tmp64;
+        glGetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &tmp64);
+        g_gfxCaps.max_sh_sbs = tmp64;
+    }
+    if (glv >= 0x400C00 || GLEW_ARB_compute_shader) {
+        g_gfxCaps.compute_shader = true;
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &tmp);
+        g_gfxCaps.max_compute_wg_cnt0 = tmp;
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &tmp);
+        g_gfxCaps.max_compute_wg_cnt1 = tmp;
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &tmp);
+        g_gfxCaps.max_compute_wg_cnt2 = tmp;
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &tmp);
+        g_gfxCaps.max_compute_wg_sz0 = tmp;
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &tmp);
+        g_gfxCaps.max_compute_wg_sz1 = tmp;
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &tmp);
+        g_gfxCaps.max_compute_wg_sz2 = tmp;
+        glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &tmp);
+        g_gfxCaps.max_compute_wg_inv = tmp;
+        glGetIntegerv(GL_MAX_COMPUTE_SHARED_MEMORY_SIZE, &tmp);
+        g_gfxCaps.max_compute_sm_sz = tmp;
+        glGetIntegerv(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, &tmp);
+        g_gfxCaps.max_comp_tex_iu = tmp;
+        if (g_gfxCaps.shader_storage_bo) {
+            glGetIntegerv(GL_MAX_COMPUTE_UNIFORM_BLOCKS, &tmp);
+            g_gfxCaps.max_comp_uf_b = tmp;
+            glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &tmp);
+            g_gfxCaps.max_comp_s_b = tmp;
         }
-    } else
-    {
-        g_gfxCaps.field_11 = 0;
-    }
-    if (GLEW_ARB_shader_image_load_store || GLEW_EXT_shader_image_load_store)
-        goto LABEL_54;
-LABEL_55:
-    if ((v9 & 0xFFC00 | ((v9 & 0x3FF) << 20) | (v9 >> 20) & 0x3FF) >= 0x300400 || GLEW_ARB_uniform_buffer_object)
-    {
-        g_gfxCaps.field_8 = 1;
-        glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, v15);
-        g_gfxCaps.field_29 = v15[0];
-        glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, v15);
-        g_gfxCaps.field_2A = v15[0];
-        glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, v15);
-        g_gfxCaps.field_58 = v15[0];
-        glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, v15);
-        g_gfxCaps.field_40 = v15[0];
-        v9 = g_glVersion;
-    }
-    v13 = v9 & 0xFFC00 | ((v9 & 0x3FF) << 20) | (v9 >> 20) & 0x3FF;
-    if ((v13 >= 0x400800 || GLEW_ARB_conservative_depth) && (g_gfxCaps.field_C = 1, v13 >= 0x400C00)
-        || GLEW_ARB_shader_storage_buffer_object)
-    {
-        g_gfxCaps.field_9 = 1;
-        glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, v15);
-        g_gfxCaps.field_26 = v15[0];
-        glGetIntegerv(GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, v15);
-        g_gfxCaps.field_27 = v15[0];
-        glGetInteger64v(37086i64, v15);
-        g_gfxCaps.field_60 = *(_QWORD *)v15;
-        v9 = g_glVersion;
-    }
-    if ((v9 & 0xFFC00 | ((v9 & 0x3FF) << 20) | (v9 >> 20) & 0x3FF) >= 0x400C00 || GLEW_ARB_compute_shader)
-    {
-        g_gfxCaps.field_A = 1;
-        glGetIntegeri_v(37310i64, 0i64, v15);
-        g_gfxCaps.field_68 = v15[0];
-        glGetIntegeri_v(37310i64, 1i64, v15);
-        g_gfxCaps.field_6C = v15[0];
-        glGetIntegeri_v(37310i64, 2i64, v15);
-        g_gfxCaps.field_70 = v15[0];
-        glGetIntegeri_v(37311i64, 0i64, v15);
-        g_gfxCaps.field_74 = v15[0];
-        glGetIntegeri_v(37311i64, 1i64, v15);
-        g_gfxCaps.field_78 = v15[0];
-        glGetIntegeri_v(37311i64, 2i64, v15);
-        g_gfxCaps.field_7C = v15[0];
-        glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, v15);
-        g_gfxCaps.field_80 = v15[0];
-        glGetIntegerv(GL_MAX_COMPUTE_SHARED_MEMORY_SIZE, v15);
-        g_gfxCaps.field_84 = v15[0];
-        glGetIntegerv(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, v15);
-        g_gfxCaps.field_22 = v15[0];
-        if (g_gfxCaps.field_8)
-        {
-            glGetIntegerv(GL_MAX_COMPUTE_UNIFORM_BLOCKS, v15);
-            g_gfxCaps.field_2B = v15[0];
+        if (g_gfxCaps.field_14) {
+            glGetIntegerv(GL_MAX_COMPUTE_IMAGE_UNIFORMS, &tmp);
+            g_gfxCaps.max_comp_img_uf = tmp;
         }
-        if (g_gfxCaps.field_9)
-        {
-            glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, v15);
-            g_gfxCaps.field_28 = v15[0];
-        }
-        if (g_gfxCaps.field_14)
-        {
-            glGetIntegerv(GL_MAX_COMPUTE_IMAGE_UNIFORMS, v15);
-            g_gfxCaps.field_2E = v15[0];
-        }
-}
-#endif
+    }
     return true;
+}
+void GFX_SetFillMode(GFX_FILL_MODE m) {
+    //TODO
 }

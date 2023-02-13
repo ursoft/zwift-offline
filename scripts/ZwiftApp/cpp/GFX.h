@@ -1,5 +1,8 @@
 #pragma once
 enum AssetCategory { AC_UNK, AC_1, AC_2, AC_CNT };
+enum GFX_FILL_MODE { GFM_02 = 2 };
+enum GFX_COMPARE_FUNC { GCF_07 = 7 };
+enum GFX_StencilOp { GSO_01 = 1 };
 struct GFX_InitializeParams {
     int WINWIDTH, WINHEIGHT;
     bool field_8, FullScreen, GlCoreProfile, HasPickingBuf;
@@ -14,9 +17,14 @@ struct GfxVendorParams {
     const char *m_vendorName, *m_renderer, *m_version;
 };
 struct GfxCaps {
-    bool draw_elements_base_vertex, field_2, ARB_base_instance, instanced_arrays, bglGenVertexArrays, field_6, field_7, field_18, field_19, texture_compression_s3tc;
-    uint8_t max_anisotropy, max_v_attribs, max_color_atchs, max_txt_iu, max_v_txt_iu, max_ctxt_iu;
-    int64_t field_48, field_50;
+    int64_t field_48, field_50, max_uniform_block_sz, max_uniform_bo_align, max_sh_sbs;
+    int max_texture_size, max_3d_texture_size, max_arr_tex_layers, max_tex_buf, max_compute_wg_cnt0, max_compute_wg_cnt1, max_compute_wg_cnt2,
+        max_compute_wg_sz0, max_compute_wg_sz1, max_compute_wg_sz2, max_compute_wg_inv, max_compute_sm_sz;
+    bool draw_elements_base_vertex, field_2, ARB_base_instance, instanced_arrays, bglGenVertexArrays, field_6, field_7, field_18, field_19, texture_compression_s3tc,
+        shader_group_vote, shader_ballot, clip_control, texture_array, texture_buffer_object, texture_view, texture_swizzle, field_B, field_14, uniform_buffer_object, 
+        conservative_depth, shader_storage_bo, compute_shader, tex_cube_map_array, texture_storage;
+    uint8_t max_anisotropy, max_v_attribs, max_color_atchs, max_tex_iu, max_v_tex_iu, max_ctex_iu, max_clip_planes, dual_src_drb, max_v_img_uniforms, max_f_img_uniforms,
+        max_v_uniform_blocks, max_f_uniform_blocks, max_v_shb, max_f_shb, max_comp_tex_iu, max_comp_uf_b, max_comp_s_b, max_comp_img_uf;
 };
 enum ZwiftPerfFlags { ZPF_DISABLE_AUTO_BRIGHT = 0x4000000 };
 enum PerformanceGroup { GPG_BASIC, GPG_MEDIUM, GPG_HIGH, GPG_ULTRA, GPG_CNT };
@@ -38,11 +46,15 @@ inline DetailedRender g_renderDetailed = DR_VERBOSE;
 inline GLFWwindow *g_mainWindow;
 inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion, g_openglFail;
 inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
-inline int g_width, g_height;
-inline int32_t g_MinimalUI, g_bFullScreen, WINWIDTH, WINHEIGHT, VSYNC, GFX_TIER;
-inline uint32_t PREFERRED_MONITOR, GPU, g_glVersion;
+inline int g_width, g_height, g_MinimalUI, g_bFullScreen;
+inline uint32_t g_glVersion, g_CoreVA, g_UBOs[4], g_gfxTier;
+inline uint8_t g_colorChannels, g_gfxShaderModel;
 inline GfxCaps g_gfxCaps;
 
+void GFX_SetColorMask(uint64_t, uint8_t);
+void GFX_SetStencilRef(uint8_t ref);
+void GFX_SetFillMode(GFX_FILL_MODE m);
+void GFX_SetStencilFunc(bool, GFX_COMPARE_FUNC, uint8_t, uint8_t, GFX_StencilOp, GFX_StencilOp, GFX_StencilOp);
 void GFX_SetLoadedAssetMode(bool);
 bool GFX_Initialize();
 bool GFXAPI_Initialize(const GFX_InitializeParams &);
