@@ -9,6 +9,10 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
 #define OVR_OS_WIN32
+struct VEC4 { float m_data[4]; };
+struct VEC3 { float m_data[3]; };
+struct VEC2 { float m_data[2]; };
+struct MATRIX44 { VEC4 m_data[4]; };
 #include "GL/glew.h"
 #include "glfw/include/GLFW/glfw3.h"
 #include "glfw/include/GLFW/glfw3native.h"

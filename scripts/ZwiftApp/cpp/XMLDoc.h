@@ -1,13 +1,4 @@
 #pragma once
-struct VEC4 {
-    GLfloat d[4];
-};
-struct VEC3 {
-    GLfloat d[3];
-};
-struct VEC2 {
-    GLfloat d[2];
-};
 class XMLDoc { //1736 bytes
     tinyxml2::XMLDocument m_tiny_doc;
     std::string m_root_name;

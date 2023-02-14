@@ -56,7 +56,7 @@ struct FeaRequestResult {
 };
 enum ExpVariant { EXP_UNASSIGNED, EXP_ENABLED, EXP_DISABLED, EXP_NONE, EXP_UNKNOWN, EXP_CNT }; //Experiment::Variant
 inline const char *g_expVarNames[EXP_CNT] = { "unassigned", "enabled", "disabled", "none", "unknown" };
-typedef std::function<void(ExpVariant)> FeatureCallback;
+using FeatureCallback = std::function<void(ExpVariant)>;
 struct RegisteredCallback { //size=8*9=72?
     int64_t m_cntId;
     FeatureCallback m_func;

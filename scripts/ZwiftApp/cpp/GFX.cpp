@@ -99,14 +99,14 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
         Log(fmt, left, top);
     }
     SetProcessDPIAware();
-    int cxs = 0, cys = 0;
-    //if (pMon != glfwGetPrimaryMonitor()) {
+    int cxs = GetSystemMetrics(SM_CXSCREEN), cys = GetSystemMetrics(SM_CYSCREEN);
+    if (pMon != glfwGetPrimaryMonitor()) {
         auto m = glfwGetVideoMode(pMon);
         if (m) {
             cys = m->height;
             cxs = m->width;
         }
-    //}
+    }
     bool badWH = (!gip.WINWIDTH || !gip.WINHEIGHT);
     auto tryh = gip.WINHEIGHT, tryw = gip.WINWIDTH;
     if (badWH || gip.FullScreen) {
@@ -147,7 +147,7 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
     if (badWH && !gip.FullScreen) {
         int left, top, right, bottom;
         glfwGetWindowFrameSize(g_mainWindow, &left, &top, &right, &bottom);
-        glfwSetWindowSize(g_mainWindow, gip.WINWIDTH - left - right, gip.WINHEIGHT - top - bottom);
+        glfwSetWindowSize(g_mainWindow, tryw - left - right, tryh - top - bottom);
     }
     GLenum err = glewInit();
     if (GLEW_OK != err) {
@@ -156,27 +156,27 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
         Log(buf);
         MsgBoxAndExit(buf);
     }
-    g_GL.m_vendorName = (const char *)glGetString(GL_VENDOR);
-    g_GL.m_renderer = (const char *)glGetString(GL_RENDERER);
-    g_GL.m_version = (const char *)glGetString(GL_VERSION);
+    g_GL_vendor = (const char *)glGetString(GL_VENDOR);
+    g_GL_renderer = (const char *)glGetString(GL_RENDERER);
+    g_GL_apiName = (const char *)glGetString(GL_VERSION);
     if (gip.m_vendorName)
-        g_GL.m_vendorName = gip.m_vendorName;
+        g_GL_vendor = gip.m_vendorName;
     if (gip.m_renderer)
-        g_GL.m_renderer = gip.m_renderer;
-    if (!g_GL.m_version) {
+        g_GL_renderer = gip.m_renderer;
+    if (!g_GL_apiName) {
         Log("GLver == NULL!");
         MsgBoxAndExit(GetText("LOC_ERROR_NO_GRAPHICS"));
     }
-    if (g_GL.m_vendorName && g_GL.m_renderer) {
-        Log("GFX_Initialize: GL_version = %s", g_GL.m_version);
-        Log("                GL_vendor = %s", g_GL.m_vendorName);
-        Log("                GL_render = %s", g_GL.m_renderer);
+    if (g_GL_vendor && g_GL_renderer) {
+        Log("GFX_Initialize: GL_version = %s", g_GL_apiName);
+        Log("                GL_vendor = %s", g_GL_vendor);
+        Log("                GL_render = %s", g_GL_renderer);
     }
-    auto glVerMajor = atoi(g_GL.m_version);
-    auto glVerMinor = atoi(g_GL.m_version + 2);
-    if (strstr(g_GL.m_renderer, "GDI") || glVerMajor == 1) {
+    auto glVerMajor = atoi(g_GL_apiName);
+    auto glVerMinor = atoi(g_GL_apiName + 2);
+    if (strstr(g_GL_renderer, "GDI") || glVerMajor == 1) {
         char buf[4096];
-        sprintf(buf, "%s\n\nVersion: %s\nVendor: %s\nRenderer: %s", GetText("LOC_ERROR_UNSUPPORTED_GL"), g_GL.m_version, g_GL.m_vendorName, g_GL.m_renderer);
+        sprintf(buf, "%s\n\nVersion: %s\nVendor: %s\nRenderer: %s", GetText("LOC_ERROR_UNSUPPORTED_GL"), g_GL_apiName, g_GL_vendor, g_GL_renderer);
         Log("GDI renderer found. Failed to get sufficient openGL implementation");
         MsgBoxAndExit(buf);
     }
@@ -255,15 +255,9 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
             glGetIntegerv(GL_ALPHA_BITS, &ab);
             if (rb != 8 || gb != 8 || bb != 8 || (g_colorChannels = 3, ab))
                 g_colorChannels = 4;
-            /* TODO v67[0] = 0.5;
-            *(_QWORD *)&v67[1] = 1056964608i64;
-            LOBYTE(v67[3]) = 0;
-            xmmword_7FF72431EE98 = xmmword_7FF723E6E6F0;
-            xmmword_7FF72431EEB8 = *(_OWORD *)v67;
-            xmmword_7FF72431EEA8 = xmmword_7FF723E6E6F0;
-            */
-            GFX_SetFillMode(GFM_02);
-            GFX_SetStencilFunc(false, GCF_07, 0xFFu, 0xFFu, GSO_01, GSO_01, GSO_01);
+            //g_floatConsts12 init statically
+            GFX_SetFillMode(GFM_FILL);
+            GFX_SetStencilFunc(false, GCF_ALWAYS, 0xFFu, 0xFFu, GSO_KEEP, GSO_KEEP, GSO_KEEP);
             GFX_SetStencilRef(0);
             for (int at = 0; at < g_gfxCaps.max_color_atchs; at++)
                 GFX_SetColorMask(at, 15);
@@ -272,14 +266,49 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
     }
     return false;
 }
-void GFX_SetColorMask(uint64_t, uint8_t) {
-    //TODO
+void GFX_SetColorMask(uint64_t idx, uint8_t mask) {
+    if (idx < _countof(g_pGFX_CurrentStates->m_colorMask) && g_pGFX_CurrentStates->m_colorMask[idx] != mask) {
+        g_pGFX_CurrentStates->m_colorMask[idx] = mask;
+        if (idx) {
+            if (glColorMaskIndexedEXT) {
+                glColorMaskIndexedEXT((uint32_t)idx, mask & 1, (mask & 2) != 0, (mask & 4) != 0, (mask & 8) != 0);
+            }
+        } else {
+            glColorMask(mask & 1, (mask & 2) != 0, (mask & 4) != 0, (mask & 8) != 0);
+        }
+    }
 }
+const uint32_t g_stensilFuncs[] = {GL_NEVER, GL_LESS, GL_EQUAL, GL_LEQUAL, GL_GREATER, GL_NOTEQUAL, GL_GEQUAL, GL_ALWAYS};
+const uint32_t g_stensilOps[] = {GL_FALSE, GL_KEEP, GL_REPLACE, GL_INCR, GL_INCR_WRAP, GL_DECR, GL_DECR_WRAP, GL_INVERT, GL_FALSE, GL_FALSE};
 void GFX_SetStencilRef(uint8_t ref) {
-    //TODO
+    if (g_pGFX_CurrentStates->m_stensilRef != ref) {
+        glStencilFunc(g_stensilFuncs[g_pGFX_CurrentStates->m_stensilFunc], ref, g_pGFX_CurrentStates->m_stensilFuncMask);
+        g_pGFX_CurrentStates->m_stensilRef = ref;
+    }
 }
-void GFX_SetStencilFunc(bool, GFX_COMPARE_FUNC, uint8_t, uint8_t, GFX_StencilOp, GFX_StencilOp, GFX_StencilOp) {
-    //TODO
+void GFX_SetStencilFunc(bool enableTest, GFX_COMPARE_FUNC compareFunc, uint8_t stensilFuncMask, uint8_t stensilMask, GFX_StencilOp sfail, GFX_StencilOp dpfail, GFX_StencilOp dppass) {
+    if (g_pGFX_CurrentStates->m_enableStensilTest != enableTest) {
+        if (enableTest)
+            glEnable(GL_STENCIL_TEST);
+        else
+            glDisable(GL_STENCIL_TEST);
+        g_pGFX_CurrentStates->m_enableStensilTest = enableTest;
+    }
+    if (g_pGFX_CurrentStates->m_stensilFunc != compareFunc || g_pGFX_CurrentStates->m_stensilFuncMask != stensilFuncMask) {
+        glStencilFunc(g_stensilFuncs[compareFunc], g_pGFX_CurrentStates->m_stensilRef, stensilFuncMask);
+        g_pGFX_CurrentStates->m_stensilFunc = compareFunc;
+        g_pGFX_CurrentStates->m_stensilFuncMask = stensilFuncMask;
+    }
+    if (g_pGFX_CurrentStates->m_stensilMask != stensilMask) {
+        glStencilMask(stensilMask);
+        g_pGFX_CurrentStates->m_stensilMask = stensilMask;
+    }
+    if (g_pGFX_CurrentStates->m_sopsFail != sfail || g_pGFX_CurrentStates->m_sopdpFail != dpfail || g_pGFX_CurrentStates->m_sopdpPass != dppass) {
+        glStencilOp( g_stensilOps[sfail], g_stensilOps[dpfail], g_stensilOps[dppass]);
+        g_pGFX_CurrentStates->m_sopsFail = sfail;
+        g_pGFX_CurrentStates->m_sopdpFail = dpfail;
+        g_pGFX_CurrentStates->m_sopdpPass = dppass;
+    }
 }
 void GetMonitorCaps(MonitorInfo *dest) {
     auto hmon = MonitorFromWindow(g_Hwnd, MONITOR_DEFAULTTOPRIMARY);
@@ -328,10 +357,6 @@ uint32_t GFX_CreateShaderFromFile(const char *fileName, int) {
 void GFX_MatrixStackInitialize() {
     //TODO
 }
-bool GFX_Initialize(uint32_t, uint32_t, bool, bool, uint32_t, const char *, const char *) {
-    //TODO
-    return true;
-}
 bool GFX_Initialize3DTVSpecs(float, float) {
     //TODO
     return true;
@@ -340,7 +365,239 @@ void GFX_DrawInit() {
     //TODO
 }
 void GFXAPI_CalculateGraphicsScore() {
-    //TODO
+    if (g_GL_vendor) {
+        if (strstr(g_GL_vendor, "Intel") || strstr(g_GL_vendor, "INTEL"))
+            g_bUseEmptyShadowMapsHack = true;
+    }
+    char vendorName[256];
+    vendorName[_countof(vendorName) - 1] = 0;
+    for (size_t i = 0; i < _countof(vendorName); i++) {
+        vendorName[i] = std::toupper(g_GL_vendor[i]);
+        if (vendorName[i] == 0)
+            break;
+    }
+    char renderer[256];
+    renderer[_countof(renderer) - 1] = 0;
+    for (size_t i = 0; i < _countof(renderer); i++) {
+        renderer[i] = std::toupper(g_GL_renderer[i]);
+        if (renderer[i] == 0)
+            break;
+    }
+    const GraphicsCardProfile g_GraphicsCardProfileMap[196] = {
+      { "NVIDIA", "GTX TITAN", GPG_ULTRA },
+      { "NVIDIA", "TITAN X", GPG_ULTRA },
+      { "NVIDIA", "TITAN V", GPG_ULTRA },
+      { "NVIDIA", "RTX 2080", GPG_ULTRA },
+      { "NVIDIA", "RTX 2070", GPG_ULTRA },
+      { "NVIDIA", "RTX 2060", GPG_ULTRA },
+      { "NVIDIA", "RTX 2050", GPG_ULTRA },
+      { "NVIDIA", "GTX 1660", GPG_ULTRA },
+      { "NVIDIA", "GTX 1650", GPG_ULTRA },
+      { "NVIDIA", "GTX 1080", GPG_ULTRA },
+      { "NVIDIA", "GTX 1080", GPG_ULTRA },
+      { "NVIDIA", "GTX 1070", GPG_ULTRA },
+      { "NVIDIA", "GTX 1060", GPG_ULTRA },
+      { "NVIDIA", "GTX 1050 Ti", GPG_ULTRA },
+      { "NVIDIA", "GTX 1050", GPG_ULTRA },
+      { "NVIDIA", "GTX 980", GPG_ULTRA },
+      { "NVIDIA", "GTX 970", GPG_ULTRA },
+      { "NVIDIA", "GTX 960", GPG_ULTRA },
+      { "NVIDIA", "GTX 880", GPG_ULTRA },
+      { "NVIDIA", "GTX 870", GPG_ULTRA },
+      { "NVIDIA", "GTX 780", GPG_ULTRA },
+      { "NVIDIA", "GTX 770", GPG_ULTRA },
+      { "NVIDIA", "QUADRO P2000", GPG_HIGH },
+      { "NVIDIA", "QUADRO P1000", GPG_HIGH },
+      { "NVIDIA", "GTX 680", GPG_HIGH },
+      { "NVIDIA", "GTX 670", GPG_HIGH },
+      { "NVIDIA", "GTX 580M", GPG_MEDIUM },
+      { "NVIDIA", "GTX 675M", GPG_MEDIUM },
+      { "NVIDIA", "GTX 660M", GPG_MEDIUM },
+      { "NVIDIA", "GTX 560M", GPG_MEDIUM },
+      { "NVIDIA", "GTX 460M", GPG_MEDIUM },
+      { "NVIDIA", "GTX 285M", GPG_MEDIUM },
+      { "NVIDIA", "GTX 280M", GPG_MEDIUM },
+      { "NVIDIA", "GTX 660", GPG_MEDIUM },
+      { "NVIDIA", "GTX 645", GPG_MEDIUM },
+      { "NVIDIA", "GTX 560M", GPG_BASIC },
+      { "NVIDIA", "GTX 560", GPG_MEDIUM },
+      { "NVIDIA", "GTX 555", GPG_MEDIUM },
+      { "NVIDIA", "GTX 550", GPG_MEDIUM },
+      { "NVIDIA", "GTX 460", GPG_MEDIUM },
+      { "NVIDIA", "GTX 295", GPG_MEDIUM },
+      { "NVIDIA", "GTX 285", GPG_MEDIUM },
+      { "NVIDIA", "GTX 275", GPG_MEDIUM },
+      { "NVIDIA", "GTX 260", GPG_MEDIUM },
+      { "NVIDIA", "820M", GPG_BASIC },
+      { "NVIDIA", "GT 750M", GPG_MEDIUM },
+      { "NVIDIA", "710M", GPG_BASIC },
+      { "NVIDIA", "650M", GPG_MEDIUM },
+      { "NVIDIA", "635M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "630M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "610M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "555M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "540M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "525M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "520M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GTS 450", GPG_MEDIUM, 0x1'000'000 },
+      { "NVIDIA", "GT 630", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 625", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 435M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 430", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 325M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 320M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 230M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 230", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "G 105M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "G105M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "G210", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 405", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 840M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 320M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 310M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE G210M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 315", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 310", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 210", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 620", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 610", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 520", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 330", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 240", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 220", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 130", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GT 120", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 9800", GPG_MEDIUM },
+      { "NVIDIA", "GEFORCE 9600", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 9500", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 9400", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 9300", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 9200", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 8800", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 8600", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 8500", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 8400", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "GEFORCE 8300", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "QUADRO 1000M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "QUADRO 600", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "QUADRO FX 880M", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "QUADRO FX 580", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "RTX", GPG_ULTRA },
+      { "NVIDIA", "GTX", GPG_HIGH },
+      { "NVIDIA", "GEFORCE GPU", GPG_HIGH },
+      { "NVIDIA", "ION", GPG_BASIC, 0x1'000'000 },
+      { "NVIDIA", "NVS", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "RADEON VII", GPG_ULTRA },
+      { "ATI", "RADEON PRO VEGA", GPG_ULTRA },
+      { "ATI", "WX 4100", GPG_HIGH, 0x4'000 },
+      { "ATI", "WX 5100", GPG_HIGH, 0x4'000 },
+      { "ATI", "WX 7100", GPG_HIGH, 0x4'000 },
+      { "ATI", "RADEON PRO W6900", GPG_ULTRA },
+      { "ATI", "RADEON PRO W6800", GPG_ULTRA },
+      { "ATI", "RADEON PRO W6600", GPG_HIGH },
+      { "ATI", "RADEON PRO 5500M", GPG_ULTRA },
+      { "ATI", "RADEON PRO 580", GPG_ULTRA },
+      { "ATI", "RADEON PRO 575", GPG_ULTRA },
+      { "ATI", "RADEON PRO 570", GPG_HIGH, 0x4'000 },
+      { "ATI", "RADEON PRO 560", GPG_HIGH, 0x4'000 },
+      { "ATI", "RADEON PRO 555", GPG_HIGH, 0x4'000 },
+      { "ATI", "RADEON PRO 550", GPG_HIGH },
+      { "ATI", "RADEON PRO 460", GPG_HIGH, 0x4'000 },
+      { "ATI", "RADEON PRO 455", GPG_HIGH, 0x4'000 },
+      { "ATI", "RADEON PRO 450", GPG_HIGH },
+      { "ATI", "RX VEGA 64", GPG_ULTRA },
+      { "ATI", "RX VEGA 56", GPG_ULTRA },
+      { "ATI", "RADEON RX VEGA", GPG_ULTRA },
+      { "ATI", "RX 6900", GPG_ULTRA },
+      { "ATI", "RX 6800", GPG_ULTRA },
+      { "ATI", "RX 6700", GPG_ULTRA },
+      { "ATI", "RX 6600", GPG_ULTRA },
+      { "ATI", "RX 5700", GPG_ULTRA },
+      { "ATI", "RX 6800", GPG_ULTRA },
+      { "ATI", "RX 5600 XT", GPG_ULTRA },
+      { "ATI", "RX 5700 XT", GPG_ULTRA },
+      { "ATI", "RX 6700 XT", GPG_ULTRA },
+      { "ATI", "AMD RADEON RX 6750 XT", GPG_ULTRA },
+      { "ATI", "RX 6800 XT", GPG_ULTRA },
+      { "ATI", "RX 6900 XT", GPG_ULTRA },
+      { "ATI", "RX 590", GPG_ULTRA },
+      { "ATI", "RX 580", GPG_ULTRA },
+      { "ATI", "RX 570", GPG_HIGH },
+      { "ATI", "RX 560", GPG_HIGH },
+      { "ATI", "RX 480", GPG_ULTRA },
+      { "ATI", "RX 470", GPG_HIGH },
+      { "ATI", "RX 460", GPG_HIGH },
+      { "ATI", "R4", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "R5", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "R6", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "R7 200", GPG_MEDIUM },
+      { "ATI", "R7 370", GPG_HIGH },
+      { "ATI", "R7 360", GPG_MEDIUM },
+      { "ATI", "VEGA 8 MOBILE", GPG_MEDIUM },
+      { "ATI", "R7", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "R8", GPG_MEDIUM },
+      { "ATI", "R9 M295X", GPG_ULTRA },
+      { "ATI", "R9", GPG_HIGH },
+      { "ATI", "RADEON HD PITCAIRN XT PROTOTYPE", GPG_HIGH },
+      { "ATI", "FIREPRO D700", GPG_ULTRA },
+      { "ATI", "FIREPRO D500", GPG_HIGH },
+      { "ATI", "FIREPRO D300", GPG_HIGH },
+      { "ATI", "RADEON HD 7900", GPG_HIGH },
+      { "ATI", "RADEON HD 7800", GPG_HIGH },
+      { "ATI", "RADEON HD 7970", GPG_HIGH },
+      { "ATI", "RADEON HD 7950", GPG_HIGH },
+      { "ATI", "RADEON HD 6970", GPG_HIGH },
+      { "ATI", "RADEON HD 6900", GPG_HIGH },
+      { "ATI", "RADEON HD 6800", GPG_HIGH },
+      { "ATI", "RADEON HD 5800", GPG_HIGH },
+      { "ATI", "RADEON HD 6770", GPG_MEDIUM },
+      { "ATI", "6770M", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "6750M", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "ATI RADEON 3000", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "ATI RADEON HD 7500", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "MOBILITY RADEON HD 4200", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "MOBILITY RADEON HD 4250", GPG_BASIC, 0x1'000'000 },
+      { "ATI", "RADEON HD 6320", GPG_BASIC, 0x1'000'000 },
+      { "INTEL", "IRIS(TM) PRO GRAPHICS 6200", GPG_BASIC, 0x125 },
+      { "INTEL", "IRIS(TM) GRAPHICS 6100", GPG_BASIC, 0x1'000'125 },
+      { "INTEL", "IRIS(TM) PRO GRAPHICS 580", GPG_BASIC, 0x125 },
+      { "INTEL", "IRIS(TM) PRO GRAPHICS 560", GPG_BASIC, 0x1'000'125 },
+      { "INTEL", "IRIS(TM) PRO GRAPHICS 550", GPG_BASIC, 0x1'000'125 },
+      { "INTEL", "IRIS(TM) PRO GRAPHICS 540", GPG_BASIC, 0x1'000'125 },
+      { "INTEL", "IRIS(TM) GRAPHICS 540", GPG_BASIC, 0x1'000'125 },
+      { "INTEL", "IRIS PRO", GPG_BASIC, 0x1'000'125 },
+      { "INTEL", "IRIS", GPG_BASIC, 0x1'000'125 },
+      { "INTEL", "HD GRAPHICS 2", GPG_BASIC, GPF_NO_AUTO_BRIGHT | GPF_NO_COLOR_CLAMP | 0x3'000'099 },
+      { "INTEL", "HD GRAPHICS 3", GPG_BASIC, GPF_NO_AUTO_BRIGHT | GPF_NO_COLOR_CLAMP | 0x3'000'099 },
+      { "INTEL", "HD GRAPHICS 4", GPG_BASIC, GPF_NO_AUTO_BRIGHT | GPF_NO_COLOR_CLAMP | 0x3'000'095 },
+      { "INTEL", "HD GRAPHICS 5", GPG_BASIC, 0x1'000'125 },
+      { "INTEL", "HD GRAPHICS 6", GPG_BASIC, 0x1'000'125 },
+      { "INTEL", "HD GRAPHICS", GPG_BASIC, GPF_NO_AUTO_BRIGHT | GPF_NO_COLOR_CLAMP | 0x3'000'099 },
+      { "INTEL", "INTEL(R) ARC(TM) A770 GRAPHICS", GPG_ULTRA },
+      { "AMD", "", GPG_MEDIUM },
+      { "NVIDIA", "", GPG_MEDIUM },
+      { "ATI", "", GPG_BASIC },
+      { "INTEL", "", GPG_BASIC, GPF_NO_AUTO_BRIGHT | 0x1'000'000 },
+      { "VMWARE", "", GPG_BASIC, GPF_NO_AUTO_BRIGHT },
+      //{ NULL, NULL, GPG_BASIC }
+    };
+    for (const auto &i : g_GraphicsCardProfileMap) {
+        if (strstr(vendorName, i.m_vendorName) && strstr(renderer, i.m_renderer)) {
+            Log("GFX: Found a vendor/model match for %s", i.m_renderer);
+            g_GFX_Performance = i.m_pg;
+            g_GFX_PerformanceFlags = i.m_perfFlags;
+            if (!glClampColorARB && !glClampColor)
+                g_GFX_PerformanceFlags |= GPF_NO_COLOR_CLAMP;
+            if (strstr("GEFORCE GPU", i.m_renderer)) {
+                int32_t tmp = 0;
+                glGetIntegerv(GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, &tmp);
+                if (tmp != -1 && tmp / 1024 < 2047) //want 2GB VRAM
+                    g_GFX_Performance = GPG_MEDIUM;
+            }
+            return;
+        }
+    }
+    LogTyped(LOG_WARNING, "GFX: NO MATCH for vendor/model %s", g_GL_renderer);
 }
 int64_t GFX_GetPerformanceFlags() {
     return g_GFX_PerformanceFlags;
@@ -367,9 +624,9 @@ const char *GFX_GetVersion() {
     }
     return "OpenGL Core";
 }
-const char *GFX_GetAPIName() { return g_GL.m_version; }
-const char *GFX_GetVendorName() { return g_GL.m_vendorName; }
-const char *GFX_GetRendererName() { return g_GL.m_renderer; }
+const char *GFX_GetAPIName() { return g_GL_apiName; }
+const char *GFX_GetVendorName() { return g_GL_vendor; }
+const char *GFX_GetRendererName() { return g_GL_renderer; }
 bool GFX_CheckExtensions() {
     g_gfxCaps.draw_elements_base_vertex = (GLEW_ARB_draw_elements_base_vertex || GLEW_EXT_draw_elements_base_vertex);
     g_gfxCaps.ARB_base_instance = GLEW_ARB_base_instance != 0;
@@ -382,9 +639,7 @@ bool GFX_CheckExtensions() {
     int tmp = 0;
     if (GLEW_ARB_texture_filter_anisotropic || GLEW_EXT_texture_filter_anisotropic)
         glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &tmp);
-    if (tmp > 16)
-        tmp = 16;
-    g_gfxCaps.max_anisotropy = tmp;
+    g_gfxCaps.max_anisotropy = std::clamp(tmp, 0, 16);
     g_gfxCaps.texture_compression_s3tc = GLEW_EXT_texture_compression_s3tc != 0;
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &tmp);
     g_gfxCaps.max_v_attribs = std::clamp(tmp, 0, 16);
@@ -488,6 +743,474 @@ bool GFX_CheckExtensions() {
     }
     return true;
 }
-void GFX_SetFillMode(GFX_FILL_MODE m) {
-    //TODO
+const uint32_t g_fillModes[] = { GL_POINT, GL_LINE, GL_FILL, GL_FALSE };
+void GFX_SetFillMode(GFX_FILL_MODE fillMode) {
+    g_pGFX_CurrentStates->m_fillMode = fillMode;
+    glPolygonMode(GL_FRONT_AND_BACK, g_fillModes[fillMode]);
+}
+void GFX_PushStates() {
+    auto next = g_pGFX_CurrentStates + 1;
+    *next = *g_pGFX_CurrentStates;
+    g_pGFX_CurrentStates = next;
+}
+void GFX_PopStates() {
+    g_pGFX_CurrentStates--;
+    if (g_pGFX_CurrentStates->m_depthTest)
+        glEnable(GL_DEPTH_TEST);
+    else
+        glDisable(GL_DEPTH_TEST);
+    glDepthFunc(g_stensilFuncs[g_pGFX_CurrentStates->m_depthFuncIdx]);
+    glDepthMask(g_pGFX_CurrentStates->m_depthMask ? 1 : 0);
+    glPolygonMode(GL_FRONT_AND_BACK, g_fillModes[g_pGFX_CurrentStates->m_fillMode]);
+    if (g_pGFX_CurrentStates->m_cullIdx != g_pGFX_CurrentStates->m_newCullIdx) //4
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_CULL;
+    g_pGFX_CurrentStates->m_cullIdx = g_pGFX_CurrentStates->m_newCullIdx;
+    bool blend = g_pGFX_CurrentStates->m_field_1C != 0; //5
+    if (g_pGFX_CurrentStates->m_blend != blend)
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
+    g_pGFX_CurrentStates->m_blend = blend;
+    if (g_pGFX_CurrentStates->m_scissorTest) //12
+        glEnable(GL_SCISSOR_TEST);
+    else
+        glDisable(GL_SCISSOR_TEST);
+    if (g_pGFX_CurrentStates->m_polyOffset == 0.0) { //13
+        glDisable(GL_POLYGON_OFFSET_FILL);
+    } else {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(g_pGFX_CurrentStates->m_polyOffset, 1.0);
+    }
+    if (g_pGFX_CurrentStates->m_blendIdxs != g_pGFX_CurrentStates->m_prBlendIdxs) //15
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
+    g_pGFX_CurrentStates->m_blendIdxs = g_pGFX_CurrentStates->m_prBlendIdxs;
+    if (g_pGFX_CurrentStates->m_enableStensilTest) //default
+        glEnable(GL_STENCIL_TEST);
+    else
+        glDisable(GL_STENCIL_TEST);
+    glStencilFunc(
+        g_stensilFuncs[g_pGFX_CurrentStates->m_stensilFunc],
+        g_pGFX_CurrentStates->m_stensilRef,
+        g_pGFX_CurrentStates->m_stensilFuncMask);
+    glStencilMask(g_pGFX_CurrentStates->m_stensilMask);
+    glStencilOp(
+        g_stensilOps[g_pGFX_CurrentStates->m_sopsFail],
+        g_stensilOps[g_pGFX_CurrentStates->m_sopdpFail],
+        g_stensilOps[g_pGFX_CurrentStates->m_sopdpPass]);
+    auto sh = GFX_GetCurrentShaderHandle();
+    GFX_UnsetShader();
+    GFX_SetShader(sh);
+    g_pGFX_CurrentStates->m_bits = -1;
+    g_pGFX_CurrentStates->m_hasRegTypes = -1;
+    g_pGFX_CurrentStates->m_field_A8 = 0;
+    for (uint32_t j = 0; j < GFX_GetCaps().max_v_attribs; j++)
+        glDisableVertexAttribArray(j);
+    for (int a = 0; a < GFX_GetCaps().max_color_atchs; a++) {
+        auto m = g_pGFX_CurrentStates->m_colorMask[a];
+        if (a) {
+            if (glColorMaskIndexedEXT)
+                glColorMaskIndexedEXT(a, m & 1, (m & 2) != 0, (m & 4) != 0, (m & 8) != 0);
+        } else {
+            glColorMask(m & 1, (m & 2) != 0, (m & 4) != 0, (m & 8) != 0);
+        }
+    }
+    glActiveTexture(g_pGFX_CurrentStates->m_actTex);
+    glBindBuffer(GL_ARRAY_BUFFER, g_pGFX_CurrentStates->m_arrBuf);
+}
+uint32_t GFX_GetCurrentShaderHandle() {
+    return g_CurrentShaderHandle;
+}
+void GFX_UnsetShader() {
+    g_pCurrentShader = 0;
+    g_CurrentShaderHandle = -1;
+    glUseProgram(0); //GFXAPI_UnsetShader
+    g_pGFX_CurrentStates->m_shader = -1;
+}
+void GFXAPI_SetShader(uint32_t sh) {
+    glUseProgram(g_Shaders[sh].m_program);
+    g_pGFX_CurrentStates->m_shader = sh;
+}
+const GFX_RegisterRef GFX_StateBlock::s_matrixArrayRefs[] = { { GFX_RegisterRef::Ty::Draw, 5, 16 }, { GFX_RegisterRef::Ty::Draw, 5, 48 } };
+const GFX_RegisterRef GFX_StateBlock::s_matrixRefs[] = {
+  { GFX_RegisterRef::Ty::Object, 0, 4 },
+  { GFX_RegisterRef::Ty::Object, 4, 4 },
+  { GFX_RegisterRef::Ty::Scene, 0, 4 },
+  { GFX_RegisterRef::Ty::Scene, 4, 4 },
+  { GFX_RegisterRef::Ty::Scene, 8, 4 },
+  { GFX_RegisterRef::Ty::Scene, 12, 4 },
+  { GFX_RegisterRef::Ty::Scene, 16, 4 },
+  { GFX_RegisterRef::Ty::Scene, 20, 4 },
+  { GFX_RegisterRef::Ty::Scene, 24, 4 },
+};
+const GFX_RegisterRef GFX_StateBlock::s_registerRefs[] = {
+  { GFX_RegisterRef::Ty::Scene, 28, 1 },
+  { GFX_RegisterRef::Ty::Scene, 29, 1 },
+  { GFX_RegisterRef::Ty::Scene, 30, 1 },
+  { GFX_RegisterRef::Ty::Scene, 31, 1 },
+  { GFX_RegisterRef::Ty::Object, 8, 1 },
+  { GFX_RegisterRef::Ty::Scene, 32, 1 },
+  { GFX_RegisterRef::Ty::Scene, 33, 1 },
+  { GFX_RegisterRef::Ty::Draw, 2, 1 },
+  { GFX_RegisterRef::Ty::Scene, 34, 1 },
+  { GFX_RegisterRef::Ty::Scene, 35, 1 },
+  { GFX_RegisterRef::Ty::Scene, 36, 1 },
+  { GFX_RegisterRef::Ty::Scene, 37, 1 },
+  { GFX_RegisterRef::Ty::Object, 9, 1 },
+  { GFX_RegisterRef::Ty::Object, 10, 1 },
+  { GFX_RegisterRef::Ty::Scene, 38, 1 },
+  { GFX_RegisterRef::Ty::Scene, 39, 1 },
+  { GFX_RegisterRef::Ty::Scene, 40, 1 },
+  { GFX_RegisterRef::Ty::Scene, 41, 1 },
+  { GFX_RegisterRef::Ty::Object, 11, 1 },
+  { GFX_RegisterRef::Ty::Scene, 42, 1 },
+  { GFX_RegisterRef::Ty::Scene, 43, 1 },
+  { GFX_RegisterRef::Ty::Scene, 44, 1 },
+  { GFX_RegisterRef::Ty::Scene, 45, 1 },
+  { GFX_RegisterRef::Ty::Draw, 0, 1 },
+  { GFX_RegisterRef::Ty::Draw, 1, 1 },
+  { GFX_RegisterRef::Ty::Draw, 3, 1 },
+  { GFX_RegisterRef::Ty::Draw, 4, 1 },
+  { GFX_RegisterRef::Ty::Draw, 69, 16 },
+  { GFX_RegisterRef::Ty::Draw, 85, 16 }
+};
+void GFXAPI_ReUploadShaderCache() {
+    bool extra = (0 == g_pGFX_CurrentStates->m_field_C8);
+    if (g_pCurrentShader) {
+        int i = 0;
+        for (auto loc : g_pCurrentShader->m_locations) {
+            if (loc >= 0 && (i < 27 || extra)) {
+                auto uniform = GFX_StateBlock::GetUniform((GFX_SHADER_REGISTERS)i);
+                glUniform4fv(loc, GFX_StateBlock::s_registerRefs[i].m_cnt, uniform->m_data);
+            }
+            i++;
+        }
+        i = 0;
+        for (auto mloc : g_pCurrentShader->m_matLocations) {
+            if (mloc >= 0) {
+                auto uniform = GFX_StateBlock::GetUniform((GFX_SHADER_MATRICES)i);
+                glUniformMatrix4fv(mloc, 1, 0, uniform->m_data);
+            }
+            i++;
+        }
+        auto mlocEx = g_pCurrentShader->m_matLocations[g_pGFX_CurrentStates->m_field_C8 + GSM_CNT];
+        if (mlocEx >= 0) {
+            const auto &ref = GFX_StateBlock::s_matrixArrayRefs[g_pGFX_CurrentStates->m_field_C8];
+            auto uniform = GFX_StateBlock::GetUniform(ref);
+            glUniformMatrix4fv(mlocEx, ref.m_cnt, 0, uniform->m_data);
+        }
+    }
+}
+bool GFX_SetShader(uint32_t sh) {
+    if (sh == -1 || sh >= _countof(g_Shaders) || g_pCurrentShader == g_Shaders + sh)
+        return false;
+    GFXAPI_SetShader(sh);
+    g_pCurrentShader = &g_Shaders[sh];
+    g_CurrentShaderHandle = sh;
+    GFXAPI_ReUploadShaderCache();
+    memset(g_pCurrentShader->m_field_12C, 0xFF, sizeof(g_pCurrentShader->m_field_12C));
+    return true;
+}
+void GFX_StateBlock::UnbindBuffer(int arrBuf) {
+    if (m_altArrBuf == arrBuf || m_arrBuf == arrBuf) {
+        m_bits |= GSB_PEND_ALTB;
+        m_arrBuf = -1;
+        m_altArrBuf = -1;
+    }
+    if (m_elArrBuf == arrBuf) {
+        m_bits |= GSB_PEND_EAB;
+        m_elArrBuf = -1;
+    }
+}
+void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const VEC4 *vec, uint16_t sz, uint64_t skipTag) { //SetUniformVEC4_a, SetUniformVEC4_a2
+    auto &u = GFX_StateBlock::uniformRegs[(int)ref.m_ty];
+    if (skipTag && skipTag == u.m_pTags[ref.m_offset])
+        return;
+    for (uint16_t i = 0; i < sz; i++, vec++) {
+        u.m_pRegs[i + ref.m_offset] = *vec;
+        u.m_pTags[i + ref.m_offset] = 0;
+    }
+    if (ref.m_offset < u.m_offset)
+        u.m_offset = ref.m_offset;
+    if (u.m_size < ref.m_offset + sz)
+        u.m_size = ref.m_offset + sz;
+    m_hasRegTypes |= (1ull << (int)ref.m_ty);
+}
+void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const VEC4 &vec, uint64_t tag) { //SetUniformVEC4
+    auto &u = GFX_StateBlock::uniformRegs[(int)ref.m_ty];
+    if (tag && tag == u.m_pTags[ref.m_offset])
+        return;
+    u.m_pRegs[ref.m_offset] = vec;
+    u.m_pTags[ref.m_offset] = tag;
+    if (ref.m_offset < u.m_offset)
+        u.m_offset = ref.m_offset;
+    if (u.m_size < ref.m_offset + 1)
+        u.m_size = ref.m_offset + 1;
+    m_hasRegTypes |= (1ull << (int)ref.m_ty);
+}
+void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const VEC2 *vec, uint16_t sz, uint64_t skipTag) { //SetUniformVEC2_a
+    auto &u = GFX_StateBlock::uniformRegs[(int)ref.m_ty];
+    if (skipTag && skipTag == u.m_pTags[ref.m_offset])
+        return;
+    for (uint16_t i = 0; i < sz; i++, vec++) {
+        auto &dest = u.m_pRegs[i + ref.m_offset];
+        dest.m_data[0] = vec->m_data[0];
+        dest.m_data[1] = vec->m_data[1];
+        dest.m_data[2] = dest.m_data[3] = 0.0f;
+        u.m_pTags[i + ref.m_offset] = 0;
+    }
+    if (ref.m_offset < u.m_offset)
+        u.m_offset = ref.m_offset;
+    if (u.m_size < ref.m_offset + sz)
+        u.m_size = ref.m_offset + sz;
+    m_hasRegTypes |= (1ull << (int)ref.m_ty);
+}
+void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const MATRIX44 *m, uint16_t sz, uint64_t skipTag) {
+    auto &u = GFX_StateBlock::uniformRegs[(int)ref.m_ty];
+    if (skipTag && skipTag == u.m_pTags[ref.m_offset])
+        return;
+    for (uint16_t i = 0; i < sz; i++, m++) {
+        for (auto j = 0; j < 4; j++) {
+            u.m_pRegs[4 * j + i + ref.m_offset] = m->m_data[j];
+            u.m_pTags[4 * j + i + ref.m_offset] = 0;
+        }
+    }
+    sz *= 4;
+    if (ref.m_offset < u.m_offset)
+        u.m_offset = ref.m_offset;
+    if (u.m_size < ref.m_offset + sz)
+        u.m_size = ref.m_offset + sz;
+    m_hasRegTypes |= (1ull << (int)ref.m_ty);
+}
+void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const MATRIX44 &m, uint64_t tag) { //SetUniformMat
+    auto &u = GFX_StateBlock::uniformRegs[(int)ref.m_ty];
+    if (tag && tag == u.m_pTags[ref.m_offset])
+        return;
+    static_assert(sizeof(m) == 4 * sizeof(u.m_pRegs[ref.m_offset]));
+    memcpy(&u.m_pRegs[ref.m_offset], &m, sizeof(m));
+    u.m_pTags[ref.m_offset] = tag;
+    if (ref.m_offset < u.m_offset)
+        u.m_offset = ref.m_offset;
+    if (u.m_size < ref.m_offset + 4)
+        u.m_size = ref.m_offset + 4;
+    m_hasRegTypes |= (1ull << (int)ref.m_ty);
+}
+void GFX_StateBlock::Reset() {
+    m_bits = -1;
+    m_cullIdx = 0;
+    m_blend = 0;
+    m_blendIdxs.m_modeIdx = 0;
+    m_blendIdxs.m_sFactorIdx = 0;
+    m_blendIdxs.m_dFactorIdx = 1;
+    m_altArrBuf = -1;
+    //TODO *(_QWORD *)&this->field_90 = 0i64;
+    //TODO *(_QWORD *)&this->field_B8 = 0i64;
+    m_elArrBuf = m_vaIdx = -1;
+    m_shader = -1;
+    m_field_A4 = 0;
+    m_field_A8 = 0i64;
+    m_actTex = GL_TEXTURE0;    
+    int alt = -1;
+    int64_t bits = -1;
+    if (m_arrBuf) {
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        alt = m_altArrBuf;
+        bits = m_bits;
+        m_arrBuf = 0;
+    }
+    m_hasRegTypes = -1i64;
+    m_field_C8 = 0;
+    m_bits = bits | (alt ? GSB_PEND_ALTB : 0);
+}
+const uint32_t g_GFX_VertexFormat_size[] = { 0, 4, 4, 4, 4, 1, 2, 3 };
+const GLenum g_GFX_VertexFormat_format[] = { GL_FALSE, GL_UNSIGNED_BYTE, GL_BYTE, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_FLOAT, GL_FLOAT, GL_FLOAT };
+const uint8_t g_GFX_VertexFormat_normalized[] = { 0, 1, 1, 0, 1, 0, 0, 0 };
+const GLenum g_GFX_TO_GL_CULL[] = { GL_FALSE, GL_FRONT, GL_BACK, GL_FALSE };
+const GLenum g_GFX_TO_GL_BLENDFUNC[] = { GL_FALSE, GL_TRUE, GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_COLOR, GL_ONE_MINUS_DST_COLOR, GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA, GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_COLOR, GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA };
+const GLenum g_GFX_TO_GL_BLENDOP[] = { GL_FUNC_ADD, GL_FUNC_SUBTRACT, GL_MIN, GL_MAX, GL_FUNC_REVERSE_SUBTRACT, GL_FALSE };
+bool GFX_StateBlock::Realize() {
+    if (m_shader == -1 || m_vaIdx == -1)
+        return false;
+    if (m_bits & GSB_PEND_ALTB)
+        GFX_StateBlock::BindVertexBuffer(std::clamp(m_altArrBuf, 0, std::numeric_limits<int>::max()));
+    if (m_bits & 0xF) {
+        uint64_t field_B8 = 0;
+        if (m_altArrBuf == -1)
+            field_B8 = m_field_B8;
+        uint64_t inv = 0i64;
+        auto vx = g_vertexArray.fast64[m_vaIdx];
+        auto pAttr = vx->m_attrs;
+        for (int vi = 0; vi < vx->m_attrCnt; vi++) {
+            auto atrIdx = pAttr->m_idx;
+            auto addm = (1i64 << atrIdx);
+            inv |= addm;
+            if ((addm & g_pGFX_CurrentStates->m_field_A8) == 0)
+                glEnableVertexAttribArray(atrIdx);
+            glVertexAttribPointer(
+                atrIdx,
+                g_GFX_VertexFormat_size[pAttr->m_fmtIdx],
+                g_GFX_VertexFormat_format[pAttr->m_fmtIdx],
+                g_GFX_VertexFormat_normalized[pAttr->m_fmtIdx],
+                vx->m_strides[pAttr[-1].m_strideIdx], //GLsizei stride
+                &m_attrData[pAttr->m_dataOffset + field_B8]); //const void * pointer
+            ++pAttr;
+        }
+        uint32_t index = 0;
+        uint64_t mask = 1;
+        for (auto i = g_pGFX_CurrentStates->m_field_A8 ^ inv; i; ++index) {
+            if ((mask & i) && (mask & g_pGFX_CurrentStates->m_field_A8))
+                glDisableVertexAttribArray(index);
+            i &= (~mask);
+            mask <<= 1;
+        }
+        g_pGFX_CurrentStates->m_field_A8 = inv;
+    }
+    if (m_bits & GSB_PEND_EAB) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, std::clamp(m_elArrBuf, 0, std::numeric_limits<int>::max()));
+    }
+    if (m_bits & GSB_PEND_CULL) {
+        if (m_cullIdx) {
+            glEnable(GL_CULL_FACE);
+            glCullFace((GLenum)g_GFX_TO_GL_CULL[m_cullIdx]);
+        } else {
+            glDisable(GL_CULL_FACE);
+        }
+    }
+    if (m_bits & GSB_PEND_BLEND) {
+        if (m_blend)
+            glEnable(GL_BLEND);
+        else
+            glDisable(GL_BLEND);
+        glBlendEquation(g_GFX_TO_GL_BLENDOP[m_blendIdxs.m_modeIdx]);
+        glBlendFunc(g_GFX_TO_GL_BLENDFUNC[m_blendIdxs.m_sFactorIdx], g_GFX_TO_GL_BLENDFUNC[m_blendIdxs.m_dFactorIdx]);
+    }
+    m_bits = 0;
+    if (m_hasRegTypes) {
+        if (GFX_ShaderModelValue(g_Shaders[m_shader].m_field_18) >= GFX_ShaderModelValue(4)) {
+            if (m_hasRegTypes & (1 << (int)GFX_RegisterRef::Ty::Scene)) {
+                auto idx = (int)GFX_RegisterRef::Ty::Scene;
+                glBindBufferBase(GL_UNIFORM_BUFFER, idx, g_UBOs[idx]);
+                static_assert(736 == sizeof(bufferRegs_Scene));
+                glBufferData(GL_UNIFORM_BUFFER, sizeof(bufferRegs_Scene), nullptr, GL_STREAM_DRAW);
+                glBufferData(GL_UNIFORM_BUFFER, sizeof(bufferRegs_Scene), bufferRegs_Scene, GL_STREAM_DRAW);
+            }
+            if (m_hasRegTypes & (1 << (int)GFX_RegisterRef::Ty::Object)) {
+                auto idx = (int)GFX_RegisterRef::Ty::Object;
+                glBindBufferBase(GL_UNIFORM_BUFFER, idx, g_UBOs[idx]);
+                static_assert(192 == sizeof(bufferRegs_Object));
+                glBufferData(GL_UNIFORM_BUFFER, sizeof(bufferRegs_Object), nullptr, GL_STREAM_DRAW);
+                glBufferData(GL_UNIFORM_BUFFER, sizeof(bufferRegs_Object), bufferRegs_Object, GL_STREAM_DRAW);
+            }
+            if (m_hasRegTypes & (1 << (int)GFX_RegisterRef::Ty::Draw)) {
+                auto idx = (int)GFX_RegisterRef::Ty::Draw;
+                auto sz = sizeof(VEC4) * GFX_StateBlock::uniformRegs[idx].m_size;
+                glBindBufferBase(GL_UNIFORM_BUFFER, idx, g_UBOs[idx]);
+                glBufferData(GL_UNIFORM_BUFFER, sz, nullptr, GL_STREAM_DRAW);
+                glBufferData(GL_UNIFORM_BUFFER, sz, bufferRegs_Draw, GL_STREAM_DRAW);
+                GFX_StateBlock::uniformRegs[idx].m_size = 5;
+            }
+            if (m_hasRegTypes & (1 << (int)GFX_RegisterRef::Ty::User)) {
+                auto idx = (int)GFX_RegisterRef::Ty::User;
+                static_assert(16 == sizeof(VEC4));
+                auto sz = sizeof(VEC4) * GFX_StateBlock::uniformRegs[idx].m_size;
+                glBindBufferBase(GL_UNIFORM_BUFFER, idx, g_UBOs[idx]);
+                glBufferData(GL_UNIFORM_BUFFER, sz, nullptr, GL_STREAM_DRAW);
+                glBufferData(GL_UNIFORM_BUFFER, sz, bufferRegs_User, GL_STREAM_DRAW);
+                GFX_StateBlock::uniformRegs[idx].m_size = 0;
+            }
+            m_hasRegTypes = 0;
+        }
+    }
+    return true;
+}
+const uint32_t g_GFX_ShaderModelValues[/*20*/] = {0, 120, 140, 300, 430, 10, 11, 12, 20, 21, 22, 23, 50, 51, 60, 64, 200, 310, 320, 0};
+uint32_t GFX_ShaderModelValue(int idx) { return g_GFX_ShaderModelValues[idx]; }
+const VEC4 *GFX_StateBlock::GetUniform(GFX_SHADER_REGISTERS reg) {
+    return &GFX_StateBlock::uniformRegs[(int)s_registerRefs[reg].m_ty].m_pRegs[s_registerRefs[reg].m_offset];
+}
+const VEC4 *GFX_StateBlock::GetUniform(GFX_SHADER_MATRICES mat) {
+    return &GFX_StateBlock::uniformRegs[(int)s_matrixRefs[mat].m_ty].m_pRegs[s_matrixRefs[mat].m_offset];
+}
+const VEC4 *GFX_StateBlock::GetUniform(const GFX_RegisterRef &ref) {
+    return &GFX_StateBlock::uniformRegs[(int)ref.m_ty].m_pRegs[ref.m_offset];
+}
+void GFX_StateBlock::BindVertexBuffer(int arrBuf) {
+    if (m_arrBuf != arrBuf) {
+        glBindBuffer(GL_ARRAY_BUFFER, arrBuf);
+        m_arrBuf = arrBuf;
+    }
+    m_bits |= (m_altArrBuf != arrBuf ? GSB_PEND_ALTB : 0);
+}
+void GFX_Begin() { g_pGFX_CurrentStates->Reset(); }
+void GFXAPI_CreateVertex(int idx, GFX_CreateVertexParams *parms) {
+    auto vx = new GFX_Vertex;
+    //TODO fill new vertex data
+    /*
+    *(_OWORD *)&vx->m_attrCnt = *(_OWORD *)parms;
+    *(_OWORD *)&vx->field_10 = *(_OWORD *)&parms[16];
+    *(_OWORD *)&vx->m_attrs[3].m_strideIdx = *(_OWORD *)&parms[32];
+    *(_OWORD *)&vx->m_attrs[7].m_strideIdx = *(_OWORD *)&parms[48];
+    *(_OWORD *)&vx->m_attrs[11].m_strideIdx = *(_OWORD *)&parms[64];
+    *(_OWORD *)&vx->m_attrs[15].m_strideIdx = *(_OWORD *)&parms[80];
+    *(_OWORD *)&vx->m_attrs[19].m_strideIdx = *(_OWORD *)&parms[96];
+    *(_OWORD *)&vx->m_attrs[23].m_strideIdx = *(_OWORD *)&parms[112];
+    *(_QWORD *)&vx->m_attrs[27].m_strideIdx = *(_QWORD *)&parms[128];
+    */
+    memset(vx->m_strides, 0, sizeof(vx->m_strides));
+    g_vertexArray.fast64[idx] = vx;
+    /*TODO
+    auto v7 = (uint8_t *)vx->m_field50;
+    for (int v5 = 0; v5 < vx->m_field8; v5++) {
+        *(&vx->field_88 + *v7) += v7[1];
+        v7 += 4;
+    }*/
+}
+int GFX_CreateVertex(GFX_CreateVertexParams *parms) {
+    int idx;
+    auto extra = g_vertexArray.extra;
+    if (g_vertexArray.extra) {
+        g_vertexArray.extra = (GFX_Vertex **)*g_vertexArray.extra;
+        *extra = nullptr;
+        idx = ((char *)extra - (char *)&g_vertexArray) >> 3;
+    } else {
+        if (g_vertexArray.size == _countof(g_vertexArray.fast64))
+            return -1;
+        idx = g_vertexArray.size;
+        ++g_vertexArray.size;
+    }
+    if (idx != -1) {
+        GFXAPI_CreateVertex(idx, parms);
+        return idx;
+    }
+    return -1;
+}
+void GFXAPI_DestroyVertex(int idx) { delete g_vertexArray.fast64[idx]; }
+void GFX_DestroyVertex(int *pIdx) {
+    uint64_t idx = *pIdx;
+    if (*pIdx >= 0 && idx < g_vertexArray.size && (
+        (GFX_Vertex *)&g_vertexArray > g_vertexArray.fast64[idx] || g_vertexArray.fast64[idx] >= (GFX_Vertex *)&g_vertexArray.size
+        )) {
+        GFXAPI_DestroyVertex(idx);
+        g_vertexArray.fast64[idx] = (GFX_Vertex *)g_vertexArray.extra;
+        g_vertexArray.extra = &g_vertexArray.fast64[idx];
+        *pIdx = -1;
+    }
+}
+
+//Unit Tests
+TEST(SmokeTest, VertexArray) {
+    for (int i = 0; i < _countof(g_vertexArray.fast64); i++) {
+        auto act = GFX_CreateVertex(nullptr);
+        EXPECT_EQ(i, act) << "GFX_CreateVertex result";
+    }
+    auto act2 = GFX_CreateVertex(nullptr);
+    EXPECT_EQ(-1, act2) << "Extra inaccessible";
+    int idx = 123456;
+    GFX_DestroyVertex(&idx);
+    EXPECT_EQ(123456, idx) << "GFX_DestroyVertex neg";
+    for (int i = 0; i < _countof(g_vertexArray.fast64); i++) {
+        idx = i;
+        GFX_DestroyVertex(&idx);
+        EXPECT_EQ(-1, idx) << "GFX_DestroyVertex pos";
+    }
+    idx = 5;
+    GFX_DestroyVertex(&idx);
+    EXPECT_EQ(5, idx) << "GFX_DestroyVertex double";
 }
