@@ -472,51 +472,53 @@ int GFXAPI_ParseShaderFromZData(std::vector<byte> &vectorDest, ZDataFile **ppFil
     *ppFileDest = new (vectorDest.data()) ZDataFile();
     return (*ppFileDest)->Parse(logicIdx, ppPhysIdx, ppDataDest);
 }
+int GFXAPI_ParseShaderFromZData(std::vector<byte> &vectorDest, ZDataFile **ppFileDest, uint64_t **ppPhysIdx, ZData **ppDataDest, const char *name, const GFX_CreateShaderParams &s, bool isFragment) {
+    auto fullName = GAMEPATH(name);
+    std::ifstream in(fullName, std::ios::ate);
+    size_t size;
+    if (in.good() && (size = in.tellg(), size > sizeof(ZDataFile))) {
+        in.seekg(0, std::ios::beg);
+        vectorDest.resize(size);
+        auto data = vectorDest.data();
+        in.read((char *)data, size);
+        *ppFileDest = new (vectorDest.data()) ZDataFile();
+        auto logicIdx = isFragment ? s.m_fragIdx : s.m_vertIdx;
+        return (*ppFileDest)->Parse(logicIdx, ppPhysIdx, ppDataDest);
+    }
+    return -1;
+}
 uint32_t GFXAPI_CreateShaderFromZDataFile(const GFX_CreateShaderParams &s, int handle, const char *readableName, uint8_t modelIndex) {
     uint32_t ret = -1;
     char zvsh[MAX_PATH], zfsh[MAX_PATH];
     sprintf_s(zvsh, "data/shaders/%s/%s.zvsh", readableName, s.m_name);
     sprintf_s(zfsh, "data/shaders/%s/%s.zfsh", readableName, s.m_name);
-    uint64_t touchV, touchF, *dummy;
-    auto pFileHdrV = g_WADManager.GetWadFileHeaderByItemName(zvsh + 5, WAD_ASSET_TYPE::SHADER, &touchV, nullptr);
-    auto pFileHdrF = g_WADManager.GetWadFileHeaderByItemName(zfsh + 5, WAD_ASSET_TYPE::SHADER, &touchF, nullptr);
+    time_t touchV, touchF;
+    uint64_t *dummy;
+    auto pFileHdrV = g_WADManager.GetWadFileHeaderByItemName(zvsh + 5, WAD_ASSET_TYPE::SHADER, &touchV);
+    auto pFileHdrF = g_WADManager.GetWadFileHeaderByItemName(zfsh + 5, WAD_ASSET_TYPE::SHADER, &touchF);
+    std::vector<byte> V, F;
+    ZData *zdVsh, *zdFsh;
+    ZDataFile *dataFileV, *dataFileF;
     if (pFileHdrV && pFileHdrF && touchV > -1 && touchF > -1) {
-        ZData *zdVsh, *zdFsh;
-        ZDataFile *dataFileV, *dataFileF;
-        std::vector<byte> V, F;
         if (GFXAPI_ParseShaderFromZData(V, &dataFileV, &dummy, &zdVsh, pFileHdrV->FirstChar(), pFileHdrV->m_fileLength, s, false) < 0)
             return ret;
         if (GFXAPI_ParseShaderFromZData(F, &dataFileF, &dummy, &zdFsh, pFileHdrF->FirstChar(), pFileHdrF->m_fileLength, s, true) < 0)
             return ret;
-        ret = GFXAPI_CreateShaderFromBuffers(
-            handle,
-            zdVsh->m_len,
-            (const char *)dataFileV->m_payload + zdVsh->m_offset,
-            zvsh,
-            zdFsh->m_len,
-            (const char *)dataFileV->m_payload + zdVsh->m_offset,
-            zfsh);
     }
     if (ret == -1) {
-#if 0 //TODO
-        *(_OWORD *)v31 = 0i64;
-        v32 = 0i64;
-        if (sub_7FF6C9CB2650(v31, v25, &v28, v24, zvsh, s, false) < 0)
+        if (GFXAPI_ParseShaderFromZData(V, &dataFileV, &dummy, &zdVsh, zvsh, s, false) < 0)
             return ret;
-        *(_OWORD *)v29 = 0i64;
-        v30 = 0i64;
-        if (sub_7FF6C9CB2650(v29, v26, &v28, v27, zfsh, s, true) < 0)
+        if (GFXAPI_ParseShaderFromZData(F, &dataFileF, &dummy, &zdFsh, zfsh, s, true) < 0)
             return ret;
-        ret = GFXAPI_CreateShaderFromBuffers(
-            handle,
-            *(_DWORD *)(*(_QWORD *)v24 + 8i64),
-            (const uint8_t *)(*(_QWORD *)(*(_QWORD *)v25 + 64i64) + *(unsigned int *)(*(_QWORD *)v24 + 4i64)),
-            zvsh,
-            *(_DWORD *)(*(_QWORD *)v27 + 8i64),
-            (const uint8_t *)(*(_QWORD *)(*(_QWORD *)v26 + 64i64) + *(unsigned int *)(*(_QWORD *)v27 + 4i64)),
-            zfsh);
-#endif
     }
+    ret = GFXAPI_CreateShaderFromBuffers(
+        handle,
+        zdVsh->m_len,
+        (const char *)dataFileV->m_payload + zdVsh->m_offset,
+        zvsh,
+        zdFsh->m_len,
+        (const char *)dataFileV->m_payload + zdVsh->m_offset,
+        zfsh);
     if (ret != -1) {
         g_Shaders[ret].m_vertIdx = s.m_vertIdx;
         g_Shaders[ret].m_fragIdx = s.m_fragIdx;
@@ -524,10 +526,68 @@ uint32_t GFXAPI_CreateShaderFromZDataFile(const GFX_CreateShaderParams &s, int h
     }
     return ret;
 }
-void GFX_Internal_fixupShaderAddresses(GFX_ShaderPair *pShader) {
-    //TODO
-}
-const char *g_ShaderAttributeNames[] = {
+const char *g_ShaderConstantNames[/*29*/] = {
+    "g_vEyePos",
+    "g_Time",
+    "g_LightDir",
+    "g_LightColor",
+    "g_ShadowColor",
+    "headlightDirBrightness",
+    "headlightWorldPosition",
+    "g_TextureOffsets",
+    "g_FogParams",
+    "g_FogColor",
+    "g_OutputColorExp",
+    "g_ShadowPixelParams",
+    "g_ShadowScaleParams",
+    "g_ShadowBiasParams",
+    "g_ShadowBounds[0]",
+    "g_ShadowBounds[1]",
+    "g_ShadowBounds[2]",
+    "g_ShadowBounds[3]",
+    "windMagnitude",
+    "g_ClipPlane",
+    "g_RenderBufferResolution",
+    "g_FresnelParams",
+    "g_SpecularParams",
+    "g_MaterialProps",
+    "g_Color",
+    "g_HighlightSFXColor",
+    "g_HighlightSFXFresnelParams",
+    "tints",
+    "ditherData"
+};
+const char *g_ShaderMatrixNames[/*9*/] = {
+    "g_L2W",
+    "g_WVP",
+    "g_W2V",
+    "g_PROJ",
+    "g_SpotlightMatrix",
+    "g_ShadowmapMatrix0",
+    "g_ShadowmapMatrix1",
+    "g_ShadowmapMatrix2",
+    "g_ShadowmapMatrix3"
+};
+const char *g_ShaderMatrixArrayNames[/*2*/] = { "instanceMatrix", "g_Bones" };
+const char *g_ShaderSamplerNames[/*16*/] = {
+    "g_DiffuseTex",
+    "g_NormalGlossTex",
+    "g_Diffuse2Tex",
+    "g_NormalGloss2Tex",
+    "g_Diffuse3Tex",
+    "g_NormalGloss3Tex",
+    "g_CausticTex",
+    "g_EnvMapTex",
+    "g_DitherTex",
+    "g_headlightPatternSampler",
+    "g_ShadowMap0",
+    "g_ShadowMap1",
+    "g_ShadowMap2",
+    "g_SpotlightShadowMap",
+    "g_VertexTexture0",
+    "g_VertexTexture1"
+};
+const char *g_ShaderAttributeNames[/*12*/] = {
     "inPos",
     "inNorm",
     "inTan",
@@ -541,6 +601,43 @@ const char *g_ShaderAttributeNames[] = {
     "inPos_alt",
     "inNorm_alt"
 };
+void GFX_Internal_fixupShaderAddresses(GFX_ShaderPair *pShader) {
+    glUseProgram(pShader->m_program);
+    static_assert(_countof(g_ShaderConstantNames) == _countof(pShader->m_locations));
+    auto pLoc = &pShader->m_locations[0];
+    for (auto n : g_ShaderConstantNames) {
+        auto ul = glGetUniformLocation(pShader->m_program, n);
+        *pLoc++ = ul;
+    }
+    static_assert(_countof(g_ShaderMatrixNames) == _countof(pShader->m_matLocations));
+    auto pMatLoc = &pShader->m_matLocations[0];
+    for (auto n : g_ShaderMatrixNames) {
+        auto ul = glGetUniformLocation(pShader->m_program, n);
+        *pMatLoc++ = ul;
+    }
+    static_assert(_countof(g_ShaderMatrixArrayNames) == _countof(pShader->m_matArrLocations));
+    auto pMatArLoc = &pShader->m_matArrLocations[0];
+    for (auto n : g_ShaderMatrixArrayNames) {
+        auto ul = glGetUniformLocation(pShader->m_program, n);
+        *pMatArLoc++ = ul;
+    }
+    static_assert(_countof(g_ShaderSamplerNames) == _countof(pShader->m_samplers));
+    auto pSampler = &pShader->m_matArrLocations[0];
+    for (auto n : g_ShaderSamplerNames) {
+        auto ul = glGetUniformLocation(pShader->m_program, n);
+        *pSampler++ = ul;
+    }
+    static_assert(_countof(g_ShaderAttributeNames) == _countof(pShader->m_attribLocations));
+    auto pAttrLoc = &pShader->m_attribLocations[0];
+    for (auto n : g_ShaderAttributeNames) {
+        auto ul = glGetAttribLocation(pShader->m_program, n);
+        *pAttrLoc++ = ul;
+    }
+    for (auto &i : pShader->m_field_16C)
+        i = 0x80000000;
+    glUseProgram(0);
+    g_pGFX_CurrentStates->m_shader = -1;
+}
 uint32_t GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh) {
     bool newHandle = (handle == -1);
     if (newHandle)
@@ -678,9 +775,9 @@ uint32_t GFXAPI_CreateShaderFromFile(int handle, const GFX_CreateShaderParams &s
                 char vsh[MAX_PATH], psh[MAX_PATH];
                 sprintf_s(vsh, "shaders/Final/%s.vsh", s.m_name);
                 sprintf_s(psh, "shaders/Final/%s.psh", s.m_name);
-                uint64_t wadTouchTimePsh, wadTouchTimeVsh;
-                auto pshh = g_WADManager.GetWadFileHeaderByItemName(psh, WAD_ASSET_TYPE::SHADER, &wadTouchTimePsh, nullptr);
-                auto vshh = g_WADManager.GetWadFileHeaderByItemName(vsh, WAD_ASSET_TYPE::SHADER, &wadTouchTimeVsh, nullptr);
+                time_t wadTouchTimePsh, wadTouchTimeVsh;
+                auto pshh = g_WADManager.GetWadFileHeaderByItemName(psh, WAD_ASSET_TYPE::SHADER, &wadTouchTimePsh);
+                auto vshh = g_WADManager.GetWadFileHeaderByItemName(vsh, WAD_ASSET_TYPE::SHADER, &wadTouchTimeVsh);
                 if (pshh && vshh) {
                     if (wadTouchTimePsh != wadTouchTimeVsh)
                         zassert(wadTouchTimePsh == wadTouchTimeVsh && "GFX_CreateShaderFromFile assertion; both PSH and VSH should come from the same WAD file");
@@ -1251,7 +1348,7 @@ void GFXAPI_ReUploadShaderCache() {
             }
             i++;
         }
-        auto mlocEx = g_pCurrentShader->m_matLocations[g_pGFX_CurrentStates->m_field_C8 + GSM_CNT];
+        auto mlocEx = g_pCurrentShader->m_matArrLocations[g_pGFX_CurrentStates->m_field_C8];
         if (mlocEx >= 0) {
             const auto &ref = GFX_StateBlock::s_matrixArrayRefs[g_pGFX_CurrentStates->m_field_C8];
             auto uniform = GFX_StateBlock::GetUniform(ref);
@@ -1579,7 +1676,6 @@ TEST(SmokeTest, ZData) {
     ZData *pDataDest;
     uint64_t *pPhysIdx;
     namespace fs = std::filesystem;
-    std::string path = "/path/to/directory";
     for (const auto &entry : fs::directory_iterator("zsh")) {
         if (!entry.is_regular_file()) continue;
         auto fn = entry.path().native();
@@ -1622,4 +1718,32 @@ TEST(SmokeTest, ZData) {
         } while (act >= 0);
         EXPECT_EQ(sumLength, f->m_sumLength);
     }
+}
+TEST(SmokeTest, ZDataLocal) {
+    g_MainThread = GetCurrentThreadId();
+    std::vector<byte> vectorDest;
+    ZData *pDataDest;
+    uint64_t *pPhysIdx;
+    ZDataFile *f;
+    GFX_CreateShaderParams s{};
+    auto act = GFXAPI_ParseShaderFromZData(vectorDest, &f, &pPhysIdx, &pDataDest, "zsh\\GNLinearizeDepth.zvsh", s, false);
+    EXPECT_EQ(0, act);
+    std::string sign((const char *)f->m_signature, 8);
+    //printf("%S Sign: %s\n", entry.path().filename().c_str(), sign.c_str());
+    EXPECT_STREQ("GATD HSZ", sign.c_str());
+    EXPECT_EQ(1, f->m_version);
+    EXPECT_EQ(0x68, f->m_headerLength);
+    //EXPECT_EQ(0x400, f->field_10); //not always (bit field?)
+    EXPECT_EQ(f->m_dir.m_count, f->m_files.m_count);
+    EXPECT_EQ(0, f->field_48);
+    EXPECT_EQ(0, f->field_58);
+    EXPECT_EQ(f->m_endPtr, f->m_endPtrBackup);
+    EXPECT_GE(f->m_endPtr, f->m_payload + f->m_sumLength);
+    EXPECT_EQ(0, *pPhysIdx);
+//std::string sact((const char *)f->m_payload + pDataDest->m_offset, pDataDest->m_len);
+    EXPECT_EQ(0, pDataDest->m_nul);
+    EXPECT_EQ(0, pDataDest->gap[0]);
+    EXPECT_EQ(0, pDataDest->gap[1]);
+    EXPECT_EQ(0, pDataDest->gap[2]);
+//printf("LogicIdx: %d, PhysIdx: %d, len: %d\n", logicIdx, int(*pPhysIdx), pDataDest->m_len);
 }

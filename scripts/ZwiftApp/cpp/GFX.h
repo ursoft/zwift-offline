@@ -90,7 +90,7 @@ namespace GfxConfig {
 }
 struct GFX_ShaderPair { //440 bytes
     uint32_t m_vshId, m_fshId, m_program;
-    int m_locations[GSR_CNT], m_matLocations[GSM_CNT + 2];
+    int m_attribLocations[12], m_locations[GSR_CNT], m_matLocations[GSM_CNT], m_matArrLocations[2], m_samplers[16], m_field_16C[18];
     uint16_t m_vertIdx, m_fragIdx;
     uint8_t m_field_12C[64], m_modelIndex;
 };

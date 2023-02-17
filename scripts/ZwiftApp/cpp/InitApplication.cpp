@@ -119,7 +119,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     SetupConsoleCommands();
     LOC_SetLanguageChangeCallback(LanguageChangeCallback);// GameLocalization::Init
     auto wadhLoc = g_WADManager.GetWadFileHeaderByItemName(
-        "Localization/Localization.xml", WAD_ASSET_TYPE::GLOBAL, nullptr, nullptr);
+        "Localization/Localization.xml", WAD_ASSET_TYPE::GLOBAL, nullptr);
     if (wadhLoc)
         LOC_Initialize(wadhLoc->FirstChar(), wadhLoc->m_fileLength, 0);
     LOC_LoadStringTable("data/Localization/Workouts/Loc_WOSelection.xml");
