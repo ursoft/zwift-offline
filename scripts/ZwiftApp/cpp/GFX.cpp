@@ -347,12 +347,365 @@ bool GFX_Initialize(const GFX_InitializeParams &gip) {
     }
     return false;
 }
+void GFXAPI_CreateTextureFromRGBA(int idx, uint32_t w, uint32_t h, const void *data, bool genMipMap) { //GFXAPI_CreateTextureFromRGBA_idx
+    auto id = &g_Textures[idx].m_id;
+    glGenTextures(1, id);
+    glBindTexture(GL_TEXTURE_2D, *id);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    g_VRAMBytes_Textures += 4 * h * w;
+    if (genMipMap && glGenerateMipmap) {
+        glGenerateMipmap(GL_TEXTURE_2D);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    }
+}
+int GFXAPI_CreateTextureFromRGBA(uint32_t w, uint32_t h, const void *data, bool genMipMap) {
+    if (g_nTexturesLoaded >= _countof(g_Textures) - 1)
+        return -1;
+    auto &t = g_Textures[g_nTexturesLoaded];
+    t.m_field_37 &= ~1;
+    t.m_h = h;
+    t.m_w = w;
+    t.m_field_10 = 1;
+    t.m_field_20 = 5;
+    GFXAPI_CreateTextureFromRGBA(g_nTexturesLoaded, w, h, data, genMipMap);
+    return g_nTexturesLoaded++;
+}
 void GFX_TextureSys_Initialize() {
+    //memset(g_Textures, 0, sizeof(g_Textures)); //и так будет забит нулями
+    for (auto &i : g_Textures)
+        i.m_field_20 = -1;
+    memset(g_WhiteTexture, 255, sizeof(g_WhiteTexture));
+    g_WhiteHandle = GFXAPI_CreateTextureFromRGBA(32, 32, g_WhiteTexture, true);
+}
+uint32_t GFX_CreateShaderFromFile(const char *fileName, int handle) {
+    GFX_CreateShaderParams s{ fileName };
+    return GFX_CreateShaderFromFile(s, handle);
+}
+int GFX_Internal_GetNextShaderHandle() {
+    g_nShadersLoaded++;
+    zassert(g_nShadersLoaded < MAX_SHADERS);
+    if (g_nShadersLoaded >= MAX_SHADERS)
+        return MAX_SHADERS - 1;
+    return g_nShadersLoaded;
+}
+uint32_t GFX_CreateShaderFromFile(const GFX_CreateShaderParams &s, int handle) {
+    char buf[272];
+    sprintf_s(buf, sizeof(buf), "%s[%d][%d]", s.m_name, s.m_vertIdx, s.m_fragIdx);
+    auto shaderId = SIG_CalcCaseInsensitiveSignature(buf);
+    if (handle == -1) {
+        auto res = g_ShaderMap.find(shaderId);
+        if (res != g_ShaderMap.end())
+            return res->second;
+    }
+    DWORD t = timeGetTime();
+    if (handle == -1)
+        handle = GFX_Internal_GetNextShaderHandle();
+    uint32_t ret = GFXAPI_CreateShaderFromFile(handle, s);
+    if (ret == -1)
+        Log("GFX_CreateShaderFromFile(%s[%d][%d]) failed!", s.m_name, s.m_vertIdx, s.m_fragIdx);
+    g_TotalShaderCreationTime += timeGetTime() - t;
+    g_ShaderMap[shaderId] = ret;
+    return ret;
+}
+struct GFX_ShaderMetadata { //32 bytes
+    uint64_t m_modelIndex;
+    const char *m_readableName, *m_vertexExt, *m_fragmentExt;
+};
+const GFX_ShaderMetadata g_shaderMetadata[] = {
+  { 4, "GLSL/430", "zvsh", "zfsh" },
+  { 2, "GLSL/140", "zvsh", "zfsh" },
+  { 1, "GLSL/120", "zvsh", "zfsh" },
+  { 1, "Final",    "vsh",  "psh" }
+};
+struct ZData {
+    uint32_t m_nul;
+    uint32_t m_offset;
+    int m_len;
+    int gap[3];
+};
+template<class T> struct ZArray {
+    uint64_t m_count;
+    T *m_ppData;
+};
+struct ZDataFile { //104 (0x68) bytes
+    char m_signature[8]; //GATD HSZ
+    int m_version;       //1
+    int m_headerLength;  //0x68
+    uint64_t field_10;   //0x400
+    ZArray<uint64_t> m_dir;
+    ZArray<ZData>    m_files;
+    uint64_t m_sumLength;
+    const uint8_t *m_payload;
+    uint64_t field_48;
+    const uint8_t *m_endPtr;
+    uint64_t field_58;
+    const uint8_t *m_endPtrBackup;
+    ZDataFile() {
+        size_t delta = (size_t)this;
+        m_dir.m_ppData = (uint64_t *)((char *)m_dir.m_ppData + delta); // offsets to pointers
+        m_files.m_ppData = (ZData *)((char *)m_files.m_ppData + delta);
+        m_payload += delta;
+        m_endPtr += delta;
+        m_endPtrBackup += delta;
+    }
+    int Parse(uint16_t logicIdx, uint64_t **ppPhysIdx, ZData **ppDataDest) {
+        if (logicIdx >= m_dir.m_count)
+            return -1;
+        auto dir = *ppPhysIdx = m_dir.m_ppData + logicIdx;
+        if (*dir >= m_files.m_count) {
+            return -1;
+        } else {
+            *ppDataDest = m_files.m_ppData + *dir;
+            return 0;
+        }
+    }
+};
+int GFXAPI_ParseShaderFromZData(std::vector<byte> &vectorDest, ZDataFile **ppFileDest, uint64_t **ppPhysIdx, ZData **ppDataDest, void *data, size_t size, const GFX_CreateShaderParams &s, bool isFragment) {
+    auto logicIdx = isFragment ? s.m_fragIdx : s.m_vertIdx;
+    static_assert(104 == sizeof(ZDataFile));
+    if (size < sizeof(ZDataFile))
+        return -1;
+    vectorDest.resize(size);
+    memcpy(vectorDest.data(), data, size);
+    *ppFileDest = new (vectorDest.data()) ZDataFile();
+    return (*ppFileDest)->Parse(logicIdx, ppPhysIdx, ppDataDest);
+}
+uint32_t GFXAPI_CreateShaderFromZDataFile(const GFX_CreateShaderParams &s, int handle, const char *readableName, uint8_t modelIndex) {
+    uint32_t ret = -1;
+    char zvsh[MAX_PATH], zfsh[MAX_PATH];
+    sprintf_s(zvsh, "data/shaders/%s/%s.zvsh", readableName, s.m_name);
+    sprintf_s(zfsh, "data/shaders/%s/%s.zfsh", readableName, s.m_name);
+    uint64_t touchV, touchF, *dummy;
+    auto pFileHdrV = g_WADManager.GetWadFileHeaderByItemName(zvsh + 5, WAD_ASSET_TYPE::SHADER, &touchV, nullptr);
+    auto pFileHdrF = g_WADManager.GetWadFileHeaderByItemName(zfsh + 5, WAD_ASSET_TYPE::SHADER, &touchF, nullptr);
+    if (pFileHdrV && pFileHdrF && touchV > -1 && touchF > -1) {
+        ZData *zdVsh, *zdFsh;
+        ZDataFile *dataFileV, *dataFileF;
+        std::vector<byte> V, F;
+        if (GFXAPI_ParseShaderFromZData(V, &dataFileV, &dummy, &zdVsh, pFileHdrV->FirstChar(), pFileHdrV->m_fileLength, s, false) < 0)
+            return ret;
+        if (GFXAPI_ParseShaderFromZData(F, &dataFileF, &dummy, &zdFsh, pFileHdrF->FirstChar(), pFileHdrF->m_fileLength, s, true) < 0)
+            return ret;
+        ret = GFXAPI_CreateShaderFromBuffers(
+            handle,
+            zdVsh->m_len,
+            (const char *)dataFileV->m_payload + zdVsh->m_offset,
+            zvsh,
+            zdFsh->m_len,
+            (const char *)dataFileV->m_payload + zdVsh->m_offset,
+            zfsh);
+    }
+    if (ret == -1) {
+#if 0 //TODO
+        *(_OWORD *)v31 = 0i64;
+        v32 = 0i64;
+        if (sub_7FF6C9CB2650(v31, v25, &v28, v24, zvsh, s, false) < 0)
+            return ret;
+        *(_OWORD *)v29 = 0i64;
+        v30 = 0i64;
+        if (sub_7FF6C9CB2650(v29, v26, &v28, v27, zfsh, s, true) < 0)
+            return ret;
+        ret = GFXAPI_CreateShaderFromBuffers(
+            handle,
+            *(_DWORD *)(*(_QWORD *)v24 + 8i64),
+            (const uint8_t *)(*(_QWORD *)(*(_QWORD *)v25 + 64i64) + *(unsigned int *)(*(_QWORD *)v24 + 4i64)),
+            zvsh,
+            *(_DWORD *)(*(_QWORD *)v27 + 8i64),
+            (const uint8_t *)(*(_QWORD *)(*(_QWORD *)v26 + 64i64) + *(unsigned int *)(*(_QWORD *)v27 + 4i64)),
+            zfsh);
+#endif
+    }
+    if (ret != -1) {
+        g_Shaders[ret].m_vertIdx = s.m_vertIdx;
+        g_Shaders[ret].m_fragIdx = s.m_fragIdx;
+        g_Shaders[ret].m_modelIndex = modelIndex;
+    }
+    return ret;
+}
+void GFX_Internal_fixupShaderAddresses(GFX_ShaderPair *pShader) {
     //TODO
 }
-uint32_t GFX_CreateShaderFromFile(const char *fileName, int) {
-    //TODO
-    return 0;
+const char *g_ShaderAttributeNames[] = {
+    "inPos",
+    "inNorm",
+    "inTan",
+    "inBinorm",
+    "inColor0",
+    "inColor1",
+    "inTexCoord0",
+    "inTexCoord1",
+    "inIndices",
+    "inWeights",
+    "inPos_alt",
+    "inNorm_alt"
+};
+uint32_t GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh) {
+    bool newHandle = (handle == -1);
+    if (newHandle)
+        handle = GFX_Internal_GetNextShaderHandle();
+    auto curShader = &g_Shaders[handle];
+    if (curShader->m_vshId)
+        glDeleteShader(curShader->m_vshId);
+    curShader->m_vshId = glCreateShader(GL_VERTEX_SHADER);
+    if (curShader->m_fshId)
+        glDeleteShader(curShader->m_fshId);
+    curShader->m_fshId = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(curShader->m_vshId, 1, &vshd, &vshLength);
+    glShaderSource(curShader->m_fshId, 1, &pshd, &pshLength);
+    glCompileShader(curShader->m_vshId);
+    int vCompileStatus = 0, vInfoLog = 0, dummyLength;
+    glGetShaderiv(curShader->m_vshId, GL_COMPILE_STATUS, &vCompileStatus);
+    glGetShaderiv(curShader->m_vshId, GL_INFO_LOG_LENGTH, &vInfoLog);
+    if (vInfoLog > 1) {
+        auto v22 = (char *)malloc(vInfoLog);
+        glGetShaderInfoLog(curShader->m_vshId, vInfoLog, &dummyLength, v22);
+        if (!vCompileStatus)
+            LogTyped(LOG_ERROR, "[GFX]: GLSLvsherr log: %s", v22);
+        free(v22);
+    }
+    if (vCompileStatus) {
+        glCompileShader(curShader->m_fshId);
+        glGetShaderiv(curShader->m_fshId, GL_COMPILE_STATUS, &vCompileStatus);
+        glGetShaderiv(curShader->m_fshId, GL_INFO_LOG_LENGTH, &vInfoLog);
+        if (vInfoLog > 1) {
+            auto v24 = (char *)malloc(vInfoLog);
+            glGetShaderInfoLog(curShader->m_fshId, vInfoLog, &dummyLength, v24);
+            if (!vCompileStatus)
+                LogTyped(LOG_ERROR, " [GFX]: GLSLpsherr log: %s", v24);
+            free(v24);
+        }
+        if (vCompileStatus) {
+            if (curShader->m_program)
+                glDeleteProgram(curShader->m_program);
+            curShader->m_program = glCreateProgram();
+            glAttachShader(curShader->m_program, curShader->m_vshId);
+            glAttachShader(curShader->m_program, curShader->m_fshId);
+            uint32_t i = 0;
+            for (auto san : g_ShaderAttributeNames)
+                glBindAttribLocation(curShader->m_program, i++, san);
+            glLinkProgram(curShader->m_program);
+            int linkStatus;
+            glGetProgramiv(curShader->m_program, GL_LINK_STATUS, &linkStatus);
+            vInfoLog = 0;
+            dummyLength = 0;
+            glGetProgramiv(curShader->m_program, GL_INFO_LOG_LENGTH, &vInfoLog);
+            if (vInfoLog > 1) {
+                auto v31 = (char *)malloc(vInfoLog);
+                glGetProgramInfoLog(curShader->m_program, vInfoLog, &dummyLength, v31);
+                if (!linkStatus)
+                    LogTyped(LOG_ERROR, "[GFX]: GLSLprogerr log: %s", v31);
+                free(v31);
+            }
+            if (linkStatus) {
+                Log("Shader Loaded successfully.  %s", psh);
+                GFX_Internal_fixupShaderAddresses(curShader);
+                return handle;
+            }
+        }
+    }
+    if (newHandle)
+        --g_nShadersLoaded;
+    return -1;
+}
+uint32_t GFXAPI_CreateShaderFromPFiles(const char *vsh, const char *psh, int handle) {
+    auto fvsh = fopen(GAMEPATH(vsh), "rb");
+    uint32_t ret = -1;
+    if (fvsh) {
+        fseek(fvsh, 0, SEEK_END);
+        auto vshLength = ftell(fvsh);
+        fseek(fvsh, 0, SEEK_SET);
+        auto vshd = (char *)malloc(vshLength + 1);
+        vshd[vshLength] = 0;
+        fread(vshd, 1, vshLength, fvsh);
+        fclose(fvsh);
+        LogTyped(LOG_ASSET, "Loaded Vertex Shader asset %s", vsh);
+        auto fpsh = fopen(GAMEPATH(psh), "rb");
+        if (fpsh) {
+            fseek(fpsh, 0, SEEK_END);
+            auto pshLength = ftell(fpsh);
+            fseek(fpsh, 0, SEEK_SET);
+            auto pshd = (char *)malloc(pshLength + 1);
+            pshd[pshLength] = 0;
+            zassert(fread(pshd, 1, pshLength, fpsh) == pshLength);
+            fclose(fpsh);
+            LogTyped(LOG_ASSET, "Loaded Pixel Shader asset %s", psh);
+            ret = GFXAPI_CreateShaderFromBuffers(handle, vshLength, vshd, vsh, pshLength, pshd, psh);
+            if (vshd)
+                free(vshd);
+            if (pshd)
+                free(pshd);
+        } else {
+            LogTyped(LOG_ERROR, "Missing Pixel Shader asset %s", psh);
+            if (vshd)
+                free(vshd);
+            zassert(0);
+        }
+    } else {
+        LogTyped(LOG_ERROR, "Missing Vertex Shader asset %s", vsh);
+    }
+    return ret;
+}
+uint32_t GFXAPI_CreateShaderFromPFile(const char *name, int handle) {
+    char vsh[MAX_PATH], psh[MAX_PATH];
+    //sprintf(FileName, "data/shaders/%s.shader", name);
+    Log("Loading Shader %s", name);
+    sprintf(vsh, "data/shaders/Final/%s.vsh", name);
+    sprintf(psh, "data/shaders/Final/%s.psh", name);
+    auto ret = GFXAPI_CreateShaderFromPFiles(vsh, psh, handle);
+    GFX_ShaderPair *v8 = nullptr;
+    if ((int)ret < 0) {
+        if (ret != -1 || handle < 0)
+            return ret;
+        v8 = &g_Shaders[handle];
+    } else {
+        v8 = &g_Shaders[ret];
+    }
+    if (v8) {
+        //stat64i32(FileName, &v10);
+        v8->m_modelIndex = 1;
+    }
+    return ret;
+}
+uint32_t GFXAPI_CreateShaderFromFile(int handle, const GFX_CreateShaderParams &s) {
+    uint32_t result = -1;
+    for (size_t i = 0; result == -1 && i < 4; ++i) {
+        if (GFX_ShaderModelValue(g_gfxShaderModel) >= GFX_ShaderModelValue(g_shaderMetadata[i].m_modelIndex)) {
+            if (g_shaderMetadata[i].m_fragmentExt[0] == 'z') {
+                result = GFXAPI_CreateShaderFromZDataFile(s, handle, g_shaderMetadata[i].m_readableName, g_shaderMetadata[i].m_modelIndex);
+            } else {
+                char vsh[MAX_PATH], psh[MAX_PATH];
+                sprintf_s(vsh, "shaders/Final/%s.vsh", s.m_name);
+                sprintf_s(psh, "shaders/Final/%s.psh", s.m_name);
+                uint64_t wadTouchTimePsh, wadTouchTimeVsh;
+                auto pshh = g_WADManager.GetWadFileHeaderByItemName(psh, WAD_ASSET_TYPE::SHADER, &wadTouchTimePsh, nullptr);
+                auto vshh = g_WADManager.GetWadFileHeaderByItemName(vsh, WAD_ASSET_TYPE::SHADER, &wadTouchTimeVsh, nullptr);
+                if (pshh && vshh) {
+                    if (wadTouchTimePsh != wadTouchTimeVsh)
+                        zassert(wadTouchTimePsh == wadTouchTimeVsh && "GFX_CreateShaderFromFile assertion; both PSH and VSH should come from the same WAD file");
+                    sprintf_s(psh, "data/%s", pshh->m_filePath);
+                    sprintf_s(vsh, "data/%s", vshh->m_filePath);
+                    result = GFXAPI_CreateShaderFromBuffers(
+                        handle,
+                        pshh->m_fileLength,
+                        (const char *)vshh->FirstChar(),
+                        vsh,
+                        pshh->m_fileLength,
+                        (const char *)pshh->FirstChar(),
+                        psh);
+                    if (result >= 0) {
+                        g_Shaders[result].m_modelIndex = 1;
+                        return result;
+                    }
+                }
+                result = GFXAPI_CreateShaderFromPFile(s.m_name, handle);
+                if (result == -1)
+                    result = GFXAPI_CreateShaderFromPFile(s.m_name, handle);
+            }
+        }
+    }
+    return result;
 }
 void GFX_MatrixStackInitialize() {
     //TODO
@@ -362,7 +715,15 @@ bool GFX_Initialize3DTVSpecs(float, float) {
     return true;
 }
 void GFX_DrawInit() {
-    //TODO
+    g_DrawBuffers[0] = malloc(g_DrawBufferSize);
+    g_DrawBuffers[1] = malloc(g_DrawBufferSize);
+    g_DrawNoTextureShaderHandle = GFX_CreateShaderFromFile("GFXDRAW_NoTexture", -1);
+    g_DrawTexturedShaderHandle = GFX_CreateShaderFromFile("GFXDRAW_Textured", -1);
+    g_DrawTexturedSimpleShaderHandle = GFX_CreateShaderFromFile("GFXDRAW_Textured_Simple", -1);
+    g_DrawTexturedGammaCorrectShaderHandle = GFX_CreateShaderFromFile("GFXDRAW_Textured_GammaCorrect", -1);
+    //GFXAPI_DrawInit():
+    if (g_openglCore)
+        glGenBuffers(1, &g_DrawPrimVBO);
 }
 void GFXAPI_CalculateGraphicsScore() {
     if (g_GL_vendor) {
@@ -1083,7 +1444,7 @@ bool GFX_StateBlock::Realize() {
     }
     m_bits = 0;
     if (m_hasRegTypes) {
-        if (GFX_ShaderModelValue(g_Shaders[m_shader].m_field_18) >= GFX_ShaderModelValue(4)) {
+        if (GFX_ShaderModelValue(g_Shaders[m_shader].m_modelIndex) >= GFX_ShaderModelValue(4)) {
             if (m_hasRegTypes & (1 << (int)GFX_RegisterRef::Ty::Scene)) {
                 auto idx = (int)GFX_RegisterRef::Ty::Scene;
                 glBindBufferBase(GL_UNIFORM_BUFFER, idx, g_UBOs[idx]);
@@ -1213,4 +1574,52 @@ TEST(SmokeTest, VertexArray) {
     idx = 5;
     GFX_DestroyVertex(&idx);
     EXPECT_EQ(5, idx) << "GFX_DestroyVertex double";
+}
+TEST(SmokeTest, ZData) {
+    ZData *pDataDest;
+    uint64_t *pPhysIdx;
+    namespace fs = std::filesystem;
+    std::string path = "/path/to/directory";
+    for (const auto &entry : fs::directory_iterator("zsh")) {
+        if (!entry.is_regular_file()) continue;
+        auto fn = entry.path().native();
+        std::ifstream fs(fn, std::ios::binary);
+        auto sz = entry.file_size();
+        std::unique_ptr<byte[]> buf{ new byte[sz] };
+        fs.read((char *)buf.get(), sz);
+        auto f = new (buf.get()) ZDataFile();
+        std::string sign((const char *)f->m_signature, 8);
+        //printf("%S Sign: %s\n", entry.path().filename().c_str(), sign.c_str());
+        EXPECT_STREQ("GATD HSZ", sign.c_str());
+        EXPECT_EQ(1, f->m_version);
+        EXPECT_EQ(0x68, f->m_headerLength);
+        //EXPECT_EQ(0x400, f->field_10); //not always (bit field?)
+        EXPECT_EQ(f->m_dir.m_count, f->m_files.m_count);
+        EXPECT_EQ(0, f->field_48);
+        EXPECT_EQ(0, f->field_58);
+        EXPECT_EQ(f->m_endPtr, f->m_endPtrBackup);
+        EXPECT_GE(f->m_endPtr, f->m_payload + f->m_sumLength);
+        uint16_t logicIdx = 0;
+        size_t sumLength = 0;
+        uint32_t prevOffset = 0;
+        int act;
+        do {
+            act = f->Parse(logicIdx, &pPhysIdx, &pDataDest);
+            if (act >= 0) {
+                EXPECT_EQ(logicIdx, *pPhysIdx);
+                EXPECT_GE(pDataDest->m_offset, prevOffset);
+                std::string sact((const char *)f->m_payload + pDataDest->m_offset, pDataDest->m_len);
+                EXPECT_EQ(0, pDataDest->m_nul);
+                EXPECT_EQ(0, pDataDest->gap[0]);
+                EXPECT_EQ(0, pDataDest->gap[1]);
+                EXPECT_EQ(0, pDataDest->gap[2]);
+                if(pDataDest->m_offset > 0 || sumLength == 0) //GFX_Noesis.zvsh and GFX_Noesis.zfsh (only) - one offset repeats many times
+                    sumLength += pDataDest->m_len;
+                //printf("LogicIdx: %d, PhysIdx: %d, len: %d\n", logicIdx, int(*pPhysIdx), pDataDest->m_len);
+                prevOffset = pDataDest->m_offset;
+            }
+            logicIdx++;
+        } while (act >= 0);
+        EXPECT_EQ(sumLength, f->m_sumLength);
+    }
 }

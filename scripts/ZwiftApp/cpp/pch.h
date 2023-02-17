@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <deque>
 #include <filesystem>
+#include <fstream>
 
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>

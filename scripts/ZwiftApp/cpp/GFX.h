@@ -88,10 +88,11 @@ struct GfxCaps {
 namespace GfxConfig {
     inline int gLODBias, gFXAA;
 }
-struct GFX_Shader { //440 bytes
-    uint32_t m_program;
+struct GFX_ShaderPair { //440 bytes
+    uint32_t m_vshId, m_fshId, m_program;
     int m_locations[GSR_CNT], m_matLocations[GSM_CNT + 2];
-    uint8_t m_field_12C[64], m_field_18;
+    uint16_t m_vertIdx, m_fragIdx;
+    uint8_t m_field_12C[64], m_modelIndex;
 };
 struct GFX_VertexAttr { //4 byte
     uint8_t m_idx, m_fmtIdx, m_dataOffset, m_strideIdx;
@@ -110,8 +111,23 @@ struct GFX_VertexArray {
     uint64_t size;
     GFX_Vertex **extra;
 };
+struct GFX_CreateShaderParams {
+    const char *m_name;
+    uint16_t m_vertIdx = 0, m_fragIdx = 0;
+};
+struct GFX_Texture { //64 bytes
+    uint32_t m_id, m_field_10, m_field_20;
+    uint8_t m_field_37; //bool or bit field?
+    uint16_t m_w, m_h;
+};
+
+inline GFX_Texture g_Textures[0x3000];// 0xC0'000 / 64
+inline static uint8_t g_WhiteTexture[0x1000];
+inline int g_WhiteHandle, g_nTexturesLoaded;
+inline int64_t g_VRAMBytes_Textures;
+inline const int g_DrawBufferSize = 0x800'000, MAX_SHADERS = 0x400;
 inline GFX_VertexArray g_vertexArray;
-inline GFX_Shader g_Shaders[1024], *g_pCurrentShader;
+inline GFX_ShaderPair g_Shaders[MAX_SHADERS], *g_pCurrentShader;
 inline float g_TargetBatteryFPS;
 inline size_t g_TotalMemoryInKilobytes;
 inline AssetCategory g_CurrentAssetCategory = AC_UNK;
@@ -127,13 +143,16 @@ inline DetailedRender g_renderDetailed = DR_VERBOSE;
 inline GLFWwindow *g_mainWindow;
 inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion, g_openglFail;
 inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
-inline int g_width, g_height, g_MinimalUI, g_bFullScreen;
+inline int g_width, g_height, g_MinimalUI, g_bFullScreen, g_nShadersLoaded, g_TotalShaderCreationTime;
 inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_gfxTier, g_CurrentShaderHandle;
 inline uint8_t g_colorChannels, g_gfxShaderModel;
 inline GfxCaps g_gfxCaps;
 inline const GfxCaps &GFX_GetCaps() { return g_gfxCaps; }
 inline float g_floatConsts12[12] = { 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.0 };
 inline GFX_StateBlock g_GFX_CurrentStates[8 /*TODO: maybe more*/], *g_pGFX_CurrentStates = g_GFX_CurrentStates;
+inline uint32_t g_DrawPrimVBO, g_DrawNoTextureShaderHandle = -1, g_DrawTexturedShaderHandle = -1, g_DrawTexturedSimpleShaderHandle = -1, g_DrawTexturedGammaCorrectShaderHandle = -1;
+inline void *g_DrawBuffers[2];
+inline std::unordered_map<uint32_t, uint32_t> g_ShaderMap; //shaderId (name & params crc) -> shaderHandle (0...MAX_SHADERS)
 
 void GFX_DestroyVertex(int *pIdx);
 int GFX_CreateVertex(GFX_CreateVertexParams *parms);
@@ -164,7 +183,10 @@ void GetMonitorCaps(MonitorInfo *dest);
 void GFX_MatrixStackInitialize();
 void GFXAPI_CalculateGraphicsScore();
 void GFX_TextureSys_Initialize();
-uint32_t GFX_CreateShaderFromFile(const char *fileName, int);
+uint32_t GFX_CreateShaderFromFile(const char *fileName, int handle);
+uint32_t GFX_CreateShaderFromFile(const GFX_CreateShaderParams &s, int handle); //GFX_CreateShaderFromFile_0
+uint32_t GFXAPI_CreateShaderFromFile(int handle, const GFX_CreateShaderParams &s);
+int GFX_Internal_GetNextShaderHandle();
 bool GFX_CheckExtensions();
 void GFX_PushStates();
 void GFX_PopStates();
@@ -173,3 +195,6 @@ void GFX_UnsetShader();
 bool GFX_SetShader(uint32_t sh);
 void GFX_Begin();
 uint32_t GFX_ShaderModelValue(int idx);
+void GFXAPI_CreateTextureFromRGBA(int idx, uint32_t w, uint32_t h, const void *data, bool genMipMap); //GFXAPI_CreateTextureFromRGBA_idx
+int GFXAPI_CreateTextureFromRGBA(uint32_t w, uint32_t h, const void *data, bool genMipMap);
+uint32_t GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh);

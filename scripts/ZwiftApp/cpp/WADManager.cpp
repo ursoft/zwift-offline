@@ -19,7 +19,7 @@ void *WAD_FindAssetsByCrcName(uint32_t crcItemPathName, WAD_ASSET_TYPE type, WAD
     //TODO
     return nullptr;
 }
-WAD_FILE_HEADER *WADManager::GetWadFileHeaderByItemName(const char *pItemPathName, WAD_ASSET_TYPE type, uint64_t *ptr, WAD_FILE_HEADER **ptrFh) {
+WAD_FILE_HEADER *WADManager::GetWadFileHeaderByItemName(const char *pItemPathName, WAD_ASSET_TYPE type, uint64_t *wadTouchTime, WAD_FILE_HEADER **ptrFh) {
     //TODO
     return nullptr;
 }
