@@ -72,8 +72,23 @@ struct MATRIX44 { VEC4 m_data[4]; };
 #include "GDE.h"
 #include "MATERIAL.h"
 #include "CFont2D.h"
+#include "GameHolidayManager.h"
+#include "ANTRECEIVER.h"
+#include "GUI.h"
+#include "GNScene.h"
+#include "LOADER.h"
+#include "GNView.h"
+#include "PostFX.h"
+#include "Sky.h"
+#include "Weather.h"
+#include "ParticulateManager.h"
+#include "AccessoryManager.h"
+#include "SteeringModule.h"
+#include "HUD.h"
+#include "INSTANCING.h"
 
 inline DWORD g_MainThread;
+inline float g_vegetationWind[4];
 
 const char *GAMEPATH(const char *path);
 void resize(GLFWwindow *wnd, int w, int h);

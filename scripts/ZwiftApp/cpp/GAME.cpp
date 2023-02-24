@@ -27,3 +27,9 @@ void GAME_SetUseErgModeInWorkouts(bool val) {
     g_UseErgModeInWorkouts = val;
     g_UserConfigDoc.SetBool("ZWIFT\\WORKOUTS\\USE_ERG", val, true);
 }
+void GAME_Initialize() {
+    //TODO
+}
+void GAME_SetTrainerSlopeModifier(float val) {
+    //TODO
+}

@@ -12,3 +12,6 @@ void GAME_AudioUpdate(GameWorld *, Camera *camera, float a3) {
         //TODO
     }
 }
+void AUDIO_Event(const char *name, int a2, bool vital) {
+    //TODO
+}

@@ -341,7 +341,7 @@ bool GFX_Initialize(const GFX_InitializeParams &gip) {
         Log("Initializing Texture Systems");
         GFX_TextureSys_Initialize();
         g_BlurShaderHandle = GFX_CreateShaderFromFile("Blur", -1);
-        g_debugFont.Load(FS_GIANTW);
+        g_debugFont.Load(FS_0);
         GDEMESH_Initialize();
         return true;
     }
@@ -1651,7 +1651,24 @@ void GFX_DestroyVertex(int *pIdx) {
         *pIdx = -1;
     }
 }
-
+namespace GameShaders {
+void LoadAll() {
+    //TODO
+}
+}
+uint32_t GFX_CreateShader(const GFX_CreateShaderParams &p) {
+    if (p.m_name && *p.m_name)
+        return GFX_CreateShaderFromFile(p, -1);
+    else
+        return -1;
+}
+uint32_t GFX_CreateTextureFromTGAFile(char const *, int, bool) {
+    //TODO
+    return 0;
+}
+void GFX_SetAnimatedTextureFramerate(uint32_t tex, float r) {
+    //TODO
+}
 //Unit Tests
 TEST(SmokeTest, VertexArray) {
     for (int i = 0; i < _countof(g_vertexArray.fast64); i++) {

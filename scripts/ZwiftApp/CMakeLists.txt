@@ -18,7 +18,7 @@ target_sources(${PROJECT_NAME} PRIVATE
   res/Resource.h
   res/${PROJECT_NAME}.rc
   ${PROTO_SRCS} ${PROTO_HDRS}
- "cpp/GDE.cpp")
+)
 
 #get_cmake_property(_variableNames VARIABLES)
 #list (SORT _variableNames)

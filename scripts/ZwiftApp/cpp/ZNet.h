@@ -43,3 +43,4 @@ uint64_t ZNETWORK_GetNetworkSyncedTimeGMT();
 bool ZNETWORK_IsLoggedIn();
 void ZNETWORK_Initialize();
 
+inline bool g_IsOnProductionServer = true;

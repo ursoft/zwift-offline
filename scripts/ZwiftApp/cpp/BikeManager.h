@@ -8,7 +8,7 @@ public:
     //static void Shutdown() { g_pBikeManager.reset(); }
     static BikeManager *Instance() { /*TODO*/g_pBikeManager.reset(new BikeManager()); zassert(g_pBikeManager.get() != nullptr); return g_pBikeManager.get(); }
     //static bool IsInitialized() { return g_pBikeManager.get() != nullptr; }
-    //static void Initialize(EventSystem *ev, bool b);
+    void Initialize(Experimentation *exp);
     //~BikeManager();
     BikeEntity *m_mainBike;
     PrivateAttributesHelper *m_pah;
