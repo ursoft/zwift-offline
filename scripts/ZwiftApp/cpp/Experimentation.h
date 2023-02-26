@@ -137,3 +137,4 @@ public:
     void Init() { /*TODO*/ }
     ~ZFeatureManager() { /*TODO*/ }
 };
+void DetermineNoesisFeatureFlags();

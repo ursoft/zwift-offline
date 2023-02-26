@@ -110,7 +110,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
         if (++iteration == 1) {
             int w, h;
             glfwGetWindowSize(g_mainWindow, &w, &h);
-            resize(g_mainWindow, w, h);
+            WindowSizeCallback(g_mainWindow, w, h);
         }
     }
     g_bShutdown = true;
@@ -163,8 +163,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 }
 void ZwiftExit(int code) {
     GameCritical::AbortJobs();
-    using namespace std::chrono_literals;
-    std::this_thread::sleep_for(5000ms); //бред!
+    //using namespace std::chrono_literals;
+    //std::this_thread::sleep_for(5000ms); //бред!
     AUDIO_Shutdown();
     ShutdownSingletons();
     exit(code);
@@ -189,7 +189,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 void doFrameWorldID(zwiftUpdateContext *ptr) {
     //TODO
 }
-void ZWIFT_UpdateLoading(const uint16_t *, bool) {
+void ZWIFT_UpdateLoading(const wchar_t *, bool) {
     //TODO
 }
 void MsgBoxAndExit(const char *lpText) {

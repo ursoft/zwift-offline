@@ -1,5 +1,4 @@
 #include "ZwiftApp.h"
-
 const char *g_dialogNames[UI_DIALOGS_CNT] = {"UID_NONE",
 "UID_LOG_IN",
 "UID_CREATE_USER",
@@ -65,3 +64,13 @@ const char *g_dialogNames[UI_DIALOGS_CNT] = {"UID_NONE",
 "UID_DELETE_ACCOUNT",
 "UID_BLOCKER",
 "UID_NEXT_UP_TRAINING_PLAN" };
+void *UI_DialogPointer(UI_DIALOGS d) {
+    //TODO
+    return nullptr;
+}
+void UI_CreateDialog(UI_DIALOGS, void *, void *) {
+    //TODO
+}
+void UI_CloseDialog(UI_DIALOGS d) {
+    //TODO
+}

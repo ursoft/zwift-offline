@@ -204,3 +204,6 @@ void Experimentation::BulkRequestFeatureData(const std::vector<FeatureID> &ids) 
     // (line 479) ZNetAdapter::GetFeatureVariants(m_pNA, &m_userAttributes, &rqs, f1, f2)
     //dtrs
 }
+void DetermineNoesisFeatureFlags() {
+    //TODO
+}

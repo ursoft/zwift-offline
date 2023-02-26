@@ -1,5 +1,5 @@
 #include "ZwiftApp.h"
-void resize(GLFWwindow *wnd, int w, int h) {
+void WindowSizeCallback(GLFWwindow *wnd, int w, int h) {
     if (!w) w = 1;
     if (!h) h = 1;
     int rx_w, rx_h;
@@ -23,6 +23,38 @@ void resize(GLFWwindow *wnd, int w, int h) {
         pNoesisGUI->sub_7FF6D4A23DC0(g_width, g_height, 0/*v7*/, 0/*rx_w*/);
     }
 }
+void WindowFocusCallback(GLFWwindow *, int) {
+    //TODO
+}
+void FramebufferSizeCallback(GLFWwindow *, int, int) {
+    //TODO
+}
+void CharModsCallback(GLFWwindow *, uint32_t, int) {
+    //TODO
+}
+void MouseButtonCallback(GLFWwindow *, int, int, int) {
+    //TODO
+}
+void KeyCallback(GLFWwindow *, int, int, int, int) {
+    //TODO
+}
+void WindowCloseCallback(GLFWwindow *) {
+    //TODO
+}
+void ScrollCallback(GLFWwindow *, double, double) {
+    //TODO
+}
+void CursorPosCallback(GLFWwindow *, double, double) {
+    //TODO
+}
+void SetIcon() {
+    auto icon = LoadIconW(GetModuleHandleW(nullptr), (LPCWSTR)IDI_ZWIFTAPP);
+    if (icon) {
+        auto hwnd = glfwGetWin32Window(g_mainWindow);
+        SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)icon);
+        DestroyIcon(icon);
+    }
+}
 #include "optionparser.h"
 enum optionIndex { UNKNOWN, LAUNCHER, TOKEN };
 const option::Descriptor g_countOptsMetadata[] = { 
@@ -33,6 +65,17 @@ const option::Descriptor g_countOptsMetadata[] = {
 std::unique_ptr<CrashReporting> g_sCrashReportingUPtr;
 void LauncherUpdate(const std::string &launcherVersion) {
     //OMIT (if launcherVersion < "1.1.1" -> restart and update)
+}
+void PopWheelSlippingMessage(EVENT_ID, va_list) {
+    if (!UI_IsDialogOfTypeOpen(UID_SLIPPING_NOTIFICATION))
+        UI_CreateDialog(UID_SLIPPING_NOTIFICATION, nullptr, nullptr);
+}
+void ClearWheelSlippingMessage(EVENT_ID, va_list) {
+    if (UI_IsDialogOfTypeOpen(UID_SLIPPING_NOTIFICATION))
+        UI_CloseDialog(UID_SLIPPING_NOTIFICATION);
+}
+void BroadcastPrompt(EVENT_ID, va_list) {
+    //TODO
 }
 void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_MainThread = GetCurrentThreadId();
@@ -593,7 +636,8 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_ctReflView.Initialize(GNViewInitializeParams{ &g_GNSceneSystem, (gRT_ReflectionMap.m_dw_width + 7) >> 3, (gRT_ReflectionMap.m_dw_height + 7) >> 3, 0x80 });
     g_PreviewView.Initialize(GNViewInitializeParams{ &g_GNSceneSystem, (g_RTPreviewWindow.m_dw_width + 15) >> 4, (g_RTPreviewWindow.m_dw_height + 15) >> 4, 0x04 });
     if (g_WorldShaderHandle == -1) {
-        MessageBoxA(nullptr, "Could not find required data files.  Closing application now.", "Error", MB_OK);
+        MessageBoxA(nullptr, "Could not find required data files. Closing application now.", "Error", MB_OK);
+        ZwiftExit(0);
     } else {
         PostFX_Initialize();
         Sky::Initialize();
@@ -669,74 +713,72 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         //TODO *(_QWORD *)&g_pConfettiSystem->field_14 = 1i64;
         g_pConfettiSystem->m_shader = defPartShader;
         PARTICLESYS_Register(g_pConfettiSystem);
-#if 0
         Bib::InitOnce();
         ZWIFT_UpdateLoading(nullptr, false);
         HUD_Initialize();
-        if (!UI_DialogPointer(61))
-            UI_CreateDialog(UID_CONNECTION_NOTIFICATIONS, nullptr, nullptr, v2);
+        if (!UI_DialogPointer(UID_CONNECTION_NOTIFICATIONS))
+            UI_CreateDialog(UID_CONNECTION_NOTIFICATIONS, nullptr, nullptr);
         ZWIFT_UpdateLoading(nullptr, false);
-        U32 = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", -1, v282);
-        if ((U32 - 43) <= 0xFFFFFFD3 && (v284 = ZwiftPowers::GetInst(), (Power = ZwiftPowers::GetPower(v284, U32)) != 0)) {
-            *(*&BikeManager::g_BikeManager->m_mainBike->gapC65[107] + 552i64) = Power;
+        auto ltd = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", -1, true);
+        uint64_t Power;
+        if (ltd != -1 && (Power = ZwiftPowers::GetInst()->GetPower(ltd)) != 0) {
+            BikeManager::Instance()->m_mainBike->m_bc->m_lastPower = Power;
         } else {
-            XMLDoc::ClearPath(&g_UserConfigDoc, "ZWIFT\\DEVICES\\LASTTRAINERDEVICE");
-            XMLDoc::ClearPath(&g_UserConfigDoc, "ZWIFT\\DEVICES\\LASTSPEEDDEVICE");
+            g_UserConfigDoc.ClearPath("ZWIFT\\DEVICES\\LASTTRAINERDEVICE");
+            g_UserConfigDoc.ClearPath("ZWIFT\\DEVICES\\LASTSPEEDDEVICE");
         }
-        v286 = EventSystem::GetInst();
-        EventSystem::SubscribeFunc(v286, EV_SLIPPING_ON, PopWheelSlippingMessage);
-        v287 = EventSystem::GetInst();
-        EventSystem::SubscribeFunc(v287, EV_SLIPPING_OFF, ClearWheelSlippingMessage);
-        v288 = EventSystem::GetInst();
-        EventSystem::SubscribeFunc(v288, EV_BC_PROMPT, BroadcastPrompt);
+        evSysInst->Subscribe(EV_SLIPPING_ON, PopWheelSlippingMessage);
+        evSysInst->Subscribe(EV_SLIPPING_OFF, ClearWheelSlippingMessage);
+        evSysInst->Subscribe(EV_BC_PROMPT, BroadcastPrompt);
         glClearColor(0.21176472, 0.24313727, 0.27843139, 0.0);
-        sub_7FF719C1B700(g_mainWindow, sub_7FF719765950);// ZwiftAppKeyProcessorManager::Init {
-        sub_7FF719C1B7A0(g_mainWindow, sub_7FF719765AA0);
-        sub_7FF719C1B7E0(g_mainWindow, sub_7FF71974E010);
-        sub_7FF719C1B760(g_mainWindow, sub_7FF71974DC50);
-        sub_7FF719C1B820(g_mainWindow, sub_7FF71974DA90);
-        sub_7FF719C1C0E0(g_mainWindow, sub_7FF71974CC70);
-        sub_7FF719C1C1F0(g_mainWindow, resize);
-        sub_7FF719C1C0A0(g_mainWindow, sub_7FF719735860);
-        sub_7FF719C1C120(g_mainWindow, sub_7FF719761530);
-        v289 = sub_7FF719763B40();
-        sub_7FF7197650F0(v289);                     // ZwiftAppKeyProcessorManager::Init }
+        glfwSetCharModsCallback(g_mainWindow, CharModsCallback);
+        glfwSetKeyCallback(g_mainWindow, KeyCallback);
+        glfwSetMouseButtonCallback(g_mainWindow, MouseButtonCallback);
+        glfwSetCursorPosCallback(g_mainWindow, CursorPosCallback);
+        glfwSetScrollCallback(g_mainWindow, ScrollCallback);
+        glfwSetWindowCloseCallback(g_mainWindow, WindowCloseCallback);
+        glfwSetWindowSizeCallback(g_mainWindow, WindowSizeCallback);
+        glfwSetFramebufferSizeCallback(g_mainWindow, FramebufferSizeCallback);
+        glfwSetWindowFocusCallback(g_mainWindow, WindowFocusCallback);
+        ZwiftAppKeyProcessorManager::Instance()->Init();
         SetIcon();
-        Time = time64(nullptr) - 14400;                // MAP_SCHEDULE_GMT_4_OFFSET
-        GAME_GetMapForTime(&Time);
-        v291 = g_UserConfigDoc.GetU32("ZWIFT\\WORLD", 0, v290);
-        if (!GAME_IsWorldIDAvailableViaPrefsFile(v291))
-            v291 = 0;
-        GFX_SetLoadedAssetMode(0);
-        BillboardInfoDatabase::LoadBillboardInfoDatabase(&g_BillboardInfo);
-        ShrubHelperInfoDatabase::LoadShrubHelperInfoDatabase(&g_ShrubHelperInfo);
+        GAME_GetMapForTime(_time64(nullptr) - 14400); // MAP_SCHEDULE_GMT_4_OFFSET
+        auto worldCfg = g_UserConfigDoc.GetU32("ZWIFT\\WORLD", 0, true);
+        if (!GAME_IsWorldIDAvailableViaPrefsFile(worldCfg))
+            worldCfg = 0;
+        GFX_SetLoadedAssetMode(false);
+        g_BillboardInfo.LoadBillboardInfoDatabase();
+        g_ShrubHelperInfo.LoadShrubHelperInfoDatabase();
         RegionsDatabase::LoadRegionsDatabase();
-        GAME_LoadLevel(v291, v292, v293, v294);
+        GAME_LoadLevel(worldCfg);
         AccessoryManager::CreateSegmentJerseys();
         DetermineNoesisFeatureFlags();
-        if (v422) {
-            Log("Got an access token", v295, v296, v297);
-            g_lastStartupFlowState = v422;
+        bool v423 = false; //TODO
+        if (options[TOKEN].arg) {
+            Log("Got an access token");
+            g_startupFlowStateParam = options[TOKEN].arg;
             g_gameStartupFlowState = ZSF_1;
         } else {
-            Log("No username specified", v295, v296, v297);
-            g_lastStartupFlowState = nullptr;
+            Log("No username specified");
+            g_startupFlowStateParam = nullptr;
             g_gameStartupFlowState = ZSF_LOGIN;
         }
-        ZSF_SwitchState(g_gameStartupFlowState, g_lastStartupFlowState);
-        v300 = UnicodeString_ctr(&coa2, 1, L"Ride On.", -1);
-        v301 = UnicodeString_c_str(v300);
-        ZWIFT_UpdateLoading(v301, 1);
-        UnicodeString_dtr(&coa2);
+        ZSF_SwitchState(g_gameStartupFlowState, g_startupFlowStateParam);
+        ZWIFT_UpdateLoading(L"Ride On.", true);
         ANTRECEIVER_PostConnect();
-        g_TotalLoadTimeInSeconds = (timeGetTime() - g_GlobalAppStartTime) * 0.001;
-        if (v423) {
-            GameDictionary::Create();
+        auto TotalLoadTimeInSeconds = (timeGetTime() - startTime) * 0.001;
+        if (parse.error()) {
+            //GameDictionary::Create(); - what for???
             ZwiftExit(0);
         }
-#endif
         VideoCapture::InitVideoCapture();
     }
+}
+void ZSF_SwitchState(ZwiftStartupFlow, const void *) {
+    //TODO
+}
+void ZSF_FinishedState(ZwiftStartupFlow, uint32_t) {
+    //TODO
 }
 void EndGameSession(bool bShutDown) {
     //TODO
@@ -747,7 +789,7 @@ void EndGameSession(bool bShutDown) {
     //TODO
 }
 void ShutdownSingletons() {
-    zassert(g_sCrashReportingUPtr.get() != nullptr);
+    //zassert(g_sCrashReportingUPtr.get() != nullptr);
     //CrashReporting::AddBreadcrumb(0i64, "Shutting down VideoCapture");
     VideoCapture::ShutdownVideoCapture();
     //CrashReporting::AddBreadcrumb(0i64, "Shutting down Powerups");
@@ -795,6 +837,7 @@ void ShutdownSingletons() {
     if (ZFeatureManager::IsInitialized())
         ZFeatureManager::Shutdown();
     //CrashReporting::AddBreadcrumb("Shutting down ZNet::NetworkService");
+    PlayerProfileCache::Shutdown(); //added by ursoft
     if (ZNet::NetworkService::IsInitialized())
         ZNet::NetworkService::Shutdown();
     //CrashReporting::AddBreadcrumb("Shutting down zwift_network");
@@ -803,4 +846,26 @@ void ShutdownSingletons() {
     CrashReporting::Shutdown();
     if (EventSystem::IsInitialized())
         EventSystem::Destroy();
+}
+ZwiftAppKeyProcessorManager *ZwiftAppKeyProcessorManager::Instance() {
+    static ZwiftAppKeyProcessorManager g_ZwiftAppKeyProcessorManager;
+    return &g_ZwiftAppKeyProcessorManager;
+}
+void ZwiftAppKeyProcessorManager::Init() {
+    m_stack.Push(&m_goKP);
+    m_stack.Push(&m_guiKP);
+}
+bool GUIKeyProcessor::ProcessKey(int a2, int a3) {
+    return GUI_Key(a2, a3);
+}
+bool GoKeyProcessor::ProcessKey(int, int) {
+    //TODO
+    return false;
+}
+void KeyProcessorStack::Push(IKeyProcessor *p) {
+    m_data.push_back(p);
+}
+bool KeyProcessorStack::ProcessKey(int, int) {
+    //TODO
+    return false;
 }

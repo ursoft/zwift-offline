@@ -1,5 +1,4 @@
 #pragma once
-
 enum UI_DIALOGS {
     UID_NONE,
     UID_LOG_IN,
@@ -68,3 +67,8 @@ enum UI_DIALOGS {
     UID_NEXT_UP_TRAINING_PLAN,
     UI_DIALOGS_CNT
 };
+void *UI_DialogPointer(UI_DIALOGS);
+void UI_CreateDialog(UI_DIALOGS, void *, void *);
+inline void *g_pDialogs[UI_DIALOGS_CNT];
+inline bool UI_IsDialogOfTypeOpen(UI_DIALOGS d) { return g_pDialogs[d] != nullptr; }
+void UI_CloseDialog(UI_DIALOGS d);

@@ -33,3 +33,16 @@ void GAME_Initialize() {
 void GAME_SetTrainerSlopeModifier(float val) {
     //TODO
 }
+bool GAME_IsWorldIDAvailableViaPrefsFile(int) {
+    //TODO
+    return true;
+}
+void GAME_GetMapForTime(time_t t) {
+    //TODO
+}
+void GAME_GetMapForTime_New(time_t t) {
+    //TODO
+}
+void GAME_LoadLevel(int) {
+    //TODO
+}

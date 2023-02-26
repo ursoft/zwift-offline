@@ -14,3 +14,7 @@ void GUI_Initialize(/*void (*mkSound)(char const *),*/ bool testServer) {
     //dword_7FF6CA8C8D7C = 0;
 }
 void GUI_INTERNAL_PlaySound(const char *snd) { make_sound(snd); }
+bool GUI_Key(int a1, int a2) {
+    //TODO
+    return true;
+}

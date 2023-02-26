@@ -29,11 +29,9 @@ void EventSystem::Unsubscribe(EVENT_ID e, EventCallback cb) {
         si->second.erase(std::remove(si->second.begin(), si->second.end(), cb), si->second.end());
 }
 void EventSystem::Destroy() { 
-    //TODO: is sub_7FF658B4F330==clear?
-    //EventSystem::UnsubscribeAll(this);
-    //sub_7FF658B4F330((__int64)&g_eventSystem->m_fsubs);
-    //result = sub_7FF658B4F330((__int64)&g_eventSystem->m_osubs);
     auto es = g_eventSystem;
+    es->m_fsubs.clear();
+    es->m_osubs.clear();
     g_eventSystem = nullptr;
     delete es;
 }
