@@ -49,4 +49,4 @@ std::vector<std::string> ParseSuppressedLogs(const char *ls);
 void LogSetSuppressedLogTypes(const std::vector<std::string> &supprLogs);
 void glfwZwiftErrorCallback(int code, const char *msg);
 
-inline bool g_useLogLevelSettings;
+inline bool g_useLogLevelSettings = true;

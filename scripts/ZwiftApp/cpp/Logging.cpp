@@ -49,35 +49,13 @@ void LogSetSuppressedLogTypes(const std::vector<std::string> &supprLogs) {
     }
 }
 void LoadLogLevelSettings() {
-    if (g_useLogLevelSettings) {
-        auto gll = g_UserConfigDoc.FindElement("ZWIFT\\GAME_LOG_LEVEL", false);
-#if 0 //TODO
-    v2 = v1;
-    if (v1
-        && ((v3 = *(_QWORD *)(v1 + 48)) == 0 || !(*(__int64(__fastcall **)(__int64))(*(_QWORD *)v3 + 16i64))(v3)
-            ? (v5 = 0i64)
-            : (v4 = (*(__int64(__fastcall **)(_QWORD))(**(_QWORD **)(v2 + 48) + 16i64))(*(_QWORD *)(v2 + 48)),
-                v5 = (char *)sub_7FF6D4AB1F10(v4 + 24)),
-            (unsigned int)sub_7FF6D485AF40(v5, "%d") == 1))
-    {
-        v6 = v8;
-        if (v8 > 6)
-        {
-            result = 0;
-            g_MinLogLevel = LL_VERBOSE;
-            return;
-        }
-    }
-    else
-    {
-        v6 = LL_VERBOSE;
-    }
-    v0 = v6;
-    g_MinLogLevel = v6;
-    return;
-#endif
-    }
     g_MinLogLevel = LL_VERBOSE;
+    if (g_useLogLevelSettings) {
+        auto set = g_UserConfigDoc.GetU32("ZWIFT\\GAME_LOG_LEVEL", LL_VERBOSE, true);
+        if (set >= LL_CNT) // QUEST: was > 6, unknown level
+            set = LL_VERBOSE;
+        g_MinLogLevel = (LOG_LEVEL)set;
+    }
 }
 bool ShouldLog(LOG_LEVEL level) {
     if (g_MinLogLevel == LL_CNT /*NOT_SET_YET*/)

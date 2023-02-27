@@ -91,10 +91,10 @@ namespace GfxConfig {
 }
 namespace GameShaders {
     void LoadAll();
-    inline uint32_t shGNLinearizeDepth, shGNDownsampleLinearizeDepth, shGNRoadSSR;
+    inline int shGNLinearizeDepth, shGNDownsampleLinearizeDepth, shGNRoadSSR;
 }
 struct GFX_ShaderPair { //440 bytes
-    uint32_t m_vshId, m_fshId, m_program;
+    int m_vshId, m_fshId, m_program;
     int m_attribLocations[12], m_locations[GSR_CNT], m_matLocations[GSM_CNT], m_matArrLocations[2], m_samplers[16], m_field_16C[18];
     uint16_t m_vertIdx, m_fragIdx;
     uint8_t m_field_12C[64], m_modelIndex;
@@ -134,12 +134,12 @@ struct TGAX_HEADER {
 #pragma pack(pop)
 struct GFX_TextureStruct { //64 bytes
     const char *m_name;
-    uint32_t m_id, m_align, m_nameSCRC, m_field_20_5, m_texTime, m_totalBytes;
+    uint32_t m_glid, m_align, m_nameSCRC, m_field_20_5, m_texTime, m_totalBytes;
     uint16_t m_bestWidth, m_bestHeight;
     AssetCategory m_assetCategory;
     uint8_t m_loaded; //bool or bit field?
     uint8_t m_field_36_3, m_fromLevel, m_field_39_0, m_toLevel;
-    bool InHardware() const { return m_id != -1; }
+    bool InHardware() const { return m_glid != -1; }
 };
 
 inline GFX_TextureStruct g_Textures[0x3000];// 0xC0'000 / 64
@@ -158,23 +158,23 @@ inline int g_nSkipMipCount;
 inline const char *g_GL_vendor = "", *g_GL_renderer = "", *g_GL_apiName = "";
 inline bool g_openglDebug, g_openglCore, g_bGFXINITIALIZED, g_bUseEmptyShadowMapsHack;
 inline char g_strCPU[0x40];
-inline uint32_t g_BlurShaderHandle;
+inline int g_BlurShaderHandle, g_CurrentShaderHandle;
 enum DetailedRender { DR_NO, DR_MIDDLE, DR_VERBOSE };
 inline DetailedRender g_renderDetailed = DR_VERBOSE;
 inline GLFWwindow *g_mainWindow;
 inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion, g_openglFail;
 inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
 inline int g_width, g_height, g_MinimalUI, g_bFullScreen, g_nShadersLoaded, g_TotalShaderCreationTime;
-inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_gfxTier, g_CurrentShaderHandle;
+inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_gfxTier, g_DrawPrimVBO;
 inline uint8_t g_colorChannels, g_gfxShaderModel;
 inline GfxCaps g_gfxCaps;
 inline const GfxCaps &GFX_GetCaps() { return g_gfxCaps; }
 inline float g_floatConsts12[12] = { 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.0 };
 inline GFX_StateBlock g_GFX_CurrentStates[8 /*TODO: maybe more*/], *g_pGFX_CurrentStates = g_GFX_CurrentStates;
-inline uint32_t g_DrawPrimVBO, g_DrawNoTextureShaderHandle = -1, g_DrawTexturedShaderHandle = -1, g_DrawTexturedSimpleShaderHandle = -1, g_DrawTexturedGammaCorrectShaderHandle = -1;
+inline int g_DrawNoTextureShaderHandle = -1, g_DrawTexturedShaderHandle = -1, g_DrawTexturedSimpleShaderHandle = -1, g_DrawTexturedGammaCorrectShaderHandle = -1;
 inline void *g_DrawBuffers[2];
-inline std::unordered_map<uint32_t, uint32_t> g_ShaderMap; //shaderId (name & params crc) -> shaderHandle (0...MAX_SHADERS)
-inline uint32_t g_SimpleShaderHandle, g_WorldNoLightingHandle, g_ShadowmapShaderHandle, g_ShadowmapInstancedShaderHandle, g_ShadowmapHairShaderHandle,
+inline std::unordered_map<uint32_t, int> g_ShaderMap; //shaderId (name & params crc) -> shaderHandle (0...MAX_SHADERS)
+inline int g_SimpleShaderHandle, g_WorldNoLightingHandle, g_ShadowmapShaderHandle, g_ShadowmapInstancedShaderHandle, g_ShadowmapHairShaderHandle,
     g_TestShaderHandle, g_RoadShader, g_RoadAccessoryShader, g_RoadAccessoryShaderSSR, g_RoadWetShader, g_RoadAccessoryWetShader, g_HeatHazeShader, g_CausticShader, g_CrepuscularHandle,
     g_WorldShaderHandle, g_WorldAOShaderHandle, g_WorldShaderBillboardedHandle, g_WorldShaderShinyHandle, g_WorldShaderSimpleHandle, g_HologramShader,
     g_LockedItemShader, g_LondonTerrainShader, g_LondonTerrainHeightMapShader, g_FranceTerrainShader, g_FranceTerrainHeightMapShader, g_BasicTerrainShader,
@@ -185,7 +185,7 @@ inline uint32_t g_SimpleShaderHandle, g_WorldNoLightingHandle, g_ShadowmapShader
     g_VegetationShaderHandle, g_VegetationShaderInstancedTerrainConformHandle, g_VegetationShaderInstancedHandle, g_VegetationShadowmapShaderHandle, g_VegetationShadowmapInstancedShaderHandle,
     g_WireShaderHandle, g_WireShadowShaderHandle, g_BikeShaderInstancedHandle, g_HairShaderHandle, g_SkinShader, g_ShadowmapSkinShader, g_SkinShaderHologram, g_grayScaleShader;
 inline bool g_bUseTextureHeightmaps = true;
-inline uint32_t g_ButterflyTexture, g_RedButterflyTexture, g_MonarchTexture, g_FireflyTexture, g_CausticTexture, g_GrassTexture, g_GravelMtnGrassTexture,
+inline int g_ButterflyTexture, g_RedButterflyTexture, g_MonarchTexture, g_FireflyTexture, g_CausticTexture, g_GrassTexture, g_GravelMtnGrassTexture,
     g_InnsbruckConcreteTexture, g_ParisConcreteTexture, g_DefaultNormalMapNoGloss, g_RoadDustTexture, g_GravelDustTexture, g_SandTexture, g_SandNormalTexture,
     g_RockTexture, g_FranceRockTexture, g_FranceRockNTexture, g_RockNormalTexture, g_ShowroomFloorTexture, g_HeadlightTexture, g_VignetteTexture;
 inline int g_TextureTimeThisFrame;
@@ -219,25 +219,25 @@ void GetMonitorCaps(MonitorInfo *dest);
 void GFX_MatrixStackInitialize();
 void GFXAPI_CalculateGraphicsScore();
 void GFX_TextureSys_Initialize();
-uint32_t GFX_CreateShaderFromFile(const char *fileName, int handle);
-uint32_t GFX_CreateShaderFromFile(const GFX_CreateShaderParams &s, int handle); //GFX_CreateShaderFromFile_0
-uint32_t GFXAPI_CreateShaderFromFile(int handle, const GFX_CreateShaderParams &s);
+int GFX_CreateShaderFromFile(const char *fileName, int handle);
+int GFX_CreateShaderFromFile(const GFX_CreateShaderParams &s, int handle); //GFX_CreateShaderFromFile_0
+int GFXAPI_CreateShaderFromFile(int handle, const GFX_CreateShaderParams &s);
 int GFX_Internal_GetNextShaderHandle();
 bool GFX_CheckExtensions();
 void GFX_PushStates();
 void GFX_PopStates();
-uint32_t GFX_GetCurrentShaderHandle();
+int GFX_GetCurrentShaderHandle();
 void GFX_UnsetShader();
-bool GFX_SetShader(uint32_t sh);
+bool GFX_SetShader(int sh);
 void GFX_Begin();
 uint32_t GFX_ShaderModelValue(int idx);
 void GFXAPI_CreateTextureFromRGBA(int idx, uint32_t w, uint32_t h, const void *data, bool genMipMap); //GFXAPI_CreateTextureFromRGBA_idx
 int GFXAPI_CreateTextureFromRGBA(uint32_t w, uint32_t h, const void *data, bool genMipMap);
-uint32_t GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh);
+int GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh);
 inline uint32_t GFX_GetTier() { return g_gfxTier; }
-uint32_t GFX_CreateShader(const GFX_CreateShaderParams &p);
+int GFX_CreateShader(const GFX_CreateShaderParams &p);
 int GFX_CreateTextureFromTGAFile(const char *name, int handle, bool tryAnimated);
-void GFX_SetAnimatedTextureFramerate(uint32_t tex, float r);
+void GFX_SetAnimatedTextureFramerate(int tex, float r);
 int GFX_CreateAnimatedTextureFromTGAFiles(const char *name);
 void GFXAPI_CreateTexture(int handle, int w, int h, int mipMapLevelIdx);
 bool GFX_IsCompressed(uint32_t formatIdx);

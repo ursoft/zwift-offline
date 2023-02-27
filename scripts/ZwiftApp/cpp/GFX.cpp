@@ -230,38 +230,37 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
         }
         if (clamper) {
             clamper(clamper_arg, GL_FALSE);
-        } else {
-            if (!g_openglCore)
-                glEnable(GL_POINT_SMOOTH);
-            glEnable(GL_LINE_SMOOTH);
-            if (g_openglCore) {
-                glGenVertexArrays(1, &g_CoreVA);
-                glBindVertexArray(g_CoreVA);
-            }
-            g_gfxShaderModel = (glv < 0x400C00) ? 1 : 4;
-            if (glv >= 0x300800 || GLEW_ARB_seamless_cube_map)
-                glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-            if (g_gfxCaps.uniform_buffer_object) {
-                glGenBuffers(_countof(g_UBOs), g_UBOs);
-                for (int i = 0; i < _countof(g_UBOs); ++i)
-                    glBindBufferBase(GL_UNIFORM_BUFFER, i, g_UBOs[i]);
-            }
-            g_gfxTier = 0;
-            Log("[GFX]: GFX_Tier %d", g_gfxTier);
-            int rb, gb, bb, ab;
-            glGetIntegerv(GL_RED_BITS, &rb);
-            glGetIntegerv(GL_GREEN_BITS, &gb);
-            glGetIntegerv(GL_BLUE_BITS, &bb);
-            glGetIntegerv(GL_ALPHA_BITS, &ab);
-            if (rb != 8 || gb != 8 || bb != 8 || (g_colorChannels = 3, ab))
-                g_colorChannels = 4;
-            //g_floatConsts12 init statically
-            GFX_SetFillMode(GFM_FILL);
-            GFX_SetStencilFunc(false, GCF_ALWAYS, 0xFFu, 0xFFu, GSO_KEEP, GSO_KEEP, GSO_KEEP);
-            GFX_SetStencilRef(0);
-            for (int at = 0; at < g_gfxCaps.max_color_atchs; at++)
-                GFX_SetColorMask(at, 15);
         }
+        if (!g_openglCore)
+            glEnable(GL_POINT_SMOOTH);
+        glEnable(GL_LINE_SMOOTH);
+        if (g_openglCore) {
+            glGenVertexArrays(1, &g_CoreVA);
+            glBindVertexArray(g_CoreVA);
+        }
+        g_gfxShaderModel = (glv < 0x400C00) ? 1 : 4;
+        if (glv >= 0x300800 || GLEW_ARB_seamless_cube_map)
+            glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+        if (g_gfxCaps.uniform_buffer_object) {
+            glGenBuffers(_countof(g_UBOs), g_UBOs);
+            for (int i = 0; i < _countof(g_UBOs); ++i)
+                glBindBufferBase(GL_UNIFORM_BUFFER, i, g_UBOs[i]);
+        }
+        g_gfxTier = 0;
+        Log("[GFX]: GFX_Tier %d", g_gfxTier);
+        int rb, gb, bb, ab;
+        glGetIntegerv(GL_RED_BITS, &rb);
+        glGetIntegerv(GL_GREEN_BITS, &gb);
+        glGetIntegerv(GL_BLUE_BITS, &bb);
+        glGetIntegerv(GL_ALPHA_BITS, &ab);
+        if (rb != 8 || gb != 8 || bb != 8 || (g_colorChannels = 3, ab))
+            g_colorChannels = 4;
+        //g_floatConsts12 init statically
+        GFX_SetFillMode(GFM_FILL);
+        GFX_SetStencilFunc(false, GCF_ALWAYS, 0xFFu, 0xFFu, GSO_KEEP, GSO_KEEP, GSO_KEEP);
+        GFX_SetStencilRef(0);
+        for (int at = 0; at < g_gfxCaps.max_color_atchs; at++)
+            GFX_SetColorMask(at, 15);
         return true;
     }
     return false;
@@ -348,7 +347,7 @@ bool GFX_Initialize(const GFX_InitializeParams &gip) {
     return false;
 }
 void GFXAPI_CreateTextureFromRGBA(int idx, uint32_t w, uint32_t h, const void *data, bool genMipMap) { //GFXAPI_CreateTextureFromRGBA_idx
-    auto id = &g_Textures[idx].m_id;
+    auto id = &g_Textures[idx].m_glid;
     glGenTextures(1, id);
     glBindTexture(GL_TEXTURE_2D, *id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -379,18 +378,18 @@ void GFX_TextureSys_Initialize() {
     memset(g_WhiteTexture, 255, sizeof(g_WhiteTexture));
     g_WhiteHandle = GFXAPI_CreateTextureFromRGBA(32, 32, g_WhiteTexture, true);
 }
-uint32_t GFX_CreateShaderFromFile(const char *fileName, int handle) {
+int GFX_CreateShaderFromFile(const char *fileName, int handle) {
     GFX_CreateShaderParams s{ fileName };
     return GFX_CreateShaderFromFile(s, handle);
 }
 int GFX_Internal_GetNextShaderHandle() {
-    g_nShadersLoaded++;
+    auto ret = g_nShadersLoaded++;
     zassert(g_nShadersLoaded < MAX_SHADERS);
     if (g_nShadersLoaded >= MAX_SHADERS)
         return MAX_SHADERS - 1;
-    return g_nShadersLoaded;
+    return ret;
 }
-uint32_t GFX_CreateShaderFromFile(const GFX_CreateShaderParams &s, int handle) {
+int GFX_CreateShaderFromFile(const GFX_CreateShaderParams &s, int handle) {
     char buf[272];
     sprintf_s(buf, sizeof(buf), "%s[%d][%d]", s.m_name, s.m_vertIdx, s.m_fragIdx);
     auto shaderId = SIG_CalcCaseInsensitiveSignature(buf);
@@ -402,7 +401,7 @@ uint32_t GFX_CreateShaderFromFile(const GFX_CreateShaderParams &s, int handle) {
     DWORD t = timeGetTime();
     if (handle == -1)
         handle = GFX_Internal_GetNextShaderHandle();
-    uint32_t ret = GFXAPI_CreateShaderFromFile(handle, s);
+    int ret = GFXAPI_CreateShaderFromFile(handle, s);
     if (ret == -1)
         Log("GFX_CreateShaderFromFile(%s[%d][%d]) failed!", s.m_name, s.m_vertIdx, s.m_fragIdx);
     g_TotalShaderCreationTime += timeGetTime() - t;
@@ -487,8 +486,8 @@ int GFXAPI_ParseShaderFromZData(std::vector<byte> &vectorDest, ZDataFile **ppFil
     }
     return -1;
 }
-uint32_t GFXAPI_CreateShaderFromZDataFile(const GFX_CreateShaderParams &s, int handle, const char *readableName, uint8_t modelIndex) {
-    uint32_t ret = -1;
+int GFXAPI_CreateShaderFromZDataFile(const GFX_CreateShaderParams &s, int handle, const char *readableName, uint8_t modelIndex) {
+    int ret = -1;
     char zvsh[MAX_PATH], zfsh[MAX_PATH];
     sprintf_s(zvsh, "data/shaders/%s/%s.zvsh", readableName, s.m_name);
     sprintf_s(zfsh, "data/shaders/%s/%s.zfsh", readableName, s.m_name);
@@ -499,7 +498,7 @@ uint32_t GFXAPI_CreateShaderFromZDataFile(const GFX_CreateShaderParams &s, int h
     std::vector<byte> V, F;
     ZData *zdVsh, *zdFsh;
     ZDataFile *dataFileV, *dataFileF;
-    if (pFileHdrV && pFileHdrF && touchV > -1 && touchF > -1) {
+    if (pFileHdrV && pFileHdrF && touchV != -1 && touchF != -1) {
         if (GFXAPI_ParseShaderFromZData(V, &dataFileV, &dummy, &zdVsh, pFileHdrV->FirstChar(), pFileHdrV->m_fileLength, s, false) < 0)
             return ret;
         if (GFXAPI_ParseShaderFromZData(F, &dataFileF, &dummy, &zdFsh, pFileHdrF->FirstChar(), pFileHdrF->m_fileLength, s, true) < 0)
@@ -638,7 +637,7 @@ void GFX_Internal_fixupShaderAddresses(GFX_ShaderPair *pShader) {
     glUseProgram(0);
     g_pGFX_CurrentStates->m_shader = -1;
 }
-uint32_t GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh) {
+int GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh) {
     bool newHandle = (handle == -1);
     if (newHandle)
         handle = GFX_Internal_GetNextShaderHandle();
@@ -706,9 +705,9 @@ uint32_t GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *v
         --g_nShadersLoaded;
     return -1;
 }
-uint32_t GFXAPI_CreateShaderFromPFiles(const char *vsh, const char *psh, int handle) {
+int GFXAPI_CreateShaderFromPFiles(const char *vsh, const char *psh, int handle) {
     auto fvsh = fopen(GAMEPATH(vsh), "rb");
-    uint32_t ret = -1;
+    int ret = -1;
     if (fvsh) {
         fseek(fvsh, 0, SEEK_END);
         auto vshLength = ftell(fvsh);
@@ -744,7 +743,7 @@ uint32_t GFXAPI_CreateShaderFromPFiles(const char *vsh, const char *psh, int han
     }
     return ret;
 }
-uint32_t GFXAPI_CreateShaderFromPFile(const char *name, int handle) {
+int GFXAPI_CreateShaderFromPFile(const char *name, int handle) {
     char vsh[MAX_PATH], psh[MAX_PATH];
     //sprintf(FileName, "data/shaders/%s.shader", name);
     Log("Loading Shader %s", name);
@@ -752,7 +751,7 @@ uint32_t GFXAPI_CreateShaderFromPFile(const char *name, int handle) {
     sprintf(psh, "data/shaders/Final/%s.psh", name);
     auto ret = GFXAPI_CreateShaderFromPFiles(vsh, psh, handle);
     GFX_ShaderPair *v8 = nullptr;
-    if ((int)ret < 0) {
+    if (ret < 0) {
         if (ret != -1 || handle < 0)
             return ret;
         v8 = &g_Shaders[handle];
@@ -765,8 +764,8 @@ uint32_t GFXAPI_CreateShaderFromPFile(const char *name, int handle) {
     }
     return ret;
 }
-uint32_t GFXAPI_CreateShaderFromFile(int handle, const GFX_CreateShaderParams &s) {
-    uint32_t result = -1;
+int GFXAPI_CreateShaderFromFile(int handle, const GFX_CreateShaderParams &s) {
+    int result = -1;
     for (size_t i = 0; result == -1 && i < 4; ++i) {
         if (GFX_ShaderModelValue(g_gfxShaderModel) >= GFX_ShaderModelValue(g_shaderMetadata[i].m_modelIndex)) {
             if (g_shaderMetadata[i].m_fragmentExt[0] == 'z') {
@@ -1273,7 +1272,7 @@ void GFX_PopStates() {
     glActiveTexture(g_pGFX_CurrentStates->m_actTex);
     glBindBuffer(GL_ARRAY_BUFFER, g_pGFX_CurrentStates->m_arrBuf);
 }
-uint32_t GFX_GetCurrentShaderHandle() {
+int GFX_GetCurrentShaderHandle() {
     return g_CurrentShaderHandle;
 }
 void GFX_UnsetShader() {
@@ -1282,7 +1281,7 @@ void GFX_UnsetShader() {
     glUseProgram(0); //GFXAPI_UnsetShader
     g_pGFX_CurrentStates->m_shader = -1;
 }
-void GFXAPI_SetShader(uint32_t sh) {
+void GFXAPI_SetShader(int sh) {
     glUseProgram(g_Shaders[sh].m_program);
     g_pGFX_CurrentStates->m_shader = sh;
 }
@@ -1356,7 +1355,7 @@ void GFXAPI_ReUploadShaderCache() {
         }
     }
 }
-bool GFX_SetShader(uint32_t sh) {
+bool GFX_SetShader(int sh) {
     if (sh == -1 || sh >= _countof(g_Shaders) || g_pCurrentShader == g_Shaders + sh)
         return false;
     GFXAPI_SetShader(sh);
@@ -1656,7 +1655,7 @@ void LoadAll() {
     //TODO
 }
 }
-uint32_t GFX_CreateShader(const GFX_CreateShaderParams &p) {
+int GFX_CreateShader(const GFX_CreateShaderParams &p) {
     if (p.m_name && *p.m_name)
         return GFX_CreateShaderFromFile(p, -1);
     else
@@ -1738,7 +1737,7 @@ int GFX_Internal_LoadTextureFromTGAFile(const char *name, int handle) {
             --v9;
             --v10;
             --v11;
-        } while (v9 > 0);
+        } while (v9 != 0);
     }
     int ret = -1; //was 0
     char bufferTgax[MAX_PATH];
@@ -1889,7 +1888,7 @@ int GFX_CreateTextureFromTGAFile(const char *name, int handle, bool tryAnimated)
     }
     return ret;
 }
-void GFX_SetAnimatedTextureFramerate(uint32_t tex, float r) {
+void GFX_SetAnimatedTextureFramerate(int tex, float r) {
     //TODO
 }
 const int OIF_CNT = 13;
@@ -1898,8 +1897,8 @@ GLenum gaGFXtoOGLInternalFormat[OIF_CNT] = { GL_RGBA, GL_RGBA, GL_R8, GL_LUMINAN
 bool gaIsCompressedInternalFormat[OIF_CNT] = { false, false, false, false, false, true, true , true , true , true , true , true , true };
 bool GFX_IsCompressed(uint32_t formatIdx) { return (formatIdx >= OIF_CNT) ? 0 : gaIsCompressedInternalFormat[formatIdx]; }
 void GFXAPI_CreateTexture(int handle, int w, int h, int mipMapLevelIdx) {
-    glGenTextures(1, &g_Textures[handle].m_id);
-    glBindTexture(GL_TEXTURE_2D, g_Textures[handle].m_id);
+    glGenTextures(1, &g_Textures[handle].m_glid);
+    glBindTexture(GL_TEXTURE_2D, g_Textures[handle].m_glid);
     int filter = GL_LINEAR;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
@@ -1911,7 +1910,7 @@ void GFXAPI_CreateTexture(int handle, int w, int h, int mipMapLevelIdx) {
 }
 void GFXAPI_UpdateTexture(int handle, int level, int w, int h, uint32_t formatIdx, const void *data, int dataBytes) {
     int align = g_Textures[handle].m_align;
-    glBindTexture(GL_TEXTURE_2D, g_Textures[handle].m_id);
+    glBindTexture(GL_TEXTURE_2D, g_Textures[handle].m_glid);
     if (align < OIF_CNT)
         align = gaGFXtoOGLaligns[align];
     else

@@ -151,7 +151,7 @@ void PlayerProfileCache::UpdateCache(float dt) {
             auto mainBike = BikeManager::Instance()->m_mainBike;            
             if (/*TODO (_QWORD *)&m_mainBike->gap13F8[248]*/ true) {
                 if (m_socialUpdTime) {
-                    if (NetworkSyncedTimeGMT - m_socialUpdTime > 86400) {
+                    if (int(NetworkSyncedTimeGMT - m_socialUpdTime) > 86400) {
                         /* TODO v29 = *(_QWORD *)(*(_QWORD *)&m_mainBike->gapC65[107] + 280i64);
                         v30 = v29 < 0
                             ? (float)(v29 & 1 | (unsigned int)((unsigned __int64)v29 >> 1))

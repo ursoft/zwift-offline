@@ -125,6 +125,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     u_setDataDirectory("data");
     InitICUBase();
     //OMIT watchdog init
+    Log("[ZWATCHDOG]: Initialized (not)");
     if (launcherVer) {
         Log("Launcher Version : %s", launcherVer);
         //OMIT g_launcherVer - it used only at PrepareAnalytics

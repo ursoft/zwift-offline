@@ -146,12 +146,14 @@ bool WAD_Load(const char *pFilename, WAD_HEADER **ppDest, bool restorePointers /
 	auto err = fopen_s(&fwad, pFilename, "rb");
 	if (err != 0 || fwad == nullptr)
 		return false;
-	WAD_HEADER wad_hdr;
+	WAD_HEADER wad_hdr{};
+	auto &crc = wad_hdr.m_wadFilePathCrc32;
 	bool ret = false;
 	if (sizeof(wad_hdr) == fread_s(&wad_hdr, sizeof(wad_hdr), 1, sizeof(wad_hdr), fwad)) {
 		if (wad_hdr.m_fileSignature[0] == 'Z' && wad_hdr.m_fileSignature[1] == 'W' &&
 			wad_hdr.m_fileSignature[2] == 'F' && wad_hdr.m_fileSignature[3] == '!') {
 			if (wad_hdr.m_version == WAD_VERSION) {
+				LogDebug("Open %s in file 0x%08X", pFilename, crc);
 				uint32_t decomp_buf_sz = ((wad_hdr.m_decompressed_size + 263) & 0xFFFFFFF8) + 0x100020;
 				auto decomp_buf = (uint8_t *)calloc(decomp_buf_sz, 1);
 				if (decomp_buf) {
@@ -163,6 +165,7 @@ bool WAD_Load(const char *pFilename, WAD_HEADER **ppDest, bool restorePointers /
 								free(pCompressedPtr);
 								free(decomp_buf);
 								fclose(fwad);
+								LogDebug("Close file 0x%08X (compressed_size mismatch)", crc);
 								return ret;
 							}
 						}
@@ -176,8 +179,10 @@ bool WAD_Load(const char *pFilename, WAD_HEADER **ppDest, bool restorePointers /
 						WAD_HEADER *wh = (WAD_HEADER *)decomp_buf;
 						if (resultLength == wh->m_decompressed_size) {
                             if (wh->m_crc32 == crc32) {
-                                WAD_OffsetsToPointers(wh);
+                                if (restorePointers)
+									WAD_OffsetsToPointers(wh);
                                 *ppDest = wh;
+								Log("Loading WAD file '%s' with file.", pFilename);
                                 ret = true;
                             }
 						}
@@ -188,6 +193,7 @@ bool WAD_Load(const char *pFilename, WAD_HEADER **ppDest, bool restorePointers /
 			}
 		}
 	}
+	LogDebug("Close file 0x%08X", crc);
 	fclose(fwad);
     return ret;
 }

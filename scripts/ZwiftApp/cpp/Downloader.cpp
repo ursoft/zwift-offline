@@ -54,7 +54,7 @@ Downloader::Downloader() {
     m_curlLastCode = curl_global_init(CURL_GLOBAL_DEFAULT);
     m_curlEasy = curl_easy_init();
     m_curlMulti = curl_multi_init();
-    if (SHGetFolderPathA(nullptr, CSIDL_PERSONAL, nullptr, 0, path) >= 0) {
+    if (SHGetFolderPathA(nullptr, CSIDL_PERSONAL, nullptr, 0, path) == S_OK) {
         sprintf_s(path, "%s\\Zwift", path);
         CreateDirectoryA(path, nullptr);
         sprintf_s(path, "%s\\Logs", path);
@@ -139,7 +139,7 @@ size_t Downloader::CurlWriteData(char *ptr, size_t size, size_t nmemb, void *use
 }
 size_t Downloader::GetUserDownloadsPath(char *downDir) {
     PWSTR pszPath;
-    if (SHGetKnownFolderPath(FOLDERID_Downloads, KF_FLAG_CREATE, nullptr, &pszPath) >= 0) {
+    if (SHGetKnownFolderPath(FOLDERID_Downloads, KF_FLAG_CREATE, nullptr, &pszPath) == S_OK) {
         int wr = WideCharToMultiByte(CP_THREAD_ACP, 0, pszPath, -1, downDir, MAX_PATH - 2, 0, nullptr);
         CoTaskMemFree(pszPath);
         if (wr > 0) {
