@@ -364,18 +364,18 @@ int GFXAPI_CreateTextureFromRGBA(uint32_t w, uint32_t h, const void *data, bool 
     if (g_nTexturesLoaded >= _countof(g_Textures) - 1)
         return -1;
     auto &t = g_Textures[g_nTexturesLoaded];
-    t.m_field_37 &= ~1;
-    t.m_h = h;
-    t.m_w = w;
-    t.m_field_10 = 1;
-    t.m_field_20 = 5;
+    t.m_loaded &= ~1;
+    t.m_bestHeight = h;
+    t.m_bestWidth = w;
+    t.m_align= 1;
+    t.m_field_20_5 = 5;
     GFXAPI_CreateTextureFromRGBA(g_nTexturesLoaded, w, h, data, genMipMap);
     return g_nTexturesLoaded++;
 }
 void GFX_TextureSys_Initialize() {
     //memset(g_Textures, 0, sizeof(g_Textures)); //и так будет забит нулями
     for (auto &i : g_Textures)
-        i.m_field_20 = -1;
+        i.m_field_20_5 = -1; //почему не id ???
     memset(g_WhiteTexture, 255, sizeof(g_WhiteTexture));
     g_WhiteHandle = GFXAPI_CreateTextureFromRGBA(32, 32, g_WhiteTexture, true);
 }
@@ -1615,7 +1615,7 @@ void GFXAPI_CreateVertex(int idx, GFX_CreateVertexParams *parms) {
     g_vertexArray.fast64[idx] = vx;
     /*TODO
     auto v7 = (uint8_t *)vx->m_field50;
-    for (int v5 = 0; v5 < vx->m_field8; v5++) {
+    for (int ret = 0; ret < vx->m_field8; ret++) {
         *(&vx->field_88 + *v7) += v7[1];
         v7 += 4;
     }*/
@@ -1662,13 +1662,362 @@ uint32_t GFX_CreateShader(const GFX_CreateShaderParams &p) {
     else
         return -1;
 }
-uint32_t GFX_CreateTextureFromTGAFile(char const *, int, bool) {
+int GFX_CreateAnimatedTextureFromTGAFiles(const char *name) {
     //TODO
-    return 0;
+    return -1;
+}
+std::string FixAssetFilename(const char *name) {
+    std::string ret(name), data("data/"), tgax(".tgax");
+    if (ret.length() < 5 || ret.find(data, 0) == -1)
+        ret.insert(0, data);
+    if (ret.length() >= 10) {
+        auto tgaxPos = ret.find(tgax, 5);
+        if (tgaxPos != -1)
+            ret.replace(tgaxPos, tgax.length(), tgax.c_str(), 4);
+    }
+    for (auto &ch : ret)
+        if (ch == '\\') ch = '/';
+    std::string dataBikes("data/Bikes/");
+    if (ret.length() >= dataBikes.length()) {
+        auto bikesPos = ret.find(dataBikes, 0);
+        if (bikesPos != -1)
+            ret.replace(bikesPos, dataBikes.length(), "data/bikes/", dataBikes.length());
+    }
+    return ret;
+}
+int GFX_Internal_FindLoadedTexture(const char *name) {
+    auto s = SIG_CalcCaseSensitiveSignature(name);
+    int result = 0;
+    if (g_nTexturesLoaded <= 0)
+        return -1;
+    for (auto &t : g_Textures) {
+        if (t.m_nameSCRC == s)
+            return result;
+        if (++result >= g_nTexturesLoaded)
+            break;
+    }
+    return -1;
+}
+int GFX_CreateTextureFromZTX(uint8_t *data, int size, int handle) {
+    if (!data || !LOADER_IsValidCompAssetHeader((const char *)data))
+        return -1;
+    auto len = *((const uint32_t *)data + 1);
+    auto unpacked = (uint8_t *)calloc(len, 1);
+    if (!unpacked) {
+        Log("[GFX]: malloc(%u) failed.", len);
+        return -1;
+    }
+    auto realLen = ZLIB_Decompress(data + 16, size, unpacked);
+    int handleRet = -1;
+    if (len == realLen)
+        handleRet = GFX_CreateTextureFromTGAX(unpacked, handle);
+    else
+        LogTyped(LOG_ERROR, "[GFX]: GFX_CreateTextureFromZTX(): size mismatch %u != %u", len, realLen);
+    free(unpacked);
+    return handleRet;
+}
+int GFX_CreateTextureFromTGA(uint8_t *data, int handle) {
+    //TODO
+    return -1;
+}
+int GFX_Internal_LoadTextureFromTGAFile(const char *name, int handle) {
+    auto nameLen = strlen(name);
+    if (nameLen > 0x800)
+        return -1;
+    struct _stat64i32 stat;
+    if (_stat64i32(name, &stat) < 0)
+        memset(&stat, 0, sizeof(stat));
+    char buffer[MAX_PATH] = {};
+    auto v9 = nameLen - 1;
+    if (nameLen > 1) {
+        auto v10 = v9;
+        auto v11 = &name[v9];
+        do {
+            if (*v11 == '.')
+                memmove(buffer, name, v10);
+            --v9;
+            --v10;
+            --v11;
+        } while (v9 > 0);
+    }
+    int ret = -1; //was 0
+    char bufferTgax[MAX_PATH];
+    if (buffer[0]) {
+        sprintf_s(buffer, "%s.ztx", buffer);
+        bool bZTX = true;
+        auto f = fopen(buffer, "rb");
+        if (!f) {
+            bZTX = false;
+            sprintf_s(bufferTgax, "%sx", name);
+            f = fopen(bufferTgax, "rb");
+        }
+        if (f) {
+            struct _stat64i32 stat2;
+            _stat64i32(bZTX ? buffer : bufferTgax, &stat2);
+            if (stat2.st_mtime <= stat.st_mtime) {
+                fclose(f);
+            } else {
+                fseek(f, 0, SEEK_END);
+                auto fileSize = ftell(f);
+                fseek(f, 0, SEEK_SET);
+                auto data = (uint8_t *)malloc(fileSize);
+                if (!data) {
+                    Log("GFX_Internal_LoadTextureFromTGAFile: FAILED MEMORY ALLOCATION of size %d. Aborting.", fileSize);
+                    fclose(f);
+                    return -1;
+                }
+                auto r = fread(data, fileSize, 1, f);
+                fclose(f);
+                if (!r) {
+                    free(data);
+                    return -1;
+                }
+                auto h = handle;
+                if (h == -1) {
+                    h = g_nTexturesLoaded;
+                    if (g_nTexturesLoaded < _countof(g_Textures))
+                        ++g_nTexturesLoaded;
+                    else
+                        h = -1;
+                    if (h >= 0) {
+                        g_Textures[h].m_name = strdup(name);
+                        g_Textures[h].m_nameSCRC = SIG_CalcCaseSensitiveSignature(name);
+                    }
+                }
+                if (h >= 0) {
+                    if (!g_Textures[h].m_assetCategory)
+                        g_Textures[h].m_assetCategory = g_CurrentAssetCategory;
+                    auto nSkipMipCount = g_nSkipMipCount;
+                    if (strstr(name, "/UI/")) {
+                        g_nSkipMipCount = 0;
+                        g_Textures[h].m_assetCategory = AC_1;
+                    }
+                    if (bZTX)
+                        ret = GFX_CreateTextureFromZTX(data, fileSize, h);
+                    else
+                        ret = GFX_CreateTextureFromTGAX(data, h);
+                    g_nSkipMipCount = nSkipMipCount;
+                }
+                free(data);
+                if (ret != -1)
+                    return ret;
+            }
+        }
+        f = fopen(name, "rb");
+        if (!f)
+            return -1;
+        fseek(f, 0, SEEK_END);
+        auto fileSize = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        auto data = (uint8_t *)malloc(fileSize);
+        if (!data) {
+            Log("[GFX]: malloc(%d) for tga data failed", fileSize);
+            fclose(f);
+            return -1;
+        }
+        auto r = fread(data, fileSize, 1, f);
+        fclose(f);
+        if (r) {
+            if (handle == -1) {
+                handle = g_nTexturesLoaded;
+                if (g_nTexturesLoaded < _countof(g_Textures))
+                    ++g_nTexturesLoaded;
+                else
+                    handle = -1;
+                if (handle != -1) {
+                    g_Textures[handle].m_name = strdup(name);
+                    g_Textures[handle].m_nameSCRC = SIG_CalcCaseSensitiveSignature(name);
+                }
+            }
+            if (handle != -1) {
+                if (!g_Textures[handle].m_assetCategory)
+                    g_Textures[handle].m_assetCategory = g_CurrentAssetCategory;
+                ret = GFX_CreateTextureFromTGA(data, handle);
+            }
+            free(data);
+            return ret;
+        }
+        free(data);
+        return -1;
+    }
+    return ret;
+}
+int GFX_CreateTextureFromTGAFile(const char *name, int handle, bool tryAnimated) {
+    zassert(name && "IsWADFileLoaded failed - Must have non-NULL parameter");
+    if (!name)
+        return -1;
+    auto nameLen = strlen(name);
+    if (!nameLen)
+        return -1;
+    if (tryAnimated) {
+        auto mutPos = strstr(name, "00.tga");
+        if (mutPos) {
+            char animName[272] = {};
+            auto v9 = std::min(259ull, nameLen);
+            memmove(animName, name, v9);
+            animName[mutPos - name] = 0;
+            return GFX_CreateAnimatedTextureFromTGAFiles(animName);
+        }
+    }
+    //Streamer::GetFileRef -> 0
+    std::string realName;
+    int ret = handle;
+    if (ret != -1) {
+        realName = g_Textures[handle].m_name;
+        ret = -1;
+    } else {
+        realName = FixAssetFilename(name);
+        ret = GFX_Internal_FindLoadedTexture(GAMEPATH(realName.c_str()));
+        if (ret >= 0) {
+            if (!g_Textures[ret].InHardware()) {
+                handle = ret;
+                ret = -1;
+            }
+        }
+    }
+    if (ret < 0) {
+        ret = GFX_Internal_LoadTextureFromTGAXFile(realName.c_str(), handle);
+        if (ret == -1) {
+            if (realName.length() >= 5) {
+                std::string tgax(".tgax");
+                auto tgaxPos = realName.find(tgax, 0);
+                if (tgaxPos != -1)
+                    realName.replace(tgaxPos, tgax.length(), tgax.c_str(), 4);
+            }
+            ret = GFX_Internal_LoadTextureFromTGAFile(GAMEPATH(realName.c_str()), handle);
+        }
+    }
+    return ret;
 }
 void GFX_SetAnimatedTextureFramerate(uint32_t tex, float r) {
     //TODO
 }
+const int OIF_CNT = 13;
+int gaGFXtoOGLaligns[OIF_CNT] = { 1, 4, 1, 4, 2, 8, 8, 8, 8, 0 };
+GLenum gaGFXtoOGLInternalFormat[OIF_CNT] = { GL_RGBA, GL_RGBA, GL_R8, GL_LUMINANCE_FLOAT32_ATI, GL_R16UI, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 0 };
+bool gaIsCompressedInternalFormat[OIF_CNT] = { false, false, false, false, false, true, true , true , true , true , true , true , true };
+bool GFX_IsCompressed(uint32_t formatIdx) { return (formatIdx >= OIF_CNT) ? 0 : gaIsCompressedInternalFormat[formatIdx]; }
+void GFXAPI_CreateTexture(int handle, int w, int h, int mipMapLevelIdx) {
+    glGenTextures(1, &g_Textures[handle].m_id);
+    glBindTexture(GL_TEXTURE_2D, g_Textures[handle].m_id);
+    int filter = GL_LINEAR;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+    if (mipMapLevelIdx) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipMapLevelIdx - 1);
+        filter = GL_LINEAR_MIPMAP_LINEAR;
+    }
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+}
+void GFXAPI_UpdateTexture(int handle, int level, int w, int h, uint32_t formatIdx, const void *data, int dataBytes) {
+    int align = g_Textures[handle].m_align;
+    glBindTexture(GL_TEXTURE_2D, g_Textures[handle].m_id);
+    if (align < OIF_CNT)
+        align = gaGFXtoOGLaligns[align];
+    else
+        align = 0;
+    glPixelStorei(GL_UNPACK_ALIGNMENT, align);
+    if (GFX_IsCompressed(formatIdx)) {
+        GLenum internalformat = 0;
+        if (formatIdx < OIF_CNT)
+            internalformat = gaGFXtoOGLInternalFormat[formatIdx];
+        glCompressedTexImage2D(GL_TEXTURE_2D, level, internalformat, w, h, 0 /* border */, dataBytes, data);
+    }
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+}
+int GFX_Internal_LoadTextureFromTGAXFile(const char *name, int handle) {
+    std::string sname(name);
+    if (sname.ends_with(".tga"))
+        sname += 'x';
+    if (sname.length() >= 5) {
+        auto of = sname.find("data/", 0, 5);
+        if (of != -1)
+            sname.erase(of, 5);
+    }
+    time_t wadTouchTime;
+    auto wh = g_WADManager.GetWadFileHeaderByItemName(sname.c_str(), WAD_ASSET_TYPE::TEXTURE, &wadTouchTime);
+    int ret = -1;
+    if (wh) {
+        struct _stat64i32 stat = {};
+        auto sr = _stat64i32(name, &stat);
+        if (sr == -1 || stat.st_mtime < wadTouchTime) {
+            if (handle == -1) {
+                handle = g_nTexturesLoaded;
+                if (g_nTexturesLoaded < _countof(g_Textures))
+                    ++g_nTexturesLoaded;
+                else
+                    return -1;
+                g_Textures[handle].m_name = strdup(name);
+                g_Textures[handle].m_nameSCRC = SIG_CalcCaseSensitiveSignature(name);
+            }
+            auto nSkipMipCount = g_nSkipMipCount;
+            if (g_Textures[handle].m_assetCategory == AC_UNK)
+                g_Textures[handle].m_assetCategory = g_CurrentAssetCategory;
+            if (strstr(name, "\\UI\\") || strstr(name, "/UI/")) {
+                g_nSkipMipCount = 0;
+                g_Textures[handle].m_assetCategory = AC_1;
+            }
+            ret = GFX_CreateTextureFromTGAX(wh->FirstChar(), handle);
+            g_nSkipMipCount = nSkipMipCount;
+        }
+    }
+    return ret;
+}
+int GFX_CreateTextureFromTGAX(uint8_t *data, int handle) {
+    if (!g_gfxCaps.texture_compression_s3tc)
+        return -1;
+    if (handle == -1) {
+        handle = g_nTexturesLoaded;
+        if (g_nTexturesLoaded < _countof(g_Textures))
+            ++g_nTexturesLoaded;
+        else
+            return -1;
+    }
+    const TGAX_HEADER *h = (const TGAX_HEADER *)data;
+    uint16_t max_width = h->wWidth;
+    uint16_t max_height = h->wHeight;
+    int div = 0;
+    while ((max_width >> div) > 4) ++div;
+    int   nSkipMipCount = g_nSkipMipCount;
+    if (div <= 6)
+        nSkipMipCount = div + g_nSkipMipCount - 6;
+    if (nSkipMipCount < 0)
+        nSkipMipCount = 0;
+    auto &curTex = g_Textures[handle];
+    curTex.m_bestWidth = max_width >> nSkipMipCount;
+    curTex.m_loaded |= 1;
+    curTex.m_texTime = g_TextureTimeThisFrame;
+    curTex.m_bestHeight = max_height >> nSkipMipCount;
+    curTex.m_fromLevel = div - nSkipMipCount;
+    curTex.m_toLevel = div - 1;
+    curTex.m_align = 0;
+    curTex.m_field_20_5 = 5;
+    curTex.m_totalBytes = 0;
+    curTex.m_field_39_0 = 0;
+    curTex.m_field_36_3 = 3;
+    GFXAPI_CreateTexture(handle, curTex.m_bestWidth, curTex.m_bestHeight, curTex.m_fromLevel);
+    auto tdata = data + sizeof(TGAX_HEADER);
+    int size_divider = 0;
+    unsigned tdata_len, tdata_mult = 16, fmt_idx = 6;
+    if (h->wType == 24) {
+        tdata_mult = 8;
+        fmt_idx = 5;
+    }
+    if (div > 0) do {
+        int w = max_width >> size_divider;
+        int h = max_height >> size_divider;
+        tdata_len = tdata_mult * ((w + 3) >> 2) * ((h + 3) >> 2);
+        if (size_divider >= nSkipMipCount) {
+            GFXAPI_UpdateTexture(handle, size_divider - nSkipMipCount /*level*/, w, h, fmt_idx, tdata, tdata_len);
+            g_VRAMBytes_Textures += tdata_len;
+            curTex.m_totalBytes += tdata_len;
+        }
+        ++size_divider;
+        tdata += tdata_len;
+    } while (size_divider < div);
+    return handle;
+}
+
 //Unit Tests
 TEST(SmokeTest, VertexArray) {
     for (int i = 0; i < _countof(g_vertexArray.fast64); i++) {

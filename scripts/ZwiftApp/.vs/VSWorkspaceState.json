@@ -9,7 +9,9 @@
     "",
     "\\cmake",
     "\\cpp",
-    "\\docker"
+    "\\docker",
+    "\\res"
   ],
+  "SelectedNode": "\\cpp\\HUD.h",
   "PreviewInSolutionExplorer": false
 }

@@ -53,6 +53,26 @@ const uint32_t g_crc32Table[256] = {
     0x54DE5729, 0x23D967BF, 0xB3667A2E, 0xC4614AB8, 0x5D681B02,
     0x2A6F2B94, 0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D
 };
+uint32_t SIG_CalcCaseSensitiveSignature(const char *str) {
+    if (str) {
+        uint32_t crc32 = 0xFFFFFFFF;
+        while (true) {
+            switch (*str) {
+            case 0:
+                return ~crc32;
+            case '/': case '\\':
+                crc32 = g_crc32Table[(uint8_t)(crc32 ^ '\\')] ^ (crc32 >> 8);
+                str++;
+                while (*str && (*str == '/' || *str == '\\')) str++;
+                break;
+            default:
+                crc32 = g_crc32Table[(uint8_t)(crc32 ^ *str++)] ^ (crc32 >> 8);
+                break;
+            }
+        }
+    }
+    return 0;
+}
 uint32_t SIG_CalcCaseInsensitiveSignature(const char *str) {
     if (str) {
         uint32_t crc32 = 0xFFFFFFFF;

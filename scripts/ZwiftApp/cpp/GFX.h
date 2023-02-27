@@ -1,6 +1,6 @@
 #pragma once
 enum GFX_RenderPass { GRP_CNT };
-enum AssetCategory { AC_UNK, AC_1, AC_2, AC_CNT };
+enum AssetCategory : uint32_t { AC_UNK, AC_1, AC_2, AC_CNT };
 enum GFX_FILL_MODE { GFM_POINT, GFM_LINE, GFM_FILL, GFM_FALSE };
 enum GFX_COMPARE_FUNC { GCF_NEVER, GCF_LESS, GCF_EQUAL, GCF_LEQUAL, GCF_GREATER, GCF_NOTEQUAL, GCF_GEQUAL, GCF_ALWAYS };
 enum GFX_StencilOp { GSO_FALSE_0, GSO_KEEP, GSO_REPLACE, GSO_INCR, GSO_INCR_WRAP, GSO_DECR, GSO_DECR_WRAP, GSO_INVERT, GSO_FALSE_8, GSO_FALSE_9 };
@@ -120,13 +120,29 @@ struct GFX_CreateShaderParams {
     const char *m_name;
     uint16_t m_vertIdx = 0, m_fragIdx = 0;
 };
-struct GFX_Texture { //64 bytes
-    uint32_t m_id, m_field_10, m_field_20;
-    uint8_t m_field_37; //bool or bit field?
-    uint16_t m_w, m_h;
+#pragma pack(push)
+#pragma pack(1)
+struct TGAX_HEADER {
+    uint16_t        wDummy0;
+    uint16_t        wDummy2;
+    DWORD           dwDummy0;
+    DWORD           dwDummy0a;
+    uint16_t        wWidth;
+    uint16_t        wHeight;
+    uint16_t        wType;
+};
+#pragma pack(pop)
+struct GFX_TextureStruct { //64 bytes
+    const char *m_name;
+    uint32_t m_id, m_align, m_nameSCRC, m_field_20_5, m_texTime, m_totalBytes;
+    uint16_t m_bestWidth, m_bestHeight;
+    AssetCategory m_assetCategory;
+    uint8_t m_loaded; //bool or bit field?
+    uint8_t m_field_36_3, m_fromLevel, m_field_39_0, m_toLevel;
+    bool InHardware() const { return m_id != -1; }
 };
 
-inline GFX_Texture g_Textures[0x3000];// 0xC0'000 / 64
+inline GFX_TextureStruct g_Textures[0x3000];// 0xC0'000 / 64
 inline static uint8_t g_WhiteTexture[0x1000];
 inline int g_WhiteHandle, g_nTexturesLoaded;
 inline int64_t g_VRAMBytes_Textures;
@@ -135,7 +151,7 @@ inline GFX_VertexArray g_vertexArray;
 inline GFX_ShaderPair g_Shaders[MAX_SHADERS], *g_pCurrentShader;
 inline float g_TargetBatteryFPS;
 inline size_t g_TotalMemoryInKilobytes;
-inline AssetCategory g_CurrentAssetCategory = AC_UNK;
+inline AssetCategory g_CurrentAssetCategory = AC_1;
 inline uint64_t g_GFX_PerformanceFlags;
 inline PerformanceGroup g_GFX_Performance = GPG_ULTRA;
 inline int g_nSkipMipCount;
@@ -172,6 +188,7 @@ inline bool g_bUseTextureHeightmaps = true;
 inline uint32_t g_ButterflyTexture, g_RedButterflyTexture, g_MonarchTexture, g_FireflyTexture, g_CausticTexture, g_GrassTexture, g_GravelMtnGrassTexture,
     g_InnsbruckConcreteTexture, g_ParisConcreteTexture, g_DefaultNormalMapNoGloss, g_RoadDustTexture, g_GravelDustTexture, g_SandTexture, g_SandNormalTexture,
     g_RockTexture, g_FranceRockTexture, g_FranceRockNTexture, g_RockNormalTexture, g_ShowroomFloorTexture, g_HeadlightTexture, g_VignetteTexture;
+inline int g_TextureTimeThisFrame;
 
 void GFX_DestroyVertex(int *pIdx);
 int GFX_CreateVertex(GFX_CreateVertexParams *parms);
@@ -219,5 +236,11 @@ int GFXAPI_CreateTextureFromRGBA(uint32_t w, uint32_t h, const void *data, bool 
 uint32_t GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh);
 inline uint32_t GFX_GetTier() { return g_gfxTier; }
 uint32_t GFX_CreateShader(const GFX_CreateShaderParams &p);
-uint32_t GFX_CreateTextureFromTGAFile(char const *, int, bool);
+int GFX_CreateTextureFromTGAFile(const char *name, int handle, bool tryAnimated);
 void GFX_SetAnimatedTextureFramerate(uint32_t tex, float r);
+int GFX_CreateAnimatedTextureFromTGAFiles(const char *name);
+void GFXAPI_CreateTexture(int handle, int w, int h, int mipMapLevelIdx);
+bool GFX_IsCompressed(uint32_t formatIdx);
+void GFXAPI_UpdateTexture(int handle, int level, int w, int h, uint32_t formatIdx, const void *data, int dataBytes);
+int GFX_CreateTextureFromTGAX(uint8_t *data, int handle);
+int GFX_Internal_LoadTextureFromTGAXFile(const char *name, int handle);

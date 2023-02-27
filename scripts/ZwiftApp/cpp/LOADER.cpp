@@ -41,7 +41,9 @@ void LOADER_GetHashedFileName(std::string, std::string) {
 void LOADER_HashAndCompressXML(std::string) {
     //TODO
 }
-//void LOADER_IsValidCompAssetHeader(ZCompAssetHeader *);
+bool LOADER_IsValidCompAssetHeader(const char *data /*ZCompAssetHeader **/) {
+    return data && data[0] == 'Z' && data[1] == 'H' && data[2] == 'R' && data[3] == 1; //*.ztx
+}
 void LOADER_ListMeshResourceSizes() {
     //TODO
 }
@@ -79,4 +81,41 @@ void LOADER_UpdateFileList(std::string, std::string, std::string &) {
 void LOADER_UseHWInstancing(bool en) {
     g_UseHWInstancing = en;
     Log("[LOADER]: Hardware instancing %s", en ? "enabled" : "disabled");
+}
+size_t ZLIB_Decompress(uint8_t *src, int uncompr_sz, uint8_t *dest) {
+    size_t ret = 0;
+    z_stream s = {};
+    char chunk[16384] = {};
+    if (!inflateInit(&s)) {
+        do {
+            uInt a_in = s.avail_in = std::min(uInt(uncompr_sz), uInt(sizeof(chunk)));
+            if (!a_in)
+                break;
+            s.next_in = (Bytef *)src;
+            do {
+                s.avail_out = sizeof(chunk);
+                s.next_out = (Bytef *)chunk;
+                int iret = inflate(&s, 0);
+                if (iret != Z_OK && iret != Z_STREAM_END) {
+                    inflateEnd(&s);
+                    return 0;
+                }
+                int dec_sz = sizeof(chunk) - s.avail_out;
+                memcpy(&dest[ret], chunk, dec_sz);
+                ret += dec_sz;
+            } while (!s.avail_out);
+            uncompr_sz -= a_in;
+            src += a_in;
+        } while (uncompr_sz >= 0);
+        inflateEnd(&s);
+    }
+    return ret;
+}
+size_t ZLIB_Compress(const void *src, size_t src_len, void *dest, size_t dest_len) {
+    uLongf ret = (uLongf)dest_len;
+    z_stream s = {};
+    if (Z_OK == compress((Bytef *)dest, &ret, (const Bytef *)src, (uLongf)src_len)) {
+        return ret;
+    }
+    return 0;
 }
