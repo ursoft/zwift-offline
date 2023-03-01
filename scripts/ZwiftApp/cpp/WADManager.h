@@ -55,3 +55,4 @@ void WAD_NextAssetByType(WAD_FILE_HEADER *);
 void WAD_OffsetsToPointers(WAD_HEADER *);
 
 inline WADManager g_WADManager;
+inline WAD_HEADER *g_levelWadGroup, *g_levelWadGroupP1, *g_globalWadGroup, *g_globalWadGroupP1, *g_languageWadGroup, *g_languageWadGroupP1, *g_homeMenuGroup, *g_homeMenuGroupP1, *g_bootWadGroup, *g_bootWadGroupP1, *g_legalWadGroup, *g_legalWadGroupP1;
