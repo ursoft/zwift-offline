@@ -1,6 +1,8 @@
 #pragma once
 inline bool g_UseHWInstancing;
-
+template <typename T, typename F> void ShiftPointer(T **dest, const F *offset) {
+    *dest = (T *)((uint8_t *)offset + (intptr_t)*dest);
+}
 void LOADER_COLInit(uint32_t);
 void LOADER_CompressToFile(const char *, const char *, const char *);
 void LOADER_ContainsGamepath(const char *);
