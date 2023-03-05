@@ -3,7 +3,7 @@ class GameCritical {
     static int s_jobCount;
     static bool s_shouldAbortJobs;
     static std::mutex s_mutex;
-    static DWORD s_threadWithLock;
+    static uint32_t s_threadWithLock;
     bool m_locked = false;
 public:
     static int GetJobCount() { return s_jobCount; }

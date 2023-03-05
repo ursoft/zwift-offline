@@ -125,8 +125,8 @@ struct GFX_CreateShaderParams {
 struct TGAX_HEADER {
     uint16_t        wDummy0;
     uint16_t        wDummy2;
-    DWORD           dwDummy0;
-    DWORD           dwDummy0a;
+    uint32_t        dwDummy0;
+    uint32_t        dwDummy0a;
     uint16_t        wWidth;
     uint16_t        wHeight;
     uint16_t        wType;
@@ -141,6 +141,10 @@ struct GFX_TextureStruct { //64 bytes
     uint8_t m_field_36_3, m_fromLevel, m_field_39_0, m_toLevel;
     bool InHardware() const { return m_glid != -1; }
 };
+struct GFX_CreateBufferParams {
+    size_t m_size;
+    void *m_pData;
+};
 
 inline GFX_TextureStruct g_Textures[0x3000];// 0xC0'000 / 64
 inline static uint8_t g_WhiteTexture[0x1000];
@@ -152,7 +156,7 @@ inline GFX_ShaderPair g_Shaders[MAX_SHADERS], *g_pCurrentShader;
 inline float g_TargetBatteryFPS;
 inline size_t g_TotalMemoryInKilobytes;
 inline AssetCategory g_CurrentAssetCategory = AC_1;
-inline uint64_t g_GFX_PerformanceFlags;
+inline uint64_t g_GFX_PerformanceFlags, g_VRAMBytes_VBO;
 inline PerformanceGroup g_GFX_Performance = GPG_ULTRA;
 inline int g_nSkipMipCount;
 inline const char *g_GL_vendor = "", *g_GL_renderer = "", *g_GL_apiName = "";
@@ -165,7 +169,7 @@ inline GLFWwindow *g_mainWindow;
 inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion, g_openglFail;
 inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
 inline int g_width, g_height, g_MinimalUI, g_bFullScreen, g_nShadersLoaded, g_TotalShaderCreationTime;
-inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_gfxTier, g_DrawPrimVBO;
+inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_gfxTier, g_DrawPrimVBO, g_nTotalFrames;
 inline uint8_t g_colorChannels, g_gfxShaderModel;
 inline GfxCaps g_gfxCaps;
 inline const GfxCaps &GFX_GetCaps() { return g_gfxCaps; }
@@ -188,7 +192,7 @@ inline bool g_bUseTextureHeightmaps = true;
 inline int g_ButterflyTexture, g_RedButterflyTexture, g_MonarchTexture, g_FireflyTexture, g_CausticTexture, g_GrassTexture, g_GravelMtnGrassTexture,
     g_InnsbruckConcreteTexture, g_ParisConcreteTexture, g_DefaultNormalMapNoGloss, g_RoadDustTexture, g_GravelDustTexture, g_SandTexture, g_SandNormalTexture,
     g_RockTexture, g_FranceRockTexture, g_FranceRockNTexture, g_RockNormalTexture, g_ShowroomFloorTexture, g_HeadlightTexture, g_VignetteTexture;
-inline int g_TextureTimeThisFrame;
+inline uint32_t g_TextureTimeThisFrame, g_MeshTimeThisFrame;
 
 void GFX_DestroyVertex(int *pIdx);
 int GFX_CreateVertex(GFX_CreateVertexParams *parms);
@@ -244,3 +248,11 @@ bool GFX_IsCompressed(uint32_t formatIdx);
 void GFXAPI_UpdateTexture(int handle, int level, int w, int h, uint32_t formatIdx, const void *data, int dataBytes);
 int GFX_CreateTextureFromTGAX(uint8_t *data, int handle);
 int GFX_Internal_LoadTextureFromTGAXFile(const char *name, int handle);
+void GFX_MeshSystem_Update();
+inline uint32_t GFX_GetFrameCount() { return g_nTotalFrames; }
+int GFX_CreateBuffer(const GFX_CreateBufferParams &);
+void GFXAPI_DestroyBuffer(GLuint handle);
+void GFX_DestroyBuffer(int *pHandle);
+struct GDE_MeshItem;
+void GFX_CreateVertexBuffer(GDE_MeshItem *mi, uint32_t size, void *data);
+void GFX_CreateIndexBuffer(int *dest, uint32_t size, void *buf);

@@ -79,7 +79,7 @@ void BroadcastPrompt(EVENT_ID, va_list) {
 }
 void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_MainThread = GetCurrentThreadId();
-    DWORD startTime = timeGetTime();
+    uint32_t startTime = timeGetTime();
     auto evSysInst = EventSystem::GetInst();
     zassert(g_sCrashReportingUPtr.get() == nullptr);
     CrashReporting::Initialize(evSysInst);
@@ -706,7 +706,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         auto defPartShader = GFX_CreateShaderFromFile("defaultParticles", -1);
         g_pDustSystem = new ParticleSystem(1000, DustParticleUpdate, nullptr, nullptr, nullptr, nullptr);
         g_pDustSystem->m_texture = g_RoadDustTexture;
-        //TODO*(_DWORD *)&pDustSystem->field_18 = 0;
+        //TODO*(uint32_t *)&pDustSystem->field_18 = 0;
         g_pDustSystem->m_shader = defPartShader;
         PARTICLESYS_Register(g_pDustSystem);
         g_pConfettiSystem = new ParticleSystem(3000, ConfettiParticleUpdate, nullptr, nullptr, nullptr, nullptr);

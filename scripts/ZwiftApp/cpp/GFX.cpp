@@ -398,7 +398,7 @@ int GFX_CreateShaderFromFile(const GFX_CreateShaderParams &s, int handle) {
         if (res != g_ShaderMap.end())
             return res->second;
     }
-    DWORD t = timeGetTime();
+    uint32_t t = timeGetTime();
     if (handle == -1)
         handle = GFX_Internal_GetNextShaderHandle();
     int ret = GFXAPI_CreateShaderFromFile(handle, s);
@@ -1376,6 +1376,16 @@ void GFX_StateBlock::UnbindBuffer(int arrBuf) {
         m_elArrBuf = -1;
     }
 }
+void GFX_DestroyBuffer(int *pHandle) {
+    if (*pHandle != -1) {
+        GFXAPI_DestroyBuffer((GLuint)*pHandle);
+        *pHandle = -1;
+    }
+}
+void GFXAPI_DestroyBuffer(GLuint handle) {
+    g_pGFX_CurrentStates->UnbindBuffer(handle);
+    glDeleteBuffers(1, &handle);
+}
 void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const VEC4 *vec, uint16_t sz, uint64_t skipTag) { //SetUniformVEC4_a, SetUniformVEC4_a2
     auto &u = GFX_StateBlock::uniformRegs[(int)ref.m_ty];
     if (skipTag && skipTag == u.m_pTags[ref.m_offset])
@@ -2016,7 +2026,59 @@ int GFX_CreateTextureFromTGAX(uint8_t *data, int handle) {
     } while (size_divider < div);
     return handle;
 }
-
+int g_nMSU_Unloads, g_curMSUhandle;
+uint32_t g_lastMSUtime;
+bool g_bEnableDynamicMeshUnloading;
+void GFX_MeshSystem_Update() {
+    g_MeshTimeThisFrame = timeGetTime();
+    if (g_bEnableDynamicMeshUnloading && g_MeshTimeThisFrame - g_lastMSUtime < 1000) {
+        const int perOnce = 40;
+        for (auto i = g_curMSUhandle; i < g_curMSUhandle + perOnce; ++i) {
+            auto gdeHandle = i % g_ENG_nResources;
+            auto item = g_ENG_InstanceResources[gdeHandle];
+            if (!item.m_isSkin && item.m_state == IRS_INITIAL) {
+                auto td = g_MeshTimeThisFrame - item.m_creationTime;
+                auto fago = GFX_GetFrameCount() - item.m_frameCnt;
+                if (td > 1000) {
+                    auto gdeName = item.m_gdeName;
+                    if (fago <= 3) {
+                        LogDebug("Would have unloaded mesh %s but it was used only %d frames ago. Timedelta = %d", gdeName, fago, td);
+                    } else {
+                        ++g_nMSU_Unloads;
+                        LogDebug("auto-Unloading timed out mesh %s [nUnloads  %d]", gdeName, g_nMSU_Unloads);
+                        LOADER_UnloadGdeFile(gdeHandle);
+                        item.m_state = IRS_NEED_LOAD;
+                    }
+                }
+            }
+        }
+        g_curMSUhandle += perOnce;
+        if (g_curMSUhandle > g_ENG_nResources)
+            g_curMSUhandle = 0;
+    }
+    g_lastMSUtime = g_MeshTimeThisFrame;
+}
+void GFXAPI_CreateBuffer(int *dest, const GFX_CreateBufferParams &p) {
+    int VBOHandle = 0;
+    glGenBuffers(1, (GLuint *)&VBOHandle);
+    zassert(VBOHandle);
+    g_pGFX_CurrentStates->BindVertexBuffer(VBOHandle);
+    glBufferData(GL_ARRAY_BUFFER, p.m_size, p.m_pData, GL_STATIC_DRAW);
+    *dest = VBOHandle;
+}
+int GFX_CreateBuffer(const GFX_CreateBufferParams &p) {
+    int ret;
+    GFXAPI_CreateBuffer(&ret, p);
+    if (ret != -1)
+        g_VRAMBytes_VBO += p.m_size;
+    return ret;
+}
+void GFX_CreateVertexBuffer(GDE_MeshItem *mi, uint32_t size, void *data) { mi->m_vbHandle = GFX_CreateBuffer(GFX_CreateBufferParams{size, data}); }
+void GFX_CreateIndexBuffer(int *dest, uint32_t size, void *data) {
+    *dest = GFX_CreateBuffer(GFX_CreateBufferParams{ size, data });
+    if (*dest != -1)
+        g_VRAMBytes_VBO += size;
+}
 //Unit Tests
 TEST(SmokeTest, VertexArray) {
     for (int i = 0; i < _countof(g_vertexArray.fast64); i++) {

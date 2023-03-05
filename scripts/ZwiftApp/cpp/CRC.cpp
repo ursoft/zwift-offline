@@ -127,7 +127,7 @@ uint32_t CCRC32::FileCRC(const char *name) {
 uint32_t CCRC32::FullCRC(const uint8_t *buf, uint64_t sz) {
     if (!sz)
         return 0;
-    DWORD v3 = -1;
+    uint32_t v3 = -1;
     do {
         auto v4 = *buf++;
         --sz;

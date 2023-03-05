@@ -14,7 +14,7 @@ public:
     BikeEntity();
     int64_t m_playerId = 0;
     VirtualBikeComputer *m_bc = nullptr;
-    DWORD m_changeFlags, m_fwGdeSignature = 0, m_rwGdeSignature = 0;
+    uint32_t m_changeFlags, m_fwGdeSignature = 0, m_rwGdeSignature = 0;
     bool m_writable = false;
     bool m_metricUnits = true;
     protobuf::PlayerProfile m_profile;

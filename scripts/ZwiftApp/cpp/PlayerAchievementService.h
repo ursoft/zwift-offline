@@ -1,9 +1,8 @@
 #pragma once
-
 enum Achievement { ACH_CNT = 512 };
 class PlayerAchievementService : public EventObject {
     uint64_t m_ridemask;
-    DWORD m_lastPeriodEnd, m_repeatPeriod;
+    uint32_t m_lastPeriodEnd, m_repeatPeriod;
     bool m_changeFlag;
     void *m_field18;
     enum AchSaveLoadState { SLS_INITIAL = 0, SLS_INPROCESS = 1, SLS_DONE = 2, SLS_FAILED = 3 };

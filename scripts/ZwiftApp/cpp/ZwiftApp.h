@@ -97,7 +97,7 @@ enum ZwiftStartupFlow { ZSF_LOGIN = 0x0, ZSF_1 = 0x1, ZSF_EULA = 0x2, ZSF_3 = 0x
 inline ZwiftStartupFlow g_gameStartupFlowState;
 inline const void *g_startupFlowStateParam;
 
-inline DWORD g_MainThread;
+inline uint32_t g_MainThread;
 inline float g_vegetationWind[4];
 struct IKeyProcessor {
     virtual bool ProcessKey(int, int) = 0;

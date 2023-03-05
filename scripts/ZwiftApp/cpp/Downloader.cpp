@@ -256,7 +256,7 @@ void Downloader::Update() {
                     for (auto cbFail : cur->m_failCallbacks)
                         cbFail(cur->m_name, m_lastErrorCode);
                 } else {
-                    if (cur->m_fileTime.dwHighDateTime != (DWORD)-1 && cur->m_fileTime.dwLowDateTime != (DWORD)-1) {
+                    if (cur->m_fileTime.dwHighDateTime != (uint32_t)-1 && cur->m_fileTime.dwLowDateTime != (uint32_t)-1) {
                         if (!SetFileTime((HANDLE)_get_osfhandle(_fileno(cur->m_FILE)), nullptr, nullptr, &cur->m_fileTime)) {
                             m_error = 1;
                             m_lastErrorCode = 109;

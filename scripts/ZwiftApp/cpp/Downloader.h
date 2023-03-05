@@ -7,7 +7,7 @@ public:
         PendingFile() {}
         PendingFile(const CurrentFile &);
         std::string m_name, m_locp, m_urlp;
-        FILETIME m_fileTime{ (DWORD)-1, (DWORD)-1};
+        FILETIME m_fileTime{ (uint32_t)-1, (uint32_t)-1};
         uint64_t m_expectedLength = 0;
         uint32_t m_prbCounter = 0, m_checksumWant = (uint32_t)-1;
         std::vector<std::function<void(const char *)>> m_succCallbacks;
