@@ -32,5 +32,6 @@ void LOADER_UseHWInstancing(bool);
 size_t ZLIB_Decompress(uint8_t *src, int uncompr_sz, uint8_t *dest);
 size_t ZLIB_Compress(const void *src, size_t src_len, void *dest, size_t dest_len);
 int LOAD_CHARACTER_SkinGdeFile(char *name);
-bool GFX_Internal_LoadOnDemandMeshHandle(int handle, int magic);
+bool GFX_Internal_LoadOnDemandMeshHandle(int handle, GDE_MeshKind gmk);
 void LOADER_DumpAllGameWorldGDEs();
+int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, char *name, uint32_t fileLength, int handle);

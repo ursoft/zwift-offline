@@ -19,7 +19,7 @@ struct GDE_Animators { //0x20 bytes
     int **m_pArr1, **m_pArr2;
     uint8_t *m_field_18;
 };
-struct GDE_Anim { //0x170 (368) bytes
+struct GDE_Material { //0x170 (368) bytes
     char field_0[116];
     int m_field_74;
     GDE_Animators *m_pAnimators;
@@ -38,12 +38,11 @@ struct VEC3B {
     int8_t m_data[3]; 
     VEC3B &operator=(const VEC3 &src) { m_data[0] = 127.0 * src.m_data[0]; m_data[1] = 127.0 * src.m_data[1]; m_data[2] = 127.0 * src.m_data[2]; return *this; }
 };
-enum GdeStat { GS_LEAN = 4 };
+enum GdeStat { GS_VERT_BUF = 4, GS_SKIN = 6 };
 struct GDE_MeshItemData0 { //36 bytes
     VEC3 m_point;
-    uint32_t m_color;
-    char field_10[11];
-    char m_field_1B;
+    uint32_t m_color, field_10, field_14;
+    char field_18, field_19, field_1A, m_field_1B;
     char field_1C;
     char field_1D;
     char field_1E;
@@ -53,11 +52,27 @@ struct GDE_MeshItemData0 { //36 bytes
     char field_22;
     char m_field_23;
 };
+struct GDE_MeshItemData0_ext { //44 bytes
+    VEC3 m_point;
+    uint32_t m_color, field_10, field_14;
+    float m_instIdx1, m_instIdx2;
+    char field_18, field_19, field_1A, m_field_1B;
+    char field_1C;
+    char field_1D;
+    char field_1E;
+    char m_field_1F;
+    char field_20;
+    char field_21;
+    char field_22;
+    char m_field_23;
+    GDE_MeshItemData0_ext &operator =(const GDE_MeshItemData0 &);
+};
 struct GDE_MeshItemData1 { //44 bytes
     VEC3 m_point;
     uint32_t m_color;
-    char field_10[19];
-    char m_field_23;
+    uint32_t field_10, field_14;
+    float m_instIdx, gap;
+    char field_20, field_21, field_22, m_field_23;
     char field_24;
     char field_25;
     char field_26;
@@ -67,11 +82,13 @@ struct GDE_MeshItemData1 { //44 bytes
     char field_2A;
     char m_field_2B;
 };
+struct GDE_MeshItemData2_ext;
 struct GDE_MeshItemData2 { //40 bytes
     VEC3 m_point;
     uint32_t m_color1;
     uint32_t m_color2;
-    char field_14[11];
+    uint32_t field_14, field_18;
+    char field_1C, field_1D, field_1E;
     char m_field_1F;
     char field_20;
     char field_21;
@@ -82,11 +99,31 @@ struct GDE_MeshItemData2 { //40 bytes
     char field_26;
     char m_field_27;
 };
+struct GDE_MeshItemData2_ext { //48 bytes
+    VEC3 m_point;
+    uint32_t m_color1;
+    uint32_t m_color2;
+    uint32_t field_14, field_18;
+    float m_instIdx1, m_instIdx2;
+    char field_1C, field_1D, field_1E;
+    char m_field_1F;
+    char field_20;
+    char field_21;
+    char field_22;
+    char m_field_23;
+    char field_24;
+    char field_25;
+    char field_26;
+    char m_field_27;
+    GDE_MeshItemData2_ext &operator=(const GDE_MeshItemData2 &);
+};
 struct GDE_MeshItemData3 { //48 bytes
     VEC3 m_point;
     uint32_t m_color1;
     uint32_t m_color2;
-    char field_14[19];
+    uint32_t field_14, field_18;
+    float m_instIdx, gap;
+    char field_24[3];
     char m_field_27;
     char field_28;
     char field_29;
@@ -101,7 +138,8 @@ struct GDE_MeshItemData4 { //48 bytes
     VEC3 m_point;
     uint32_t m_color1;
     uint32_t m_color2;
-    char m_raw[16];
+    uint32_t field_14, field_18;
+    float m_instIdx, gap;
     VEC3B m_pointN;
     char m_field_27;
     VEC3B m_point1;
@@ -111,7 +149,8 @@ struct GDE_MeshItemData4 { //48 bytes
 };
 struct GDE_MeshItemData4_file { //72 bytes
     VEC3 m_point;
-    char m_raw[16];
+    uint32_t field_14, field_18;
+    float m_instIdx, gap;
     VEC3 m_pointN;
     VEC3 m_point1;
     VEC3 m_point2;
@@ -128,13 +167,13 @@ struct GDE_MeshSubItem { //24 bytes
     char field_16;
     char field_17;
 };
-struct GDE_MeshItem { //80 bytes
+struct GDE_Mesh_VERT_BUFi { //80 bytes, GMK_VERT_BUF
     int m_vbHandle;
     int m_field_4;
     GDE_MeshSubItem *m_subItemBegPtr;
-    void *field_10;
-    void *field_18;
-    void *field_20;
+    void *m_field_10;
+    void *m_field_18;
+    void *m_field_20;
     GDE_MeshSubItem *m_subItemEndPtr;
     void *m_pVerts;
     void *m_pUnused;
@@ -143,9 +182,30 @@ struct GDE_MeshItem { //80 bytes
     int m_itemKind;
     int m_instancesCount;
 };
-struct GDE_Mesh { //0x1F8 (504) bytes
-    uint32_t m_version, m_meshItemsCnt;
-    GDE_MeshItem m_meshItems[6];
+struct GDE_Mesh_SHRUB { //??? bytes, GMK_SHRUB
+    uint32_t m_version, m_field_4;
+    char gap1[32];
+    void *m_field_20, *m_field_28;
+};
+struct GDE_SkinVB_Item { //96 bytes
+    uint32_t *m_pIndices, *m_pVerts;
+    int m_numIndices, m_ibHandle, m_numVerts, m_vbHandle, gap2[14];
+    int m_flags, gap3;
+};
+struct GDE_SkinVB { //40 bytes
+    GDE_SkinVB_Item *m_pItems;
+    void *m_field_8, *m_field_10, *m_field_18;
+    GDE_SkinVB_Item *m_pEndItem;
+};
+struct GDE_Mesh_SKIN { //0x108 (264) bytes, GMK_SKIN
+    uint32_t m_version, m_unk;
+    GDE_SkinVB m_vbs[6];
+    int m_lodMax;
+    char gap[12];
+};
+struct GDE_Mesh_VERT_BUF { //0x1F8 (504) bytes
+    uint32_t m_version, m_lodMax;
+    GDE_Mesh_VERT_BUFi m_data[6];
     VEC4 m_bounds;
 };
 struct GDE_Runtime { //0x28 bytes
@@ -154,19 +214,40 @@ struct GDE_Runtime { //0x28 bytes
     uint64_t m_runtimeItemsCnt;
     GDE_RuntimeItem *m_runtimeItems;
 };
-const uint32_t GDE_SKIN_MESH = '\x10\0\0\x01', GDE_MESH = '\x10\0\0\x01';
+struct GDE_Shader { //16 bytes
+    uint64_t data1, data2;
+};
+struct GDE_DefaultComponents { //48 bytes
+    char gap[48];
+};
+struct GDE_BoneInfo { //80 bytes
+    char gap[80];
+};
+struct GDE_SkelInfo { //0x40 (64) bytes
+    int field_0, m_arraysCnt;
+    GDE_BoneInfo *m_pBoneInfoArray;
+    GDE_DefaultComponents *m_pDefaultComponents;
+    void *m_field_18, *m_field_20;
+    char gap2[24];
+};
+enum GDE_MeshKind : uint32_t { GMK_0 = 0x1000'0000, GMK_SKIN = 0x1000'0001, GMK_SHRUB = 0x1000'0002, GMK_VERT_BUF = 0x1000'0003 };
 struct GDE_Header_360 { //0x70 bytes
-    uint32_t m_ver, m_meshSign;
-    int m_animCnt;
+    uint32_t m_ver;
+    GDE_MeshKind m_meshKind;
+    int m_materialsCnt;
     int m_texturesCnt;
-    int m_field_10;
+    int m_shadersCnt;
     int field_14;
-    GDE_Anim *m_anims;
+    GDE_Material *m_materials;
     GDE_Tex *m_textures;
-    uint8_t *m_field_28; // = malloc(16 * file->m_field_10); //sizeof smth
+    GDE_Shader *m_shaders;
     GDE_Runtime *m_runtime;
-    GDE_Mesh *m_mesh;
-    char field_40[48];
+    union { 
+        GDE_Mesh_VERT_BUF *VERT_BUF;
+        GDE_Mesh_SHRUB *SHRUB;
+        GDE_Mesh_SKIN *SKIN;
+    } m_mesh;
+    GDE_SkelInfo *m_pSkelInfo[6];
 };
 struct GDE_360_TIE {};
 struct GDE_MaterialUsage {};
@@ -174,7 +255,8 @@ enum InstanceResourceState { IRS_UNLOADED = 0, IRS_NEED_LOAD = 1, IRS_LOAD_FAILE
 struct InstanceResource { //72 bytes
     GDE_Header_360 *m_gdeFile;
     VEC4 m_bounds;
-    bool m_manyInstances, m_isSkin, m_field_1A_1, field_1B;
+    bool m_manyInstances, m_isSkin, m_heapUsed;
+    uint8_t field_1B;
     int field_1C;
     char *m_gdeName;
     int m_gdeNameCRC;

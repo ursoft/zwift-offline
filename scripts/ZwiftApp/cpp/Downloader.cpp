@@ -77,7 +77,7 @@ void Downloader::Download/*IDA: DownloadFptr*/(const std::string &name, uint64_t
         newPf.m_urlp = m_urlp;
         newPf.m_expectedLength = expectedLength;
         newPf.m_failCallbacks.push_back(cbFail);
-        memcpy(&newPf.m_fileTime, &fileTime, sizeof(FILETIME));
+        memmove(&newPf.m_fileTime, &fileTime, sizeof(FILETIME));
         newPf.m_checksumWant = checksumWant;
         m_filesPending.push_back(newPf);
         m_pendingTotalLength += (expectedLength ? expectedLength : 1);

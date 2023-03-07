@@ -159,7 +159,7 @@ bool WAD_Load(const char *pFilename, WAD_HEADER **ppDest, bool restorePointers /
 				if (decomp_buf) {
 					auto pCompressedPtr = (uint8_t *)calloc(wad_hdr.m_compressed_size, 1);
 					if (pCompressedPtr) {
-						memcpy(decomp_buf, &wad_hdr, sizeof(wad_hdr));
+						memmove(decomp_buf, &wad_hdr, sizeof(wad_hdr));
 						if (wad_hdr.m_compressed_size) {
 							if (wad_hdr.m_compressed_size != fread_s(pCompressedPtr, wad_hdr.m_compressed_size, 1, wad_hdr.m_compressed_size, fwad)) {
 								free(pCompressedPtr);

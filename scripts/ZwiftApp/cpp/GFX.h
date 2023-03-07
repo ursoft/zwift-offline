@@ -39,14 +39,13 @@ struct GFX_StateBlock {
     int m_depthFuncIdx;         // push[1]
     int m_depthMask;            // push[2] as bool
     GFX_FILL_MODE m_fillMode;   // push[3]
-    int m_newCullIdx;             // push[4]
+    int m_newCullIdx;           // push[4]
     int m_field_1C;             // push[5] as bool
     //char field20[24];
     int m_scissorTest;          // push[12] as bool
     float m_polyOffset;         // push[13]
     //int field3d
     GFX_BlendIdxs m_prBlendIdxs; // push[15]
-
     int m_cullIdx;              // @push[4]
     bool m_blend;               // @push[5]
     GFX_BlendIdxs m_blendIdxs;  // @push[15]
@@ -253,6 +252,5 @@ inline uint32_t GFX_GetFrameCount() { return g_nTotalFrames; }
 int GFX_CreateBuffer(const GFX_CreateBufferParams &);
 void GFXAPI_DestroyBuffer(GLuint handle);
 void GFX_DestroyBuffer(int *pHandle);
-struct GDE_MeshItem;
-void GFX_CreateVertexBuffer(GDE_MeshItem *mi, uint32_t size, void *data);
+void GFX_CreateVertexBuffer(int *pHandleDest, uint32_t size, void *data);
 void GFX_CreateIndexBuffer(int *dest, uint32_t size, void *buf);

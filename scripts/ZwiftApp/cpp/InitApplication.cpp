@@ -283,11 +283,11 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         __cpuid(CPUInfo, i);
         // Interpret CPU brand string
         if (i == 0x80000002)
-            memcpy(g_strCPU, CPUInfo, sizeof(CPUInfo));
+            memmove(g_strCPU, CPUInfo, sizeof(CPUInfo));
         else if (i == 0x80000003)
-            memcpy(g_strCPU + 16, CPUInfo, sizeof(CPUInfo));
+            memmove(g_strCPU + 16, CPUInfo, sizeof(CPUInfo));
         else if (i == 0x80000004)
-            memcpy(g_strCPU + 32, CPUInfo, sizeof(CPUInfo));
+            memmove(g_strCPU + 32, CPUInfo, sizeof(CPUInfo));
     }
     //string includes manufacturer, model and clockspeed
     Log("CPU: %s", g_strCPU);

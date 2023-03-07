@@ -467,7 +467,7 @@ int GFXAPI_ParseShaderFromZData(std::vector<byte> &vectorDest, ZDataFile **ppFil
     if (size < sizeof(ZDataFile))
         return -1;
     vectorDest.resize(size);
-    memcpy(vectorDest.data(), data, size);
+    memmove(vectorDest.data(), data, size);
     *ppFileDest = new (vectorDest.data()) ZDataFile();
     return (*ppFileDest)->Parse(logicIdx, ppPhysIdx, ppDataDest);
 }
@@ -1451,7 +1451,7 @@ void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const MATRIX44 &m, u
     if (tag && tag == u.m_pTags[ref.m_offset])
         return;
     static_assert(sizeof(m) == 4 * sizeof(u.m_pRegs[ref.m_offset]));
-    memcpy(&u.m_pRegs[ref.m_offset], &m, sizeof(m));
+    memmove(&u.m_pRegs[ref.m_offset], &m, sizeof(m));
     u.m_pTags[ref.m_offset] = tag;
     if (ref.m_offset < u.m_offset)
         u.m_offset = ref.m_offset;
@@ -2073,7 +2073,7 @@ int GFX_CreateBuffer(const GFX_CreateBufferParams &p) {
         g_VRAMBytes_VBO += p.m_size;
     return ret;
 }
-void GFX_CreateVertexBuffer(GDE_MeshItem *mi, uint32_t size, void *data) { mi->m_vbHandle = GFX_CreateBuffer(GFX_CreateBufferParams{size, data}); }
+void GFX_CreateVertexBuffer(int *pHandle, uint32_t size, void *data) { *pHandle = GFX_CreateBuffer(GFX_CreateBufferParams{size, data}); }
 void GFX_CreateIndexBuffer(int *dest, uint32_t size, void *data) {
     *dest = GFX_CreateBuffer(GFX_CreateBufferParams{ size, data });
     if (*dest != -1)

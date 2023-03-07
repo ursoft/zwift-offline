@@ -124,7 +124,7 @@ GDE_Header_360 *GDEMESH_GetMesh(int handle) {
         return nullptr;
     auto &m = g_ENG_InstanceResources[handle];
     if (m.m_state == IRS_NEED_LOAD) {
-        if (!GFX_Internal_LoadOnDemandMeshHandle(handle, m.m_isSkin ? GDE_SKIN_MESH : GDE_MESH))
+        if (!GFX_Internal_LoadOnDemandMeshHandle(handle, m.m_isSkin ? GMK_SKIN : GMK_VERT_BUF))
             m.m_state = IRS_LOAD_FAILED;
     } else if (m.m_state == IRS_UNLOADED) {
         Log("trying to activate unloaded mesh %s", m.m_gdeName);
@@ -162,4 +162,43 @@ void GDE_NormalizeVector(VEC3 *dest, VEC3 *src) {
         dest->m_data[1] = src->m_data[1] / leng;
         dest->m_data[2] = src->m_data[2] / leng;
     }
+}
+GDE_MeshItemData2_ext &GDE_MeshItemData2_ext::operator=(const GDE_MeshItemData2 &src) {
+    m_point = src.m_point;
+    m_color1 = src.m_color1;
+    m_color2 = src.m_color2;
+    field_14 = src.field_14;
+    field_1C = src.field_1C;
+    //two floats not initialized yet
+    field_1D = src.field_1D;
+    field_1E = src.field_1E;
+    m_field_1F = src.m_field_1F;
+    field_20 = src.field_20;
+    field_21 = src.field_21;
+    field_22 = src.field_22;
+    m_field_23 = src.m_field_23;
+    field_24 = src.field_24;
+    field_25 = src.field_25;
+    field_26 = src.field_26;
+    m_field_27 = src.m_field_27;
+    return *this;
+};
+GDE_MeshItemData0_ext &GDE_MeshItemData0_ext::operator =(const GDE_MeshItemData0 &src) {
+    m_point = src.m_point;
+    m_color = src.m_color;
+    field_10 = src.field_10;
+    field_14 = src.field_14;
+    field_18 = src.field_18;
+    field_19 = src.field_19;
+    field_1A = src.field_1A;
+    m_field_1B = src.m_field_1B;
+    field_1C = src.field_1C;
+    field_1D = src.field_1D;
+    field_1E = src.field_1E;
+    m_field_1F = src.m_field_1F;
+    field_20 = src.field_20;
+    field_21 = src.field_21;
+    field_22 = src.field_22;
+    m_field_23 = src.m_field_23;
+    return *this;
 }
