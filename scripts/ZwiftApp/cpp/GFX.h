@@ -144,10 +144,23 @@ struct GFX_CreateBufferParams {
     size_t m_size;
     void *m_pData;
 };
+struct GFX_AnimatedTexture { //0x104 (260) bytes
+    uint32_t m_field_0;
+    int m_framesCnt;
+    float m_delay;
+    char field_C;
+    char field_D;
+    char field_E;
+    char field_F;
+    float m_frameRate;
+    uint32_t m_nameSCRC;
+    int m_frameHandles[59];
+};
 
-inline GFX_TextureStruct g_Textures[0x3000];// 0xC0'000 / 64
+inline GFX_TextureStruct g_Textures[0x3000];        // 0xC0'000 / 64
+inline GFX_AnimatedTexture g_AnimatedTextures[256];
 inline static uint8_t g_WhiteTexture[0x1000];
-inline int g_WhiteHandle, g_nTexturesLoaded;
+inline int g_WhiteHandle, g_nTexturesLoaded, g_nAnimatedTexturesLoaded;
 inline int64_t g_VRAMBytes_Textures;
 inline const int g_DrawBufferSize = 0x800'000, MAX_SHADERS = 0x400;
 inline GFX_VertexArray g_vertexArray;

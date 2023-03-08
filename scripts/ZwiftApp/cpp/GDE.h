@@ -38,7 +38,7 @@ struct VEC3B {
     int8_t m_data[3]; 
     VEC3B &operator=(const VEC3 &src) { m_data[0] = 127.0 * src.m_data[0]; m_data[1] = 127.0 * src.m_data[1]; m_data[2] = 127.0 * src.m_data[2]; return *this; }
 };
-enum GdeStat { GS_VERT_BUF = 4, GS_SKIN = 6 };
+enum GdeStat { GS_VB_CLUST = 2, GS_VERT_BUF = 4, GS_SKIN = 6 };
 struct GDE_MeshItemData0 { //36 bytes
     VEC3 m_point;
     uint32_t m_color, field_10, field_14;
@@ -188,14 +188,13 @@ struct GDE_Mesh_SHRUB { //??? bytes, GMK_SHRUB
     void *m_field_20, *m_field_28;
 };
 struct GDE_SkinVB_Item { //96 bytes
-    uint32_t *m_pIndices, *m_pVerts;
-    int m_numIndices, m_ibHandle, m_numVerts, m_vbHandle, gap2[14];
-    int m_flags, gap3;
+    uint16_t *m_pIndices;
+    uint32_t *m_pVerts;
+    int m_numIndices, m_ibHandle, m_numVerts, m_vbHandle, gap2, m_runIndices, gap3[12];
+    int m_flags, gap4;
 };
 struct GDE_SkinVB { //40 bytes
-    GDE_SkinVB_Item *m_pItems;
-    void *m_field_8, *m_field_10, *m_field_18;
-    GDE_SkinVB_Item *m_pEndItem;
+    GDE_SkinVB_Item *m_pItems, *m_field_8, *m_field_10, *m_field_18, *m_pEndItem;
 };
 struct GDE_Mesh_SKIN { //0x108 (264) bytes, GMK_SKIN
     uint32_t m_version, m_unk;
@@ -207,6 +206,103 @@ struct GDE_Mesh_VERT_BUF { //0x1F8 (504) bytes
     uint32_t m_version, m_lodMax;
     GDE_Mesh_VERT_BUFi m_data[6];
     VEC4 m_bounds;
+};
+struct GDE_Cluster { //72 bytes
+    char field_0;
+    char field_1;
+    uint16_t m_numIndices;
+    char field_4;
+    char field_5;
+    char field_6;
+    char field_7;
+    uint16_t *m_pIndices;
+    uint16_t m_numVerts;
+    char field_12;
+    char field_13;
+    char field_14;
+    char field_15;
+    char field_16;
+    char field_17;
+    void *m_pVerts;
+    int m_ibHandle, m_vbHandle;
+    char field_28;
+    char field_29;
+    char field_2A;
+    char field_2B;
+    char field_2C;
+    char field_2D;
+    char field_2E;
+    char field_2F;
+    char field_30;
+    char field_31;
+    char field_32;
+    char field_33;
+    char field_34;
+    char field_35;
+    char field_36;
+    char field_37;
+    char field_38;
+    char field_39;
+    char field_3A;
+    char field_3B;
+    char field_3C;
+    char field_3D;
+    char field_3E;
+    char field_3F;
+    char field_40;
+    char field_41;
+    char field_42;
+    char field_43;
+    char field_44;
+    char field_45;
+    char field_46;
+    char field_47;
+};
+struct GDE_Group { //32 bytes
+    char field_0;
+    char field_1;
+    uint16_t m_clustersCnt;
+    char field_4;
+    char field_5;
+    char field_6;
+    char field_7;
+    GDE_Cluster *m_clusters;
+    char field_10;
+    char field_11;
+    char field_12;
+    char field_13;
+    char field_14;
+    char field_15;
+    char field_16;
+    char field_17;
+    char field_18;
+    char field_19;
+    char field_1A;
+    char field_1B;
+    char field_1C;
+    char field_1D;
+    char field_1E;
+    char field_1F;
+};
+struct GDE_SimpleMaterial { //16 bytes
+    char field_0;
+    char field_1;
+    uint16_t m_groupsCnt;
+    char field_4;
+    char field_5;
+    char field_6;
+    char field_7;
+    GDE_Group *m_groups;
+};
+struct GDE_Mesh_VB_CLUST { //? bytes
+    uint32_t m_version;
+    int field_4;
+    int field_8;
+    int field_C;
+    int m_materialsCnt;
+    int field_14;
+    GDE_SimpleMaterial *m_materials;
+    void *m_field_20;
 };
 struct GDE_Runtime { //0x28 bytes
     uint32_t m_sign1, field_4, m_sign2, field_C;
@@ -230,7 +326,7 @@ struct GDE_SkelInfo { //0x40 (64) bytes
     void *m_field_18, *m_field_20;
     char gap2[24];
 };
-enum GDE_MeshKind : uint32_t { GMK_0 = 0x1000'0000, GMK_SKIN = 0x1000'0001, GMK_SHRUB = 0x1000'0002, GMK_VERT_BUF = 0x1000'0003 };
+enum GDE_MeshKind : uint32_t { GMK_VB_CLUSTER = 0x1000'0000, GMK_SKIN = 0x1000'0001, GMK_SHRUB = 0x1000'0002, GMK_VERT_BUF = 0x1000'0003 };
 struct GDE_Header_360 { //0x70 bytes
     uint32_t m_ver;
     GDE_MeshKind m_meshKind;
@@ -244,6 +340,7 @@ struct GDE_Header_360 { //0x70 bytes
     GDE_Runtime *m_runtime;
     union { 
         GDE_Mesh_VERT_BUF *VERT_BUF;
+        GDE_Mesh_VB_CLUST *VB_CLUST;
         GDE_Mesh_SHRUB *SHRUB;
         GDE_Mesh_SKIN *SKIN;
     } m_mesh;

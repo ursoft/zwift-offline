@@ -669,9 +669,45 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
         LOADER_LoadGdeFileAnim(file, file->m_materials + uIdx, texHandles);
     LOADER_LoadGdeFileRuntime(file, nullptr);
     uint32_t lod = 0, checkedInstCnt = 0;
+    GDE_Mesh_VB_CLUST *vbc = nullptr;
     switch (file->m_meshKind) {
-    case GMK_0:
-        //TODO
+    case GMK_VB_CLUSTER:
+        static_assert(sizeof(GDE_Cluster) == 72);
+        static_assert(sizeof(GDE_Group) == 32);
+        static_assert(sizeof(GDE_SimpleMaterial) == 16);
+        vbc = ShiftPointer(&file->m_mesh.VB_CLUST, file);
+        if (vbc->m_version != 6)
+            return -1;
+        GDE_StoreStat(GS_VB_CLUST, fileSize, file);
+        ShiftPointer(&vbc->m_materials, file);
+        for (int materialIdx = 0; materialIdx < vbc->m_materialsCnt; ++materialIdx) {
+            auto pSimpleMat = vbc->m_materials + materialIdx;
+            ShiftPointer(&pSimpleMat->m_groups, file);
+            for (int groupIdx = 0; groupIdx < pSimpleMat->m_groupsCnt; groupIdx++) {
+                auto curGroup = pSimpleMat->m_groups + groupIdx;
+                ShiftPointer(&curGroup->m_clusters, file);
+                for (int clusterIdx = 0; clusterIdx < curGroup->m_clustersCnt; clusterIdx++) {
+                    auto curCluster = curGroup->m_clusters + clusterIdx;
+                    if (!curCluster->m_numVerts || !curCluster->m_pVerts)
+                        LogDebug("Problem with vertexbuffer! filename[%s], material[%i], group[%i], cluster[%i], numVerts=%i, pointer to verts is valid(0x%x)",
+                            name, materialIdx, groupIdx, clusterIdx, curCluster->m_numVerts, curCluster->m_pVerts);
+                    auto numIndices = curCluster->m_numIndices;
+                    if (!numIndices || !curCluster->m_pIndices)
+                        LogDebug("Problem with indexbuffer! filename[%s], material[%i], group[%i], cluster[%i], numIndices=%i, pointer to indices is valid(0x%x)",
+                            name, materialIdx, groupIdx, clusterIdx, curCluster->m_numIndices, curCluster->m_pIndices);
+                    if (numIndices && curCluster->m_numVerts) {
+                        ShiftPointer(&curCluster->m_pVerts, file);
+                        ShiftPointer(&curCluster->m_pIndices, file);
+                        GFX_CreateVertexBuffer(&curCluster->m_vbHandle, 72 /*FIXME - sizeof struct */ * curCluster->m_numVerts, curCluster->m_pVerts);
+                        GFX_CreateIndexBuffer(&curCluster->m_ibHandle, 2 * curCluster->m_numIndices, curCluster->m_pIndices);
+                    } else {
+                        curCluster->m_vbHandle = -1;
+                        curCluster->m_ibHandle = -1;
+                    }
+                }
+            }
+        }
+        ShiftPointer(&vbc->m_field_20, file);
         break;
     case GMK_SHRUB:
         ShiftPointer(&file->m_mesh.SHRUB, file);
@@ -1263,112 +1299,59 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, char *name, uint32_t f
         for (; lod < mesh->m_lodMax; lod++) {
             auto src = mesh->m_vbs + lod;
             auto &dest = newMesh->m_vbs[lod];
-            auto itemsMem = (src->m_pEndItem - src->m_pItems) * sizeof(GDE_SkinVB_Item);
+            auto cnt = src->m_pEndItem - src->m_pItems;
+            auto itemsMem = cnt * sizeof(GDE_SkinVB_Item);
             dest.m_pItems = (GDE_SkinVB_Item *)malloc(itemsMem);
             if (dest.m_pItems) {
                 LogTyped(LOG_ERROR, "Out of memory! (STRIP)");
                 return -1;
             }
             memmove(dest.m_pItems, src->m_pItems, itemsMem);
-#if 0 //TODO
-            m_field_10 = mesh->m_vbs[lod].m_field_10;
-            m_pItems = newMesh->m_vbs[lod].m_pItems;
-            v56 = (unsigned __int128)((mesh->m_vbs[lod].m_field_18 - (void *)m_field_10) * (__int128)0x2AAAAAAAAAAAAAABi64) >> 64;
-            v57 = m_field_10 - (_BYTE *)mesh->m_vbs[lod].m_field_8;
-            v58 = ((unsigned __int64)v56 >> 63) + (v56 >> 4);
-            v59 = &m_pItems[(LODWORD(mesh->m_vbs[lod].m_field_8) - LODWORD(mesh->m_vbs[lod].m_pItems)) / 96];
-            newMesh->m_vbs[lod].m_field_8 = v59;
-            v60 = &v59[(int)v57 / 96];
-            newMesh->m_vbs[lod].m_field_10 = v60;
-            newMesh->m_vbs[lod].m_pEndItem = &m_pItems[v52 / 0x60];
-            newMesh->m_vbs[lod].m_field_18 = &v60[(int)v58];
-            v61 = 0;
-            v62 = mesh->m_vbs[lod].m_pItems;
-            v63 = 0;
-            v64 = v62;
-            v97 = 0;
-            v95 = 0;
-            v98 = v62;
-            if (v62 != mesh->m_vbs[lod].m_pEndItem)
-            {
-                do
-                {
-                    v61 += v64->m_numVerts;
-                    v63 += v64->m_numIndices;
-                    ++v64;
-                } while (v64 != mesh->m_vbs[lod].m_pEndItem);
-                v97 = v61;
-                v95 = v63;
+            dest.m_field_8 = dest.m_pItems + (src->m_field_8 - src->m_pItems);
+            dest.m_field_10 = dest.m_pItems + (src->m_field_10 - src->m_pItems);
+            dest.m_field_18 = dest.m_pItems + (src->m_field_18 - src->m_pItems);
+            dest.m_pEndItem = dest.m_pItems + cnt;
+            int totalVerts = 0, totalIndices = 0;
+            auto curItem = src->m_pItems;
+            while (curItem != src->m_pEndItem) {
+                totalVerts += curItem->m_numVerts;
+                totalIndices += curItem->m_numIndices;
+                ++curItem;
             }
-            pVerts = (uint32_t *)malloc(44i64 * v61);
-            m_pItems->m_pVerts = pVerts;
-            if (!pVerts)
-            {
+            dest.m_pItems->m_pVerts = (uint32_t *)malloc(44 * totalVerts);
+            if (!dest.m_pItems->m_pVerts) {
                 LogTyped(LOG_ERROR, "Out of memory! (pVerts)");
                 return -1;
             }
-            pIndices = (uint32_t *)malloc(2i64 * v95);
-            m_pItems->m_pIndices = pIndices;
-            if (!pIndices)
-            {
+            memmove(dest.m_pItems->m_pVerts, src->m_pItems->m_pVerts, 44 * totalVerts);
+            dest.m_pItems->m_pIndices = (uint16_t *)malloc(2 * totalIndices);
+            if (!dest.m_pItems->m_pIndices) {
                 LogTyped(LOG_ERROR, "Out of memory! (pIndices)");
                 return -1;
             }
-            v94 = 0;
-            v96 = 0;
-            m_pVerts = m_pItems->m_pVerts;
-            m_pEndItem = mesh->m_vbs[lod].m_pEndItem;
-            if (v62 != m_pEndItem)
-            {
-                v67 = pIndices;
-                p_m_numVerts = &m_pItems->m_numVerts;
-                v69 = (char *)&v62->gap2[2] + 1;
-                v70 = m_pItems->m_pVerts;
-                v71 = (char *)v98 - (char *)m_pItems;
-                do
-                {
-                    *(p_m_numVerts - 2) = *(_DWORD *)(v69 - 25);
-                    *p_m_numVerts = *(_DWORD *)(v69 - 17);
-                    *((_BYTE *)p_m_numVerts + 16) = *(v69 - 1);
-                    *(_OWORD *)((char *)p_m_numVerts + 17) = *(_OWORD *)v69;
-                    *(_OWORD *)((char *)p_m_numVerts + 33) = *((_OWORD *)v69 + 1);
-                    *(_OWORD *)((char *)p_m_numVerts + 49) = *((_OWORD *)v69 + 2);
-                    *((_BYTE *)p_m_numVerts + 65) = v69[48];
-                    *((_BYTE *)p_m_numVerts + 66) = v69[49];
-                    *((_BYTE *)p_m_numVerts + 67) = v69[50];
-                    *((_BYTE *)p_m_numVerts + 68) = v69[51];
-                    if (p_m_numVerts - 6 != (int *)m_pItems)
-                    {
-                        *((_QWORD *)p_m_numVerts - 3) = 0i64;
-                        *((_QWORD *)p_m_numVerts - 2) = 0i64;
-                        p_m_numVerts[1] = -1;
-                        *(p_m_numVerts - 1) = -1;
-                    }
-                    memmove(v70, *(const void **)(v69 - 33), 44i64 * *(unsigned int *)(v69 - 17));
-                    for (j = 0i64; (unsigned int)j < *(_DWORD *)(v69 - 25); v67 = (uint32_t *)((char *)v67 + 2))
-                    {
-                        v73 = *(_WORD *)(*(_QWORD *)((char *)p_m_numVerts + v71 - 24) + 2 * j) + v94;
-                        j = (unsigned int)(j + 1);
-                        *(_WORD *)v67 = v73;
-                    }
-                    p_m_numVerts[3] = v96;
-                    p_m_numVerts += 24;
-                    v74 = *(unsigned int *)(v69 - 17);
-                    v94 += v74;
-                    v75 = *(_DWORD *)(v69 - 25) + v96;
-                    v69 += 96;
-                    v96 = v75;
-                    v70 += 11 * v74;
-                } while ((GDE_SkinVB_Item *)((char *)p_m_numVerts + v71 - 24) != m_pEndItem);
+            memmove(dest.m_pItems->m_pIndices, src->m_pItems->m_pIndices, 2 * totalVerts);
+            curItem = src->m_pItems;
+            auto destItem = dest.m_pItems;
+            int runIndices = 0;
+            while (curItem != src->m_pEndItem) {
+                *destItem = *curItem;
+                if (curItem != src->m_pItems) {
+                    destItem->m_pIndices = nullptr;
+                    destItem->m_pVerts = nullptr;
+                    destItem->m_vbHandle = -1;
+                    destItem->m_ibHandle = -1;
+                }
+                destItem->m_runIndices = runIndices;
+                runIndices += curItem->m_numIndices;
+                curItem++;
+                destItem++;
             }
-            GFX_CreateVertexBuffer(&m_pItems->m_vbHandle, 44 * v97, m_pVerts);
-            GFX_CreateIndexBuffer((int *)&m_pItems->m_ibHandle, 2 * v95, m_pItems->m_pIndices);
-            free(m_pItems->m_pVerts);
-            m_pIndices = m_pItems->m_pIndices;
-            m_pItems->m_pVerts = 0i64;
-            free(m_pIndices);
-            dest.m_pIndices = nullptr;
-#endif
+            GFX_CreateVertexBuffer(&dest.m_pItems->m_vbHandle, 44 * totalVerts, dest.m_pItems->m_pVerts);
+            GFX_CreateIndexBuffer(&dest.m_pItems->m_ibHandle, 2 * totalIndices, dest.m_pItems->m_pIndices);
+            free(dest.m_pItems->m_pVerts);
+            dest.m_pItems->m_pVerts = nullptr;
+            free(dest.m_pItems->m_pIndices);
+            dest.m_pItems->m_pIndices = nullptr;
             auto srci = src->m_pItems;
             for (auto desti = dest.m_pItems; desti != src->m_pEndItem; ++desti, srci++) {
                 desti->m_vbHandle = srci->m_vbHandle;

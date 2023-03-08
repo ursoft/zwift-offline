@@ -1,7 +1,8 @@
 #pragma once
 inline bool g_UseHWInstancing;
-template <typename T, typename F> void ShiftPointer(T **dest, const F *offset) {
+template <typename T, typename F> T* ShiftPointer(T **dest, const F *offset) {
     *dest = (T *)((uint8_t *)offset + (intptr_t)*dest);
+    return *dest;
 }
 void LOADER_COLInit(uint32_t);
 void LOADER_CompressToFile(const char *, const char *, const char *);

@@ -1671,9 +1671,69 @@ int GFX_CreateShader(const GFX_CreateShaderParams &p) {
     else
         return -1;
 }
-int GFX_CreateAnimatedTextureFromTGAFiles(const char *name) {
-    //TODO
+int GFX_Internal_FindLoadedAnimatedTexture(const char *name) {
+    auto crc = SIG_CalcCaseSensitiveSignature(name);
+    if (g_nAnimatedTexturesLoaded > 0)
+        for (int i = 0; i < g_nAnimatedTexturesLoaded; i++)
+            if (g_AnimatedTextures[i].m_nameSCRC == crc)
+                return _countof(g_Textures) + i;
     return -1;
+}
+int GFX_Internal_LoadTextureFromTGAFile(const char *name, int handle);
+int GFX_CreateAnimatedTextureFromTGAFiles(const char *name) {
+    auto found = GFX_Internal_FindLoadedAnimatedTexture(name);
+    if (found != -1) {
+        if (found >= 0) {
+            LogDebug("========== FOUND CACHED ANIM TEXTURE (%s) ==========", name);
+            int idx = found - _countof(g_Textures);
+            if (g_AnimatedTextures[idx].m_framesCnt <= 0)
+                return found;
+            auto pFrameHandle = g_AnimatedTextures[idx].m_frameHandles;
+            for (int curFrame = 0; curFrame < g_AnimatedTextures[idx].m_framesCnt; ++curFrame) {
+                zassert(*pFrameHandle < _countof(g_Textures));
+                if (*pFrameHandle < _countof(g_Textures)) {
+                    if (!g_Textures[*pFrameHandle].InHardware())
+                        GFX_Internal_LoadTextureFromTGAFile(g_Textures[*pFrameHandle].m_name, *pFrameHandle);
+                }
+                ++pFrameHandle;
+            }
+            return found;
+        }
+        LogDebug("========== ANIM TEXTURE ERROR (%s) found 0 ==========");
+        return found;
+    }
+    if (g_nAnimatedTexturesLoaded >= _countof(g_AnimatedTextures) - 1) {
+        LogDebug("========== ANIM TEXTURE ERROR (%s) g_nAnimatedTexturesLoaded overflow ==========", name);
+        return found;
+    }
+    int newIdx = g_nAnimatedTexturesLoaded++;
+    auto &dest = g_AnimatedTextures[newIdx];
+    LogDebug("========== NEW ANIM TEXTURE %d (%s) ============", name);
+    dest.m_nameSCRC = SIG_CalcCaseSensitiveSignature(name);
+    auto pCurFrameHandle = dest.m_frameHandles;
+    int frameIdx = 0;
+    char buf[MAX_PATH];
+    while (1) {
+        sprintf_s(buf, "%s%02d.tga", name, frameIdx);
+        *pCurFrameHandle = GFX_CreateTextureFromTGAFile(buf, -1, false);
+        if (*pCurFrameHandle == -1)
+            break;
+        ++frameIdx;
+        ++pCurFrameHandle;
+        if (frameIdx >= _countof(dest.m_frameHandles)) {
+            frameIdx = dest.m_framesCnt;
+            break;
+        }
+    }
+    if (!frameIdx) {
+        --g_nAnimatedTexturesLoaded;
+        dest.m_nameSCRC = 0;
+        return -1;
+    }
+    dest.m_framesCnt = frameIdx;
+    dest.m_frameRate = 10.0;
+    dest.m_delay = (float)frameIdx / dest.m_frameRate;
+    return newIdx + _countof(g_Textures);
 }
 std::string FixAssetFilename(const char *name) {
     std::string ret(name), data("data/"), tgax(".tgax");
@@ -1898,8 +1958,13 @@ int GFX_CreateTextureFromTGAFile(const char *name, int handle, bool tryAnimated)
     }
     return ret;
 }
-void GFX_SetAnimatedTextureFramerate(int tex, float r) {
-    //TODO
+void GFX_SetAnimatedTextureFramerate(int handle, float frameRate) {
+    if (handle >= _countof(g_Textures) && handle < g_nAnimatedTexturesLoaded + _countof(g_Textures)) {
+        static_assert(sizeof(GFX_AnimatedTexture) == 260);
+        auto &t = g_AnimatedTextures[handle - _countof(g_Textures)];
+        t.m_frameRate = frameRate;
+        t.m_delay = t.m_framesCnt / frameRate;
+    }
 }
 const int OIF_CNT = 13;
 int gaGFXtoOGLaligns[OIF_CNT] = { 1, 4, 1, 4, 2, 8, 8, 8, 8, 0 };
@@ -2079,6 +2144,7 @@ void GFX_CreateIndexBuffer(int *dest, uint32_t size, void *data) {
     if (*dest != -1)
         g_VRAMBytes_VBO += size;
 }
+
 //Unit Tests
 TEST(SmokeTest, VertexArray) {
     for (int i = 0; i < _countof(g_vertexArray.fast64); i++) {
