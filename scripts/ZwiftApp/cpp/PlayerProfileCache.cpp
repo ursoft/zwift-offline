@@ -219,7 +219,7 @@ void CachedProfile::Serialize(std::stringstream &dest) const {
     PrivateAttributesHelper::Serialize(dest, m_trp_start);
     PrivateAttributesHelper::Serialize(dest, m_trp_end);
 }
-//void CachedProfile::Set(const CachedProfile *) {
+//void CachedProfile::Set(const CachedProfile &) {
     //TODO
 //}
 //void CachedProfile::Set(const std::string &str0, const std::string &str20, uint32_t id, uint64_t field_48, uint64_t field_50) {

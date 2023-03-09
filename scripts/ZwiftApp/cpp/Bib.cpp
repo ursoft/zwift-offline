@@ -9,9 +9,9 @@ uint32_t Bib::GetBibShader() {
 void Bib::GetDefaultInfo() {
     //TODO
 }
-void Bib::InitOnce(/*int, int, const CFont2D **/) {
+void Bib::InitOnce(/*int, int, const CFont2D &*/) {
     //TODO
 }
-void Bib::Set(uint32_t, const BibInfo *, ZSPORT, uint32_t) {
+void Bib::Set(uint32_t, const BibInfo &, ZSPORT, uint32_t) {
     //TODO
 }

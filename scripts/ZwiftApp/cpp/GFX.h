@@ -4,6 +4,7 @@ enum AssetCategory : uint32_t { AC_UNK, AC_1, AC_2, AC_CNT };
 enum GFX_FILL_MODE { GFM_POINT, GFM_LINE, GFM_FILL, GFM_FALSE };
 enum GFX_COMPARE_FUNC { GCF_NEVER, GCF_LESS, GCF_EQUAL, GCF_LEQUAL, GCF_GREATER, GCF_NOTEQUAL, GCF_GEQUAL, GCF_ALWAYS };
 enum GFX_StencilOp { GSO_FALSE_0, GSO_KEEP, GSO_REPLACE, GSO_INCR, GSO_INCR_WRAP, GSO_DECR, GSO_DECR_WRAP, GSO_INVERT, GSO_FALSE_8, GSO_FALSE_9 };
+enum GFX_MatrixType { GMT_0, GMT_1, GMT_2, GMT_CNT };
 struct GFX_InitializeParams {
     int WINWIDTH, WINHEIGHT;
     bool field_8, FullScreen, GlCoreProfile, HasPickingBuf;
@@ -13,6 +14,30 @@ struct GFX_InitializeParams {
     char *m_renderer;
     int64_t field_38, field_3C;
     int16_t field_44;
+};
+struct GFX_MatrixContextItem {
+    MATRIX44 *m_pStack;
+    MATRIX44 *m_matrix;
+    int m_mxCount;
+    char gap[4];
+};
+struct GFX_MatrixContext { //0x170 (368) bytes
+    GFX_MatrixType m_curMode;
+    char field_4;
+    bool m_field_5;
+    char field_6;
+    char field_7;
+    MATRIX44 *m_matrix;
+    GFX_MatrixContextItem m_stacks[GMT_CNT];
+    uint64_t m_modesUpdCnt[GMT_CNT];
+    uint64_t field_70;
+    uint64_t m_applUpdatesCnt;
+    MATRIX44 m_field_80;
+    MATRIX44 m_field_C0;
+    MATRIX44 m_field_100;
+    VEC4 m_field_140;
+    uint64_t m_modesUpdCntCache[GMT_CNT];
+    char gap[8];
 };
 enum PerformanceGroup { GPG_BASIC, GPG_MEDIUM, GPG_HIGH, GPG_ULTRA, GPG_CNT };
 enum GFX_PerformanceFlags { GPF_SMALL_PERF_PENALTY = 1, GPF_BIG_PERF_PENALTY = 2, GPF_NO_AUTO_BRIGHT = 0x4'000'000, GPF_NO_COLOR_CLAMP = 0x8'000'000 };
@@ -26,7 +51,7 @@ struct GFX_RegisterRef {
     uint16_t m_offset, m_cnt;
 };
 enum GFX_SHADER_REGISTERS { GSR_0 = 0, GSR_CNT = 29 };
-enum GFX_SHADER_MATRICES { GSM_0 = 0, GSM_CNT = 9 };
+enum GFX_SHADER_MATRICES { GSM_0 = 0, GSM_1, GSM_2, GSM_3, GSM_CNT = 9 };
 struct GFX_BlendIdxs {
     bool operator == (const GFX_BlendIdxs &peer) { return m_modeIdx == peer.m_modeIdx && m_sFactorIdx == peer.m_sFactorIdx && m_dFactorIdx == peer.m_dFactorIdx; }
     bool operator != (const GFX_BlendIdxs &peer) { return !(*this == peer); }
@@ -57,16 +82,16 @@ struct GFX_StateBlock {
     GFX_StencilOp m_sopsFail, m_sopdpFail, m_sopdpPass;
     bool m_enableStensilTest;
     void UnbindBuffer(int);
-    void SetUniform(const GFX_RegisterRef &, const VEC4 *, uint16_t, uint64_t);
+    void SetUniform(const GFX_RegisterRef &, const VEC4 &, uint16_t, uint64_t);
     void SetUniform(const GFX_RegisterRef &, const VEC4 &, uint64_t);
-    void SetUniform(const GFX_RegisterRef &ref, const VEC2 *vec, uint16_t sz, uint64_t skipTag);
-    void SetUniform(const GFX_RegisterRef &, const MATRIX44 *, uint16_t, uint64_t);
+    void SetUniform(const GFX_RegisterRef &ref, const VEC2 &vec, uint16_t sz, uint64_t skipTag);
+    void SetUniform(const GFX_RegisterRef &, const MATRIX44 &, uint16_t, uint64_t);
     void SetUniform(const GFX_RegisterRef &, const MATRIX44 &, uint64_t);
     void Reset();
     bool Realize();
-    static const VEC4 *GetUniform(GFX_SHADER_REGISTERS);
-    static const VEC4 *GetUniform(GFX_SHADER_MATRICES);
-    static const VEC4 *GetUniform(const GFX_RegisterRef &);
+    static const VEC4 &GetUniform(GFX_SHADER_REGISTERS);
+    static const VEC4 &GetUniform(GFX_SHADER_MATRICES);
+    static const VEC4 &GetUniform(const GFX_RegisterRef &);
     void BindVertexBuffer(int);
     enum tagCounts { TCN_SCENE = 46, TCN_OBJECT = 12, TCN_DRAW = 197, TCN_USER = 256 };
     static inline VEC4 bufferRegs_Scene[TCN_SCENE], bufferRegs_Object[TCN_OBJECT], bufferRegs_Draw[TCN_DRAW], bufferRegs_User[TCN_USER];
@@ -185,7 +210,9 @@ inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_
 inline uint8_t g_colorChannels, g_gfxShaderModel;
 inline GfxCaps g_gfxCaps;
 inline const GfxCaps &GFX_GetCaps() { return g_gfxCaps; }
-inline float g_floatConsts12[12] = { 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.0 };
+enum GFX_CoordinateMap { GCM_CNT = 12 };
+inline float g_coordMap[GCM_CNT] = { 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.0 };
+inline float *GFX_GetCoordinateMap() { return g_coordMap; }
 inline GFX_StateBlock g_GFX_CurrentStates[8 /*TODO: maybe more*/], *g_pGFX_CurrentStates = g_GFX_CurrentStates;
 inline int g_DrawNoTextureShaderHandle = -1, g_DrawTexturedShaderHandle = -1, g_DrawTexturedSimpleShaderHandle = -1, g_DrawTexturedGammaCorrectShaderHandle = -1;
 inline void *g_DrawBuffers[2];
@@ -205,6 +232,9 @@ inline int g_ButterflyTexture, g_RedButterflyTexture, g_MonarchTexture, g_Firefl
     g_InnsbruckConcreteTexture, g_ParisConcreteTexture, g_DefaultNormalMapNoGloss, g_RoadDustTexture, g_GravelDustTexture, g_SandTexture, g_SandNormalTexture,
     g_RockTexture, g_FranceRockTexture, g_FranceRockNTexture, g_RockNormalTexture, g_ShowroomFloorTexture, g_HeadlightTexture, g_VignetteTexture;
 inline uint32_t g_TextureTimeThisFrame, g_MeshTimeThisFrame;
+inline GFX_MatrixContext g_MatrixContext;
+inline VEC4 g_frustumPlanes[6];
+extern const MATRIX44 g_mxIdentity;
 
 void GFX_DestroyVertex(int *pIdx);
 int GFX_CreateVertex(GFX_CreateVertexParams *parms);
@@ -267,3 +297,22 @@ void GFXAPI_DestroyBuffer(GLuint handle);
 void GFX_DestroyBuffer(int *pHandle);
 void GFX_CreateVertexBuffer(int *pHandleDest, uint32_t size, void *data);
 void GFX_CreateIndexBuffer(int *dest, uint32_t size, void *buf);
+void GFX_LoadIdentity();
+void GFX_RotateX(float angle);
+void GFX_RotateY(float angle);
+void GFX_RotateZ(float angle);
+void GFX_LoadMatrix(const MATRIX44 &src);
+void GFX_LookAt(VEC3 *a1, VEC3 *a2, VEC3 *a3);
+void GFX_Scale(const VEC3 &mult);
+VEC4 *GFX_GetFrustumPlanes();
+void GFX_MulMatrix(const MATRIX44 &m);
+void GFX_MatrixMode(GFX_MatrixType newMode);
+bool GFX_GetFlipRenderTexture();
+void GFX_SetFlipRenderTexture(bool newVal);
+void GFX_PopMatrix();
+void GFX_PushMatrix();
+void GFX_UploadShaderMAT4(GFX_SHADER_MATRICES where, const MATRIX44 &what, uint64_t counter);
+void GFX_TransposeMatrix44(MATRIX44 *dest, const MATRIX44 &src);
+void GFX_UpdateFrustum(const MATRIX44 &a1, const MATRIX44 &a2);
+void GFX_StoreMatrix(const MATRIX44 &src);
+void GFX_UploadShaderVEC4(GFX_SHADER_REGISTERS, const VEC4 &, uint64_t);

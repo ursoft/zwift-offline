@@ -18,7 +18,7 @@ bool GFX_Initialize() {
     gip.WINHEIGHT = WINHEIGHT;
     gip.FullScreen = g_bFullScreen;
     gip.PREFERRED_MONITOR = PREFERRED_MONITOR;
-    //TODO gip.field_38 = qword_7FF71A893CD0;
+    //OMIT (0 in debugger) gip.field_38 = qword_7FF71A893CD0;
     gip.VSYNC = VSYNC;
     gip.GPU = GPU;
     gip.GFX_TIER = GFX_TIER;
@@ -50,8 +50,8 @@ void MainWndCorrectByFrame(GLFWmonitor *m) {
     int xpos, ypos, left, top, right, bottom;// , w, h;
     if (m) {
         glfwGetMonitorPos(m, &xpos, &ypos);
-        //glfwGetVideoMode(m1);
-        //glfwGetWindowSize(g_mainWindow, &w, &h);
+        //OMIT glfwGetVideoMode(m);
+        //OMIT glfwGetWindowSize(g_mainWindow, &w, &h);
         glfwGetWindowFrameSize(g_mainWindow, &left, &top, &right, &bottom);
         glfwSetWindowPos(g_mainWindow, xpos + left, ypos + top);
     }
@@ -803,8 +803,489 @@ int GFXAPI_CreateShaderFromFile(int handle, const GFX_CreateShaderParams &s) {
     }
     return result;
 }
+void GFX_MatrixMode(GFX_MatrixType newMode) {
+    g_MatrixContext.m_stacks[g_MatrixContext.m_curMode].m_matrix = g_MatrixContext.m_matrix;
+    g_MatrixContext.m_curMode = newMode;
+    g_MatrixContext.m_matrix = g_MatrixContext.m_stacks[newMode].m_matrix;
+}
+void GFX_LoadMatrix(const MATRIX44 &src) {
+    *g_MatrixContext.m_matrix = src;
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
+}
+void GFX_LookAt(VEC3 *a1, VEC3 *a2, VEC3 *a3) {
+    MATRIX44 m2;
+    VEC3 dest, src;
+    src.m_data[0] = a1->m_data[0] - a2->m_data[0];
+    src.m_data[1] = a1->m_data[1] - a2->m_data[1];
+    src.m_data[2] = a1->m_data[2] - a2->m_data[2];
+    GDE_NormalizeVector(&dest, &src);
+    float v8_x = dest.m_data[0], v8_y = dest.m_data[1];
+    float v8_z = dest.m_data[2];
+    src.m_data[0] = a3->m_data[1] * v8_z - a3->m_data[2] * v8_y;
+    src.m_data[1] = a3->m_data[2] * v8_x - a3->m_data[0] * v8_z;
+    src.m_data[2] = a3->m_data[0] * v8_y - a3->m_data[1] * v8_x;
+    GDE_NormalizeVector(&dest, &src);
+    m2.m_data[0].m_data[3] = 0.0f;
+    m2.m_data[1].m_data[3] = 0.0f;
+    m2.m_data[2].m_data[3] = 0.0f;
+    m2.m_data[0].m_data[0] = dest.m_data[0];
+    m2.m_data[1].m_data[1] = v8_z * dest.m_data[0] - dest.m_data[2] * v8_x;
+    m2.m_data[0].m_data[1] = dest.m_data[2] * v8_y - v8_z * dest.m_data[1];
+    m2.m_data[2].m_data[1] = dest.m_data[1] * v8_x - v8_y * dest.m_data[0];
+    m2.m_data[0].m_data[2] = v8_x;
+    m2.m_data[1].m_data[0] = dest.m_data[1];
+    m2.m_data[1].m_data[2] = v8_y;
+    m2.m_data[2].m_data[0] = dest.m_data[2];
+    m2.m_data[2].m_data[2] = v8_z;
+    m2.m_data[3].m_data[1] = -m2.m_data[1].m_data[1] * a1->m_data[1] - m2.m_data[0].m_data[1] * a1->m_data[0] - m2.m_data[2].m_data[1] * a1->m_data[2];
+    m2.m_data[3].m_data[0] = -a1->m_data[1] * dest.m_data[1] - a1->m_data[0] * dest.m_data[0] - a1->m_data[2] * dest.m_data[2];
+    m2.m_data[3].m_data[3] = 1.0f;
+    m2.m_data[3].m_data[2] = -a1->m_data[1] * v8_y - a1->m_data[0] * v8_x - a1->m_data[2] * v8_z;
+    MAT_MulMat(g_MatrixContext.m_matrix, *g_MatrixContext.m_matrix, m2);
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
+}
+void GFX_RotateY(float angle) {
+    auto mx = (float *)g_MatrixContext.m_matrix->m_data;
+    auto ca = cosf(angle), sa = sinf(angle), v5 = mx[2], v6 = mx[10], v7 = mx[3], v8 = mx[11], v9 = *mx, v10 = mx[8], v11 = mx[9], v12 = mx[1] * ca, v13 = mx[1] * sa;
+    *mx = (*mx * ca) - (v10 * sa);
+    mx[1] = v12 - (v11 * sa);
+    mx[10] = (v6 * ca) + (v5 * sa);
+    mx[11] = (v8 * ca) + (v7 * sa);
+    mx[3] = (v7 * ca) - (v8 * sa);
+    mx[2] = (v5 * ca) - (v6 * sa);
+    mx[8] = (v10 * ca) + (v9 * sa);
+    mx[9] = (v11 * ca) + v13;
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
+}
+void GFX_RotateX(float angle) {
+    auto mx = (float *)g_MatrixContext.m_matrix->m_data;
+    auto ca = cosf(angle), sa = sinf(angle), v5 = mx[5], v6 = mx[6], v7 = mx[10], v8 = mx[7], v9 = mx[11], v10 = mx[8], v11 = mx[9], v12 = mx[4] * sa;
+    mx[4] = (v10 * sa) + (mx[4] * ca);
+    mx[5] = (v11 * sa) + (v5 * ca);
+    mx[10] = (v7 * ca) - (v6 * sa);
+    mx[11] = (v9 * ca) - (v8 * sa);
+    mx[7] = (v9 * sa) + (v8 * ca);
+    mx[6] = (v7 * sa) + (v6 * ca);
+    mx[8] = (v10 * ca) - v12;
+    mx[9] = (v11 * ca) - (v5 * sa);
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
+}
+void GFX_RotateZ(float angle) {
+    auto mx = *(float **)g_MatrixContext.m_matrix;
+    auto ca = cosf(angle), sa = sinf(angle), v5 = mx[1], v6 = mx[2], v7 = mx[6], v8 = mx[3], v9 = mx[7], v10 = mx[4], v11 = mx[5], v12 = mx[0] * sa;
+    mx[0] = (v10 * sa) + (mx[0] * ca);
+    mx[1] = (v11 * sa) + (v5 * ca);
+    mx[6] = (v7 * ca) - (v6 * sa);
+    mx[7] = (v9 * ca) - (v8 * sa);
+    mx[3] = (v9 * sa) + (v8 * ca);
+    mx[2] = (v7 * sa) + (v6 * ca);
+    mx[4] = (v10 * ca) - v12;
+    mx[5] = (v11 * ca) - (v5 * sa);
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
+}
+VEC4 *GFX_GetFrustumPlanes() { return g_frustumPlanes; }
+void GFX_Scale(const VEC3 &m) {
+    auto mat = *(float **)g_MatrixContext.m_matrix;
+    mat[0] *= m.m_data[0];
+    mat[1] *= m.m_data[0];
+    mat[2] *= m.m_data[0];
+    mat[3] *= m.m_data[0];
+    mat[4] *= m.m_data[1];
+    mat[5] *= m.m_data[1];
+    mat[6] *= m.m_data[1];
+    mat[7] *= m.m_data[1];
+    mat[8] *= m.m_data[2];
+    mat[9] *= m.m_data[2];
+    mat[10] *= m.m_data[2];
+    mat[11] *= m.m_data[2];
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
+}
+void GFX_MulMatrixInternal(float *dest, const float *mul) {
+    auto v2 = *mul, v3 = mul[2], v33 = dest[1], v35 = dest[2], v31 = dest[3], v34 = dest[6], v30 = dest[7], v36 = dest[10], v32 = dest[11], v4 = mul[1], v5 = mul[3], v6 = *dest, v7 = dest[4], v8 = dest[8], v9 = dest[5], v10 = dest[9], v11 = *mul * v33;
+    *dest = (((v4 * v7) + (*mul * *dest)) + (v3 * v8)) + (v5 * dest[12]);
+    auto v12 = v4 * v34;
+    dest[1] = (((v4 * v9) + v11) + (v3 * v10)) + (v5 * dest[13]);
+    auto v13 = (((v4 * v30) + (v2 * v31)) + (v3 * v32)) + (v5 * dest[15]);
+    dest[2] = ((v12 + (v2 * v35)) + (v3 * v36)) + (v5 * dest[14]);
+    dest[3] = v13;
+    auto v14 = mul[5], v15 = mul[4], v16 = mul[6], v17 = mul[7];
+    dest[4] = (((v14 * v7) + (v15 * v6)) + (v16 * v8)) + (v17 * dest[12]);
+    auto v18 = v14 * v34;
+    dest[5] = (((v14 * v9) + (v15 * v33)) + (v16 * v10)) + (v17 * dest[13]);
+    auto v19 = (((v14 * v30) + (v15 * v31)) + (v16 * v32)) + (v17 * dest[15]);
+    dest[6] = ((v18 + (v15 * v35)) + (v16 * v36)) + (v17 * dest[14]);
+    dest[7] = v19;
+    auto v20 = mul[8], v21 = mul[9], v22 = mul[10], v23 = mul[11];
+    dest[8] = (((v21 * v7) + (v20 * v6)) + (v22 * v8)) + (v23 * dest[12]);
+    dest[9] = (((v21 * v9) + (v20 * v33)) + (v22 * v10)) + (v23 * dest[13]);
+    dest[10] = (((v21 * v34) + (v20 * v35)) + (v22 * v36)) + (v23 * dest[14]);
+    dest[11] = (((v21 * v30) + (v20 * v31)) + (v22 * v32)) + (v23 * dest[15]);
+    auto v24 = mul[13], v25 = mul[15], v26 = mul[12], v27 = mul[14];
+    dest[12] = (((v24 * v7) + (v26 * v6)) + (v27 * v8)) + (v25 * dest[12]);
+    dest[13] = (((v24 * v9) + (v26 * v33)) + (v27 * v10)) + (v25 * dest[13]);
+    dest[14] = (((v24 * v34) + (v26 * v35)) + (v27 * v36)) + (v25 * dest[14]);
+    dest[15] = (((v24 * v30) + (v26 * v31)) + (v27 * v32)) + (v25 * dest[15]);
+}
+void GFX_MulMatrix(const MATRIX44 &m) {
+    GFX_MulMatrixInternal(g_MatrixContext.m_matrix->m_data->m_data, m.m_data->m_data);
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
+}
+void GFX_PopMatrix() {
+    auto pPrev = g_MatrixContext.m_matrix - 1;
+    zassert(pPrev >= g_MatrixContext.m_stacks[g_MatrixContext.m_curMode].m_pStack);
+    g_MatrixContext.m_matrix = pPrev;
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
+}
+void GFX_PushMatrix() {
+    auto pNext = g_MatrixContext.m_matrix + 1;
+    zassert(pNext < g_MatrixContext.m_stacks[g_MatrixContext.m_curMode].m_pStack + g_MatrixContext.m_stacks[g_MatrixContext.m_curMode].m_mxCount);
+    memmove(pNext, g_MatrixContext.m_matrix, sizeof(MATRIX44));
+    g_MatrixContext.m_matrix = pNext;
+}
+bool g_bFlipRenderTexture;
+bool GFX_GetFlipRenderTexture() { return g_bFlipRenderTexture; }
+void GFX_SetFlipRenderTexture(bool newVal) { g_bFlipRenderTexture = newVal; }
+void GFX_LoadIdentity() {
+    memmove(g_MatrixContext.m_matrix->m_data, &g_mxIdentity, sizeof(g_mxIdentity));
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
+}
+void doMatrixStackInitialize(GFX_MatrixType mode, unsigned int mxCount) {
+    auto &dest = g_MatrixContext.m_stacks[mode];
+    dest.m_pStack = dest.m_matrix = (MATRIX44 *)_aligned_malloc(sizeof(MATRIX44) * mxCount, 16);
+    dest.m_mxCount = mxCount;
+    memmove(dest.m_matrix, &g_mxIdentity, sizeof(g_mxIdentity));
+    ++g_MatrixContext.m_modesUpdCnt[mode];
+}
+void GFX_UploadShaderMAT4(GFX_SHADER_MATRICES where, const MATRIX44 &what, uint64_t counter) {
+    g_pGFX_CurrentStates->SetUniform(GFX_StateBlock::s_matrixRefs[where], what, counter);
+    if (g_pCurrentShader) {
+        auto loc = g_pCurrentShader->m_matLocations[where];
+        if (loc >= 0)
+            glUniformMatrix4fv(loc, 1, 0, what.m_data->m_data);
+    }
+}
+const MATRIX44 g_mxIdentity{ {
+    {{1.0f, 0.0f, 0.0f, 0.0f}},
+    {{0.0f, 1.0f, 0.0f, 0.0f}},
+    {{0.0f, 0.0f, 1.0f, 0.0f}},
+    {{0.0f, 0.0f, 0.0f, 1.0f}}
+} };
+void GFX_UpdateFrustum(const MATRIX44 &a1, const MATRIX44 &a2) {
+    __m128 v2{};
+    __m128 v3{};
+    __m128 v4{};
+    __m128 v5{};
+    __m128 v6{};
+    float v7 = 0;
+    float v8 = 0;
+    float v9 = 0;
+    float v10 = 0;
+    float v11 = 0;
+    float v12 = 0;
+    float v13 = 0;
+    float v14 = 0;
+    float v15 = 0;
+    float v16 = 0;
+    float v17 = 0;
+    float v18 = 0;
+    float v19 = 0;
+    float v20 = 0;
+    float v21 = 0;
+    float v22 = 0;
+    float v23 = 0;
+    float v24 = 0;
+    float v25 = 0;
+    float v26 = 0;
+    float v27 = 0;
+    float v28 = 0;
+    float v29 = 0;
+    float v30 = 0;
+    float v31 = 0;
+    float v32 = 0;
+    float v33 = 0;
+    float v34 = 0;
+    float v35 = 0;
+    float v36 = 0;
+    float v37 = 0;
+    float v38 = 0;
+    float v39 = 0;
+    float v40 = 0;
+    float v41 = 0;
+    float v42 = 0;
+    float v43 = 0;
+    float v44 = 0;
+    float v45 = 0;
+    float v46 = 0;
+    float v47 = 0;
+    float v48 = 0;
+    float v49 = 0;
+    float v50 = 0;
+    float v51 = 0;
+    float v52 = 0;
+    float v53 = 0;
+    float v54 = 0;
+    float v55 = 0;
+    float v56 = 0;
+    float v57 = 0;
+    float v58 = 0;
+    float v59 = 0;
+    float v60 = 0;
+    float v61 = 0;
+    float v62 = 0;
+    float v63 = 0;
+    __m128 v64{};
+    float v65 = 0;
+    __m128 v66{};
+    __m128 v67{};
+    float v68 = 0;
+    float v69 = 0;
+    float v70 = 0;
+    float v71 = 0;
+    float v72 = 0;
+
+#if 0 //TODO
+    v2 = *(__m128 *)a1->m_data;
+    v3 = *(__m128 *)a2->m_data;
+    v4 = *(__m128 *) & a2->m_data[4];
+    v64 = *(__m128 *) & a1->m_data[4];
+    v5 = *(__m128 *) & a2->m_data[8];
+    v66 = *(__m128 *) & a1->m_data[8];
+    v6 = *(__m128 *) & a2->m_data[12];
+    v67 = *(__m128 *) & a1->m_data[12];
+    v7 = _mm_shuffle_ps(v2, v2, 85).m128_f32[0];
+    v8 = _mm_shuffle_ps(v2, v2, 170).m128_f32[0];
+    v9 = _mm_shuffle_ps(v2, v2, 255).m128_f32[0];
+    v10 = _mm_shuffle_ps(v5, v5, 85).m128_f32[0];
+    v11 = _mm_shuffle_ps(v5, v5, 170).m128_f32[0];
+    v12 = _mm_shuffle_ps(v4, v4, 85).m128_f32[0];
+    v13 = _mm_shuffle_ps(v6, v6, 85).m128_f32[0];
+    v14 = _mm_shuffle_ps(v3, v3, 170).m128_f32[0];
+    v15 = _mm_shuffle_ps(v4, v4, 170).m128_f32[0];
+    v68 = _mm_shuffle_ps(v3, v3, 85).m128_f32[0];
+    v62 = (((COERCE_FLOAT(*(_OWORD *)a1->m_data) * COERCE_FLOAT(*(_OWORD *)a2->m_data)) + (v4.m128_f32[0] * v7)) + (v5.m128_f32[0] * v8)) + (v6.m128_f32[0] * v9);
+    v63 = (((v68 * COERCE_FLOAT(*(_OWORD *)a1->m_data)) + (v12 * v7)) + (v10 * v8)) + (v13 * v9);
+    v16 = _mm_shuffle_ps(v6, v6, 170).m128_f32[0];
+    v60 = (((v14 * COERCE_FLOAT(*(_OWORD *)a1->m_data)) + (v15 * v7)) + (v11 * v8)) + (v16 * v9);
+    v6.m128_f32[0] = _mm_shuffle_ps(v3, v3, 255).m128_f32[0];
+    v5.m128_f32[0] = _mm_shuffle_ps(v4, v4, 255).m128_f32[0];
+    v4.m128_f32[0] = _mm_shuffle_ps(*(__m128 *) & a2->m_data[8], *(__m128 *) & a2->m_data[8], 255).m128_f32[0];
+    v3.m128_f32[0] = _mm_shuffle_ps(*(__m128 *) & a2->m_data[12], *(__m128 *) & a2->m_data[12], 255).m128_f32[0];
+    v59 = (((v6.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)a1->m_data)) + (v5.m128_f32[0] * v7)) + (v4.m128_f32[0] * v8)) + (v3.m128_f32[0] * v9);
+    v2.m128_f32[0] = _mm_shuffle_ps(v64, v64, 85).m128_f32[0];
+    v17 = _mm_shuffle_ps(v64, v64, 170).m128_f32[0];
+    v18 = _mm_shuffle_ps(v64, v64, 255).m128_f32[0];
+    v71 = (((v64.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)a2->m_data)) + (v2.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)&a2->m_data[4]))) + (v17 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[8]))) + (v18 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[12]));
+    v57 = (((v64.m128_f32[0] * v68) + (v2.m128_f32[0] * v12)) + (v17 * v10)) + (v18 * v13);
+    v69 = (((v64.m128_f32[0] * v14) + (v2.m128_f32[0] * v15)) + (v17 * v11)) + (v18 * v16);
+    v65 = (((v64.m128_f32[0] * v6.m128_f32[0]) + (v2.m128_f32[0] * v5.m128_f32[0])) + (v17 * v4.m128_f32[0])) + (v18 * v3.m128_f32[0]);
+    v2.m128_f32[0] = _mm_shuffle_ps(v66, v66, 85).m128_f32[0];
+    v19 = _mm_shuffle_ps(v66, v66, 170).m128_f32[0];
+    v20 = _mm_shuffle_ps(v66, v66, 255).m128_f32[0];
+    v72 = (((v66.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)a2->m_data)) + (v2.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)&a2->m_data[4]))) + (v19 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[8]))) + (v20 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[12]));
+    v58 = (((v66.m128_f32[0] * v68) + (v2.m128_f32[0] * v12)) + (v19 * v10)) + (v20 * v13);
+    v70 = (((v66.m128_f32[0] * v14) + (v2.m128_f32[0] * v15)) + (v19 * v11)) + (v20 * v16);
+    v21 = (((v66.m128_f32[0] * v6.m128_f32[0]) + (v2.m128_f32[0] * v5.m128_f32[0])) + (v19 * v4.m128_f32[0])) + (v20 * v3.m128_f32[0]);
+    v2.m128_f32[0] = _mm_shuffle_ps(v67, v67, 85).m128_f32[0];
+    v22 = _mm_shuffle_ps(v67, v67, 170).m128_f32[0];
+    v23 = _mm_shuffle_ps(v67, v67, 255).m128_f32[0];
+    v56 = (((v67.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)a2->m_data)) + (v2.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)&a2->m_data[4]))) + (v22 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[8]))) + (v23 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[12]));
+    v61 = (((v67.m128_f32[0] * v68) + (v2.m128_f32[0] * v12)) + (v22 * v10)) + (v23 * v13);
+    v24 = (((v67.m128_f32[0] * v14) + (v2.m128_f32[0] * v15)) + (v22 * v11)) + (v23 * v16);
+    v25 = (((v67.m128_f32[0] * v6.m128_f32[0]) + (v2.m128_f32[0] * v5.m128_f32[0])) + (v22 * v4.m128_f32[0])) + (v23 * v3.m128_f32[0]);
+#endif
+    if (*((uint32_t *)GFX_GetCoordinateMap() + 10) == 1) {
+        v26 = v60;
+        v27 = v24;
+        v28 = v69;
+        v29 = v60;
+        v30 = v70;
+        v31 = v65;
+        v32 = v21;
+        v33 = v59;
+        g_frustumPlanes[0].m_data[0] = v60;
+        g_frustumPlanes[0].m_data[3] = v24;
+    } else {
+        v33 = v59;
+        v26 = v60;
+        v27 = v25 + v24;
+        v31 = v65;
+        v32 = v21;
+        v29 = v59 + v60;
+        g_frustumPlanes[0].m_data[3] = v25 + v24;
+        v28 = v65 + v69;
+        v30 = v21 + v70;
+        g_frustumPlanes[0].m_data[0] = v59 + v60;
+    }
+    g_frustumPlanes[0].m_data[2] = v30;
+    g_frustumPlanes[0].m_data[1] = v28;
+    v34 = sqrtf(((v28 * v28) + (v29 * v29)) + (v30 * v30));
+    if (v34 != 0.0) {
+        g_frustumPlanes[0].m_data[0] = v29 / v34;
+        g_frustumPlanes[0].m_data[1] = v28 / v34;
+        g_frustumPlanes[0].m_data[2] = v30 / v34;
+        g_frustumPlanes[0].m_data[3] = v27 / v34;
+    }
+    v35 = v33 - v62;
+    v36 = v31 - v71;
+    v37 = v32 - v72;
+    g_frustumPlanes[1].m_data[0] = v33 - v62;
+    g_frustumPlanes[1].m_data[1] = v31 - v71;
+    g_frustumPlanes[1].m_data[2] = v32 - v72;
+    g_frustumPlanes[1].m_data[3] = v25 - v56;
+    v38 = sqrtf(((v36 * v36) + (v35 * v35)) + (v37 * v37));
+    if (v38 != 0.0) {
+        g_frustumPlanes[1].m_data[0] = v35 / v38;
+        g_frustumPlanes[1].m_data[1] = v36 / v38;
+        g_frustumPlanes[1].m_data[2] = v37 / v38;
+        g_frustumPlanes[1].m_data[3] = (v25 - v56) / v38;
+    }
+    v39 = v33 + v62;
+    v40 = v31 + v71;
+    v41 = v32 + v72;
+    g_frustumPlanes[2].m_data[0] = v33 + v62;
+    g_frustumPlanes[2].m_data[1] = v31 + v71;
+    g_frustumPlanes[2].m_data[2] = v32 + v72;
+    g_frustumPlanes[2].m_data[3] = v25 + v56;
+    v42 = sqrtf(((v40 * v40) + (v39 * v39)) + (v41 * v41));
+    if (v42 != 0.0) {
+        g_frustumPlanes[2].m_data[0] = v39 / v42;
+        g_frustumPlanes[2].m_data[1] = v40 / v42;
+        g_frustumPlanes[2].m_data[2] = v41 / v42;
+        g_frustumPlanes[2].m_data[3] = (v25 + v56) / v42;
+    }
+    v43 = v33 + v63;
+    v44 = v31 + v57;
+    v45 = v32 + v58;
+    g_frustumPlanes[3].m_data[0] = v33 + v63;
+    g_frustumPlanes[3].m_data[1] = v31 + v57;
+    g_frustumPlanes[3].m_data[2] = v32 + v58;
+    g_frustumPlanes[3].m_data[3] = v25 + v61;
+    v46 = sqrtf(((v44 * v44) + (v43 * v43)) + (v45 * v45));
+    if (v46 != 0.0) {
+        g_frustumPlanes[3].m_data[0] = v43 / v46;
+        g_frustumPlanes[3].m_data[1] = v44 / v46;
+        g_frustumPlanes[3].m_data[2] = v45 / v46;
+        g_frustumPlanes[3].m_data[3] = (v25 + v61) / v46;
+    }
+    v47 = v33 - v63;
+    v48 = v31 - v57;
+    v49 = v32 - v58;
+    g_frustumPlanes[4].m_data[0] = v33 - v63;
+    g_frustumPlanes[4].m_data[1] = v31 - v57;
+    g_frustumPlanes[4].m_data[2] = v32 - v58;
+    g_frustumPlanes[4].m_data[3] = v25 - v61;
+    v50 = sqrtf(((v48 * v48) + (v47 * v47)) + (v49 * v49));
+    if (v50 != 0.0) {
+        g_frustumPlanes[4].m_data[0] = v47 / v50;
+        g_frustumPlanes[4].m_data[1] = v48 / v50;
+        g_frustumPlanes[4].m_data[2] = v49 / v50;
+        g_frustumPlanes[4].m_data[3] = (v25 - v61) / v50;
+    }
+    v51 = v31 - v69;
+    v52 = v32 - v70;
+    v53 = v25 - v24;
+    v54 = v33 - v26;
+    g_frustumPlanes[5].m_data[1] = v51;
+    g_frustumPlanes[5].m_data[0] = v54;
+    g_frustumPlanes[5].m_data[2] = v52;
+    g_frustumPlanes[5].m_data[3] = v53;
+    v55 = sqrtf(((v51 * v51) + (v54 * v54)) + (v52 * v52));
+    if (v55 != 0.0) {
+        g_frustumPlanes[5].m_data[0] = v54 / v55;
+        g_frustumPlanes[5].m_data[1] = v51 / v55;
+        g_frustumPlanes[5].m_data[2] = v52 / v55;
+        g_frustumPlanes[5].m_data[3] = v53 / v55;
+    }
+}
+void GFX_TransposeMatrix44(MATRIX44 *dest, const MATRIX44 &src) {
+    auto v2 = src.m_data[4], v3 = src.m_data[8], v4 = src.m_data[9], v5 = src.m_data[12], v6 = src.m_data[13], v7 = src.m_data[14];
+    auto v8 = src.m_data[0], v9 = src.m_data[5], v10 = src.m_data[10], v11 = src.m_data[15], v12 = src.m_data[1], v13 = src.m_data[6], v14 = src.m_data[11], v15 = src.m_data[2], v16 = src.m_data[7];
+    dest->m_data[12] = src.m_data[3]; dest->m_data[4] = v12; dest->m_data[5] = v9; dest->m_data[8] = v15; dest->m_data[9] = v13; dest->m_data[10] = v10; dest->m_data[13] = v16; dest->m_data[14] = v14;
+    dest->m_data[15] = v11; dest->m_data[1] = v2; dest->m_data[2] = v3; dest->m_data[3] = v5; dest->m_data[6] = v4; dest->m_data[7] = v6; dest->m_data[11] = v7; dest->m_data[0] = v8;
+}
+void GFX_StoreMatrix(const MATRIX44 &src) { memmove(g_MatrixContext.m_matrix->m_data->m_data, &src, sizeof(MATRIX44)); }
+MATRIX44 mx_1 = g_mxIdentity, mx_2 = g_mxIdentity, mx_3 = g_mxIdentity, mx_4 = g_mxIdentity, *g_pLastMx = &mx_1;
+void GFX_UpdateMatrices(bool force) {
+    static_assert(sizeof(GFX_MatrixContext) == 0x170);
+    auto updMask = (g_MatrixContext.m_modesUpdCntCache[2] != g_MatrixContext.m_modesUpdCnt[2] ? 4 : 0)
+                 | (g_MatrixContext.m_modesUpdCntCache[1] != g_MatrixContext.m_modesUpdCnt[1] ? 2 : 0) 
+                 | (g_MatrixContext.m_modesUpdCntCache[0] != g_MatrixContext.m_modesUpdCnt[0]);
+    MATRIX44 *_matrix, tmp;
+    if (updMask) {
+        auto modeSaved = g_MatrixContext.m_curMode;
+        if (updMask & 1) {
+            g_MatrixContext.m_stacks[g_MatrixContext.m_curMode].m_matrix = g_MatrixContext.m_matrix;
+            _matrix = g_MatrixContext.m_stacks[0].m_matrix;
+            g_MatrixContext.m_matrix = g_MatrixContext.m_stacks[0].m_matrix;
+            g_pLastMx = g_MatrixContext.m_stacks[0].m_matrix;
+            g_MatrixContext.m_curMode = GMT_0;
+            memmove(&g_MatrixContext.m_field_100, _matrix, sizeof(MATRIX44));
+            g_MatrixContext.m_modesUpdCntCache[0] = g_MatrixContext.m_modesUpdCnt[0];
+        } else {
+            _matrix = g_MatrixContext.m_matrix;
+        }
+        if (updMask & 2) {
+            g_MatrixContext.m_stacks[g_MatrixContext.m_curMode].m_matrix = _matrix;
+            _matrix = g_MatrixContext.m_stacks[1].m_matrix;
+            g_MatrixContext.m_matrix = g_MatrixContext.m_stacks[1].m_matrix;
+            g_MatrixContext.m_curMode = GMT_1;
+            GFX_StoreMatrix(mx_3);
+            g_MatrixContext.m_modesUpdCntCache[1] = g_MatrixContext.m_modesUpdCnt[1];
+        }
+        if (updMask & 4) {
+            g_MatrixContext.m_stacks[g_MatrixContext.m_curMode].m_matrix = _matrix;
+            _matrix = g_MatrixContext.m_stacks[2].m_matrix;
+            g_MatrixContext.m_matrix = g_MatrixContext.m_stacks[2].m_matrix;
+            g_MatrixContext.m_curMode = GMT_2;
+            GFX_StoreMatrix(mx_4);
+            g_MatrixContext.m_modesUpdCntCache[2] = g_MatrixContext.m_modesUpdCnt[2];
+        }
+        memmove(&tmp, &g_mxIdentity, sizeof(g_mxIdentity));
+        if (g_MatrixContext.m_field_5 && mx_4.m_data[0].m_data[0] > 0.0)
+            mx_4.m_data[0].m_data[0] = -mx_4.m_data[0].m_data[0];
+        MAT_MulMat(&tmp, *g_pLastMx, mx_3);
+        MAT_MulMat(&mx_2, tmp, mx_4);
+        if (updMask & 6)
+            MAT_MulMat(&mx_1, mx_3, mx_4);
+        g_MatrixContext.m_stacks[g_MatrixContext.m_curMode].m_matrix = _matrix;
+        g_MatrixContext.m_curMode = modeSaved;
+        g_MatrixContext.m_matrix = g_MatrixContext.m_stacks[modeSaved].m_matrix;
+        if (updMask & 6)
+            GFX_UpdateFrustum(mx_3, mx_4);
+        if (updMask & 2) {
+            memmove(&tmp, &g_mxIdentity, sizeof(g_mxIdentity));
+            GFX_TransposeMatrix44(&tmp, mx_3);
+            MAT_MulVecXYZW(&g_MatrixContext.m_field_140, VEC4{ -mx_3.m_data[3].m_data[0], -mx_3.m_data[3].m_data[1], -mx_3.m_data[3].m_data[2], 0 }, tmp);
+        }
+        ++g_MatrixContext.m_applUpdatesCnt;
+        g_MatrixContext.m_field_80 = mx_2;
+    }
+    if ((updMask & 1) || force)
+        GFX_UploadShaderMAT4(GSM_0, *g_pLastMx, g_MatrixContext.m_modesUpdCnt[0]);
+    if ((updMask & 4) || force)
+        GFX_UploadShaderMAT4(GSM_3, mx_4, g_MatrixContext.m_modesUpdCnt[2]);
+    if ((updMask & 2) || force) {
+        GFX_UploadShaderVEC4(GSR_0, g_MatrixContext.m_field_140, g_MatrixContext.m_modesUpdCnt[1]);
+        GFX_UploadShaderMAT4(GSM_2, mx_3, g_MatrixContext.m_modesUpdCnt[1]);
+    }
+    if (updMask || force)
+        GFX_UploadShaderMAT4(GSM_1, mx_2, g_MatrixContext.m_applUpdatesCnt);
+}
+void GFX_UploadShaderVEC4(GFX_SHADER_REGISTERS a1, const VEC4 &a2, uint64_t a3) {
+    g_pGFX_CurrentStates->SetUniform(GFX_StateBlock::s_registerRefs[a1], a2, a3);
+    if (g_pCurrentShader) {
+        auto v4 = g_pCurrentShader->m_locations[a1];
+        if (v4 >= 0)
+            glUniform4fv(v4, 1, g_pGFX_CurrentStates->GetUniform(a1).m_data);
+    }
+}
 void GFX_MatrixStackInitialize() {
-    //TODO
+    doMatrixStackInitialize(GMT_0, 8);
+    doMatrixStackInitialize(GMT_1, 8);
+    doMatrixStackInitialize(GMT_2, 8);
+    g_MatrixContext.m_field_5 = false;
+    g_MatrixContext.m_curMode = GMT_0;
+    g_MatrixContext.m_matrix = g_MatrixContext.m_stacks[0].m_matrix;
 }
 bool GFX_Initialize3DTVSpecs(float, float) {
     //TODO
@@ -1335,7 +1816,7 @@ void GFXAPI_ReUploadShaderCache() {
         for (auto loc : g_pCurrentShader->m_locations) {
             if (loc >= 0 && (i < 27 || extra)) {
                 auto uniform = GFX_StateBlock::GetUniform((GFX_SHADER_REGISTERS)i);
-                glUniform4fv(loc, GFX_StateBlock::s_registerRefs[i].m_cnt, uniform->m_data);
+                glUniform4fv(loc, GFX_StateBlock::s_registerRefs[i].m_cnt, uniform.m_data);
             }
             i++;
         }
@@ -1343,7 +1824,7 @@ void GFXAPI_ReUploadShaderCache() {
         for (auto mloc : g_pCurrentShader->m_matLocations) {
             if (mloc >= 0) {
                 auto uniform = GFX_StateBlock::GetUniform((GFX_SHADER_MATRICES)i);
-                glUniformMatrix4fv(mloc, 1, 0, uniform->m_data);
+                glUniformMatrix4fv(mloc, 1, 0, uniform.m_data);
             }
             i++;
         }
@@ -1351,7 +1832,7 @@ void GFXAPI_ReUploadShaderCache() {
         if (mlocEx >= 0) {
             const auto &ref = GFX_StateBlock::s_matrixArrayRefs[g_pGFX_CurrentStates->m_field_C8];
             auto uniform = GFX_StateBlock::GetUniform(ref);
-            glUniformMatrix4fv(mlocEx, ref.m_cnt, 0, uniform->m_data);
+            glUniformMatrix4fv(mlocEx, ref.m_cnt, 0, uniform.m_data);
         }
     }
 }
@@ -1386,12 +1867,13 @@ void GFXAPI_DestroyBuffer(GLuint handle) {
     g_pGFX_CurrentStates->UnbindBuffer(handle);
     glDeleteBuffers(1, &handle);
 }
-void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const VEC4 *vec, uint16_t sz, uint64_t skipTag) { //SetUniformVEC4_a, SetUniformVEC4_a2
+void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const VEC4 &vec, uint16_t sz, uint64_t skipTag) { //SetUniformVEC4_a, SetUniformVEC4_a2
     auto &u = GFX_StateBlock::uniformRegs[(int)ref.m_ty];
     if (skipTag && skipTag == u.m_pTags[ref.m_offset])
         return;
-    for (uint16_t i = 0; i < sz; i++, vec++) {
-        u.m_pRegs[i + ref.m_offset] = *vec;
+    const VEC4 *pVec = &vec;
+    for (uint16_t i = 0; i < sz; i++, pVec++) {
+        u.m_pRegs[i + ref.m_offset] = *pVec;
         u.m_pTags[i + ref.m_offset] = 0;
     }
     if (ref.m_offset < u.m_offset)
@@ -1412,14 +1894,15 @@ void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const VEC4 &vec, uin
         u.m_size = ref.m_offset + 1;
     m_hasRegTypes |= (1ull << (int)ref.m_ty);
 }
-void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const VEC2 *vec, uint16_t sz, uint64_t skipTag) { //SetUniformVEC2_a
+void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const VEC2 &vec, uint16_t sz, uint64_t skipTag) { //SetUniformVEC2_a
     auto &u = GFX_StateBlock::uniformRegs[(int)ref.m_ty];
     if (skipTag && skipTag == u.m_pTags[ref.m_offset])
         return;
-    for (uint16_t i = 0; i < sz; i++, vec++) {
+    const VEC2 *pVec = &vec;
+    for (uint16_t i = 0; i < sz; i++, pVec++) {
         auto &dest = u.m_pRegs[i + ref.m_offset];
-        dest.m_data[0] = vec->m_data[0];
-        dest.m_data[1] = vec->m_data[1];
+        dest.m_data[0] = pVec->m_data[0];
+        dest.m_data[1] = pVec->m_data[1];
         dest.m_data[2] = dest.m_data[3] = 0.0f;
         u.m_pTags[i + ref.m_offset] = 0;
     }
@@ -1429,13 +1912,13 @@ void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const VEC2 *vec, uin
         u.m_size = ref.m_offset + sz;
     m_hasRegTypes |= (1ull << (int)ref.m_ty);
 }
-void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const MATRIX44 *m, uint16_t sz, uint64_t skipTag) {
+void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const MATRIX44 &m, uint16_t sz, uint64_t skipTag) {
     auto &u = GFX_StateBlock::uniformRegs[(int)ref.m_ty];
     if (skipTag && skipTag == u.m_pTags[ref.m_offset])
         return;
-    for (uint16_t i = 0; i < sz; i++, m++) {
+    for (auto i = 0; i < sz; i++) {
         for (auto j = 0; j < 4; j++) {
-            u.m_pRegs[4 * j + i + ref.m_offset] = m->m_data[j];
+            u.m_pRegs->m_data[4 * j + i + ref.m_offset] = m.m_data[i].m_data[j];
             u.m_pTags[4 * j + i + ref.m_offset] = 0;
         }
     }
@@ -1589,14 +2072,14 @@ bool GFX_StateBlock::Realize() {
 }
 const uint32_t g_GFX_ShaderModelValues[/*20*/] = {0, 120, 140, 300, 430, 10, 11, 12, 20, 21, 22, 23, 50, 51, 60, 64, 200, 310, 320, 0};
 uint32_t GFX_ShaderModelValue(int idx) { return g_GFX_ShaderModelValues[idx]; }
-const VEC4 *GFX_StateBlock::GetUniform(GFX_SHADER_REGISTERS reg) {
-    return &GFX_StateBlock::uniformRegs[(int)s_registerRefs[reg].m_ty].m_pRegs[s_registerRefs[reg].m_offset];
+const VEC4 &GFX_StateBlock::GetUniform(GFX_SHADER_REGISTERS reg) {
+    return GFX_StateBlock::uniformRegs[(int)s_registerRefs[reg].m_ty].m_pRegs[s_registerRefs[reg].m_offset];
 }
-const VEC4 *GFX_StateBlock::GetUniform(GFX_SHADER_MATRICES mat) {
-    return &GFX_StateBlock::uniformRegs[(int)s_matrixRefs[mat].m_ty].m_pRegs[s_matrixRefs[mat].m_offset];
+const VEC4 &GFX_StateBlock::GetUniform(GFX_SHADER_MATRICES mat) {
+    return GFX_StateBlock::uniformRegs[(int)s_matrixRefs[mat].m_ty].m_pRegs[s_matrixRefs[mat].m_offset];
 }
-const VEC4 *GFX_StateBlock::GetUniform(const GFX_RegisterRef &ref) {
-    return &GFX_StateBlock::uniformRegs[(int)ref.m_ty].m_pRegs[ref.m_offset];
+const VEC4 &GFX_StateBlock::GetUniform(const GFX_RegisterRef &ref) {
+    return GFX_StateBlock::uniformRegs[(int)ref.m_ty].m_pRegs[ref.m_offset];
 }
 void GFX_StateBlock::BindVertexBuffer(int arrBuf) {
     if (m_arrBuf != arrBuf) {

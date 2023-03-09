@@ -135,7 +135,7 @@ void GAME_StartRideTutorial();
 //void GAME_StartWorkout(Workout *);
 //void GAME_StartupGroupWorkout(Workout *, float);
 void GAME_SwitchLevel(int);
-//void GAME_TakeScreenshot(const GAME_Screenshot *, ScreenshotContent);
+//void GAME_TakeScreenshot(const GAME_Screenshot &, ScreenshotContent);
 void GAME_TakeScreenshotThisFrame();
 void GAME_UnloadLevel(int);
 //void GAME_Update(zwift::context::UpdateContext &, float)

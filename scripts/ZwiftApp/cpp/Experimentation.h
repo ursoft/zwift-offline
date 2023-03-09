@@ -130,7 +130,7 @@ public:
     static void Shutdown() { g_FeatureManager.reset(); }
 
     void AddFeature(ZFeature *) { /*TODO*/ }
-    void Find(const ZFeature *, std::vector<ZFeature *> &) { /*TODO*/ }
+    void Find(const ZFeature &, std::vector<ZFeature *> &) { /*TODO*/ }
     void LoadConfig() { /*TODO*/ }
     void ReloadConfigIfChanged() { /*TODO*/ }
     void Update(float) { /*TODO*/ }

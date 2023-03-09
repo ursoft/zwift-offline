@@ -7,7 +7,7 @@ public:
     void Clear();
     void Parse(std::stringstream &);
     void Serialize(std::stringstream &) const;
-    //void Set(const CachedProfile *);
+    //void Set(const CachedProfile &);
     //void Set(const std::string &, const std::string &, uint32_t, uint64_t, uint64_t);
 };
 class PlayerProfileCache : public EventObject { //72 bytes
