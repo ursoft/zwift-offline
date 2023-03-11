@@ -442,13 +442,18 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
             static_assert(sizeof(GDE_Mesh_VERT_BUFi) == 80);
             auto &meshItem = mesh->m_data[mi];
             auto &newMeshItem = newMesh->m_data[mi];
-            auto subItemArSize = sizeof(GDE_MeshSubItem) * ((meshItem.m_subItemEndPtr - meshItem.m_subItemBegPtr) / sizeof(GDE_MeshSubItem));
+            auto subItemArSize = (meshItem.m_subItemEndPtr - meshItem.m_subItemBegPtr) * sizeof(GDE_MeshSubItem);
             auto newMeshSubItems = (GDE_MeshSubItem *)malloc(subItemArSize);
             memmove(newMeshSubItems, (char *)file + (uint64_t)meshItem.m_subItemBegPtr, subItemArSize);
-            newMeshItem = meshItem; //QUEST: already copied?
+            //newMeshItem = meshItem; //OMIT: already copied!
             newMeshItem.m_vbHandle = newMeshItem.m_field_4 = -1;
+            auto off = (char *)newMeshSubItems - (char *)newMeshItem.m_subItemBegPtr;
             newMeshItem.m_subItemBegPtr = newMeshSubItems;
             newMeshItem.m_instancesCount = checkedInstCnt;
+            ShiftPointer(&newMeshItem.m_field_10, off);
+            ShiftPointer(&newMeshItem.m_field_18, off);
+            ShiftPointer(&newMeshItem.m_field_20, off);
+            ShiftPointer(&newMeshItem.m_subItemEndPtr, off);
             auto itemKind = meshItem.m_itemKind;
             auto numVerts = meshItem.m_numVerts;
             GDE_MeshItemData0 *p0;
@@ -548,8 +553,8 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
                 newMeshItem.m_vbHandle = -1;
             }
             int stripIdx = 0;
-            auto curSubItem = meshItem.m_subItemBegPtr;
-            while (curSubItem != meshItem.m_subItemEndPtr) {
+            auto curSubItem = newMeshItem.m_subItemBegPtr;
+            while (curSubItem != newMeshItem.m_subItemEndPtr) {
                 ShiftPointer(&curSubItem->m_pIndices, file);
                 uint32_t ibSize = ((curSubItem->m_numIndices <= 0xFFFF) ? 2 : 4) * curSubItem->m_numIndices;
                 auto pIndices = (uint8_t *)malloc(ibSize);

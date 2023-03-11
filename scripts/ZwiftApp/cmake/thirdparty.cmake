@@ -55,6 +55,7 @@ find_package(ICU REQUIRED COMPONENTS uc dt in io)
 find_package(jsoncpp CONFIG REQUIRED) #./vcpkg install jsoncpp:x64-windows-static --editable
 find_package(GTest CONFIG REQUIRED)
 find_package(GLEW REQUIRED)
+find_package(unofficial-libsquish CONFIG REQUIRED)
 
 add_library(decNumber STATIC
 #  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decimal64.h

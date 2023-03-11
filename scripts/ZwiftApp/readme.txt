@@ -16,6 +16,10 @@ C:\>main.exe
 Hello World!
 C:\>ZwiftApp\build.cmd
 
+vcpkg notes
+===========
+Use flag --editable to debug in sources
+
 Static variables
 ================
 (NtCurrentTeb()->ThreadLocalStoragePointer + TlsIndex)[72]  - __declspec(thread) bool g_CurrentThreadNameSet

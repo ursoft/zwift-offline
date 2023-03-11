@@ -12,7 +12,7 @@ void MATERIAL_GetFlipbookTimeOffset() {
     //TODO
 }
 void MATERIAL_Init() {
-    //TODO
+    g_DefaultNormalMap = GFX_CreateTextureFromTGAFile("defaultNormalMap.tga", -1, true);
 }
 void MATERIAL_Reset() {
     //TODO

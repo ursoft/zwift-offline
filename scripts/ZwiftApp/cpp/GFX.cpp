@@ -971,128 +971,31 @@ const MATRIX44 g_mxIdentity{ {
     {{0.0f, 0.0f, 0.0f, 1.0f}}
 } };
 void GFX_UpdateFrustum(const MATRIX44 &a1, const MATRIX44 &a2) {
-    __m128 v2{};
-    __m128 v3{};
-    __m128 v4{};
-    __m128 v5{};
-    __m128 v6{};
-    float v7 = 0;
-    float v8 = 0;
-    float v9 = 0;
-    float v10 = 0;
-    float v11 = 0;
-    float v12 = 0;
-    float v13 = 0;
-    float v14 = 0;
-    float v15 = 0;
-    float v16 = 0;
-    float v17 = 0;
-    float v18 = 0;
-    float v19 = 0;
-    float v20 = 0;
-    float v21 = 0;
-    float v22 = 0;
-    float v23 = 0;
-    float v24 = 0;
-    float v25 = 0;
-    float v26 = 0;
-    float v27 = 0;
-    float v28 = 0;
-    float v29 = 0;
-    float v30 = 0;
-    float v31 = 0;
-    float v32 = 0;
-    float v33 = 0;
-    float v34 = 0;
-    float v35 = 0;
-    float v36 = 0;
-    float v37 = 0;
-    float v38 = 0;
-    float v39 = 0;
-    float v40 = 0;
-    float v41 = 0;
-    float v42 = 0;
-    float v43 = 0;
-    float v44 = 0;
-    float v45 = 0;
-    float v46 = 0;
-    float v47 = 0;
-    float v48 = 0;
-    float v49 = 0;
-    float v50 = 0;
-    float v51 = 0;
-    float v52 = 0;
-    float v53 = 0;
-    float v54 = 0;
-    float v55 = 0;
-    float v56 = 0;
-    float v57 = 0;
-    float v58 = 0;
-    float v59 = 0;
-    float v60 = 0;
-    float v61 = 0;
-    float v62 = 0;
-    float v63 = 0;
-    __m128 v64{};
-    float v65 = 0;
-    __m128 v66{};
-    __m128 v67{};
-    float v68 = 0;
-    float v69 = 0;
-    float v70 = 0;
-    float v71 = 0;
-    float v72 = 0;
-
-#if 0 //TODO
-    v2 = *(__m128 *)a1->m_data;
-    v3 = *(__m128 *)a2->m_data;
-    v4 = *(__m128 *) & a2->m_data[4];
-    v64 = *(__m128 *) & a1->m_data[4];
-    v5 = *(__m128 *) & a2->m_data[8];
-    v66 = *(__m128 *) & a1->m_data[8];
-    v6 = *(__m128 *) & a2->m_data[12];
-    v67 = *(__m128 *) & a1->m_data[12];
-    v7 = _mm_shuffle_ps(v2, v2, 85).m128_f32[0];
-    v8 = _mm_shuffle_ps(v2, v2, 170).m128_f32[0];
-    v9 = _mm_shuffle_ps(v2, v2, 255).m128_f32[0];
-    v10 = _mm_shuffle_ps(v5, v5, 85).m128_f32[0];
-    v11 = _mm_shuffle_ps(v5, v5, 170).m128_f32[0];
-    v12 = _mm_shuffle_ps(v4, v4, 85).m128_f32[0];
-    v13 = _mm_shuffle_ps(v6, v6, 85).m128_f32[0];
-    v14 = _mm_shuffle_ps(v3, v3, 170).m128_f32[0];
-    v15 = _mm_shuffle_ps(v4, v4, 170).m128_f32[0];
-    v68 = _mm_shuffle_ps(v3, v3, 85).m128_f32[0];
-    v62 = (((COERCE_FLOAT(*(_OWORD *)a1->m_data) * COERCE_FLOAT(*(_OWORD *)a2->m_data)) + (v4.m128_f32[0] * v7)) + (v5.m128_f32[0] * v8)) + (v6.m128_f32[0] * v9);
-    v63 = (((v68 * COERCE_FLOAT(*(_OWORD *)a1->m_data)) + (v12 * v7)) + (v10 * v8)) + (v13 * v9);
-    v16 = _mm_shuffle_ps(v6, v6, 170).m128_f32[0];
-    v60 = (((v14 * COERCE_FLOAT(*(_OWORD *)a1->m_data)) + (v15 * v7)) + (v11 * v8)) + (v16 * v9);
-    v6.m128_f32[0] = _mm_shuffle_ps(v3, v3, 255).m128_f32[0];
-    v5.m128_f32[0] = _mm_shuffle_ps(v4, v4, 255).m128_f32[0];
-    v4.m128_f32[0] = _mm_shuffle_ps(*(__m128 *) & a2->m_data[8], *(__m128 *) & a2->m_data[8], 255).m128_f32[0];
-    v3.m128_f32[0] = _mm_shuffle_ps(*(__m128 *) & a2->m_data[12], *(__m128 *) & a2->m_data[12], 255).m128_f32[0];
-    v59 = (((v6.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)a1->m_data)) + (v5.m128_f32[0] * v7)) + (v4.m128_f32[0] * v8)) + (v3.m128_f32[0] * v9);
-    v2.m128_f32[0] = _mm_shuffle_ps(v64, v64, 85).m128_f32[0];
-    v17 = _mm_shuffle_ps(v64, v64, 170).m128_f32[0];
-    v18 = _mm_shuffle_ps(v64, v64, 255).m128_f32[0];
-    v71 = (((v64.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)a2->m_data)) + (v2.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)&a2->m_data[4]))) + (v17 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[8]))) + (v18 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[12]));
-    v57 = (((v64.m128_f32[0] * v68) + (v2.m128_f32[0] * v12)) + (v17 * v10)) + (v18 * v13);
-    v69 = (((v64.m128_f32[0] * v14) + (v2.m128_f32[0] * v15)) + (v17 * v11)) + (v18 * v16);
-    v65 = (((v64.m128_f32[0] * v6.m128_f32[0]) + (v2.m128_f32[0] * v5.m128_f32[0])) + (v17 * v4.m128_f32[0])) + (v18 * v3.m128_f32[0]);
-    v2.m128_f32[0] = _mm_shuffle_ps(v66, v66, 85).m128_f32[0];
-    v19 = _mm_shuffle_ps(v66, v66, 170).m128_f32[0];
-    v20 = _mm_shuffle_ps(v66, v66, 255).m128_f32[0];
-    v72 = (((v66.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)a2->m_data)) + (v2.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)&a2->m_data[4]))) + (v19 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[8]))) + (v20 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[12]));
-    v58 = (((v66.m128_f32[0] * v68) + (v2.m128_f32[0] * v12)) + (v19 * v10)) + (v20 * v13);
-    v70 = (((v66.m128_f32[0] * v14) + (v2.m128_f32[0] * v15)) + (v19 * v11)) + (v20 * v16);
-    v21 = (((v66.m128_f32[0] * v6.m128_f32[0]) + (v2.m128_f32[0] * v5.m128_f32[0])) + (v19 * v4.m128_f32[0])) + (v20 * v3.m128_f32[0]);
-    v2.m128_f32[0] = _mm_shuffle_ps(v67, v67, 85).m128_f32[0];
-    v22 = _mm_shuffle_ps(v67, v67, 170).m128_f32[0];
-    v23 = _mm_shuffle_ps(v67, v67, 255).m128_f32[0];
-    v56 = (((v67.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)a2->m_data)) + (v2.m128_f32[0] * COERCE_FLOAT(*(_OWORD *)&a2->m_data[4]))) + (v22 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[8]))) + (v23 * COERCE_FLOAT(*(_OWORD *)&a2->m_data[12]));
-    v61 = (((v67.m128_f32[0] * v68) + (v2.m128_f32[0] * v12)) + (v22 * v10)) + (v23 * v13);
-    v24 = (((v67.m128_f32[0] * v14) + (v2.m128_f32[0] * v15)) + (v22 * v11)) + (v23 * v16);
-    v25 = (((v67.m128_f32[0] * v6.m128_f32[0]) + (v2.m128_f32[0] * v5.m128_f32[0])) + (v22 * v4.m128_f32[0])) + (v23 * v3.m128_f32[0]);
-#endif
+    auto v9 = a1.m_data[0].m_data[3];
+    auto v62 = a1.m_data[0].m_data[0] * a2.m_data[0].m_data[0] + a2.m_data[1].m_data[0] * a1.m_data[0].m_data[1] + a2.m_data[2].m_data[0] * a1.m_data[0].m_data[2] + a2.m_data[3].m_data[0] * v9;
+    auto v63 = a2.m_data[0].m_data[1] * a1.m_data[0].m_data[0] + a2.m_data[1].m_data[1] * a1.m_data[0].m_data[1] + a2.m_data[2].m_data[1] * a1.m_data[0].m_data[2] + a2.m_data[3].m_data[1] * v9;
+    auto v60 = a2.m_data[0].m_data[2] * a1.m_data[0].m_data[0] + a2.m_data[1].m_data[2] * a1.m_data[0].m_data[1] + a2.m_data[2].m_data[2] * a1.m_data[0].m_data[2] + a2.m_data[3].m_data[2] * v9;
+    auto v6 = a2.m_data[0].m_data[3];
+    auto v5 = a2.m_data[1].m_data[3];
+    auto v4 = a2.m_data[2].m_data[3];
+    auto v3 = a2.m_data[3].m_data[3];
+    auto v59 = v6 * a1.m_data[0].m_data[0] + v5 * a1.m_data[0].m_data[1] + v4 * a1.m_data[0].m_data[2] + v3 * v9;
+    auto v18 = a1.m_data[1].m_data[1];
+    auto v71 = a1.m_data[1].m_data[0] * a2.m_data[0].m_data[0] + a1.m_data[1].m_data[1] * a2.m_data[4].m_data[0] + a1.m_data[1].m_data[2] * a2.m_data[2].m_data[0] + v18 * a2.m_data[3].m_data[0];
+    auto v57 = a1.m_data[1].m_data[0] * a2.m_data[0].m_data[1] + a1.m_data[1].m_data[1] * a2.m_data[1].m_data[1] + a1.m_data[1].m_data[2] * a2.m_data[2].m_data[1] + v18 * a2.m_data[3].m_data[1];
+    auto v69 = a1.m_data[1].m_data[0] * a2.m_data[0].m_data[2] + a1.m_data[1].m_data[1] * a2.m_data[1].m_data[2] + a1.m_data[1].m_data[2] * a2.m_data[2].m_data[2] + v18 * a2.m_data[3].m_data[2];
+    auto v65 = a1.m_data[1].m_data[0] * v6 + a1.m_data[1].m_data[1] * v5 + a1.m_data[1].m_data[2] * v4 + v18 * v3;
+    auto v20 = a1.m_data[2].m_data[3];
+    auto v72 = a1.m_data[2].m_data[0] * a2.m_data[0].m_data[0] + a1.m_data[2].m_data[1] * a2.m_data[4].m_data[0] + a1.m_data[2].m_data[2] * a2.m_data[2].m_data[0] + v20 * a2.m_data[3].m_data[0];
+    auto v58 = a1.m_data[2].m_data[0] * a2.m_data[0].m_data[1] + a1.m_data[2].m_data[1] * a2.m_data[1].m_data[1] + a1.m_data[2].m_data[2] * a2.m_data[2].m_data[1] + v20 * a2.m_data[3].m_data[1];
+    auto v70 = a1.m_data[2].m_data[0] * a2.m_data[0].m_data[2] + a1.m_data[2].m_data[1] * a2.m_data[1].m_data[2] + a1.m_data[2].m_data[2] * a2.m_data[2].m_data[2] + v20 * a2.m_data[3].m_data[2];
+    auto v21 = a1.m_data[2].m_data[0] * v6 + a1.m_data[2].m_data[1] * v5 + a1.m_data[2].m_data[2] * v4 + v20 * v3;
+    auto v23 = a1.m_data[3].m_data[3];
+    auto v56 = a1.m_data[3].m_data[0] * a2.m_data[0].m_data[0] + a1.m_data[3].m_data[1] * a2.m_data[4].m_data[0] + a1.m_data[3].m_data[2] * a2.m_data[2].m_data[0] + v23 * a2.m_data[3].m_data[0];
+    auto v61 = a1.m_data[3].m_data[0] * a2.m_data[0].m_data[1] + a1.m_data[3].m_data[1] * a2.m_data[1].m_data[1] + a1.m_data[3].m_data[2] * a2.m_data[2].m_data[1] + v23 * a2.m_data[3].m_data[1];
+    auto v24 = a1.m_data[3].m_data[0] * a2.m_data[0].m_data[2] + a1.m_data[3].m_data[1] * a2.m_data[1].m_data[2] + a1.m_data[3].m_data[2] * a2.m_data[2].m_data[2] + v23 * a2.m_data[3].m_data[2];
+    auto v25 = a1.m_data[3].m_data[0] * v6 + a1.m_data[3].m_data[1] * v5 + a1.m_data[3].m_data[2] * v4 + v23 * v3;
+    float v26, v27, v28, v29, v30, v31, v32, v33;
     if (*((uint32_t *)GFX_GetCoordinateMap() + 10) == 1) {
         v26 = v60;
         v27 = v24;
@@ -1118,78 +1021,78 @@ void GFX_UpdateFrustum(const MATRIX44 &a1, const MATRIX44 &a2) {
     }
     g_frustumPlanes[0].m_data[2] = v30;
     g_frustumPlanes[0].m_data[1] = v28;
-    v34 = sqrtf(((v28 * v28) + (v29 * v29)) + (v30 * v30));
+    auto v34 = sqrtf(((v28 * v28) + (v29 * v29)) + (v30 * v30));
     if (v34 != 0.0) {
         g_frustumPlanes[0].m_data[0] = v29 / v34;
         g_frustumPlanes[0].m_data[1] = v28 / v34;
         g_frustumPlanes[0].m_data[2] = v30 / v34;
         g_frustumPlanes[0].m_data[3] = v27 / v34;
     }
-    v35 = v33 - v62;
-    v36 = v31 - v71;
-    v37 = v32 - v72;
+    auto v35 = v33 - v62;
+    auto v36 = v31 - v71;
+    auto v37 = v32 - v72;
     g_frustumPlanes[1].m_data[0] = v33 - v62;
     g_frustumPlanes[1].m_data[1] = v31 - v71;
     g_frustumPlanes[1].m_data[2] = v32 - v72;
     g_frustumPlanes[1].m_data[3] = v25 - v56;
-    v38 = sqrtf(((v36 * v36) + (v35 * v35)) + (v37 * v37));
+    auto v38 = sqrtf(((v36 * v36) + (v35 * v35)) + (v37 * v37));
     if (v38 != 0.0) {
         g_frustumPlanes[1].m_data[0] = v35 / v38;
         g_frustumPlanes[1].m_data[1] = v36 / v38;
         g_frustumPlanes[1].m_data[2] = v37 / v38;
         g_frustumPlanes[1].m_data[3] = (v25 - v56) / v38;
     }
-    v39 = v33 + v62;
-    v40 = v31 + v71;
-    v41 = v32 + v72;
+    auto v103 = v33 + v62;
+    auto v40 = v31 + v71;
+    auto v41 = v32 + v72;
     g_frustumPlanes[2].m_data[0] = v33 + v62;
     g_frustumPlanes[2].m_data[1] = v31 + v71;
     g_frustumPlanes[2].m_data[2] = v32 + v72;
     g_frustumPlanes[2].m_data[3] = v25 + v56;
-    v42 = sqrtf(((v40 * v40) + (v39 * v39)) + (v41 * v41));
+    auto v42 = sqrtf(((v40 * v40) + (v103 * v103)) + (v41 * v41));
     if (v42 != 0.0) {
-        g_frustumPlanes[2].m_data[0] = v39 / v42;
+        g_frustumPlanes[2].m_data[0] = v103 / v42;
         g_frustumPlanes[2].m_data[1] = v40 / v42;
         g_frustumPlanes[2].m_data[2] = v41 / v42;
         g_frustumPlanes[2].m_data[3] = (v25 + v56) / v42;
     }
-    v43 = v33 + v63;
-    v44 = v31 + v57;
-    v45 = v32 + v58;
+    auto v43 = v33 + v63;
+    auto v44 = v31 + v57;
+    auto v45 = v32 + v58;
     g_frustumPlanes[3].m_data[0] = v33 + v63;
     g_frustumPlanes[3].m_data[1] = v31 + v57;
     g_frustumPlanes[3].m_data[2] = v32 + v58;
     g_frustumPlanes[3].m_data[3] = v25 + v61;
-    v46 = sqrtf(((v44 * v44) + (v43 * v43)) + (v45 * v45));
+    auto v46 = sqrtf(((v44 * v44) + (v43 * v43)) + (v45 * v45));
     if (v46 != 0.0) {
         g_frustumPlanes[3].m_data[0] = v43 / v46;
         g_frustumPlanes[3].m_data[1] = v44 / v46;
         g_frustumPlanes[3].m_data[2] = v45 / v46;
         g_frustumPlanes[3].m_data[3] = (v25 + v61) / v46;
     }
-    v47 = v33 - v63;
-    v48 = v31 - v57;
-    v49 = v32 - v58;
+    auto v47 = v33 - v63;
+    auto v48 = v31 - v57;
+    auto v49 = v32 - v58;
     g_frustumPlanes[4].m_data[0] = v33 - v63;
     g_frustumPlanes[4].m_data[1] = v31 - v57;
     g_frustumPlanes[4].m_data[2] = v32 - v58;
     g_frustumPlanes[4].m_data[3] = v25 - v61;
-    v50 = sqrtf(((v48 * v48) + (v47 * v47)) + (v49 * v49));
+    auto v50 = sqrtf(((v48 * v48) + (v47 * v47)) + (v49 * v49));
     if (v50 != 0.0) {
         g_frustumPlanes[4].m_data[0] = v47 / v50;
         g_frustumPlanes[4].m_data[1] = v48 / v50;
         g_frustumPlanes[4].m_data[2] = v49 / v50;
         g_frustumPlanes[4].m_data[3] = (v25 - v61) / v50;
     }
-    v51 = v31 - v69;
-    v52 = v32 - v70;
-    v53 = v25 - v24;
-    v54 = v33 - v26;
+    auto v51 = v31 - v69;
+    auto v52 = v32 - v70;
+    auto v53 = v25 - v24;
+    auto v54 = v33 - v26;
     g_frustumPlanes[5].m_data[1] = v51;
     g_frustumPlanes[5].m_data[0] = v54;
     g_frustumPlanes[5].m_data[2] = v52;
     g_frustumPlanes[5].m_data[3] = v53;
-    v55 = sqrtf(((v51 * v51) + (v54 * v54)) + (v52 * v52));
+    auto v55 = sqrtf(((v51 * v51) + (v54 * v54)) + (v52 * v52));
     if (v55 != 0.0) {
         g_frustumPlanes[5].m_data[0] = v54 / v55;
         g_frustumPlanes[5].m_data[1] = v51 / v55;
@@ -2191,7 +2094,7 @@ int GFX_CreateAnimatedTextureFromTGAFiles(const char *name) {
     }
     int newIdx = g_nAnimatedTexturesLoaded++;
     auto &dest = g_AnimatedTextures[newIdx];
-    LogDebug("========== NEW ANIM TEXTURE %d (%s) ============", name);
+    LogDebug("========== NEW ANIM TEXTURE %d (%s) ============", newIdx, name);
     dest.m_nameSCRC = SIG_CalcCaseSensitiveSignature(name);
     auto pCurFrameHandle = dest.m_frameHandles;
     int frameIdx = 0;
@@ -2268,8 +2171,258 @@ int GFX_CreateTextureFromZTX(uint8_t *data, int size, int handle) {
     free(unpacked);
     return handleRet;
 }
+/*struct TGA_HEADER {
+    char  idlength;
+    char  colourmaptype;
+    char  datatypecode;
+    int16_t colourmaporigin;
+    int16_t colourmaplength;
+    char  colourmapdepth;
+    int16_t x_origin;
+    int16_t y_origin;
+    int16_t width;   //[w6]
+    int16_t height;  //[w7]
+    char  bitsperpixel;
+    char  imagedescriptor;
+};*/
 int GFX_CreateTextureFromTGA(uint8_t *data, int handle) {
-    //TODO
+    if (handle == -1) {
+        if (g_nTexturesLoaded >= _countof(g_Textures) - 1)
+            return -1;
+        handle = g_nTexturesLoaded;
+        ++g_nTexturesLoaded;
+    }
+    auto &curTex = g_Textures[handle];
+    curTex.m_loaded &= ~1;
+    curTex.m_texTime = g_TextureTimeThisFrame;
+    curTex.m_field_20_5 = 5;
+    auto srcPxd = data + 18; //TGA_HEADER size
+    int mipMapSizes[16];
+    uint8_t *mipMapBuffers[16];
+    uint8_t *mipMapAllocs[16];
+    uint8_t bgra[64];
+    if (data[2] < 8) { //datatypecode: uncompressed
+        auto tgaHeight = *((uint16_t *)data + 7), tgaWidth = *((uint16_t *)data + 6);
+        char fileName[MAX_PATH];
+        if (((data[16] - 8) & 0xEF) == 0) { //bitsperpixel: 24, not 32
+            auto new3pxd = (uint8_t *)malloc(3 * tgaWidth * tgaHeight);
+            curTex.m_bestWidth = tgaWidth;
+            curTex.m_bestHeight = tgaHeight;
+            curTex.m_align = 0;
+            if (data[16] == 8) { //grayscale?
+                data[16] = 24;
+                for (int y = 0; y < tgaHeight; ++y) {
+                    auto src = &srcPxd[tgaWidth * (tgaHeight - y - 1)];
+                    auto dst = &new3pxd[3 * y * tgaWidth];
+                    for (int x = 0; x < tgaWidth; ++x) {
+                        auto v79 = *src++;
+                        *dst++ = v79;
+                        *dst++ = v79;
+                        *dst++ = v79;
+                    }
+                }
+            } else {
+                for (int y = 0; y < tgaHeight; ++y) {
+                    auto dst = &new3pxd[3 * y * tgaWidth];
+                    auto src = &srcPxd[3 * tgaWidth * (tgaHeight - y - 1)];
+                    for (int x = 0; x < tgaWidth; ++x) {
+                        auto v85 = *src++;
+                        auto v87 = *src++;
+                        auto v88 = *src++;
+                        *dst++ = v88; //color conversion?
+                        *dst++ = v87;
+                        *dst++ = v85;
+                    }
+                }
+            }
+            curTex.m_field_36_3 = 3;
+            if (g_gfxCaps.texture_compression_s3tc /* && byte_7FF604466124 probably always true */) {
+                auto maxMipMapLevel = 0;
+                if (tgaWidth > 4) {
+                    do {
+                        if ((tgaHeight >> maxMipMapLevel) <= 4)
+                            break;
+                        ++maxMipMapLevel;
+                    } while ((tgaWidth >> maxMipMapLevel) > 4);
+                }
+                for (int m = 0; m < maxMipMapLevel; ++m) {
+                    auto h = tgaHeight >> m;
+                    auto w = tgaWidth >> m;
+                    if (m) {
+                        mipMapAllocs[m] = (uint8_t *)malloc(3 * w * h);
+                        auto pSrc = mipMapAllocs[m - 1];
+                        auto v97 = tgaWidth >> (m - 1);
+                        for(int v98 = 0; v98 < h; v98++) {
+                            if (w) {
+                                auto v99 = v97 * v98;
+                                auto v100 = v97 * (6 * v98 + 3);
+                                auto v101 = v98 * (w - v97);
+                                auto v102 = -v99;
+                                do {
+                                    auto v103 = 6 * v99;
+                                    auto v104 = v100 + 6 * (v99 + v102);
+                                    auto v105 = 3 * (v101 + v99);
+                                    auto v106 = (pSrc[v103 + 2] + pSrc[v103 + 5] + pSrc[v104 + 2] + pSrc[v104 + 5]) >> 2;
+                                    auto v107 = pSrc[v103] + pSrc[v104] + pSrc[v103 + 3] + pSrc[v104 + 3];
+                                    mipMapAllocs[m][v105 + 1] = (pSrc[v103 + 1] + pSrc[v103 + 4] + pSrc[v104 + 1] + pSrc[v104 + 4]) >> 2;
+                                    mipMapAllocs[m][v105 + 2] = v106;
+                                    mipMapAllocs[m][v105] = v107 >> 2;
+                                } while (++v99 + v102 < w);
+                            }
+                        }
+                    } else {
+                        mipMapAllocs[0] = new3pxd;
+                    }
+                    mipMapSizes[m] = 8 * ((w + 3) >> 2) * ((h + 3) >> 2);
+                    auto pBuffer = mipMapBuffers[m] = (uint8_t *)calloc(mipMapSizes[m], 1);
+                    for (int v108 = 0; v108 < (h >> 2); v108++) {
+                        for (int v112 = 0; v112 < (w >> 2); v112++) {
+                            auto v115 = 4 * v108;
+                            auto v116 = bgra;
+                            for (int i = 0; i < 4; i++) {
+                                for (int j = 0; j < 4; j++) {
+                                    auto v119 = 4 * v112 + w * v115;
+                                    v116[3] = 0xFF;
+                                    auto v120 = &mipMapAllocs[m][3 * v119++];
+                                    v116[0] = *v120;
+                                    v116[1] = v120[1];
+                                    v116[2] = v120[2];
+                                    v116 += 4;
+                                }
+                                ++v115;
+                            }
+                            squish::Decompress(bgra, pBuffer++, squish::kDxt1);
+                        }
+                    }
+                }
+                sprintf(fileName, "%sx", curTex.m_name);
+                auto f = fopen(fileName, "wb");
+                if (f) {
+                    fwrite(data, 18, 1, f);
+                    auto pBufferf = mipMapBuffers;
+                    auto pSizesf = mipMapSizes;
+                    for(int m = maxMipMapLevel; m > 0; m--)
+                        fwrite(*pBufferf++, *pSizesf++, 1, f);
+                    fclose(f);
+                }
+                GFXAPI_CreateTexture(handle, tgaWidth, tgaHeight, maxMipMapLevel);
+                auto pSizes = mipMapSizes;
+                auto pBuffer = mipMapBuffers;
+                auto pAlloc = mipMapAllocs;
+                for(int m = 0; m < maxMipMapLevel; m++) {
+                    GFXAPI_UpdateTexture(handle, m, tgaWidth >> m, tgaHeight >> m, 5, *pBuffer++, *pSizes);
+                    free(*pAlloc++);
+                    g_VRAMBytes_Textures += *pSizes++;
+                }
+                return handle;
+            }
+            GFXAPI_CreateTextureFromRGBA(handle, tgaWidth, tgaHeight, new3pxd, true);
+            free(new3pxd);
+        } else { //32bpp
+            auto new4pxd = (uint8_t *)malloc(4 * tgaWidth * tgaHeight);
+            curTex.m_bestWidth = tgaWidth;
+            curTex.m_bestHeight = tgaHeight;
+            curTex.m_align = 1;
+            for (int y = 0; y < tgaHeight; ++y) {
+                auto dst = &new4pxd[4 * y * tgaWidth];
+                for (int x = 0; x < tgaWidth; ++x) {
+                    auto m = &srcPxd[4 * tgaWidth * (tgaHeight - y - 1)];
+                    auto v19 = *m++;
+                    auto v21 = *m++;
+                    auto v22 = *m++;
+                    auto v23 = *m;
+                    *dst++ = v22; //color conversion?
+                    *dst++ = v21;
+                    *dst++ = v19;
+                    *dst++ = v23;
+                }
+            }
+            curTex.m_field_36_3 = 3;
+            if (g_gfxCaps.texture_compression_s3tc /* && byte_7FF604466125 probably always true */) {
+                auto maxMipMapLevel = 0;
+                if (tgaWidth > 4) {
+                    do {
+                        if ((tgaHeight >> maxMipMapLevel) <= 4)
+                            break;
+                        ++maxMipMapLevel;
+                    } while ((tgaWidth >> maxMipMapLevel) > 4);
+                }
+                for (int m = 0; m < maxMipMapLevel; ++m) {
+                    auto h = tgaHeight >> m;
+                    auto w = tgaWidth >> m;
+                    if (m) {
+                        mipMapAllocs[m] = (uint8_t *)malloc(4 * w * h);
+                        auto pSrc = mipMapAllocs[m - 1];
+                        auto v97 = tgaWidth >> (m - 1);
+                        for (int v98 = 0; v98 < h; v98++) {
+                            if (w) {
+                                auto v100 = v97 * (8 * v98 + 4);
+                                auto v99 = v97 * v98;
+                                auto v101 = v98 * (w - v97);
+                                auto v102 = -v99;
+                                do {
+                                    auto v103 = 8 * v99;
+                                    auto v104 = v100 + 8 * (v99 + v102);
+                                    auto v105 = 4 * (v101 + v99);
+                                    mipMapAllocs[m][v105] = (pSrc[v104] + pSrc[v103 + 4] + pSrc[v104 + 4] + pSrc[v103]) >> 2;
+                                    mipMapAllocs[m][v105 + 1] = (pSrc[v103 + 1] + pSrc[v103 + 5] + pSrc[v104 + 1] + pSrc[v104 + 5]) >> 2;
+                                    mipMapAllocs[m][v105 + 2] = (pSrc[v103 + 2] + pSrc[v103 + 6] + pSrc[v104 + 2] + pSrc[v104 + 6]) >> 2;
+                                    mipMapAllocs[m][v105 + 3] = (pSrc[v103 + 3] + pSrc[v103 + 7] + pSrc[v104 + 3] + pSrc[v104 + 7]) >> 2;
+                                } while (++v99 + v102 < w);
+                            }
+                        }
+                    } else {
+                        mipMapAllocs[0] = new4pxd;
+                    }
+                    mipMapSizes[m] = 16 * ((w + 3) >> 2) * ((h + 3) >> 2);
+                    auto pBuffer = mipMapBuffers[m] = (uint8_t *)calloc(mipMapSizes[m], 1);
+                    for (int v108 = 0; v108 < (h >> 2); v108++) {
+                        for (int v112 = 0; v112 < (w >> 2); v112++) {
+                            auto v115 = 4 * v108;
+                            auto v116 = bgra;
+                            for (int i = 0; i < 4; i++) {
+                                for (int j = 0; j < 4; j++) {
+                                    auto v119 = 4 * v112 + w * v115;
+                                    auto v120 = &mipMapAllocs[m][4 * v119++];
+                                    v116[0] = *v120;
+                                    v116[1] = v120[1];
+                                    v116[2] = v120[2];
+                                    v116[3] = v120[3];
+                                    v116 += 4;
+                                }
+                                ++v115;
+                            }
+                            squish::Decompress(bgra, pBuffer++, squish::kDxt5);
+                        }
+                    }
+                }
+                sprintf(fileName, "%sx", curTex.m_name);
+                auto f = fopen(fileName, "wb");
+                if (f) {
+                    fwrite(data, 18, 1, f);
+                    auto pBufferf = mipMapBuffers;
+                    auto pSizesf = mipMapSizes;
+                    for (int m = maxMipMapLevel; m > 0; m--)
+                        fwrite(*pBufferf++, *pSizesf++, 1, f);
+                    fclose(f);
+                }
+                GFXAPI_CreateTexture(handle, tgaWidth, tgaHeight, maxMipMapLevel);
+                auto pSizes = mipMapSizes;
+                auto pBuffer = mipMapBuffers;
+                auto pAlloc = mipMapAllocs;
+                for (int m = 0; m < maxMipMapLevel; m++) {
+                    GFXAPI_UpdateTexture(handle, m, tgaWidth >> m, tgaHeight >> m, 6, *pBuffer++, *pSizes);
+                    free(*pAlloc++);
+                    g_VRAMBytes_Textures += *pSizes++;
+                }
+                return handle;
+            }
+            GFXAPI_CreateTextureFromRGBA(handle, tgaWidth, tgaHeight, new4pxd,true);
+            free(new4pxd);
+        }
+        return handle;
+    }
+    zassert(0);
     return -1;
 }
 int GFX_Internal_LoadTextureFromTGAFile(const char *name, int handle) {

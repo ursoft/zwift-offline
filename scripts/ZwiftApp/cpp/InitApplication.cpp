@@ -183,7 +183,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     HoloReplayManager::Initialize(evSysInst, &g_UserConfigDoc);
     LanExerciseDeviceManager::Initialize();
     Log("Suceeded initializing graphics");
-    VRAM_CreateRenderTarget(&g_RTPreviewWindow, 2048, 1024, true, false, true);
+    VRAM_CreateRenderTarget(&g_RT_PreviewWindow, 2048, 1024, true, false, true);
     VRAM_EndRenderTo(0);
     MATERIAL_Init();
     GFX_DrawInit();
@@ -192,7 +192,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_ChatFontLW = &g_LargeFontW;
     g_GiantFontW.Load(FS_0);
     g_GiantFontW.SetScaleAndKerning(0.34108528, 0.93000001);
-    ZWIFT_UpdateLoading(nullptr, false);
+    ZWIFT_UpdateLoading(nullptr, false); //first screen
     switch (GFX_GetPerformanceGroup()) {
     case GPG_BASIC:
         Log("Using basic graphics profile");
@@ -634,8 +634,8 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     Log("[ZWIFT]: GFX_Tier %d", sceneParams.m_tier);
     g_GNSceneSystem.Initialize(sceneParams);
     g_ctMainView.Initialize(GNViewInitializeParams{ &g_GNSceneSystem, 240, 135, 0x100 });
-    g_ctReflView.Initialize(GNViewInitializeParams{ &g_GNSceneSystem, (gRT_ReflectionMap.m_dw_width + 7) >> 3, (gRT_ReflectionMap.m_dw_height + 7) >> 3, 0x80 });
-    g_PreviewView.Initialize(GNViewInitializeParams{ &g_GNSceneSystem, (g_RTPreviewWindow.m_dw_width + 15) >> 4, (g_RTPreviewWindow.m_dw_height + 15) >> 4, 0x04 });
+    g_ctReflView.Initialize(GNViewInitializeParams{ &g_GNSceneSystem, (g_RT_ReflectionMap.m_dw_width + 7) >> 3, (g_RT_ReflectionMap.m_dw_height + 7) >> 3, 0x80 });
+    g_PreviewView.Initialize(GNViewInitializeParams{ &g_GNSceneSystem, (g_RT_PreviewWindow.m_dw_width + 15) >> 4, (g_RT_PreviewWindow.m_dw_height + 15) >> 4, 0x04 });
     if (g_WorldShaderHandle == -1) {
         MessageBoxA(nullptr, "Could not find required data files. Closing application now.", "Error", MB_OK);
         ZwiftExit(0);

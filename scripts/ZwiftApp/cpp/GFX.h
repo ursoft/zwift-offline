@@ -1,4 +1,7 @@
 #pragma once
+//_mm_shuffle_ps(v66, v66, 255) -> v66[3] in all
+//_mm_shuffle_ps(v2, v2, 85) -> v2[1], v2[0], v2[3], v2[2]
+//_mm_shuffle_ps(v2, v2, 170) -> v2[2], v2[3], v2[0], v2[1]
 enum GFX_RenderPass { GRP_CNT };
 enum AssetCategory : uint32_t { AC_UNK, AC_1, AC_2, AC_CNT };
 enum GFX_FILL_MODE { GFM_POINT, GFM_LINE, GFM_FILL, GFM_FALSE };

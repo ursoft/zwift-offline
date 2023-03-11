@@ -1,6 +1,6 @@
 #pragma once
 inline bool g_UseHWInstancing;
-template <typename T, typename F> T* ShiftPointer(T **dest, const F *offset) {
+template <typename T, typename F> T* ShiftPointer(T **dest, const F offset) {
     *dest = (T *)((uint8_t *)offset + (intptr_t)*dest);
     return *dest;
 }

@@ -1,5 +1,8 @@
 #pragma once
 struct Material_360 {};
+
+inline int g_DefaultNormalMap;
+
 void MATERIAL_Activate(Material_360 *, GDE_MaterialUsage *, void *);
 void MATERIAL_ApplyAnimators(Material_360 *, GDE_MaterialUsage *);
 void MATERIAL_GetDefaultNormalMap();
