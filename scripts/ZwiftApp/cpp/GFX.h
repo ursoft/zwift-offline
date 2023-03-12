@@ -218,7 +218,8 @@ inline float g_coordMap[GCM_CNT] = { 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.5
 inline float *GFX_GetCoordinateMap() { return g_coordMap; }
 inline GFX_StateBlock g_GFX_CurrentStates[8 /*TODO: maybe more*/], *g_pGFX_CurrentStates = g_GFX_CurrentStates;
 inline int g_DrawNoTextureShaderHandle = -1, g_DrawTexturedShaderHandle = -1, g_DrawTexturedSimpleShaderHandle = -1, g_DrawTexturedGammaCorrectShaderHandle = -1;
-inline void *g_DrawBuffers[2];
+inline uint8_t *g_DrawBuffers[2];
+inline uint32_t g_CurrentBuffer, g_CurrentBufferOffset, g_PreviousBufferOffset;
 inline std::unordered_map<uint32_t, int> g_ShaderMap; //shaderId (name & params crc) -> shaderHandle (0...MAX_SHADERS)
 inline int g_SimpleShaderHandle, g_WorldNoLightingHandle, g_ShadowmapShaderHandle, g_ShadowmapInstancedShaderHandle, g_ShadowmapHairShaderHandle,
     g_TestShaderHandle, g_RoadShader, g_RoadAccessoryShader, g_RoadAccessoryShaderSSR, g_RoadWetShader, g_RoadAccessoryWetShader, g_HeatHazeShader, g_CausticShader, g_CrepuscularHandle,
@@ -319,3 +320,6 @@ void GFX_TransposeMatrix44(MATRIX44 *dest, const MATRIX44 &src);
 void GFX_UpdateFrustum(const MATRIX44 &a1, const MATRIX44 &a2);
 void GFX_StoreMatrix(const MATRIX44 &src);
 void GFX_UploadShaderVEC4(GFX_SHADER_REGISTERS, const VEC4 &, uint64_t);
+uint32_t GFX_Align(uint32_t addr, uint32_t align);
+uint8_t *GFX_DrawMalloc(int size, uint32_t align);
+void GFX_DrawFlip();

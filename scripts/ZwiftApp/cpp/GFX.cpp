@@ -340,7 +340,7 @@ bool GFX_Initialize(const GFX_InitializeParams &gip) {
         Log("Initializing Texture Systems");
         GFX_TextureSys_Initialize();
         g_BlurShaderHandle = GFX_CreateShaderFromFile("Blur", -1);
-        g_debugFont.Load(FS_0);
+        g_debugFont.Load(FS_SMALL);
         GDEMESH_Initialize();
         return true;
     }
@@ -1195,8 +1195,8 @@ bool GFX_Initialize3DTVSpecs(float, float) {
     return true;
 }
 void GFX_DrawInit() {
-    g_DrawBuffers[0] = malloc(g_DrawBufferSize);
-    g_DrawBuffers[1] = malloc(g_DrawBufferSize);
+    g_DrawBuffers[0] = (uint8_t *)malloc(g_DrawBufferSize);
+    g_DrawBuffers[1] = (uint8_t *)malloc(g_DrawBufferSize);
     g_DrawNoTextureShaderHandle = GFX_CreateShaderFromFile("GFXDRAW_NoTexture", -1);
     g_DrawTexturedShaderHandle = GFX_CreateShaderFromFile("GFXDRAW_Textured", -1);
     g_DrawTexturedSimpleShaderHandle = GFX_CreateShaderFromFile("GFXDRAW_Textured_Simple", -1);
@@ -2780,7 +2780,24 @@ void GFX_CreateIndexBuffer(int *dest, uint32_t size, void *data) {
     if (*dest != -1)
         g_VRAMBytes_VBO += size;
 }
-
+uint32_t GFX_Align(uint32_t addr, uint32_t align) {
+    auto v2 = align - 1;
+    zassert((align & (align - 1)) == 0);
+    return ~v2 & (addr + v2);
+}
+uint8_t *GFX_DrawMalloc(int size, uint32_t align) {
+    auto v3 = GFX_Align(g_CurrentBufferOffset, align);
+    g_CurrentBufferOffset = v3;
+    if (v3 + size > g_DrawBufferSize)
+        return nullptr;
+    g_CurrentBufferOffset = v3 + size;
+    return g_DrawBuffers[g_CurrentBuffer] + v3;
+}
+void GFX_DrawFlip() {
+    g_CurrentBuffer = (g_CurrentBuffer & 1) == 0;
+    g_PreviousBufferOffset = g_CurrentBufferOffset;
+    g_CurrentBufferOffset = 0;
+}
 //Unit Tests
 TEST(SmokeTest, VertexArray) {
     for (int i = 0; i < _countof(g_vertexArray.fast64); i++) {

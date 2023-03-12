@@ -190,7 +190,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_WADManager.LoadWADFile("assets/fonts/font.wad");
     g_ChatFontGW = &g_GiantFontW;
     g_ChatFontLW = &g_LargeFontW;
-    g_GiantFontW.Load(FS_0);
+    g_GiantFontW.Load(FS_SMALL);
     g_GiantFontW.SetScaleAndKerning(0.34108528, 0.93000001);
     ZWIFT_UpdateLoading(nullptr, false); //first screen
     switch (GFX_GetPerformanceGroup()) {
@@ -655,9 +655,9 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         g_TreadmillMeshHandle = LOADER_LoadGdeFile("data/Humans/Treadmill/Treadmill.gde", false);
         g_PaperMeshHandle = LOADER_LoadGdeFile("data/bikes/Frames/DefaultOrange/Paper.gde", false);
         ZWIFT_UpdateLoading(nullptr, false);
-        g_SmallFont.Load(FS_0);
-        g_MediumFont.Load(FS_1);
-        g_LargeFontW.Load(FS_2);
+        g_SmallFont.Load(FS_SMALL);
+        g_MediumFont.Load(FS_SANSERIF);
+        g_LargeFontW.Load(FS_FONDO_MED);
         g_LargeFontW.SetHeadAndBaseLines(14.0, 20.0);
         HUD_UpdateChatFont();
         g_LargeFontW.SetScaleAndKerning(0.6f, 0.887f);
