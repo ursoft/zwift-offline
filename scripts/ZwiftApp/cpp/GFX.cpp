@@ -1594,6 +1594,13 @@ void GFX_PushStates() {
     *next = *g_pGFX_CurrentStates;
     g_pGFX_CurrentStates = next;
 }
+void GFX_SetAlphaBlendEnable(bool en) {
+    g_pGFX_CurrentStates->m_alphaBlend = en;
+    bool ch = (g_pGFX_CurrentStates->m_blend != en);
+    g_pGFX_CurrentStates->m_blend = en;
+    if (ch)
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
+}
 void GFX_PopStates() {
     g_pGFX_CurrentStates--;
     if (g_pGFX_CurrentStates->m_depthTest)
@@ -1606,7 +1613,7 @@ void GFX_PopStates() {
     if (g_pGFX_CurrentStates->m_cullIdx != g_pGFX_CurrentStates->m_newCullIdx) //4
         g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_CULL;
     g_pGFX_CurrentStates->m_cullIdx = g_pGFX_CurrentStates->m_newCullIdx;
-    bool blend = g_pGFX_CurrentStates->m_field_1C != 0; //5
+    bool blend = g_pGFX_CurrentStates->m_alphaBlend != 0; //5
     if (g_pGFX_CurrentStates->m_blend != blend)
         g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
     g_pGFX_CurrentStates->m_blend = blend;
@@ -1658,6 +1665,172 @@ void GFX_PopStates() {
 }
 int GFX_GetCurrentShaderHandle() {
     return g_CurrentShaderHandle;
+}
+void GFX_ActivateTexture(int, int, const char *, int GFX_TEXTURE_WRAP_MODE) {
+    //TODO
+}
+void GFX_ActivateTextureEx(int tn, GLfloat lodBias) {
+    uint32_t gltn = tn + GL_TEXTURE0;
+    if (!tn || gltn == g_pGFX_CurrentStates->m_actTex) {
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodBias);
+        if (!tn)
+            return;
+    } else {
+        glActiveTexture(gltn);
+        g_pGFX_CurrentStates->m_actTex = gltn;
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodBias);
+    }
+    if (g_pGFX_CurrentStates->m_actTex != GL_TEXTURE0) {
+        glActiveTexture(GL_TEXTURE0);
+        g_pGFX_CurrentStates->m_actTex = GL_TEXTURE0;
+    }
+}
+void GFX_SetBlendFunc(int GFX_BLEND_OP, int GFX_BLEND1, int GFX_BLEND2) {
+    //TODO
+}
+void GFX_SetTextureFilter(uint32_t tn, int filter) {
+    GLint p[6]{ GL_NEAREST,GL_LINEAR,GL_LINEAR_MIPMAP_NEAREST,GL_LINEAR_MIPMAP_LINEAR };
+    assert(filter < _countof(p)); //TODO enum GFX_FILTER
+    if (tn) {
+        auto gltn = tn + GL_TEXTURE0;
+        if (g_pGFX_CurrentStates->m_actTex != tn + GL_TEXTURE0) {
+            glActiveTexture(gltn);
+            g_pGFX_CurrentStates->m_actTex = gltn;
+        }
+    }
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, p[filter]);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter ? GL_LINEAR : GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, g_Aniso);
+    if (tn && g_pGFX_CurrentStates->m_actTex != GL_TEXTURE0) {
+        glActiveTexture(GL_TEXTURE0);
+        g_pGFX_CurrentStates->m_actTex = GL_TEXTURE0;
+    }
+    g_pGFX_CurrentStates->m_filters[tn] = filter;
+}
+void GFX_SetupUIProjection() {
+    auto pRT = VRAM_GetCurrentRT();
+    if (pRT) {
+        auto asp = g_width / (float)g_height;
+        if (g_bIsAwareOfWideAspectUI && asp > 1.7777778) {
+            g_CurrentUISpace_Height = 720.0;
+            g_WideUISpace_Height = 720.0;
+            g_CurrentUISpace_Width = asp * 720.0;
+            g_WideUISpace_Width = asp * 720.0;
+            GFX_LoadIdentity();
+            GFX_Ortho(0.0, g_CurrentUISpace_Width, g_CurrentUISpace_Height, 0.0, -1.0, 1.0);
+        } else {
+            auto v3 = 1.7777778;
+            if (pRT->m_dw_height)
+                v3 = (float)pRT->m_dw_width / (float)pRT->m_dw_height;
+            g_CurrentUISpace_Width = 1280.0;
+            g_CurrentUISpace_Height = 1280.0 / v3;
+            if (asp <= 1.7777778) {
+                g_WideUISpace_Height = 1280.0 / v3;
+                g_WideUISpace_Width = 1280.0;
+            }
+            GFX_LoadIdentity();
+            GFX_Ortho(0.0, g_CurrentUISpace_Width, g_CurrentUISpace_Height, 0.0, -1.0, 1.0);
+        }
+    }
+}
+void GFX_BEGIN_2DUISpace() {
+    GFX_SetShader(g_DrawTexturedShaderHandle);
+    zassert(VRAM_GetCurrentRT());
+    GFX_MatrixMode(GMT_2);
+    GFX_PushMatrix();
+    GFX_LoadIdentity();
+    GFX_SetupUIProjection();
+    GFX_MatrixMode(GMT_1);
+    GFX_PushMatrix();
+    GFX_LoadIdentity();
+    GFX_MatrixMode(GMT_0);
+    GFX_PushMatrix();
+    GFX_LoadIdentity();
+    GFX_UpdateMatrices(0);
+    g_b2D720pRenderIsSetup = 1;
+}
+void GFX_SetWideAspectAwareUI(bool val) {
+    if (val != g_bIsAwareOfWideAspectUI) {
+        g_b2D720pRenderIsSetup = 0;
+        g_bIsAwareOfWideAspectUI = val;
+    }
+}
+void GFX_Ortho(float a1, float a2, float a3, float a4, float a5, float a6) {
+    MATRIX44 m2;
+    m2.m_data[1].m_data[0] = 0.0f;
+    m2.m_data[1].m_data[2] = 0.0f;
+    m2.m_data[1].m_data[3] = 0.0f;
+    m2.m_data[2].m_data[0] = 0.0f;
+    m2.m_data[2].m_data[1] = 0.0f;
+    m2.m_data[2].m_data[3] = 0.0f;
+    auto v7 = a3 - a4;
+    auto v8 = 1.0f;
+    m2.m_data[3].m_data[3] = 1.0f;
+    auto v9 = (a2 - a1) * 0.5f;
+    auto v10 = v7 * 0.5f;
+    auto v11 = 0.0f;
+    if (g_OrthoScalarH != 0.0f)
+        v11 = (a2 - a1) / g_OrthoScalarH;
+    auto v12 = 0.0f;
+    if (g_OrthoScalarW != 0.0f)
+        v12 = v7 / g_OrthoScalarW;
+    auto v13 = v11 * 0.5f;
+    auto v14 = v12 * 0.5f;
+    auto v15 = v9 - v13;
+    auto v16 = v13 + v9;
+    auto v17 = v10 - v14;
+    auto v18 = v14 + v10;
+    if (GFX_GetFlipRenderTexture()) {
+        auto v19 = v18;
+        v18 = v17;
+        v17 = v19;
+    }
+    auto v20 = -0.001f;
+    auto v21 = *((uint32_t *)GFX_GetCoordinateMap() + 10);
+    auto v24 = a6 - a5;
+    auto v23 = a5;
+    auto v22 = 0.0f;
+    if (v21 <= 1) {
+        if (v21 == 1) {
+            if (v24 == 0.0f)
+                v8 = -1.0f;
+            else
+                v8 = -1.0f / v24;
+        } else if (v21 == 0) {
+            if (v24 == 0.0f)
+                v8 = -2.0f;
+            else
+                v8 = -2.0f / v24;
+            v23 += a6;
+        }
+        if (v24 == 0.0f) {
+            v22 = -0.001f;
+        } else {
+            v22 = -v23 / v24;
+        }
+    }
+    m2 = g_mxIdentity;
+    auto v25 = v16 - v15;
+    auto v26 = 2.0f;
+    auto v27 = 2.0f;
+    if (v25 != 0.0f)
+        v27 /= v25;
+    m2.m_data[0].m_data[0] = v27;
+    auto v28 = v17 - v18;
+    if (v28 != 0.0f)
+        v26 /= v28;
+    m2.m_data[1].m_data[1] = v26;
+    m2.m_data[2].m_data[2] = v8;
+    auto v29 = -0.001f;
+    if (v25 != 0.0f)
+        v29 = -(v15 + v16) / v25;
+    m2.m_data[3].m_data[0] = v29;
+    if (v28 != 0.0f)
+        v20 = -(v18 + v17) / v28;
+    m2.m_data[3].m_data[1] = v20;
+    m2.m_data[3].m_data[2] = v22;
+    MAT_MulMat(g_MatrixContext.m_matrix, *g_MatrixContext.m_matrix, m2);
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
 }
 void GFX_UnsetShader() {
     g_pCurrentShader = 0;

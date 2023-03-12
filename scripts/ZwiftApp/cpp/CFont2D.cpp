@@ -120,51 +120,46 @@ void CFont2D::RenderAllCachedContent(bool uiProjection) {
 }
 int CFont2D::EndCachingAndRender(bool uiProjection) {
     if (m_cache && m_cacheCntUsed) {
-#if 0 //TODO
-        CurrentShaderHandle = GFX_GetCurrentShaderHandle();
+        auto sh = GFX_GetCurrentShaderHandle();
         if (m_field_20A59) {
-            GFX_SetShader(fontWShader);
-            GFX_ActivateTexture(*(_DWORD *)&field_94[160], 0, 0i64, 1u);
-            v5 = g_WhiteHandle;
-            if (*(_DWORD *)&field_94[164] != -1)
-                v5 = *(_DWORD *)&field_94[164];
-            GFX_ActivateTexture(v5, 2u, 0i64, 1u);
-            GFX_SetTextureFilter(2u, 2u);
-            sub_7FF713E60D80(2, -0.5);
-            GFX_SetTextureFilter(0, 2u);
-            sub_7FF713E60D80(0, -0.5);
+            GFX_SetShader(g_fontWShader);
+            GFX_ActivateTexture(m_info.m_tex1, 0, 0, 1);
+            GFX_ActivateTexture((m_info.m_tex2 != -1) ? m_info.m_tex2 : g_WhiteHandle, 2, 0, 1);
+            GFX_SetTextureFilter(2, 2);
+            GFX_ActivateTextureEx(2, -0.5);
+            GFX_SetTextureFilter(0, 2);
+            GFX_ActivateTextureEx(0, -0.5);
         } else {
-            GFX_SetShader(dword_7FF7147C67D0);
-            GFX_ActivateTexture(*(_DWORD *)&field_20A38, 0xFFFFFFFF, 0i64, 1u);
+            GFX_SetShader(g_fontShader);
+            GFX_ActivateTexture(m_tex, 0xFFFFFFFF, 0, 1);
         }
-        GFX_SetAlphaBlendEnable(1u);
-        GFX_SetBlendFunc(0, 4u, 5u);
+        GFX_SetAlphaBlendEnable(true);
+        GFX_SetBlendFunc(0, 4, 5);
         GFX_MatrixMode(GMT_2);
         GFX_PushMatrix();
         GFX_LoadIdentity();
-        CurrentRT = VRAM_GetCurrentRT();
+        auto pRT = VRAM_GetCurrentRT();
         if (uiProjection)
             GFX_SetupUIProjection();
         else
-            GFX_Ortho(0.0, (float)*(int *)(CurrentRT + 8), (float)*(int *)(CurrentRT + 12), 0.0, -1.0, 1.0);
+            GFX_Ortho(0.0, (float)pRT->m_dw_width, (float)pRT->m_dw_height, 0.0, -1.0, 1.0);
         GFX_MatrixMode(GMT_1);
         GFX_PushMatrix();
         GFX_LoadIdentity();
         GFX_MatrixMode(GMT_0);
         GFX_PushMatrix();
         GFX_LoadIdentity();
-        GFX_UpdateMatrices(0);
-        GFX_DrawPrimitive(3, (__int64)m_cache->field_0, 6 * m_cacheCntUsed);
-        sub_7FF713E60D80(2, 0.0);
+        GFX_UpdateMatrices(false);
+        //TODO GFX_DrawPrimitive(3, (__int64)this->m_cache->field_0, 6 * this->m_cacheCntUsed);
+        GFX_ActivateTextureEx(2, 0.0);
         GFX_MatrixMode(GMT_2);
         GFX_PopMatrix();
         GFX_MatrixMode(GMT_1);
         GFX_PopMatrix();
         GFX_MatrixMode(GMT_0);
         GFX_PopMatrix();
-        sub_7FF713E60D80(0, 0.0);
-        GFX_SetShader(CurrentShaderHandle);
-#endif
+        GFX_ActivateTextureEx(0, 0.0);
+        GFX_SetShader(sh);
     }
     auto result = m_curCache + m_cacheCntUsed;
     m_cache = nullptr;
@@ -202,13 +197,13 @@ void CFont2D::PushHeadBase(float head, float base) {
 }
 float CFont2D::GetBaseline(float mult) { return m_baseLine * m_field_20A3C * m_scale * mult; }
 float CFont2D::GetHeadline(float mult) { return m_headLine * m_field_20A3C * m_scale * mult; }
+float CFont2D::GetHeadToBase(float mult) { return (GetHeight() - m_field_20A3C * m_baseLine * m_scale - m_field_20A3C * m_headLine * m_scale) * mult; }
 float CFont2D::StringWidthW(const char *text) {
     BufSafeToUTF8 buf;
     return StringWidthW(SafeToUTF8(text, &buf));
 }
 float CFont2D::StringWidthW(const UChar *uText) { return CFont2D::StringWidthW(uText, u_strlen(uText)); }
 float CFont2D::StringWidthW(const UChar *uText, uint32_t textLen) {
-    //static_assert(sizeof(CFont2D) == 0x20AA0);
     static_assert(sizeof(CFont2D_info) == 0x20990);
     static_assert(sizeof(CFont2D_glyph) == 20);
     

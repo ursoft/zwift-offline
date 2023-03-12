@@ -68,7 +68,7 @@ struct GFX_StateBlock {
     int m_depthMask;            // push[2] as bool
     GFX_FILL_MODE m_fillMode;   // push[3]
     int m_newCullIdx;           // push[4]
-    int m_field_1C;             // push[5] as bool
+    int m_alphaBlend;           // push[5] as bool
     //char field20[24];
     int m_scissorTest;          // push[12] as bool
     float m_polyOffset;         // push[13]
@@ -81,7 +81,7 @@ struct GFX_StateBlock {
     uint64_t m_field_A8, m_field_B8, m_hasRegTypes;
     uint8_t *m_attrData;
     int m_actTex, m_arrBuf, m_altArrBuf, m_shader, m_field_C8, m_elArrBuf;
-    uint8_t m_colorMask[4], m_stensilRef, m_stensilFuncMask, m_stensilFunc, m_stensilMask;
+    uint8_t m_colorMask[4], m_stensilRef, m_stensilFuncMask, m_stensilFunc, m_stensilMask, m_filters[32];
     GFX_StencilOp m_sopsFail, m_sopdpFail, m_sopdpPass;
     bool m_enableStensilTest;
     void UnbindBuffer(int);
@@ -207,7 +207,7 @@ enum DetailedRender { DR_NO, DR_MIDDLE, DR_VERBOSE };
 inline DetailedRender g_renderDetailed = DR_VERBOSE;
 inline GLFWwindow *g_mainWindow;
 inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion, g_openglFail;
-inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h;
+inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h, g_Aniso = 1.0f;
 inline int g_width, g_height, g_MinimalUI, g_bFullScreen, g_nShadersLoaded, g_TotalShaderCreationTime;
 inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_gfxTier, g_DrawPrimVBO, g_nTotalFrames;
 inline uint8_t g_colorChannels, g_gfxShaderModel;
@@ -239,7 +239,19 @@ inline uint32_t g_TextureTimeThisFrame, g_MeshTimeThisFrame;
 inline GFX_MatrixContext g_MatrixContext;
 inline VEC4 g_frustumPlanes[6];
 extern const MATRIX44 g_mxIdentity;
+inline bool g_bIsAwareOfWideAspectUI, g_b2D720pRenderIsSetup;
+inline float g_CurrentUISpace_Height = 720.0f, g_WideUISpace_Height = 720.0f, g_CurrentUISpace_Width = 1280.0f, g_WideUISpace_Width = 1280.0f, g_OrthoScalarW = 1.0f, g_OrthoScalarH = 1.0f;
 
+void GFX_BEGIN_2DUISpace();
+inline bool GFX_GetWideAspectAwareUI() { return g_bIsAwareOfWideAspectUI; }
+void GFX_ActivateTexture(int, int, const char *, int GFX_TEXTURE_WRAP_MODE);
+void GFX_SetBlendFunc(int GFX_BLEND_OP, int GFX_BLEND1, int GFX_BLEND2);
+void GFX_SetTextureFilter(uint32_t, /*GFX_FILTER*/ int);
+void GFX_SetupUIProjection();
+void GFX_Ortho(float, float, float, float, float, float);
+void GFX_UpdateMatrices(bool);
+void GFX_SetAlphaBlendEnable(bool en);
+void GFX_ActivateTextureEx(int tn, GLfloat lodBias);
 void GFX_DestroyVertex(int *pIdx);
 int GFX_CreateVertex(GFX_CreateVertexParams *parms);
 void GFXAPI_CreateVertex(int idx, GFX_CreateVertexParams *parms);
@@ -280,6 +292,7 @@ int GFX_GetCurrentShaderHandle();
 void GFX_UnsetShader();
 bool GFX_SetShader(int sh);
 void GFX_Begin();
+void GFX_SetWideAspectAwareUI(bool val);
 uint32_t GFX_ShaderModelValue(int idx);
 void GFXAPI_CreateTextureFromRGBA(int idx, uint32_t w, uint32_t h, const void *data, bool genMipMap); //GFXAPI_CreateTextureFromRGBA_idx
 int GFXAPI_CreateTextureFromRGBA(uint32_t w, uint32_t h, const void *data, bool genMipMap);
@@ -323,3 +336,5 @@ void GFX_UploadShaderVEC4(GFX_SHADER_REGISTERS, const VEC4 &, uint64_t);
 uint32_t GFX_Align(uint32_t addr, uint32_t align);
 uint8_t *GFX_DrawMalloc(int size, uint32_t align);
 void GFX_DrawFlip();
+inline void GFX_SetCurrentAniso(float a) { g_Aniso = fmaxf(1.0, a); }
+void GFX_SetAlphaBlendEnable(bool en);

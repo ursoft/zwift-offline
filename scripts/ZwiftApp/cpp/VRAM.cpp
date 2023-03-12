@@ -179,22 +179,6 @@ void GFX_Clear(char a1) {
         v3 = v2;
     glClear(v3);
 }
-int g_systemRT;
-void VRAM_EndRenderTo(char a1) {
-    //dword_7FF7B4DD7A78 = 1280; //TODO: some struct here???
-    //qword_7FF7B506A210 = (__int64)&unk_7FF7B4DD7A70;
-    //dword_7FF7B4DD7AA0 = 0;
-    g_systemRT = 1280.0 / g_UI_AspectRatio;
-    glViewport(0, 0, 1280, g_systemRT);
-    glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
-    if (a1 & 0x3F) {
-        if (a1 & 2) {
-            glStencilMask(0xFFu);
-            glClearStencil(0);
-        }
-        GFX_Clear(a1);
-    }
-}
 void VRAM_Initialize(bool aHasPickingBuffer) {
     g_HasPickingBuffer = aHasPickingBuffer;
     CONSOLE_AddCommand("res", CMD_ChangeRes);
@@ -203,4 +187,19 @@ void VRAM_Initialize(bool aHasPickingBuffer) {
 }
 float VRAM_GetUIAspectRatio() {
     return g_UI_AspectRatio;
+}
+void VRAM_EndRenderTo(uint8_t flags) {
+    g_RT_BackBufferVRAM.m_dw_width = 1280;
+    g_pCurrentRenderTarget = &g_RT_BackBufferVRAM;
+    g_RT_BackBufferVRAM.m_fb_30 = 0;
+    g_RT_BackBufferVRAM.m_dw_height = (int)(1280.0 / g_UI_AspectRatio);
+    glViewport(0, 0, g_RT_BackBufferVRAM.m_dw_width, g_RT_BackBufferVRAM.m_dw_height);
+    glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+    if (flags & 0x3F) {
+        if (flags & 2) {
+            glStencilMask(0xFFu);
+            glClearStencil(0);
+        }
+        GFX_Clear(flags);
+    }
 }

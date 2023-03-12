@@ -25,7 +25,10 @@ struct CFont2D_glyph {
 };
 struct CFont2D_info {
     int m_someCnt;
-    char field_0[200];
+    char field_0[160];
+    int m_tex1;
+    int m_tex2;
+    char field_AC[32];
     float m_kern[LID_CNT];
     char field_DC[1008];
     char field_4C8[1220];
@@ -47,10 +50,7 @@ public:
     char field_20A35;
     char field_20A36;
     char field_20A37;
-    char field_20A38;
-    char field_20A39;
-    char field_20A3A;
-    char field_20A3B;
+    int m_tex;
     float m_field_20A3C;
     float m_scale;
     float m_kerning;
@@ -87,6 +87,7 @@ public:
     void PushHeadBase(float head, float base);
     float GetBaseline(float mult);
     float GetHeadline(float mult);
+    float GetHeadToBase(float mult);
     float StringWidthW(const char *text);
     float StringWidthW(const UChar *uText);
     float StringWidthW(const UChar *uText, uint32_t len);
@@ -122,7 +123,6 @@ public:
     //void GetGlyphUVView(uint32_t, tViewport<float> &, uint32_t *);
     //void GetGlyphView(uint32_t, tViewport<int> &);
     void GetHeadOffset(float, float);
-    void GetHeadToBase(float);
     void GetHeadToBottom(float);
     void GetParagraphIndexByPosition(float, float, float, float, const UChar *, int, float, float, float *, float *);
     void GetParagraphLineCount(float, const char *, float, float, bool);
@@ -166,3 +166,4 @@ UChar *SafeToUTF8(const char *ansi, BufSafeToUTF8  *buf);
 
 inline CFont2D *g_ChatFontGW, *g_ChatFontLW, g_GiantFontW, g_LargeFontW, g_debugFont, g_SmallFont, g_MediumFont;
 inline const bool g_bSupportFontCaching = true;
+inline int g_fontWShader, g_fontShader;

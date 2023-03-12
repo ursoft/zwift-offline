@@ -133,5 +133,5 @@ void GFX_AddPerformanceFlags(uint64_t f);
 
 inline const int g_nShadowMaps = 3; //QUEST: why fourth allocated and not used
 inline RenderTarget g_RT_PreviewWindow(""), g_RT_BackBuffer("BackBuffer"), g_RT_ReflectionMap("ReflectionMap"), g_RT_TerrainPickingBuffer("TerrainPickingBuffer"), g_RT_EntityPickingBuffer("EntityPickingBuffer"), 
-    g_RT_BackBuffer_Final("BackBuffer_Final"), g_RT_BackBuffer_Temp("BackBuffer_Temp"), g_RT_BackBuffer_Prev("BackBuffer_Prev"), g_RT_CubeMap(""),
+    g_RT_BackBuffer_Final("BackBuffer_Final"), g_RT_BackBuffer_Temp("BackBuffer_Temp"), g_RT_BackBuffer_Prev("BackBuffer_Prev"), g_RT_CubeMap(""), g_RT_BackBufferVRAM("") /* QUEST: in Android = g_RT_BackBuffer...*/,
     g_RT_SpotlightShadowMap("SpotlightShadowMap"), g_RT_EmptyShadowMap("EmptyShadowMap"), g_RT_Luminance("Luminance"), g_RT_BackBufferDownsamples[10], g_RT_ShadowMaps[4];
