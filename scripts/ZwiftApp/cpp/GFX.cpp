@@ -211,18 +211,18 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
     if (GFX_CheckExtensions()) {
         //auto _GLEW_EXT_debug_marker = GLEW_EXT_debug_marker;        //not used = 0
         //auto _GLEW_NVX_gpu_memory_info = GLEW_NVX_gpu_memory_info;  //not used = 1
-        g_openglCore = glfwGetWindowAttrib(g_mainWindow, GLFW_OPENGL_PROFILE) == GLFW_OPENGL_CORE_PROFILE;
-        Log("[GFX]: %s profile", g_openglCore ? "Core" : "Compatability");
+        g_glCoreContext = glfwGetWindowAttrib(g_mainWindow, GLFW_OPENGL_PROFILE) == GLFW_OPENGL_CORE_PROFILE;
+        Log("[GFX]: %s profile", g_glCoreContext ? "Core" : "Compatability");
         auto clamper = glClampColor;
         auto clamper_arg = GL_CLAMP_READ_COLOR;
         if (glClampColor) {
-            if (!g_openglCore) {
+            if (!g_glCoreContext) {
                 glClampColor(GL_CLAMP_VERTEX_COLOR, GL_FALSE);
                 glClampColor(GL_CLAMP_FRAGMENT_COLOR, GL_FALSE);
             }
         } else {
             clamper = glClampColorARB;
-            if (!g_openglCore) {
+            if (!g_glCoreContext) {
                 glClampColorARB(GL_CLAMP_VERTEX_COLOR, GL_FALSE);
                 glClampColorARB(GL_CLAMP_FRAGMENT_COLOR, GL_FALSE);
             }
@@ -231,10 +231,10 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
         if (clamper) {
             clamper(clamper_arg, GL_FALSE);
         }
-        if (!g_openglCore)
+        if (!g_glCoreContext)
             glEnable(GL_POINT_SMOOTH);
         glEnable(GL_LINE_SMOOTH);
-        if (g_openglCore) {
+        if (g_glCoreContext) {
             glGenVertexArrays(1, &g_CoreVA);
             glBindVertexArray(g_CoreVA);
         }
@@ -264,6 +264,27 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
         return true;
     }
     return false;
+}
+void GFXAPI_UnloadTexture(int handle) {
+    auto &id = g_Textures[handle].m_glid;
+    glDeleteTextures(1, &id);
+    id = -1;
+}
+void GFX_Internal_UnloadTexture(int handle, TEX_STATE s) {
+    GFXAPI_UnloadTexture(handle);
+    static_assert(sizeof(GFX_TextureStruct) == 64);
+    g_VRAMBytes_Textures -= g_Textures[handle].m_totalBytes;
+    g_Textures[handle].m_texState = s;
+    g_Textures[handle].field_34 = 0;
+    g_Textures[handle].field_35 = 0;
+    g_Textures[handle].field_28 = 0;
+    g_Textures[handle].m_totalBytes = 0;
+    g_Textures[handle].m_field_39_0 = 0;
+    g_Textures[handle].m_toLevel = 0;
+}
+void GFX_UnloadTexture(int handle) {
+    if (handle != -1)
+        GFX_Internal_UnloadTexture(handle, TS_UNLOADED);
 }
 void GFX_SetColorMask(uint64_t idx, uint8_t mask) {
     if (idx < _countof(g_pGFX_CurrentStates->m_colorMask) && g_pGFX_CurrentStates->m_colorMask[idx] != mask) {
@@ -367,14 +388,14 @@ int GFXAPI_CreateTextureFromRGBA(uint32_t w, uint32_t h, const void *data, bool 
     t.m_bestHeight = h;
     t.m_bestWidth = w;
     t.m_align= 1;
-    t.m_field_20_5 = 5;
+    t.m_texState = TS_LOADED;
     GFXAPI_CreateTextureFromRGBA(g_nTexturesLoaded, w, h, data, genMipMap);
     return g_nTexturesLoaded++;
 }
 void GFX_TextureSys_Initialize() {
     //memset(g_Textures, 0, sizeof(g_Textures)); //и так будет забит нулями
     for (auto &i : g_Textures)
-        i.m_field_20_5 = -1; //почему не id ???
+        i.m_texState = TS_INVALID;
     memset(g_WhiteTexture, 255, sizeof(g_WhiteTexture));
     g_WhiteHandle = GFXAPI_CreateTextureFromRGBA(32, 32, g_WhiteTexture, true);
 }
@@ -1202,7 +1223,7 @@ void GFX_DrawInit() {
     g_DrawTexturedSimpleShaderHandle = GFX_CreateShaderFromFile("GFXDRAW_Textured_Simple", -1);
     g_DrawTexturedGammaCorrectShaderHandle = GFX_CreateShaderFromFile("GFXDRAW_Textured_GammaCorrect", -1);
     //GFXAPI_DrawInit():
-    if (g_openglCore)
+    if (g_glCoreContext)
         glGenBuffers(1, &g_DrawPrimVBO);
 }
 void GFXAPI_CalculateGraphicsScore() {
@@ -1455,12 +1476,12 @@ void GFX_SetMaxFPSOnBattery(float fps) {
 const char *GFX_GetVersion() {
     if (g_openglDebug)
     {
-        if (g_openglCore)
+        if (g_glCoreContext)
             return "OpenGL Debug Core";
         else
             return "OpenGL Debug";
     } else {
-        if (!g_openglCore)
+        if (!g_glCoreContext)
             return "OpenGL";
     }
     return "OpenGL Core";
@@ -2059,11 +2080,11 @@ bool GFX_StateBlock::Realize() {
     if (m_bits & 0xF) {
         uint64_t field_B8 = 0;
         if (m_altArrBuf == -1)
-            field_B8 = m_field_B8;
+            field_B8 = m_VAO;
         uint64_t inv = 0i64;
         auto vx = g_vertexArray.fast64[m_vaIdx];
-        auto pAttr = vx->m_attrs;
-        for (int vi = 0; vi < vx->m_attrCnt; vi++) {
+        auto pAttr = vx->m_creParams.m_attrs + 1;
+        for (int vi = 0; vi < vx->m_creParams.m_attrCnt; vi++) {
             auto atrIdx = pAttr->m_idx;
             auto addm = (1i64 << atrIdx);
             inv |= addm;
@@ -2075,7 +2096,7 @@ bool GFX_StateBlock::Realize() {
                 g_GFX_VertexFormat_format[pAttr->m_fmtIdx],
                 g_GFX_VertexFormat_normalized[pAttr->m_fmtIdx],
                 vx->m_strides[pAttr[-1].m_strideIdx], //GLsizei stride
-                &m_attrData[pAttr->m_dataOffset + field_B8]); //const void * pointer
+                &m_attrData[field_B8 + pAttr->m_dataOffset]); //const void * pointer
             ++pAttr;
         }
         uint32_t index = 0;
@@ -2165,30 +2186,15 @@ void GFX_StateBlock::BindVertexBuffer(int arrBuf) {
     m_bits |= (m_altArrBuf != arrBuf ? GSB_PEND_ALTB : 0);
 }
 void GFX_Begin() { g_pGFX_CurrentStates->Reset(); }
-void GFXAPI_CreateVertex(int idx, GFX_CreateVertexParams *parms) {
+void GFXAPI_CreateVertex(int idx, const GFX_CreateVertexParams &parms) {
     auto vx = new GFX_Vertex;
-    //TODO fill new vertex data
-    /*
-    *(_OWORD *)&vx->m_attrCnt = *(_OWORD *)parms;
-    *(_OWORD *)&vx->field_10 = *(_OWORD *)&parms[16];
-    *(_OWORD *)&vx->m_attrs[3].m_strideIdx = *(_OWORD *)&parms[32];
-    *(_OWORD *)&vx->m_attrs[7].m_strideIdx = *(_OWORD *)&parms[48];
-    *(_OWORD *)&vx->m_attrs[11].m_strideIdx = *(_OWORD *)&parms[64];
-    *(_OWORD *)&vx->m_attrs[15].m_strideIdx = *(_OWORD *)&parms[80];
-    *(_OWORD *)&vx->m_attrs[19].m_strideIdx = *(_OWORD *)&parms[96];
-    *(_OWORD *)&vx->m_attrs[23].m_strideIdx = *(_OWORD *)&parms[112];
-    *(_QWORD *)&vx->m_attrs[27].m_strideIdx = *(_QWORD *)&parms[128];
-    */
+    vx->m_creParams = parms;
     memset(vx->m_strides, 0, sizeof(vx->m_strides));
     g_vertexArray.fast64[idx] = vx;
-    /*TODO
-    auto v7 = (uint8_t *)vx->m_field50;
-    for (int ret = 0; ret < vx->m_field8; ret++) {
-        *(&vx->field_88 + *v7) += v7[1];
-        v7 += 4;
-    }*/
+    for (int i = 0; i < vx->m_creParams.m_stridesCnt; i++)
+        vx->m_strides[vx->m_creParams.m_strides[i].m_strideIdx] += vx->m_creParams.m_strides[i].m_strideCnt;
 }
-int GFX_CreateVertex(GFX_CreateVertexParams *parms) {
+int GFX_CreateVertex(const GFX_CreateVertexParams &parms) {
     int idx;
     auto extra = g_vertexArray.extra;
     if (g_vertexArray.extra) {
@@ -2368,7 +2374,7 @@ int GFX_CreateTextureFromTGA(uint8_t *data, int handle) {
     auto &curTex = g_Textures[handle];
     curTex.m_loaded &= ~1;
     curTex.m_texTime = g_TextureTimeThisFrame;
-    curTex.m_field_20_5 = 5;
+    curTex.m_texState = TS_LOADED;
     auto srcPxd = data + 18; //TGA_HEADER size
     int mipMapSizes[16];
     uint8_t *mipMapBuffers[16];
@@ -2874,7 +2880,7 @@ int GFX_CreateTextureFromTGAX(uint8_t *data, int handle) {
     curTex.m_fromLevel = div - nSkipMipCount;
     curTex.m_toLevel = div - 1;
     curTex.m_align = 0;
-    curTex.m_field_20_5 = 5;
+    curTex.m_texState = TS_LOADED;
     curTex.m_totalBytes = 0;
     curTex.m_field_39_0 = 0;
     curTex.m_field_36_3 = 3;
@@ -2971,13 +2977,75 @@ void GFX_DrawFlip() {
     g_PreviousBufferOffset = g_CurrentBufferOffset;
     g_CurrentBufferOffset = 0;
 }
+void DefineVAO_DRAW_VERT_POS_COLOR_UV(uint32_t a1, const /*DRAW_VERT_POS_COLOR_UV*/ void *data, uint32_t cnt) {
+    if (g_glCoreContext) {
+        g_pGFX_CurrentStates->BindVertexBuffer(g_DrawPrimVBO);
+        glBufferData(GL_ARRAY_BUFFER, 32 * cnt, data, GL_STREAM_DRAW);
+        if (g_pGFX_CurrentStates->m_altArrBuf != g_DrawPrimVBO) {
+            g_pGFX_CurrentStates->m_altArrBuf = g_DrawPrimVBO;
+            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ALTB;
+        }
+        if (g_pGFX_CurrentStates->m_attrData != nullptr) {
+            g_pGFX_CurrentStates->m_attrData = nullptr;
+            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ATTRDATA;
+        }
+        if (g_DrawPrimVBO != -1) {
+            if (g_pGFX_CurrentStates->m_VAO != 0) {
+                g_pGFX_CurrentStates->m_VAO = 0;
+                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAO;
+            }
+        }
+    } else {
+        if (g_pGFX_CurrentStates->m_VAO != (uint64_t)data) {
+            g_pGFX_CurrentStates->m_VAO = (uint64_t)data;
+            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAO;
+        }
+        if (data) {
+            if (g_pGFX_CurrentStates->m_attrData != nullptr) {
+                g_pGFX_CurrentStates->m_attrData = nullptr;
+                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ATTRDATA;
+            }
+            if (g_pGFX_CurrentStates->m_altArrBuf != -1) {
+                g_pGFX_CurrentStates->m_altArrBuf = -1;
+                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ALTB;
+            }
+        }
+    }
+    auto v17 = GFX_GetVertexHandle_DRAW_VERT_POS_COLOR_UV();
+    if (g_pGFX_CurrentStates->m_vaIdx != v17) {
+        g_pGFX_CurrentStates->m_vaIdx = v17;
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAIDX;
+    }
+}
+void GFX_DrawPrimitive(GFX_PRIM_TYPE t, const /*DRAW_VERT_POS_COLOR_UV*/ void *data, uint32_t cnt) {
+    if (data && cnt) {
+        DefineVAO_DRAW_VERT_POS_COLOR_UV(1, data, cnt);
+        if (g_pGFX_CurrentStates->Realize())
+            glDrawArrays(PRIM_TO_GLPRIM[t], 0, cnt);
+    }
+}
+int GFX_GetVertexHandle_DRAW_VERT_POS_COLOR_UV() {
+    static int stDRAW_VERT_POS_COLOR_UV = -1;
+    if (stDRAW_VERT_POS_COLOR_UV == -1) {
+        stDRAW_VERT_POS_COLOR_UV = GFX_CreateVertex(GFX_CreateVertexParams{ 4, 1,
+            { {0, 0, 7, 0}, {0, 4, 1, 12}, {0, 6, 6, 16}, {0, 7, 6, 24} },
+            { {0, 32, 1, 0} }
+            });
+    }
+    return stDRAW_VERT_POS_COLOR_UV;
+}
+
 //Unit Tests
 TEST(SmokeTest, VertexArray) {
+    GFX_CreateVertexParams p{ 4, 1,
+            { {0, 0, 7, 0}, {0, 4, 1, 12}, {0, 6, 6, 16}, {0, 7, 6, 24} },
+            { {0, 32, 1, 0} }
+        };
     for (int i = 0; i < _countof(g_vertexArray.fast64); i++) {
-        auto act = GFX_CreateVertex(nullptr);
+        auto act = GFX_CreateVertex(p);
         EXPECT_EQ(i, act) << "GFX_CreateVertex result";
     }
-    auto act2 = GFX_CreateVertex(nullptr);
+    auto act2 = GFX_CreateVertex(p);
     EXPECT_EQ(-1, act2) << "Extra inaccessible";
     int idx = 123456;
     GFX_DestroyVertex(&idx);

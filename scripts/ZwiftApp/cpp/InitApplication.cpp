@@ -661,7 +661,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         g_LargeFontW.SetHeadAndBaseLines(14.0, 20.0);
         HUD_UpdateChatFont();
         g_LargeFontW.SetScaleAndKerning(0.6f, 0.887f);
-        g_LargeFontW.SetLanguageKerningScalar(LID_03, 1.3);
+        g_LargeFontW.SetLanguageKerningScalar(LID_CHINESE, 1.3);
         g_ButterflyTexture = GFX_CreateTextureFromTGAFile("blue_butterfly.tga", -1, true);
         g_RedButterflyTexture = GFX_CreateTextureFromTGAFile("white_butterfly.tga", -1, true);
         g_MonarchTexture = GFX_CreateTextureFromTGAFile("monarch.tga", -1, true);

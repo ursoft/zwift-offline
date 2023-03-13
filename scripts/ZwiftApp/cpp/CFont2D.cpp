@@ -1,24 +1,227 @@
 #include "ZwiftApp.h"
 bool CFont2D::LoadFont(const char *name) {
-    //TODO
-    return true;
+    bool result = false;
+    auto name_ = GAMEPATH(name);
+    FILE *f = fopen(name_, "rb");
+    if (f) {
+        uint16_t ver;
+        fread(&ver, sizeof(ver), 1, f);
+        if (ver == 0x100) {
+            m_info.m_fileHdrV1.m_version = ver;
+            fread(((uint8_t *)&m_info.m_fileHdrV1) + sizeof(ver), sizeof(CFont2D_fileHdrV1) - sizeof(ver), 1, f);
+            fread(m_info.m_field_190 + m_info.m_fileHdrV1.m_from, sizeof(CFont2D_v1_8b), m_info.m_fileHdrV1.m_reserve, f);
+            if (g_fontShader == -1)
+                g_fontShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
+            auto cb = m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_width * 4;
+            m_RGBAv1 = malloc(cb);
+            //memset(m_RGBAv1, 17, 4 * m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_height); //QUEST why not m_height * m_width ???
+            //assert(m_info.m_fileHdrV1.m_width >= m_info.m_fileHdrV1.m_height);
+            auto r = fread(m_RGBAv1, 1, cb, f);
+            assert(r == cb);
+            LoadFontV2((uint8_t *)m_RGBAv1);
+            m_info.m_field_29C *= 0.7;
+            result = true;
+            m_loadedV1 = 1;
+        } else {
+            if (ver == 0x300) {
+                //inlined CFont2D::LoadFontV3(name):
+                if (m_loadedV3 && strstr(m_fileName.c_str(), name_)) {
+                    result = true;
+                } else {
+                    m_fileName = name_;
+                    static_assert(sizeof(CFont2D_fileHdrV3) == 0xF0);
+                    m_info.m_fileHdrV3.m_version = ver;
+                    fread(((uint8_t *)&m_info.m_fileHdrV3) + sizeof(ver), sizeof(CFont2D_fileHdrV3) - sizeof(ver), 1, f);
+                    memset(m_info.m_glyphIndexes, 255, sizeof(m_info.m_glyphIndexes)); //last not used?
+                    if (m_glyphs)
+                        free(m_glyphs);
+                    m_glyphs = (CFont2D_glyph *)malloc(sizeof(CFont2D_glyph) * m_info.m_fileHdrV3.m_usedGlyphs);
+                    fread(m_glyphs, sizeof(CFont2D_glyph), m_info.m_fileHdrV3.m_usedGlyphs, f);
+                    for (int g = 0; g < m_info.m_fileHdrV3.m_usedGlyphs; ++g) {
+                        auto codePoint = m_glyphs[g].m_codePoint;
+                        if (codePoint == 0xFFFF) {
+                            Log("Loading font with codepoint beyond max: %d\n", codePoint);
+                        } else {
+                            m_info.m_glyphIndexes[codePoint] = g;
+                            if (uint8_t(m_glyphs[g].m_cnt - 1) <= 2) {
+                                bool found = false;
+                                auto &vect = m_struc24x4[m_glyphs[g].m_cnt].m_cont;
+                                for (auto x : vect) {
+                                    if (x == m_glyphs[g].m_kernIdx)
+                                        found = true;
+                                }
+                                if (!found)
+                                    vect.push_back(m_glyphs[g].m_kernIdx);
+                            }
+                            if (codePoint == 33)
+                                m_glyphs[g].m_width *= 0.7;
+                        }
+                    }
+                    char tname[MAX_PATH], *pDest = tname;
+                    auto pSrc = m_fileName.c_str();
+                    while (*pSrc) {
+                        if (*pSrc == '_' || *pSrc == '.')
+                            break;
+                        *pDest++ = *pSrc++;
+                    }
+                    strcpy(pDest, "0.tga");
+                    m_info.m_fileHdrV3.m_tex1 = GFX_CreateTextureFromTGAFile(tname, -1, true);
+                    if (g_fontWShader == -1)
+                        g_fontWShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
+                    LoadLanguageTextures(LOC_GetLanguageIndex());
+                    result = true;
+                    m_loadedV3 = true;
+                }
+            } else {
+                Log("Unknown font version number from %s(%x)\n", name_, ver);
+            }
+        }
+    }
+    if (f) 
+        fclose(f);
+    return result;
+}
+void CFont2D::LoadLanguageTextures(LOC_LANGS l) {
+    GFX_SetLoadedAssetMode(true);
+    m_texSuffix = LID_LAT;
+    switch (l) {
+    default:
+        break;
+    case LOC_JAPAN:
+        m_texSuffix = LID_JAPAN;
+        break;
+    case LOC_KOREAN:
+        m_texSuffix = LID_KOREAN;
+        break;
+    case LOC_CHINESE:
+        m_texSuffix = LID_CHINESE;
+        break;
+    }
+    if (g_fontWShader == -1)
+        g_fontWShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
+    if (m_info.m_fileHdrV3.m_tex2 != -1) {
+        GFX_UnloadTexture(m_info.m_fileHdrV3.m_tex2);
+        m_info.m_fileHdrV3.m_tex2 = -1;
+    }
+    char tname[MAX_PATH], *dest = tname;
+    const char *src = m_fileName.c_str();
+    tname[0] = 0;
+    while (*src) {
+        if (*src == '.' || *src == '_') {
+            *dest++ = '0' + m_texSuffix;
+            strcpy(dest, ".tga");
+            break;
+        }
+        *dest++ = *src++;
+    }
+    m_info.m_langId = m_texSuffix;
+    if (m_texSuffix)
+        m_info.m_fileHdrV3.m_tex2 = GFX_CreateTextureFromTGAFile(tname, -1, true);
+    m_lineHeight = 0.0;
+    for (int i = 0; i < m_info.m_fileHdrV3.m_usedGlyphs; i++) {
+        auto v23 = m_info.m_fileHdrV3.m_kern[m_glyphs[i].m_kernIdx] * m_glyphs[i].m_height;
+        if (v23 > m_lineHeight)
+            m_lineHeight = v23;
+    }
+    if (g_CurrentAssetCategory == AC_2)
+        GFX_SetLoadedAssetMode(false);
 }
 bool CFont2D::LoadFontFromWad(const char *name) {
-    //TODO
-    return true;
+    auto wh = g_WADManager.GetWadFileHeaderByItemName(name + 5, WAD_ASSET_TYPE::GLOBAL, nullptr);
+    bool result = false;
+    static_assert(sizeof(CFont2D_fileHdrV1) == 0x9C);
+    if (wh) {
+        CFont2D_fileHdrV1 *pFontHeaderV1 = (CFont2D_fileHdrV1 *)wh->FirstChar();
+        if (pFontHeaderV1->m_version == 0x100) {
+            m_info.m_fileHdrV1 = *pFontHeaderV1;
+            auto cb_3 = sizeof(CFont2D_v1_8b) * m_info.m_fileHdrV1.m_reserve;
+            assert(m_info.m_fileHdrV1.m_reserve <= _countof(m_info.m_field_190));
+            assert(m_info.m_fileHdrV1.m_from < _countof(m_info.m_field_190));
+            assert(m_info.m_fileHdrV1.m_to <= _countof(m_info.m_field_190));
+            memmove(m_info.m_field_190 + m_info.m_fileHdrV1.m_from, pFontHeaderV1 + 1, cb_3);
+            //OMIT m_RGBAv1 = malloc(m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_width * 4);
+            //memset(m_RGBAv1, 0x11, 4 * m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_height); //QUEST why not m_height * m_width ???
+            //assert(m_info.m_fileHdrV1.m_width >= m_info.m_fileHdrV1.m_height);
+            LoadFontV2((uint8_t *)(pFontHeaderV1 + 1) + cb_3);
+            m_info.m_field_29C *= 0.7;
+            result = true;
+            m_loadedV1 = 1;
+        } else {
+            if (pFontHeaderV1->m_version == 0x300) {
+                //inlined LoadFontFromWadV3(name);
+                if (m_loadedV3 && strstr(m_fileName.c_str(), name)) {
+                    result = true;
+                } else {
+                    m_fileName = name;
+                    CFont2D_fileHdrV3 *pFontHeaderV3 = (CFont2D_fileHdrV3 *)pFontHeaderV1;
+                    m_info.m_fileHdrV3 = *pFontHeaderV3;
+                    memset(m_info.m_glyphIndexes, 255, sizeof(m_info.m_glyphIndexes)); //last not used?
+                    if (m_glyphs)
+                        free(m_glyphs);
+                    auto gsz = sizeof(CFont2D_glyph) * m_info.m_fileHdrV3.m_usedGlyphs;
+                    m_glyphs = (CFont2D_glyph *)malloc(gsz);
+                    memmove(m_glyphs, pFontHeaderV3 + 1, gsz);
+                    for (int g = 0; g < m_info.m_fileHdrV3.m_usedGlyphs; ++g) {
+                        auto codePoint = m_glyphs[g].m_codePoint;
+                        if (codePoint == 0xFFFF) {
+                            Log("Loading font with codepoint beyond max: %d\n", codePoint);
+                        } else {
+                            m_info.m_glyphIndexes[codePoint] = g;
+                            if (uint8_t(m_glyphs[g].m_cnt - 1) <= 2) {
+                                bool found = false;
+                                auto &vect = m_struc24x4[m_glyphs[g].m_cnt].m_cont;
+                                for (auto x : vect) {
+                                    if (x == m_glyphs[g].m_kernIdx)
+                                        found = true;
+                                }
+                                if (!found)
+                                    vect.push_back(m_glyphs[g].m_kernIdx);
+                            }
+                            if (codePoint == 33)
+                                m_glyphs[g].m_width *= 0.7;
+                        }
+                    }
+                    char tname[MAX_PATH], *pDest = tname;
+                    auto pSrc = m_fileName.c_str();
+                    while (*pSrc) {
+                        if (*pSrc == '_')
+                            break;
+                        *pDest++ = *pSrc++;
+                    }
+                    strcpy(pDest, "0.tga");
+                    m_info.m_fileHdrV3.m_tex1 = GFX_CreateTextureFromTGAFile(tname, -1, true);
+                    if (g_fontWShader == -1)
+                        g_fontWShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
+                    LoadLanguageTextures(LOC_GetLanguageIndex());
+                    result = true;
+                    m_loadedV3 = true;
+                }
+            } else {
+                Log("Unknown font version number from %s (%x)\n", name, pFontHeaderV1->m_version);
+            }
+        }
+    }
+    return result;
 }
-bool CFont2D::LoadFontWFromWadV3(const char *name) {
-    //TODO
-    return true;
-}
-bool CFont2D::LoadFontWV3(const char *name) {
-    //TODO
-    return true;
+void CFont2D::LoadFontV2(const uint8_t *data) {
+    if (g_fontShader == -1)
+        g_fontShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
+    m_tex = GFXAPI_CreateTextureFromRGBA(m_info.m_fileHdrV1.m_width, m_info.m_fileHdrV1.m_height, data, true);
+    m_lineHeight = 0.0;
+    int16_t v6 = 0;
+    for (auto x = m_info.m_fileHdrV1.m_from; x < m_info.m_fileHdrV1.m_to; x++) {
+        static_assert(sizeof(CFont2D_v1_8b) == 8);
+        auto v9 = m_info.m_field_190[x].m_field_6;
+        if (v9 > v6) {
+            v6 = v9;
+            m_lineHeight = v9;
+        }
+    }
 }
 bool CFont2D::LoadDirect(const char *name) { return LoadFontFromWad(name) || LoadFont(name); }
 void CFont2D::LoadDirectEast(const char *name1, const char *name2) {
     LoadDirect(name1);
-    if (!m_field_20A59)
+    if (!m_loadedV3)
         LoadDirect(name2);
 }
 void CFont2D::Load(FONT_STYLE s) {
@@ -37,7 +240,7 @@ void CFont2D::Load(FONT_STYLE s) {
         } else {
             LoadDirect("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_K.bin");
             m_field_20A54 = 1.98;
-            if (!m_field_20A59)
+            if (!m_loadedV3)
                 LoadDirect("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_JK.bin");
         }
         break;
@@ -49,7 +252,7 @@ void CFont2D::Load(FONT_STYLE s) {
         } else {
             LoadDirect("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_K.bin");
             m_field_20A54 = 1.5;
-            if (!m_field_20A59)
+            if (!m_loadedV3)
                 LoadDirect("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_JK.bin");
         }
         break;
@@ -66,17 +269,17 @@ CFont2D::CFont2D() {
     m_field_20A50 = 0;
     m_field_20A54 = 1.0;
     m_glyphs = nullptr;
-    m_allocPtr = nullptr;
+    m_RGBAv1 = nullptr;
     m_field_20A3C = 1.0;
     m_scale = 1.0;
     m_kerning = 1.0;
     m_cache = nullptr;
     m_cacheCnt = 0;
     m_cacheCntUsed = 0;
-    m_field_20A58 = 0; //QUEST: WORD 8-9?
-    m_field_20A59 = 0;
-    m_info.m_someCnt = LID_CNT; //QUEST: probably not
-    m_field_20A34 = 0;
+    m_loadedV1 = false;
+    m_loadedV3 = false;
+    m_info.m_langId = LID_CNT;
+    m_texSuffix = LID_LAT;
     m_kern[0] = 1.0;
     m_kern[1] = 1.08935;
     m_kern[2] = 1.0;
@@ -85,8 +288,8 @@ CFont2D::CFont2D() {
     m_baseLine = 10.0;
 }
 CFont2D::~CFont2D() {
-    free(m_allocPtr);
-    m_allocPtr = nullptr;
+    free(m_RGBAv1);
+    m_RGBAv1 = nullptr;
     free(m_glyphs);
     m_glyphs = nullptr;
 }
@@ -101,7 +304,7 @@ void CFont2D::SetLanguageKerningScalar(LANGUAGE_IDS lid, float kern) {
 void CFont2D::StartCaching(uint32_t cnt) {
     if (g_bSupportFontCaching && cnt) {
         static_assert(sizeof(CFont2D_cache) == 192);
-        auto v4 = GFX_DrawMalloc(sizeof(CFont2D_cache) * cnt, LID_CNT /* ??? or not */);
+        auto v4 = GFX_DrawMalloc(sizeof(CFont2D_cache) * cnt, 4);
         m_cache = (CFont2D_cache *)v4;
         if (v4 != nullptr) {
             m_cacheCnt = cnt;
@@ -121,10 +324,10 @@ void CFont2D::RenderAllCachedContent(bool uiProjection) {
 int CFont2D::EndCachingAndRender(bool uiProjection) {
     if (m_cache && m_cacheCntUsed) {
         auto sh = GFX_GetCurrentShaderHandle();
-        if (m_field_20A59) {
+        if (m_loadedV3) {
             GFX_SetShader(g_fontWShader);
-            GFX_ActivateTexture(m_info.m_tex1, 0, 0, 1);
-            GFX_ActivateTexture((m_info.m_tex2 != -1) ? m_info.m_tex2 : g_WhiteHandle, 2, 0, 1);
+            GFX_ActivateTexture(m_info.m_fileHdrV3.m_tex1, 0, 0, 1);
+            GFX_ActivateTexture((m_info.m_fileHdrV3.m_tex2 != -1) ? m_info.m_fileHdrV3.m_tex2 : g_WhiteHandle, 2, 0, 1);
             GFX_SetTextureFilter(2, 2);
             GFX_ActivateTextureEx(2, -0.5);
             GFX_SetTextureFilter(0, 2);
@@ -150,7 +353,7 @@ int CFont2D::EndCachingAndRender(bool uiProjection) {
         GFX_PushMatrix();
         GFX_LoadIdentity();
         GFX_UpdateMatrices(false);
-        //TODO GFX_DrawPrimitive(3, (__int64)this->m_cache->field_0, 6 * this->m_cacheCntUsed);
+        GFX_DrawPrimitive(GPT_TRIANGLES, m_cache, 6 * m_cacheCntUsed);
         GFX_ActivateTextureEx(2, 0.0);
         GFX_MatrixMode(GMT_2);
         GFX_PopMatrix();
@@ -207,7 +410,7 @@ float CFont2D::StringWidthW(const UChar *uText, uint32_t textLen) {
     static_assert(sizeof(CFont2D_info) == 0x20990);
     static_assert(sizeof(CFont2D_glyph) == 20);
     
-    if (!m_field_20A59 || !uText || !*uText || !textLen)
+    if (!m_loadedV3 || !uText || !*uText || !textLen)
         return 0.0f;
     float ret = 0.0f;
     const UChar *uEnd = uText + textLen;
@@ -216,7 +419,7 @@ float CFont2D::StringWidthW(const UChar *uText, uint32_t textLen) {
         if (gidx != 0xFFFF) {
             float mult = (*uText == 32) ? this->m_field_20A54 : 1.0f;
             auto kidx = m_glyphs[gidx].m_kernIdx;
-            ret += m_kern[kidx] * m_kerning * m_info.m_kern[kidx] * m_glyphs[gidx].m_width * mult;
+            ret += m_kern[kidx] * m_kerning * m_info.m_fileHdrV3.m_kern[kidx] * m_glyphs[gidx].m_width * mult;
         }
     } while (++uText != uEnd);
     return ret * m_scale;
@@ -230,7 +433,7 @@ float CFont2D::GetBoundedScaleW(float w, float h, const UChar *uText) {
         return fminf(w / needWidth, h / needHeight);
 }
 float CFont2D::GetHeight() {
-    auto ret = m_field_20A30 * m_field_20A3C * m_scale;
+    auto ret = m_lineHeight * m_field_20A3C * m_scale;
     if (ret > 0.0f)
         return ret;
     else

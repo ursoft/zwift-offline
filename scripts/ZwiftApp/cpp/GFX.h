@@ -8,6 +8,8 @@ enum GFX_FILL_MODE { GFM_POINT, GFM_LINE, GFM_FILL, GFM_FALSE };
 enum GFX_COMPARE_FUNC { GCF_NEVER, GCF_LESS, GCF_EQUAL, GCF_LEQUAL, GCF_GREATER, GCF_NOTEQUAL, GCF_GEQUAL, GCF_ALWAYS };
 enum GFX_StencilOp { GSO_FALSE_0, GSO_KEEP, GSO_REPLACE, GSO_INCR, GSO_INCR_WRAP, GSO_DECR, GSO_DECR_WRAP, GSO_INVERT, GSO_FALSE_8, GSO_FALSE_9 };
 enum GFX_MatrixType { GMT_0, GMT_1, GMT_2, GMT_CNT };
+enum GFX_PRIM_TYPE { GPT_0, GPT_1, GPT_LINE_STRIP, GPT_TRIANGLES, GPT_TRIANGLE_STRIP, GPT_QUADS, GPT_POLYGON_BIT, GPT_7, GPT_CNT };
+inline const GLenum PRIM_TO_GLPRIM[GPT_CNT] = { GL_FALSE, GL_TRUE, GL_LINE_STRIP, GL_TRIANGLES, GL_TRIANGLE_STRIP, GL_QUADS, GL_POLYGON_BIT, GL_FALSE };
 struct GFX_InitializeParams {
     int WINWIDTH, WINHEIGHT;
     bool field_8, FullScreen, GlCoreProfile, HasPickingBuf;
@@ -61,7 +63,7 @@ struct GFX_BlendIdxs {
     uint8_t m_modeIdx, m_sFactorIdx, m_dFactorIdx;
 };
 struct GFX_StateBlock {
-    enum Bits { GSB_PEND_ALTB = 1, GSB_PEND_EAB = 16, GSB_PEND_CULL = 32, GSB_PEND_BLEND = 64 };
+    enum Bits { GSB_PEND_ALTB = 1, GSB_PEND_ATTRDATA = 2, GSB_PEND_VAO = 4, GSB_PEND_VAIDX = 8, GSB_PEND_EAB = 16, GSB_PEND_CULL = 32, GSB_PEND_BLEND = 64 };
     uint64_t m_bits;
     int m_depthTest;            // push[0] as bool
     int m_depthFuncIdx;         // push[1]
@@ -78,7 +80,7 @@ struct GFX_StateBlock {
     bool m_blend;               // @push[5]
     GFX_BlendIdxs m_blendIdxs;  // @push[15]
     int m_vaIdx, m_field_A4;
-    uint64_t m_field_A8, m_field_B8, m_hasRegTypes;
+    uint64_t m_field_A8, m_VAO, m_hasRegTypes;
     uint8_t *m_attrData;
     int m_actTex, m_arrBuf, m_altArrBuf, m_shader, m_field_C8, m_elArrBuf;
     uint8_t m_colorMask[4], m_stensilRef, m_stensilFuncMask, m_stensilFunc, m_stensilMask, m_filters[32];
@@ -129,14 +131,21 @@ struct GFX_ShaderPair { //440 bytes
 struct GFX_VertexAttr { //4 byte
     uint8_t m_idx, m_fmtIdx, m_dataOffset, m_strideIdx;
 };
-struct GFX_Vertex { //152 bytes
-    int64_t m_attrCnt, m_field8;
-    GFX_VertexAttr m_attrs[29 /*less maybe*/];
-    uint8_t gap[4];
-    uint8_t m_strides[16 /*less maybe*/];
+struct GFX_Stride {
+    char m_strideIdx;
+    char m_strideCnt;
+    char field_2;
+    char field_3;
 };
-struct GFX_CreateVertexParams {
-
+struct GFX_CreateVertexParams { //136 (0x88) bytes
+    uint64_t m_attrCnt;
+    uint64_t m_stridesCnt;
+    GFX_VertexAttr m_attrs[16];
+    GFX_Stride m_strides[14];
+};
+struct GFX_Vertex { //152 bytes
+    GFX_CreateVertexParams m_creParams;
+    uint8_t m_strides[16 /*less maybe*/];
 };
 struct GFX_VertexArray {
     GFX_Vertex *fast64[64];
@@ -159,13 +168,30 @@ struct TGAX_HEADER {
     uint16_t        wType;
 };
 #pragma pack(pop)
+enum TEX_STATE { TS_UNLOADED = 0, TS_LOADED = 5, TS_INVALID = -1 };
 struct GFX_TextureStruct { //64 bytes
     const char *m_name;
-    uint32_t m_glid, m_align, m_nameSCRC, m_field_20_5, m_texTime, m_totalBytes;
-    uint16_t m_bestWidth, m_bestHeight;
+    uint32_t m_glid;
+    int field_C;
+    int m_align;
+    uint16_t m_bestWidth;
+    uint16_t m_bestHeight;
+    int m_nameSCRC;
     AssetCategory m_assetCategory;
+    TEX_STATE m_texState;
+    int m_texTime;
+    int field_28;
+    int field_2C;
+    int m_totalBytes;
+    char field_34;
+    char field_35;
+    char m_field_36_3;
     uint8_t m_loaded; //bool or bit field?
-    uint8_t m_field_36_3, m_fromLevel, m_field_39_0, m_toLevel;
+    char m_fromLevel;
+    char m_field_39_0;
+    char m_toLevel;
+    char field_3B;
+    int field_3C;
     bool InHardware() const { return m_glid != -1; }
 };
 struct GFX_CreateBufferParams {
@@ -200,7 +226,7 @@ inline uint64_t g_GFX_PerformanceFlags, g_VRAMBytes_VBO;
 inline PerformanceGroup g_GFX_Performance = GPG_ULTRA;
 inline int g_nSkipMipCount;
 inline const char *g_GL_vendor = "", *g_GL_renderer = "", *g_GL_apiName = "";
-inline bool g_openglDebug, g_openglCore, g_bGFXINITIALIZED, g_bUseEmptyShadowMapsHack;
+inline bool g_openglDebug, g_glCoreContext, g_bGFXINITIALIZED, g_bUseEmptyShadowMapsHack;
 inline char g_strCPU[0x40];
 inline int g_BlurShaderHandle, g_CurrentShaderHandle;
 enum DetailedRender { DR_NO, DR_MIDDLE, DR_VERBOSE };
@@ -242,6 +268,8 @@ extern const MATRIX44 g_mxIdentity;
 inline bool g_bIsAwareOfWideAspectUI, g_b2D720pRenderIsSetup;
 inline float g_CurrentUISpace_Height = 720.0f, g_WideUISpace_Height = 720.0f, g_CurrentUISpace_Width = 1280.0f, g_WideUISpace_Width = 1280.0f, g_OrthoScalarW = 1.0f, g_OrthoScalarH = 1.0f;
 
+void DefineVAO_DRAW_VERT_POS_COLOR_UV(uint32_t a1, const /*DRAW_VERT_POS_COLOR_UV*/ void *data, uint32_t cnt);
+void GFX_DrawPrimitive(GFX_PRIM_TYPE t, const /*DRAW_VERT_POS_COLOR_UV*/ void *data, uint32_t cnt);
 void GFX_BEGIN_2DUISpace();
 inline bool GFX_GetWideAspectAwareUI() { return g_bIsAwareOfWideAspectUI; }
 void GFX_ActivateTexture(int, int, const char *, int GFX_TEXTURE_WRAP_MODE);
@@ -253,8 +281,9 @@ void GFX_UpdateMatrices(bool);
 void GFX_SetAlphaBlendEnable(bool en);
 void GFX_ActivateTextureEx(int tn, GLfloat lodBias);
 void GFX_DestroyVertex(int *pIdx);
-int GFX_CreateVertex(GFX_CreateVertexParams *parms);
-void GFXAPI_CreateVertex(int idx, GFX_CreateVertexParams *parms);
+int GFX_GetVertexHandle_DRAW_VERT_POS_COLOR_UV();
+int GFX_CreateVertex(const GFX_CreateVertexParams &parms);
+void GFXAPI_CreateVertex(int idx, const GFX_CreateVertexParams &parms);
 void GFX_SetColorMask(uint64_t idx, uint8_t mask);
 void GFX_SetStencilRef(uint8_t ref);
 void GFX_SetFillMode(GFX_FILL_MODE m);
@@ -338,3 +367,6 @@ uint8_t *GFX_DrawMalloc(int size, uint32_t align);
 void GFX_DrawFlip();
 inline void GFX_SetCurrentAniso(float a) { g_Aniso = fmaxf(1.0, a); }
 void GFX_SetAlphaBlendEnable(bool en);
+void GFX_UnloadTexture(int handle);
+void GFX_Internal_UnloadTexture(int handle, TEX_STATE s);
+void GFX_UnloadTexture(int handle);

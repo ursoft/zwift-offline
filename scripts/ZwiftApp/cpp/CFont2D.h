@@ -1,14 +1,13 @@
 #pragma once
 enum FONT_STYLE { FS_SMALL, FS_SANSERIF, FS_FONDO_MED, FS_FONDO_BLACK, FS_CNT };
-enum LANGUAGE_IDS { LID_03 = 3, LID_CNT = 4 };
+enum LANGUAGE_IDS : char { LID_LAT = 0, LID_JAPAN = 1, LID_KOREAN = 2, LID_CHINESE = 3, LID_CNT = 4 };
 struct CFont2D_struc24 {
-    std::vector<float> m_cont;
+    std::vector<char> m_cont;
 };
-struct CFont2D_glyph {
-    char field_0;
-    char field_1;
+struct CFont2D_glyph { // 20 bytes
+    uint16_t m_codePoint;
     char m_kernIdx;
-    char field_3;
+    char m_cnt;
     char field_4;
     char field_5;
     char field_6;
@@ -17,20 +16,51 @@ struct CFont2D_glyph {
     char field_9;
     char field_A;
     char field_B;
-    float m_width;
-    char field_10;
-    char field_11;
-    char field_12;
-    char field_13;
+    float m_width, m_height;
 };
-struct CFont2D_info {
-    int m_someCnt;
-    char field_0[160];
+struct CFont2D_fileHdrV1 { //0x9C bytes
+    uint16_t m_version;
+    char field_2;
+    char m_reserve;
+    char m_from;
+    char m_to;
+    char field_6[18];
+    uint16_t m_width;
+    uint16_t m_height;
+    char field_1C[128];
+};
+struct CFont2D_fileHdrV3 { //0xF0 bytes
+    uint16_t m_version;
+    char field_2;
+    char field_3;
     int m_tex1;
     int m_tex2;
-    char field_AC[32];
+    char field_C[32];
     float m_kern[LID_CNT];
-    char field_DC[1008];
+    char field_3C[26];
+    uint16_t m_usedGlyphs;
+    char field_58[152];
+};
+struct CFont2D_v1_8b { //8 bytes
+    char field_0;
+    char field_1;
+    char field_2;
+    char field_3;
+    char field_4;
+    char field_5;
+    uint16_t m_field_6;
+};
+struct CFont2D_info {
+    LANGUAGE_IDS m_langId;
+    CFont2D_fileHdrV1 m_fileHdrV1;
+    CFont2D_fileHdrV3 m_fileHdrV3;
+    CFont2D_v1_8b m_field_190[33];
+    char field_298;
+    char field_299;
+    char field_29A;
+    char field_29B;
+    uint16_t m_field_29C;
+    char field_29E[558];
     char field_4C8[1220];
     uint16_t m_glyphIndexes[65536];
 };
@@ -39,14 +69,14 @@ struct CFont2D_cache { //192 bytes
 };
 class CFont2D {
 public:
-    std::string m_string;
+    std::string m_fileName;
     CFont2D_struc24 m_struc24x4[4];
     float m_kern[LID_CNT];
     CFont2D_info m_info;
     CFont2D_glyph *m_glyphs;
-    void *m_allocPtr;
-    float m_field_20A30;
-    char m_field_20A34;
+    void *m_RGBAv1;
+    float m_lineHeight;
+    LANGUAGE_IDS m_texSuffix;
     char field_20A35;
     char field_20A36;
     char field_20A37;
@@ -61,8 +91,8 @@ public:
     char field_20A52;
     char field_20A53;
     float m_field_20A54;
-    char m_field_20A58;
-    char m_field_20A59;
+    char m_loadedV1;
+    bool m_loadedV3;
     char field_20A5A;
     char field_20A5B;
     char field_20A5C;
@@ -99,8 +129,8 @@ public:
     void RenderAllCachedContent(bool uiProjection);
     bool LoadFont(const char *name);
     bool LoadFontFromWad(const char *name);
-    bool LoadFontWFromWadV3(const char *name);
-    bool LoadFontWV3(const char *name);
+    void LoadFontV2(const uint8_t *data);
+    void LoadLanguageTextures(LOC_LANGS l);
     ~CFont2D();
 
     void GetParagraphBoxSize(const char *text, float, float, float);
@@ -135,7 +165,6 @@ public:
     void GetTopToBase(float);
     void ImbueCommas(uint32_t);
     void IsFontTextureLoaded(uint16_t);
-    void LoadLanguageTextures(int);
     void RenderBorderedString(float, float, const char *, uint32_t, int, float, bool, bool, float, uint32_t);
     void RenderBorderedStringMultisized(float, float, int, const char **, uint32_t *, float *, int, int, bool, int, bool);
     void RenderBorderedWString(float, float, const char *, uint32_t, int, float, bool, bool, uint32_t);
