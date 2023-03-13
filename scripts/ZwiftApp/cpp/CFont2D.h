@@ -20,11 +20,11 @@ struct CFont2D_glyph { // 20 bytes
 };
 struct CFont2D_fileHdrV1 { //0x9C bytes
     uint16_t m_version;
-    char field_2;
-    char m_reserve;
-    char m_from;
-    char m_to;
-    char field_6[18];
+    uint8_t field_2;
+    uint8_t m_reserve;
+    uint8_t m_from;
+    uint8_t m_to;
+    char m_family[16], field16, field17;
     uint16_t m_width;
     uint16_t m_height;
     char field_1C[128];
@@ -46,22 +46,13 @@ struct CFont2D_v1_8b { //8 bytes
     char field_1;
     char field_2;
     char field_3;
-    char field_4;
-    char field_5;
-    uint16_t m_field_6;
+    uint16_t m_field_4, m_field_6;
 };
 struct CFont2D_info {
     LANGUAGE_IDS m_langId;
     CFont2D_fileHdrV1 m_fileHdrV1;
     CFont2D_fileHdrV3 m_fileHdrV3;
-    CFont2D_v1_8b m_field_190[33];
-    char field_298;
-    char field_299;
-    char field_29A;
-    char field_29B;
-    uint16_t m_field_29C;
-    char field_29E[558];
-    char field_4C8[1220];
+    CFont2D_v1_8b m_field_190[256];
     uint16_t m_glyphIndexes[65536];
 };
 struct CFont2D_cache { //192 bytes
@@ -129,7 +120,7 @@ public:
     void RenderAllCachedContent(bool uiProjection);
     bool LoadFont(const char *name);
     bool LoadFontFromWad(const char *name);
-    void LoadFontV2(const uint8_t *data);
+    void LoadFontV1(const uint8_t *data);
     void LoadLanguageTextures(LOC_LANGS l);
     ~CFont2D();
 

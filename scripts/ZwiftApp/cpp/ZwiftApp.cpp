@@ -189,8 +189,174 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 void doFrameWorldID(zwiftUpdateContext *ptr) {
     //TODO
 }
-void ZWIFT_UpdateLoading(const wchar_t *, bool) {
-    //TODO
+void LoadingRender(float time, const wchar_t *text) {
+    if (time <= 1.0) {
+        GFX_UploadShaderVEC4(GSR_24, g_Vec4White, 0);
+        GFX_SetScissorTestEnable(false);
+        static auto g_seeThroughHandle = GFX_CreateTextureFromTGAFile("UI/z_logo_see_through.tga", -1, true);
+        int width = 1280, height = 720;
+        glfwGetWindowSize(g_mainWindow, &width, &height);
+        glViewport(0, 0, width, height);
+        width = 1280;
+        height = 720;
+        GFX_SetDepthTestEnable(false);
+        GFX_SetDepthWrite(false);
+        GFX_SetBlendFunc(0, 4u, 5u);
+        GFX_SetAlphaBlendEnable(true);
+        GFX_SetCullMode(GCM_0);
+        GFX_SetShader(g_DrawTexturedShaderHandle);
+        GFX_ActivateTexture(g_seeThroughHandle, 0xFFFFFFFF, nullptr, 0);
+#if 0
+        GFX_Draw2DQuad(
+            0.0,
+            0.0,
+            (float)width,
+            (float)height,
+            ((unsigned __int8)(int)(float)((float)(1.0 - time) * 255.0) << 24) | 0xFFFFFF,
+            1);
+        v4 = powf(time, 0.69999999);
+        v5 = (float)((float)((float)(v4 * 2.70158) - 1.70158) * time) * (float)(v4 * v4);
+        if (v5 > 0.0)
+            v5 = v5 * (float)((float)((float)(v5 * 4.5) * v5) + 1.0);
+        v6 = (float)(v5 * 4096.0) + 512.0;
+        v7 = (float)((float)width * 0.5) - (float)(v6 * 0.5);
+        v8 = (float)((float)height * 0.5) - (float)(v6 * 0.5);
+        v9 = v7 + v6;
+        v10 = v8 + v6;
+        GFX_Draw2DQuad_720p(v7, v8, v6, v6, 0.0, 0.0, 1.0, 1.0, -3370479, 0.0, -1, 0);
+        if (v7 >= 0.0)
+            sub_7FF7AC79BF54(0.0, 0.0, v7 + 1.0, (float)height, -3370479);
+        if (v9 <= (float)width)
+            sub_7FF7AC79BF54(v9 - 1.0, 0.0, (float)((float)width - v9) + 2.0, (float)height, -3370479);
+        if (v8 >= 0.0)
+            sub_7FF7AC79BF54(v7, 0.0, v6, v8 + 1.0, -3370479);
+        v11 = height;
+        if (v10 <= (float)height) {
+            sub_7FF7AC79BF54(v7, v10 - 1.0, v6, (float)((float)height - v10) + 2.0, -3370479);
+            v11 = height;
+        }
+        if (text) {
+            v17 = 1.0 - (float)(time + time);
+            v14 = 1065353216;
+            v12 = &v17;
+            if (v17 >= 1.0)
+                v12 = (float *)&v14;
+            *(_QWORD *)&v13 = COERCE_UNSIGNED_INT((float)width);
+            *(float *)&v13 = *(float *)&v13 * 0.5;
+            CFont2D::RenderWString_utf(
+                &g_GiantFontW,
+                v13,
+                (float)((float)v11 * 0.5) + 170.0,
+                text,
+                ((unsigned __int8)(int)(float)(fmaxf(*v12, 0.0) * 255.0) << 24) | 0xFFFFFF,
+                1,
+                0.66659999,
+                0,
+                0,
+                1);
+        }
+#endif
+        GFX_SetDepthTestEnable(true);
+        GFX_SetDepthWrite(true);
+    }
+}
+void ZWIFT_UpdateLoading(const wchar_t *text, bool last) {
+    g_mDownloader.Update();
+#if 0 //TODO
+    if (dword_7FF7AD797670 > *(_DWORD *)(*(_QWORD *)NtCurrentTeb()->ThreadLocalStoragePointer + 192i64))
+    {
+        Init_thread_header(&dword_7FF7AD797670);
+        if (dword_7FF7AD797670 == -1)
+        {
+            qword_7FF7AD78B3C0[0] = (__int64)GetText_0("LOC_LOADING_QUIP_0");
+            byte_7FF7AD78B3C8 = 0;
+            qword_7FF7AD78B3D0 = (__int64)GetText_0("LOC_LOADING_QUIP_1");
+            byte_7FF7AD78B3D8 = 0;
+            qword_7FF7AD78B3E0 = (__int64)GetText_0("LOC_LOADING_QUIP_2");
+            byte_7FF7AD78B3E8 = 0;
+            qword_7FF7AD78B3F0 = (__int64)GetText_0("LOC_LOADING_QUIP_3");
+            byte_7FF7AD78B3F8 = 0;
+            qword_7FF7AD78B400 = (__int64)GetText_0("LOC_LOADING_QUIP_4");
+            byte_7FF7AD78B408 = 0;
+            qword_7FF7AD78B410 = (__int64)GetText_0("LOC_LOADING_QUIP_5");
+            byte_7FF7AD78B418 = 0;
+            qword_7FF7AD78B420 = (__int64)GetText_0("LOC_LOADING_QUIP_6");
+            byte_7FF7AD78B428 = 0;
+            qword_7FF7AD78B430 = (__int64)GetText_0("LOC_LOADING_QUIP_7");
+            byte_7FF7AD78B438 = 0;
+            qword_7FF7AD78B440 = (__int64)GetText_0("LOC_LOADING_QUIP_8");
+            byte_7FF7AD78B448 = 0;
+            qword_7FF7AD78B450 = (__int64)GetText_0("LOC_LOADING_QUIP_9");
+            byte_7FF7AD78B458 = 0;
+            qword_7FF7AD78B460 = (__int64)GetText_0("LOC_LOADING_QUIP_10");
+            byte_7FF7AD78B468 = 0;
+            qword_7FF7AD78B470 = (__int64)GetText_0("LOC_LOADING_QUIP_11");
+            byte_7FF7AD78B478 = 0;
+            qword_7FF7AD78B480 = (__int64)GetText_0("LOC_LOADING_QUIP_12");
+            byte_7FF7AD78B488 = 0;
+            qword_7FF7AD78B490 = (__int64)GetText_0("LOC_LOADING_QUIP_13");
+            byte_7FF7AD78B498 = 0;
+            qword_7FF7AD78B4A0 = (__int64)GetText_0("LOC_LOADING_QUIP_14");
+            byte_7FF7AD78B4A8 = 0;
+            qword_7FF7AD78B4B0 = (__int64)GetText_0("LOC_LOADING_QUIP_15");
+            byte_7FF7AD78B4B8 = 0;
+            qword_7FF7AD78B4C0 = (__int64)GetText_0("LOC_LOADING_QUIP_16");
+            byte_7FF7AD78B4C8 = 0;
+            qword_7FF7AD78B4D0 = (__int64)GetText_0("LOC_LOADING_QUIP_17");
+            byte_7FF7AD78B4D8 = 0;
+            qword_7FF7AD78B4E0 = (__int64)GetText_0("LOC_LOADING_QUIP_18");
+            byte_7FF7AD78B4E8 = 0;
+            qword_7FF7AD78B4F0 = (__int64)GetText_0("LOC_LOADING_QUIP_19");
+            byte_7FF7AD78B4F8 = 0;
+            qword_7FF7AD78B500 = (__int64)GetText_0("LOC_LOADING_QUIP_20");
+            byte_7FF7AD78B508 = 0;
+            qword_7FF7AD78B510 = (__int64)GetText_0("LOC_LOADING_QUIP_21");
+            byte_7FF7AD78B518 = 0;
+            qword_7FF7AD78B520 = (__int64)GetText_0("LOC_LOADING_QUIP_22");
+            byte_7FF7AD78B528 = 0;
+            qword_7FF7AD78B530 = (__int64)GetText_0("LOC_LOADING_QUIP_23");
+            byte_7FF7AD78B538 = 0;
+            qword_7FF7AD78B540 = (__int64)GetText_0("LOC_LOADING_QUIP_24");
+            byte_7FF7AD78B548 = 0;
+            qword_7FF7AD78B550 = (__int64)GetText_0("LOC_LOADING_QUIP_25");
+            byte_7FF7AD78B558 = 0;
+            qword_7FF7AD78B560 = (__int64)GetText_0("LOC_LOADING_QUIP_26");
+            byte_7FF7AD78B568 = 0;
+            qword_7FF7AD78B570 = (__int64)GetText_0("LOC_LOADING_QUIP_27");
+            byte_7FF7AD78B578 = 0;
+            qword_7FF7AD78B580 = (__int64)GetText_0("LOC_LOADING_QUIP_28");
+            byte_7FF7AD78B588 = 0;
+            Init_thread_footer(&dword_7FF7AD797670);
+        }
+    }
+#endif
+    static uint32_t g_lastTime, g_txtChanges;
+    uint32_t now = timeGetTime();
+    if (now - g_lastTime >= 500.0 || last) {
+        ++g_txtChanges;
+        if (!text) {
+            /* TODO v4 = timeGetTime() % 0x1D;
+            for (i = 0; i < 4; ++i)
+            {
+                if (!LOBYTE(qword_7FF7AD78B3C0[2 * v4 + 1]))
+                    break;
+                v4 = (v4 + 1) % 0x1D;
+            }
+            text = (_WORD *)qword_7FF7AD78B3C0[2 * v4];
+            LOBYTE(qword_7FF7AD78B3C0[2 * v4 + 1]) = 1;*/
+            text = L"TEST";
+        }
+        GFX_Begin();
+        VRAM_EndRenderTo(0);
+        glClearColor(1.0, 1.0, 1.0, 1.0);
+        GFX_Clear(60);
+        LoadingRender(0.0, text);
+        //v6 = 0;
+        //WDT_Tick(&v6);
+        GFX_Present();
+        GFX_EndFrame();
+        g_lastTime = now;
+    }
 }
 void MsgBoxAndExit(const char *lpText) {
     MessageBoxA(nullptr, lpText, "ERROR", MB_ICONSTOP);

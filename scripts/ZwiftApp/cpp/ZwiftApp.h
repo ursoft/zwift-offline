@@ -145,6 +145,7 @@ void EndGameSession(bool bShutDown);
 void ShutdownSingletons();
 void ZwiftExit(int code);
 void ZWIFT_UpdateLoading(const wchar_t *, bool);
+void LoadingRender(float time, const wchar_t *text);
 void ZWIFT_UpdateCaretPosition(int, int);
 void ZWIFT_ShowDialog(int);
 void ZWIFT_SetupUIViewport();

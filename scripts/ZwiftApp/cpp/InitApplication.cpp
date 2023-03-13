@@ -176,6 +176,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     JM_Initialize();
     ANIM_PostInit();
     AUDIO_Init();
+    g_WADManager.LoadWADFile("assets/fonts/font.wad");
     GFX_Initialize();
     ZNETWORK_Initialize();
     ConnectionManager::Initialize();
@@ -187,7 +188,6 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     VRAM_EndRenderTo(0);
     MATERIAL_Init();
     GFX_DrawInit();
-    g_WADManager.LoadWADFile("assets/fonts/font.wad");
     g_ChatFontGW = &g_GiantFontW;
     g_ChatFontLW = &g_LargeFontW;
     g_GiantFontW.Load(FS_SMALL);

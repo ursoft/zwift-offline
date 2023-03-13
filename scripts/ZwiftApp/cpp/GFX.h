@@ -9,6 +9,7 @@ enum GFX_COMPARE_FUNC { GCF_NEVER, GCF_LESS, GCF_EQUAL, GCF_LEQUAL, GCF_GREATER,
 enum GFX_StencilOp { GSO_FALSE_0, GSO_KEEP, GSO_REPLACE, GSO_INCR, GSO_INCR_WRAP, GSO_DECR, GSO_DECR_WRAP, GSO_INVERT, GSO_FALSE_8, GSO_FALSE_9 };
 enum GFX_MatrixType { GMT_0, GMT_1, GMT_2, GMT_CNT };
 enum GFX_PRIM_TYPE { GPT_0, GPT_1, GPT_LINE_STRIP, GPT_TRIANGLES, GPT_TRIANGLE_STRIP, GPT_QUADS, GPT_POLYGON_BIT, GPT_7, GPT_CNT };
+enum GFX_CULL { GCM_0 };
 inline const GLenum PRIM_TO_GLPRIM[GPT_CNT] = { GL_FALSE, GL_TRUE, GL_LINE_STRIP, GL_TRIANGLES, GL_TRIANGLE_STRIP, GL_QUADS, GL_POLYGON_BIT, GL_FALSE };
 struct GFX_InitializeParams {
     int WINWIDTH, WINHEIGHT;
@@ -55,7 +56,7 @@ struct GFX_RegisterRef {
     enum class Ty : uint8_t { Scene, Object, Draw, User, CNT } m_ty;
     uint16_t m_offset, m_cnt;
 };
-enum GFX_SHADER_REGISTERS { GSR_0 = 0, GSR_CNT = 29 };
+enum GFX_SHADER_REGISTERS { GSR_0 = 0, GSR_24 = 24, GSR_CNT = 29 };
 enum GFX_SHADER_MATRICES { GSM_0 = 0, GSM_1, GSM_2, GSM_3, GSM_CNT = 9 };
 struct GFX_BlendIdxs {
     bool operator == (const GFX_BlendIdxs &peer) { return m_modeIdx == peer.m_modeIdx && m_sFactorIdx == peer.m_sFactorIdx && m_dFactorIdx == peer.m_dFactorIdx; }
@@ -263,7 +264,7 @@ inline int g_ButterflyTexture, g_RedButterflyTexture, g_MonarchTexture, g_Firefl
     g_RockTexture, g_FranceRockTexture, g_FranceRockNTexture, g_RockNormalTexture, g_ShowroomFloorTexture, g_HeadlightTexture, g_VignetteTexture;
 inline uint32_t g_TextureTimeThisFrame, g_MeshTimeThisFrame;
 inline GFX_MatrixContext g_MatrixContext;
-inline VEC4 g_frustumPlanes[6];
+inline VEC4 g_frustumPlanes[6], g_Vec4White{1.0, 1.0, 1.0, 1.0};
 extern const MATRIX44 g_mxIdentity;
 inline bool g_bIsAwareOfWideAspectUI, g_b2D720pRenderIsSetup;
 inline float g_CurrentUISpace_Height = 720.0f, g_WideUISpace_Height = 720.0f, g_CurrentUISpace_Width = 1280.0f, g_WideUISpace_Width = 1280.0f, g_OrthoScalarW = 1.0f, g_OrthoScalarH = 1.0f;
@@ -370,3 +371,9 @@ void GFX_SetAlphaBlendEnable(bool en);
 void GFX_UnloadTexture(int handle);
 void GFX_Internal_UnloadTexture(int handle, TEX_STATE s);
 void GFX_UnloadTexture(int handle);
+void GFX_Present();
+void GFX_EndFrame();
+void GFX_SetScissorTestEnable(bool en);
+void GFX_SetDepthTestEnable(bool en);
+void GFX_SetDepthWrite(bool en);
+void GFX_SetCullMode(GFX_CULL cm);

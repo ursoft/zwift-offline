@@ -18,8 +18,8 @@ bool CFont2D::LoadFont(const char *name) {
             //assert(m_info.m_fileHdrV1.m_width >= m_info.m_fileHdrV1.m_height);
             auto r = fread(m_RGBAv1, 1, cb, f);
             assert(r == cb);
-            LoadFontV2((uint8_t *)m_RGBAv1);
-            m_info.m_field_29C *= 0.7;
+            LoadFontV1((uint8_t *)m_RGBAv1);
+            m_info.m_field_190[33].m_field_4 *= 0.7;
             result = true;
             m_loadedV1 = 1;
         } else {
@@ -135,15 +135,12 @@ bool CFont2D::LoadFontFromWad(const char *name) {
         if (pFontHeaderV1->m_version == 0x100) {
             m_info.m_fileHdrV1 = *pFontHeaderV1;
             auto cb_3 = sizeof(CFont2D_v1_8b) * m_info.m_fileHdrV1.m_reserve;
-            assert(m_info.m_fileHdrV1.m_reserve <= _countof(m_info.m_field_190));
-            assert(m_info.m_fileHdrV1.m_from < _countof(m_info.m_field_190));
-            assert(m_info.m_fileHdrV1.m_to <= _countof(m_info.m_field_190));
             memmove(m_info.m_field_190 + m_info.m_fileHdrV1.m_from, pFontHeaderV1 + 1, cb_3);
             //OMIT m_RGBAv1 = malloc(m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_width * 4);
             //memset(m_RGBAv1, 0x11, 4 * m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_height); //QUEST why not m_height * m_width ???
             //assert(m_info.m_fileHdrV1.m_width >= m_info.m_fileHdrV1.m_height);
-            LoadFontV2((uint8_t *)(pFontHeaderV1 + 1) + cb_3);
-            m_info.m_field_29C *= 0.7;
+            LoadFontV1((uint8_t *)(pFontHeaderV1 + 1) + cb_3);
+            m_info.m_field_190[33].m_field_4 *= 0.7;
             result = true;
             m_loadedV1 = 1;
         } else {
@@ -203,7 +200,7 @@ bool CFont2D::LoadFontFromWad(const char *name) {
     }
     return result;
 }
-void CFont2D::LoadFontV2(const uint8_t *data) {
+void CFont2D::LoadFontV1(const uint8_t *data) {
     if (g_fontShader == -1)
         g_fontShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
     m_tex = GFXAPI_CreateTextureFromRGBA(m_info.m_fileHdrV1.m_width, m_info.m_fileHdrV1.m_height, data, true);

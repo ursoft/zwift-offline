@@ -1489,6 +1489,92 @@ const char *GFX_GetVersion() {
 const char *GFX_GetAPIName() { return g_GL_apiName; }
 const char *GFX_GetVendorName() { return g_GL_vendor; }
 const char *GFX_GetRendererName() { return g_GL_renderer; }
+void GFX_Present() {
+    glfwSwapBuffers(g_mainWindow);
+    glfwPollEvents();
+    GFX_DrawFlip();
+    //v0 = 1;
+    //WDT_Tick(&v0);
+}
+void GFX_EndFrame() {
+    //TODO: FPS and battery calculations
+#if 0
+    DWORD Time; // eax
+    int v1; // ecx
+    unsigned int v2; // r8d
+    bool v3; // zf
+    int v4; // r9d
+    unsigned int v5; // edx
+    _DWORD *v6; // rcx
+    float v7; // xmm2_4
+    int v8; // eax
+    float v9; // xmm1_4
+    float v10; // xmm0_4
+    DWORD v11; // ebx
+    char v12; // al
+    int v13; // xmm0_4
+    float v14; // xmm1_4
+
+    Time = timeGetTime();
+    v1 = dword_7FF7AD5F6EAC;
+    v2 = dword_7FF7AD5F6EA8;
+    v3 = dword_7FF7AD5F6EAC == 0;
+    dword_7FF7AD5F6EAC = Time;
+    if (v3)
+        v1 = Time;
+    v4 = Time - v1;
+    if (Time - v1 > 5000)
+        v4 = 5000;
+    v5 = g_nTotalFrames;
+    ++dword_7FF7AD5F6EA8;
+    v6 = dword_7FF7AD5F6E30;
+    dword_7FF7AD5F6E30[v2 % 0x1E] = v4;
+    v7 = (float)v4 / 1000.0;
+    if (v5 > 0x12C && v7 > 0.001 && v7 < 0.2)
+        g_instantaniousFPS = 1.0 / v7;
+    v8 = 0;
+    do
+        v8 += *v6++;
+    while ((__int64)v6 < (__int64)&dword_7FF7AD5F6EA8);
+    v9 = (float)v8 / 30.0;
+    if (v9 == 0.0)
+        v10 = 0.0;
+    else
+        v10 = 1000.0 / v9;
+    g_smoothedFPS = LODWORD(v10);
+    g_nTotalFrames = v5 + 1;
+    g_TotalRenderTime = g_TotalRenderTime + v7;
+    v11 = timeGetTime();
+    if (v11 <= dword_7FF7AD5F6EB4 + 5000)
+    {
+        v12 = byte_7FF7AD5F6EB0;
+    } else
+    {
+        v12 = OS_IsOnBattery();
+        byte_7FF7AD5F6EB0 = v12;
+        if (v12 && dword_7FF7AD5F6EB4)
+            g_SecondsUnplugged = g_SecondsUnplugged + 5.0;
+        dword_7FF7AD5F6EB4 = v11;
+    }
+    if (v12 && *(float *)&g_TargetBatteryFPS > 0.0 && *(float *)&g_TargetBatteryFPS < 61.0 && g_instantaniousFPS > 1.0)
+    {
+        v13 = dword_7FF7AD5F6EB8;
+        v14 = (float)(1000.0 / *(float *)&g_TargetBatteryFPS) - (float)(1000.0 / g_instantaniousFPS);
+        if (v14 > 1.0)
+        {
+            *(float *)&v13 = *(float *)&dword_7FF7AD5F6EB8 + 1.0;
+            *(float *)&dword_7FF7AD5F6EB8 = *(float *)&dword_7FF7AD5F6EB8 + 1.0;
+        }
+        if (v14 < 0.0)
+        {
+            *(float *)&v13 = *(float *)&v13 + -1.0;
+            dword_7FF7AD5F6EB8 = v13;
+        }
+        if (*(float *)&v13 > 5.0)
+            Sleep((int)*(float *)&v13);
+    }
+#endif
+}
 bool GFX_CheckExtensions() {
     g_gfxCaps.draw_elements_base_vertex = (GLEW_ARB_draw_elements_base_vertex || GLEW_EXT_draw_elements_base_vertex);
     g_gfxCaps.ARB_base_instance = GLEW_ARB_base_instance != 0;
@@ -1622,6 +1708,24 @@ void GFX_SetAlphaBlendEnable(bool en) {
     if (ch)
         g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
 }
+void GFX_SetScissorTestEnable(bool en) {
+    g_pGFX_CurrentStates->m_scissorTest = en;
+    if (en)
+        glEnable(GL_SCISSOR_TEST);
+    else
+        glDisable(GL_SCISSOR_TEST);
+}
+void GFX_SetDepthTestEnable(bool en) {
+    g_pGFX_CurrentStates->m_depthTest = en;
+    if (en)
+        glEnable(GL_DEPTH_TEST);
+    else
+        glDisable(GL_DEPTH_TEST);
+}
+void GFX_SetDepthWrite(bool en) {
+    g_pGFX_CurrentStates->m_depthMask = en;
+    glDepthMask(en);
+}
 void GFX_PopStates() {
     g_pGFX_CurrentStates--;
     if (g_pGFX_CurrentStates->m_depthTest)
@@ -1707,6 +1811,9 @@ void GFX_ActivateTextureEx(int tn, GLfloat lodBias) {
     }
 }
 void GFX_SetBlendFunc(int GFX_BLEND_OP, int GFX_BLEND1, int GFX_BLEND2) {
+    //TODO
+}
+void GFX_SetCullMode(GFX_CULL cm) {
     //TODO
 }
 void GFX_SetTextureFilter(uint32_t tn, int filter) {
