@@ -4,13 +4,22 @@
 //_mm_shuffle_ps(v2, v2, 170) -> v2[2], v2[3], v2[0], v2[1]
 enum GFX_RenderPass { GRP_CNT };
 enum AssetCategory : uint32_t { AC_UNK, AC_1, AC_2, AC_CNT };
-enum GFX_FILL_MODE { GFM_POINT, GFM_LINE, GFM_FILL, GFM_FALSE };
-enum GFX_COMPARE_FUNC { GCF_NEVER, GCF_LESS, GCF_EQUAL, GCF_LEQUAL, GCF_GREATER, GCF_NOTEQUAL, GCF_GEQUAL, GCF_ALWAYS };
-enum GFX_StencilOp { GSO_FALSE_0, GSO_KEEP, GSO_REPLACE, GSO_INCR, GSO_INCR_WRAP, GSO_DECR, GSO_DECR_WRAP, GSO_INVERT, GSO_FALSE_8, GSO_FALSE_9 };
+enum GFX_FILL_MODE { GFM_POINT, GFM_LINE, GFM_FILL, GFM_FALSE, GFM_CNT };
+enum GFX_COMPARE_FUNC : uint8_t { GCF_NEVER, GCF_LESS, GCF_EQUAL, GCF_LEQUAL, GCF_GREATER, GCF_NOTEQUAL, GCF_GEQUAL, GCF_ALWAYS, GCF_CNT };
+enum GFX_StencilOp : uint8_t { GSO_FALSE_0, GSO_KEEP, GSO_REPLACE, GSO_INCR, GSO_INCR_WRAP, GSO_DECR, GSO_DECR_WRAP, GSO_INVERT, GSO_FALSE_8, GSO_FALSE_9, GSO_FALSE_10, GSO_CNT };
 enum GFX_MatrixType { GMT_0, GMT_1, GMT_2, GMT_CNT };
 enum GFX_PRIM_TYPE { GPT_0, GPT_1, GPT_LINE_STRIP, GPT_TRIANGLES, GPT_TRIANGLE_STRIP, GPT_QUADS, GPT_POLYGON_BIT, GPT_7, GPT_CNT };
-enum GFX_CULL { GCM_0 };
-inline const GLenum PRIM_TO_GLPRIM[GPT_CNT] = { GL_FALSE, GL_TRUE, GL_LINE_STRIP, GL_TRIANGLES, GL_TRIANGLE_STRIP, GL_QUADS, GL_POLYGON_BIT, GL_FALSE };
+enum GFX_CULL { GFC_NONE, GFC_FRONT, GFC_BACK, GFC_CNT };
+enum GFX_TEXTURE_WRAP_MODE : uint8_t { TWM_REPEAT, TWM_CLAMP_TO_EDGE, TWM_MIRRORED_REPEAT, TWM_CLAMP_TO_BORDER, TWM_CNT };
+enum GFX_FILTER : uint8_t { GFF_NEAFEST, GFF_LINEAR, GFF_LINEAR_MIPMAP_NEAREST, GFF_LINEAR_MIPMAP_LINEAR, GFF_CNT };
+enum GFX_BLEND : uint8_t { GB_FALSE, GB_TRUE, GB_SRC_COLOR, GB_ONE_MINUS_SRC_COLOR, GB_SRC_ALPHA, GB_ONE_MINUS_SRC_ALPHA, GB_DST_COLOR, GB_ONE_MINUS_DST_COLOR, GB_DST_ALPHA, 
+    GB_ONE_MINUS_DST_ALPHA, GB_CONSTANT_COLOR, GB_ONE_MINUS_CONSTANT_COLOR, GB_CONSTANT_ALPHA, GB_ONE_MINUS_CONSTANT_ALPHA, GB_CNT };
+enum GFX_BLEND_OP : uint8_t { GBO_FUNC_ADD, GBO_FUNC_SUBTRACT, GBO_MIN, GBO_MAX, GBO_FUNC_REVERSE_SUBTRACT, GBO_FALSE, GBO_CNT };
+enum GFX_IndexFormat { GIF_SHORT, GIF_INT, GIF_CNT };
+enum GFX_VertexFormat : uint8_t { GVF_FALSE, GVF_UNSIGNED_BYTE1, GVF_BYTE, GVF_UNSIGNED_BYTE3, GVF_UNSIGNED_SHORT, GVF_FLOAT5, GVF_FLOAT6, GVF_FLOAT7, GVF_CNT };
+inline const GLenum g_PRIM_TO_GLPRIM[GPT_CNT] = { GL_FALSE, GL_TRUE, GL_LINE_STRIP, GL_TRIANGLES, GL_TRIANGLE_STRIP, GL_QUADS, GL_POLYGON_BIT, GL_FALSE };
+inline const GLenum g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[TWM_CNT] = { GL_REPEAT, GL_CLAMP_TO_EDGE, GL_MIRRORED_REPEAT, GL_CLAMP_TO_BORDER };
+inline const GLenum g_IF_TO_GLIF[GIF_CNT] = { GL_UNSIGNED_SHORT, GL_UNSIGNED_INT };
 struct GFX_InitializeParams {
     int WINWIDTH, WINHEIGHT;
     bool field_8, FullScreen, GlCoreProfile, HasPickingBuf;
@@ -58,35 +67,56 @@ struct GFX_RegisterRef {
 };
 enum GFX_SHADER_REGISTERS { GSR_0 = 0, GSR_24 = 24, GSR_CNT = 29 };
 enum GFX_SHADER_MATRICES { GSM_0 = 0, GSM_1, GSM_2, GSM_3, GSM_CNT = 9 };
-struct GFX_BlendIdxs {
-    bool operator == (const GFX_BlendIdxs &peer) { return m_modeIdx == peer.m_modeIdx && m_sFactorIdx == peer.m_sFactorIdx && m_dFactorIdx == peer.m_dFactorIdx; }
-    bool operator != (const GFX_BlendIdxs &peer) { return !(*this == peer); }
-    uint8_t m_modeIdx, m_sFactorIdx, m_dFactorIdx;
+struct GFX_BlendFunc {
+    bool operator == (const GFX_BlendFunc &peer) { return m_modeIdx == peer.m_modeIdx && m_sFactorIdx == peer.m_sFactorIdx && m_dFactorIdx == peer.m_dFactorIdx; }
+    bool operator != (const GFX_BlendFunc &peer) { return !(*this == peer); }
+    GFX_BLEND_OP m_modeIdx;
+    GFX_BLEND m_sFactorIdx, m_dFactorIdx, gap;
 };
-struct GFX_StateBlock {
-    enum Bits { GSB_PEND_ALTB = 1, GSB_PEND_ATTRDATA = 2, GSB_PEND_VAO = 4, GSB_PEND_VAIDX = 8, GSB_PEND_EAB = 16, GSB_PEND_CULL = 32, GSB_PEND_BLEND = 64 };
+struct GFX_StencilFunc {
+    bool m_testEnabled;
+    GFX_COMPARE_FUNC m_compFunc;
+    uint8_t m_ref, m_funcMask, m_mask;
+    GFX_StencilOp m_sfail, m_dpfail, m_dppass;
+};
+struct GFX_StateBlock { // 0xD0 (208) bytes
+    enum Bits { GSB_PEND_VBO = 1, GSB_PEND_ATTRDATA = 2, GSB_PEND_VAO = 4, GSB_PEND_VAIDX = 8, GSB_PEND_IB = 16, GSB_PEND_CULL = 32, GSB_PEND_BLEND = 64 };
     uint64_t m_bits;
-    int m_depthTest;            // push[0] as bool
-    int m_depthFuncIdx;         // push[1]
-    int m_depthMask;            // push[2] as bool
-    GFX_FILL_MODE m_fillMode;   // push[3]
-    int m_newCullIdx;           // push[4]
-    int m_alphaBlend;           // push[5] as bool
-    //char field20[24];
-    int m_scissorTest;          // push[12] as bool
-    float m_polyOffset;         // push[13]
-    //int field3d
-    GFX_BlendIdxs m_prBlendIdxs; // push[15]
-    int m_cullIdx;              // @push[4]
-    bool m_blend;               // @push[5]
-    GFX_BlendIdxs m_blendIdxs;  // @push[15]
-    int m_vaIdx, m_field_A4;
-    uint64_t m_field_A8, m_VAO, m_hasRegTypes;
-    uint8_t *m_attrData;
-    int m_actTex, m_arrBuf, m_altArrBuf, m_shader, m_field_C8, m_elArrBuf;
-    uint8_t m_colorMask[4], m_stensilRef, m_stensilFuncMask, m_stensilFunc, m_stensilMask, m_filters[32];
-    GFX_StencilOp m_sopsFail, m_sopdpFail, m_sopdpPass;
-    bool m_enableStensilTest;
+    float m_depthTest;
+    GFX_COMPARE_FUNC m_depthFunc;
+    int m_depthMask;
+    GFX_FILL_MODE m_fillMode;
+    GFX_CULL m_cullIdx1;
+    int m_alphaBlend1;
+    char field_20[24];
+    int m_scissorTest;
+    float m_polyOffset;
+    int f_40;
+    GFX_BlendFunc m_blendFunc1;
+    GFX_FILTER m_filters[8];
+    GFX_TEXTURE_WRAP_MODE m_wrapS[8];
+    GFX_TEXTURE_WRAP_MODE m_wrapT[8];
+    char field_60[16];
+    GFX_CULL m_cullIdx2;
+    int m_alphaBlend2;
+    GFX_BlendFunc m_blendFunc2;
+    GFX_StencilFunc m_stencil;
+    char m_colorMask[4];
+    int m_vertexBuffer;
+    int field_8C;
+    uint64_t m_attrData;
+    int m_indexBuffer;
+    int m_vertex;
+    uint32_t m_shader;
+    uint32_t m_vaIdx;
+    uint64_t m_field_A8;
+    int m_actTex;
+    int m_arrBuf;
+    uint64_t m_VAO;
+    uint64_t m_hasRegTypes;
+    uint32_t m_shaderMAT4ARRAY;
+    uint32_t m_has2;
+
     void UnbindBuffer(int);
     void SetUniform(const GFX_RegisterRef &, const VEC4 &, uint16_t, uint64_t);
     void SetUniform(const GFX_RegisterRef &, const VEC4 &, uint64_t);
@@ -125,12 +155,14 @@ namespace GameShaders {
 }
 struct GFX_ShaderPair { //440 bytes
     int m_vshId, m_fshId, m_program;
-    int m_attribLocations[12], m_locations[GSR_CNT], m_matLocations[GSM_CNT], m_matArrLocations[2], m_samplers[16], m_field_16C[18];
+    int m_attribLocations[12], m_locations[GSR_CNT], m_matLocations[GSM_CNT], m_matArrLocations[2], m_samplers[16], m_texHandles[16], m_field_16C[18];
     uint16_t m_vertIdx, m_fragIdx;
-    uint8_t m_field_12C[64], m_modelIndex;
+    uint8_t m_modelIndex;
 };
 struct GFX_VertexAttr { //4 byte
-    uint8_t m_idx, m_fmtIdx, m_dataOffset, m_strideIdx;
+    uint8_t m_idx;
+    GFX_VertexFormat m_fmtIdx;
+    uint8_t m_dataOffset, m_strideIdx;
 };
 struct GFX_Stride {
     char m_strideIdx;
@@ -181,11 +213,11 @@ struct GFX_TextureStruct { //64 bytes
     AssetCategory m_assetCategory;
     TEX_STATE m_texState;
     int m_texTime;
-    int field_28;
+    float m_aniso;
     int field_2C;
     int m_totalBytes;
-    char field_34;
-    char field_35;
+    GFX_TEXTURE_WRAP_MODE m_wrapModeS;
+    GFX_TEXTURE_WRAP_MODE m_wrapModeT;
     char m_field_36_3;
     uint8_t m_loaded; //bool or bit field?
     char m_fromLevel;
@@ -220,6 +252,7 @@ inline int64_t g_VRAMBytes_Textures;
 inline const int g_DrawBufferSize = 0x800'000, MAX_SHADERS = 0x400;
 inline GFX_VertexArray g_vertexArray;
 inline GFX_ShaderPair g_Shaders[MAX_SHADERS], *g_pCurrentShader;
+inline GFX_ShaderPair *GFX_GetCurrentShader() { return g_pCurrentShader; }
 inline float g_TargetBatteryFPS;
 inline size_t g_TotalMemoryInKilobytes;
 inline AssetCategory g_CurrentAssetCategory = AC_1;
@@ -227,7 +260,7 @@ inline uint64_t g_GFX_PerformanceFlags, g_VRAMBytes_VBO;
 inline PerformanceGroup g_GFX_Performance = GPG_ULTRA;
 inline int g_nSkipMipCount;
 inline const char *g_GL_vendor = "", *g_GL_renderer = "", *g_GL_apiName = "";
-inline bool g_openglDebug, g_glCoreContext, g_bGFXINITIALIZED, g_bUseEmptyShadowMapsHack;
+inline bool g_openglDebug, g_glCoreContext, g_bGFXINITIALIZED, g_bUseEmptyShadowMapsHack, g_bInvertCulling;
 inline char g_strCPU[0x40];
 inline int g_BlurShaderHandle, g_CurrentShaderHandle;
 enum DetailedRender { DR_NO, DR_MIDDLE, DR_VERBOSE };
@@ -261,7 +294,7 @@ inline int g_SimpleShaderHandle, g_WorldNoLightingHandle, g_ShadowmapShaderHandl
 inline bool g_bUseTextureHeightmaps = true;
 inline int g_ButterflyTexture, g_RedButterflyTexture, g_MonarchTexture, g_FireflyTexture, g_CausticTexture, g_GrassTexture, g_GravelMtnGrassTexture,
     g_InnsbruckConcreteTexture, g_ParisConcreteTexture, g_DefaultNormalMapNoGloss, g_RoadDustTexture, g_GravelDustTexture, g_SandTexture, g_SandNormalTexture,
-    g_RockTexture, g_FranceRockTexture, g_FranceRockNTexture, g_RockNormalTexture, g_ShowroomFloorTexture, g_HeadlightTexture, g_VignetteTexture;
+    g_RockTexture, g_FranceRockTexture, g_FranceRockNTexture, g_RockNormalTexture, g_ShowroomFloorTexture, g_HeadlightTexture, g_VignetteTexture, g_FFtextureHandle;
 inline uint32_t g_TextureTimeThisFrame, g_MeshTimeThisFrame;
 inline GFX_MatrixContext g_MatrixContext;
 inline VEC4 g_frustumPlanes[6], g_Vec4White{1.0, 1.0, 1.0, 1.0};
@@ -274,8 +307,8 @@ void GFX_DrawPrimitive(GFX_PRIM_TYPE t, const /*DRAW_VERT_POS_COLOR_UV*/ void *d
 void GFX_BEGIN_2DUISpace();
 inline bool GFX_GetWideAspectAwareUI() { return g_bIsAwareOfWideAspectUI; }
 void GFX_ActivateTexture(int, int, const char *, int GFX_TEXTURE_WRAP_MODE);
-void GFX_SetBlendFunc(int GFX_BLEND_OP, int GFX_BLEND1, int GFX_BLEND2);
-void GFX_SetTextureFilter(uint32_t, /*GFX_FILTER*/ int);
+void GFX_SetBlendFunc(GFX_BLEND_OP op, GFX_BLEND b1, GFX_BLEND b2);
+void GFX_SetTextureFilter(uint32_t tn, GFX_FILTER f);
 void GFX_SetupUIProjection();
 void GFX_Ortho(float, float, float, float, float, float);
 void GFX_UpdateMatrices(bool);
@@ -367,7 +400,6 @@ uint32_t GFX_Align(uint32_t addr, uint32_t align);
 uint8_t *GFX_DrawMalloc(int size, uint32_t align);
 void GFX_DrawFlip();
 inline void GFX_SetCurrentAniso(float a) { g_Aniso = fmaxf(1.0, a); }
-void GFX_SetAlphaBlendEnable(bool en);
 void GFX_UnloadTexture(int handle);
 void GFX_Internal_UnloadTexture(int handle, TEX_STATE s);
 void GFX_UnloadTexture(int handle);
@@ -377,3 +409,16 @@ void GFX_SetScissorTestEnable(bool en);
 void GFX_SetDepthTestEnable(bool en);
 void GFX_SetDepthWrite(bool en);
 void GFX_SetCullMode(GFX_CULL cm);
+void GFX_Internal_SetActiveTexture(int glHandle);
+void GFXAPI_ActivateTexture(int handle, int glOffset, const char *uniformName, GFX_TEXTURE_WRAP_MODE wm);
+int32_t GFX_GetStateU32(int idx);
+void GFX_SetDepthTestFunc(GFX_COMPARE_FUNC fu);
+void GFX_SetDepthBias(float b);
+void GFX_SetIndexBuffer(int ib);
+void GFX_SetTextureWrap(uint32_t tn, GFX_TEXTURE_WRAP_MODE t, GFX_TEXTURE_WRAP_MODE s);
+void GFX_SetVertex(int handle);
+void GFX_SetVertexBuffer(int vb, uint64_t notUsed, uint64_t attrData);
+void GFXAPI_ReUploadShaderCache();
+void GFX_DrawIndexedInstancedPrimitive(GFX_PRIM_TYPE a1, uint32_t a2, uint32_t a3, GFX_IndexFormat gif, uint32_t a5, uint32_t a6);
+void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE ty, int baseVertex, uint32_t cnt, GFX_IndexFormat gif, const void *indices);
+void GFX_internal_DrawPrimitive(GFX_PRIM_TYPE ty, int first, uint32_t count);

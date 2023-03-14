@@ -201,9 +201,9 @@ void LoadingRender(float time, const wchar_t *text) {
         height = 720;
         GFX_SetDepthTestEnable(false);
         GFX_SetDepthWrite(false);
-        GFX_SetBlendFunc(0, 4u, 5u);
+        GFX_SetBlendFunc(GBO_FUNC_ADD, GB_SRC_ALPHA, GB_ONE_MINUS_SRC_ALPHA);
         GFX_SetAlphaBlendEnable(true);
-        GFX_SetCullMode(GCM_0);
+        GFX_SetCullMode(GFC_NONE);
         GFX_SetShader(g_DrawTexturedShaderHandle);
         GFX_ActivateTexture(g_seeThroughHandle, 0xFFFFFFFF, nullptr, 0);
 #if 0

@@ -198,7 +198,7 @@ LABEL_9:
     {
 LABEL_14:
       SetupTerrainShaders(v45);
-      GFX_SetCullMode(1LL);
+      GFX_SetCullMode(GFC_ 1LL);
       HeightMapManager::Render((HeightMapManager *)g_pHeightMapManager, -1);
       if ( (v82[24] & 0x10) == 0 )
         goto LABEL_4;

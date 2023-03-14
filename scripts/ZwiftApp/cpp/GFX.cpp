@@ -275,9 +275,9 @@ void GFX_Internal_UnloadTexture(int handle, TEX_STATE s) {
     static_assert(sizeof(GFX_TextureStruct) == 64);
     g_VRAMBytes_Textures -= g_Textures[handle].m_totalBytes;
     g_Textures[handle].m_texState = s;
-    g_Textures[handle].field_34 = 0;
-    g_Textures[handle].field_35 = 0;
-    g_Textures[handle].field_28 = 0;
+    g_Textures[handle].m_wrapModeS = TWM_REPEAT;
+    g_Textures[handle].m_wrapModeT = TWM_REPEAT;
+    g_Textures[handle].m_aniso = 0.0f;
     g_Textures[handle].m_totalBytes = 0;
     g_Textures[handle].m_field_39_0 = 0;
     g_Textures[handle].m_toLevel = 0;
@@ -298,36 +298,36 @@ void GFX_SetColorMask(uint64_t idx, uint8_t mask) {
         }
     }
 }
-const uint32_t g_stensilFuncs[] = {GL_NEVER, GL_LESS, GL_EQUAL, GL_LEQUAL, GL_GREATER, GL_NOTEQUAL, GL_GEQUAL, GL_ALWAYS};
-const uint32_t g_stensilOps[] = {GL_FALSE, GL_KEEP, GL_REPLACE, GL_INCR, GL_INCR_WRAP, GL_DECR, GL_DECR_WRAP, GL_INVERT, GL_FALSE, GL_FALSE};
+const uint32_t g_GFX_TO_GL_CMPFUNC[GCF_CNT] = {GL_NEVER, GL_LESS, GL_EQUAL, GL_LEQUAL, GL_GREATER, GL_NOTEQUAL, GL_GEQUAL, GL_ALWAYS};
+const uint32_t g_stensilOps[GSO_CNT] = {GL_FALSE, GL_KEEP, GL_REPLACE, GL_INCR, GL_INCR_WRAP, GL_DECR, GL_DECR_WRAP, GL_INVERT, GL_FALSE, GL_FALSE};
 void GFX_SetStencilRef(uint8_t ref) {
-    if (g_pGFX_CurrentStates->m_stensilRef != ref) {
-        glStencilFunc(g_stensilFuncs[g_pGFX_CurrentStates->m_stensilFunc], ref, g_pGFX_CurrentStates->m_stensilFuncMask);
-        g_pGFX_CurrentStates->m_stensilRef = ref;
+    if (g_pGFX_CurrentStates->m_stencil.m_ref != ref) {
+        glStencilFunc(g_GFX_TO_GL_CMPFUNC[g_pGFX_CurrentStates->m_stencil.m_compFunc], ref, g_pGFX_CurrentStates->m_stencil.m_funcMask);
+        g_pGFX_CurrentStates->m_stencil.m_ref = ref;
     }
 }
 void GFX_SetStencilFunc(bool enableTest, GFX_COMPARE_FUNC compareFunc, uint8_t stensilFuncMask, uint8_t stensilMask, GFX_StencilOp sfail, GFX_StencilOp dpfail, GFX_StencilOp dppass) {
-    if (g_pGFX_CurrentStates->m_enableStensilTest != enableTest) {
+    if (g_pGFX_CurrentStates->m_stencil.m_testEnabled != enableTest) {
         if (enableTest)
             glEnable(GL_STENCIL_TEST);
         else
             glDisable(GL_STENCIL_TEST);
-        g_pGFX_CurrentStates->m_enableStensilTest = enableTest;
+        g_pGFX_CurrentStates->m_stencil.m_testEnabled = enableTest;
     }
-    if (g_pGFX_CurrentStates->m_stensilFunc != compareFunc || g_pGFX_CurrentStates->m_stensilFuncMask != stensilFuncMask) {
-        glStencilFunc(g_stensilFuncs[compareFunc], g_pGFX_CurrentStates->m_stensilRef, stensilFuncMask);
-        g_pGFX_CurrentStates->m_stensilFunc = compareFunc;
-        g_pGFX_CurrentStates->m_stensilFuncMask = stensilFuncMask;
+    if (g_pGFX_CurrentStates->m_stencil.m_compFunc != compareFunc || g_pGFX_CurrentStates->m_stencil.m_funcMask != stensilFuncMask) {
+        glStencilFunc(g_GFX_TO_GL_CMPFUNC[compareFunc], g_pGFX_CurrentStates->m_stencil.m_ref, stensilFuncMask);
+        g_pGFX_CurrentStates->m_stencil.m_compFunc = compareFunc;
+        g_pGFX_CurrentStates->m_stencil.m_funcMask = stensilFuncMask;
     }
-    if (g_pGFX_CurrentStates->m_stensilMask != stensilMask) {
+    if (g_pGFX_CurrentStates->m_stencil.m_mask != stensilMask) {
         glStencilMask(stensilMask);
-        g_pGFX_CurrentStates->m_stensilMask = stensilMask;
+        g_pGFX_CurrentStates->m_stencil.m_mask = stensilMask;
     }
-    if (g_pGFX_CurrentStates->m_sopsFail != sfail || g_pGFX_CurrentStates->m_sopdpFail != dpfail || g_pGFX_CurrentStates->m_sopdpPass != dppass) {
-        glStencilOp( g_stensilOps[sfail], g_stensilOps[dpfail], g_stensilOps[dppass]);
-        g_pGFX_CurrentStates->m_sopsFail = sfail;
-        g_pGFX_CurrentStates->m_sopdpFail = dpfail;
-        g_pGFX_CurrentStates->m_sopdpPass = dppass;
+    if (g_pGFX_CurrentStates->m_stencil.m_sfail != sfail || g_pGFX_CurrentStates->m_stencil.m_dpfail != dpfail || g_pGFX_CurrentStates->m_stencil.m_dppass  != dppass) {
+        glStencilOp(g_stensilOps[sfail], g_stensilOps[dpfail], g_stensilOps[dppass]);
+        g_pGFX_CurrentStates->m_stencil.m_sfail = sfail;
+        g_pGFX_CurrentStates->m_stencil.m_dpfail = dpfail;
+        g_pGFX_CurrentStates->m_stencil.m_dppass = dppass;
     }
 }
 void GetMonitorCaps(MonitorInfo *dest) {
@@ -1691,7 +1691,7 @@ bool GFX_CheckExtensions() {
     }
     return true;
 }
-const uint32_t g_fillModes[] = { GL_POINT, GL_LINE, GL_FILL, GL_FALSE };
+const uint32_t g_fillModes[GFM_CNT] = { GL_POINT, GL_LINE, GL_FILL, GL_FALSE };
 void GFX_SetFillMode(GFX_FILL_MODE fillMode) {
     g_pGFX_CurrentStates->m_fillMode = fillMode;
     glPolygonMode(GL_FRONT_AND_BACK, g_fillModes[fillMode]);
@@ -1702,11 +1702,18 @@ void GFX_PushStates() {
     g_pGFX_CurrentStates = next;
 }
 void GFX_SetAlphaBlendEnable(bool en) {
-    g_pGFX_CurrentStates->m_alphaBlend = en;
-    bool ch = (g_pGFX_CurrentStates->m_blend != en);
-    g_pGFX_CurrentStates->m_blend = en;
-    if (ch)
+    int ien = en;
+    g_pGFX_CurrentStates->m_alphaBlend1 = ien;
+    if (g_pGFX_CurrentStates->m_alphaBlend2 != ien) {
+        g_pGFX_CurrentStates->m_alphaBlend2 = ien;
         g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
+    }
+}
+void GFX_SetIndexBuffer(int ib) {
+    if (g_pGFX_CurrentStates->m_indexBuffer != ib) {
+        g_pGFX_CurrentStates->m_indexBuffer = ib;
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_IB;
+    }
 }
 void GFX_SetScissorTestEnable(bool en) {
     g_pGFX_CurrentStates->m_scissorTest = en;
@@ -1726,70 +1733,201 @@ void GFX_SetDepthWrite(bool en) {
     g_pGFX_CurrentStates->m_depthMask = en;
     glDepthMask(en);
 }
-void GFX_PopStates() {
-    g_pGFX_CurrentStates--;
-    if (g_pGFX_CurrentStates->m_depthTest)
-        glEnable(GL_DEPTH_TEST);
-    else
-        glDisable(GL_DEPTH_TEST);
-    glDepthFunc(g_stensilFuncs[g_pGFX_CurrentStates->m_depthFuncIdx]);
-    glDepthMask(g_pGFX_CurrentStates->m_depthMask ? 1 : 0);
-    glPolygonMode(GL_FRONT_AND_BACK, g_fillModes[g_pGFX_CurrentStates->m_fillMode]);
-    if (g_pGFX_CurrentStates->m_cullIdx != g_pGFX_CurrentStates->m_newCullIdx) //4
-        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_CULL;
-    g_pGFX_CurrentStates->m_cullIdx = g_pGFX_CurrentStates->m_newCullIdx;
-    bool blend = g_pGFX_CurrentStates->m_alphaBlend != 0; //5
-    if (g_pGFX_CurrentStates->m_blend != blend)
-        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
-    g_pGFX_CurrentStates->m_blend = blend;
-    if (g_pGFX_CurrentStates->m_scissorTest) //12
-        glEnable(GL_SCISSOR_TEST);
-    else
-        glDisable(GL_SCISSOR_TEST);
-    if (g_pGFX_CurrentStates->m_polyOffset == 0.0) { //13
-        glDisable(GL_POLYGON_OFFSET_FILL);
-    } else {
-        glEnable(GL_POLYGON_OFFSET_FILL);
-        glPolygonOffset(g_pGFX_CurrentStates->m_polyOffset, 1.0);
+void GFX_SetVertex(int handle) {
+    if (g_pGFX_CurrentStates->m_vertex != handle) {
+        g_pGFX_CurrentStates->m_vertex = handle;
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAIDX;
     }
-    if (g_pGFX_CurrentStates->m_blendIdxs != g_pGFX_CurrentStates->m_prBlendIdxs) //15
-        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
-    g_pGFX_CurrentStates->m_blendIdxs = g_pGFX_CurrentStates->m_prBlendIdxs;
-    if (g_pGFX_CurrentStates->m_enableStensilTest) //default
-        glEnable(GL_STENCIL_TEST);
-    else
-        glDisable(GL_STENCIL_TEST);
-    glStencilFunc(
-        g_stensilFuncs[g_pGFX_CurrentStates->m_stensilFunc],
-        g_pGFX_CurrentStates->m_stensilRef,
-        g_pGFX_CurrentStates->m_stensilFuncMask);
-    glStencilMask(g_pGFX_CurrentStates->m_stensilMask);
-    glStencilOp(
-        g_stensilOps[g_pGFX_CurrentStates->m_sopsFail],
-        g_stensilOps[g_pGFX_CurrentStates->m_sopdpFail],
-        g_stensilOps[g_pGFX_CurrentStates->m_sopdpPass]);
-    auto sh = GFX_GetCurrentShaderHandle();
-    GFX_UnsetShader();
-    GFX_SetShader(sh);
-    g_pGFX_CurrentStates->m_bits = -1;
-    g_pGFX_CurrentStates->m_hasRegTypes = -1;
-    g_pGFX_CurrentStates->m_field_A8 = 0;
-    for (uint32_t j = 0; j < GFX_GetCaps().max_v_attribs; j++)
-        glDisableVertexAttribArray(j);
-    for (int a = 0; a < GFX_GetCaps().max_color_atchs; a++) {
-        auto m = g_pGFX_CurrentStates->m_colorMask[a];
-        if (a) {
-            if (glColorMaskIndexedEXT)
-                glColorMaskIndexedEXT(a, m & 1, (m & 2) != 0, (m & 4) != 0, (m & 8) != 0);
-        } else {
-            glColorMask(m & 1, (m & 2) != 0, (m & 4) != 0, (m & 8) != 0);
+}
+void GFX_SetVertexBuffer(int vb, uint64_t notUsed, uint64_t attrData) {
+    if (g_pGFX_CurrentStates->m_vertexBuffer != vb) {
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VBO;
+        g_pGFX_CurrentStates->m_vertexBuffer = vb;
+    }
+    if (g_pGFX_CurrentStates->m_attrData != attrData) {
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ATTRDATA;
+        g_pGFX_CurrentStates->m_attrData = attrData;
+    }
+    if (vb != -1) {
+        if (g_pGFX_CurrentStates->m_VAO != 0) {
+            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAO;
+            g_pGFX_CurrentStates->m_VAO = 0;
         }
     }
-    glActiveTexture(g_pGFX_CurrentStates->m_actTex);
-    glBindBuffer(GL_ARRAY_BUFFER, g_pGFX_CurrentStates->m_arrBuf);
+}
+void GFX_PopStates() {
+    g_pGFX_CurrentStates--;
+    for (int i = 0; i < 16; i++) {
+        auto pfltVal = (float*)(&g_pGFX_CurrentStates->m_depthTest) + i;
+        auto uval = *(uint32_t *)pfltVal;
+        switch (i) {
+        case 0:
+            if (uval)
+                glEnable(GL_DEPTH_TEST);
+            else 
+                glDisable(GL_DEPTH_TEST);
+            break;
+        case 1:
+            glDepthFunc(g_GFX_TO_GL_CMPFUNC[uval]);
+            break;
+        case 2:
+            if (uval)
+                glDepthMask(1u);
+            else
+                glDepthMask(0);
+            break;
+        case 3:
+            glPolygonMode(GL_FRONT_AND_BACK, g_fillModes[uval]);
+            break;
+        case 4:
+            if (g_pGFX_CurrentStates->m_cullIdx2 != uval) {
+                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_CULL;
+                assert(uval < GFC_CNT);
+                g_pGFX_CurrentStates->m_cullIdx2 = (GFX_CULL)uval;
+            }
+            break;
+        case 5:
+            if (g_pGFX_CurrentStates->m_alphaBlend2 != (uval != 0)) {
+                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
+                g_pGFX_CurrentStates->m_alphaBlend2 = (uval != 0);
+            }
+            break;
+        case 6: case 7: case 8: case 9: case 10: case 11: case 14:
+            break;
+        case 12:
+            if (uval)
+                glEnable(GL_SCISSOR_TEST);
+            else
+                glDisable(GL_SCISSOR_TEST);
+            break;
+        case 13:
+            if (*pfltVal == 0.0) {
+                glDisable(GL_POLYGON_OFFSET_FILL);
+            } else {
+                glEnable(GL_POLYGON_OFFSET_FILL);
+                glPolygonOffset(*pfltVal, 1.0);
+            }
+            break;
+        case 15:
+            assert(pfltVal == (void*)&g_pGFX_CurrentStates->m_blendFunc1);
+            if (g_pGFX_CurrentStates->m_blendFunc2 != g_pGFX_CurrentStates->m_blendFunc1) {
+                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
+                g_pGFX_CurrentStates->m_blendFunc2 = g_pGFX_CurrentStates->m_blendFunc1;
+            }
+            //no break
+        default:
+            if (g_pGFX_CurrentStates->m_stencil.m_testEnabled)
+                glEnable(GL_STENCIL_TEST);
+            else
+                glDisable(GL_STENCIL_TEST);
+            glStencilFunc(
+                g_GFX_TO_GL_CMPFUNC[g_pGFX_CurrentStates->m_stencil.m_compFunc],
+                g_pGFX_CurrentStates->m_stencil.m_ref,
+                g_pGFX_CurrentStates->m_stencil.m_funcMask);
+            glStencilMask(g_pGFX_CurrentStates->m_stencil.m_mask);
+            glStencilOp(
+                g_stensilOps[g_pGFX_CurrentStates->m_stencil.m_sfail],
+                g_stensilOps[g_pGFX_CurrentStates->m_stencil.m_dpfail],
+                g_stensilOps[g_pGFX_CurrentStates->m_stencil.m_dppass]);
+            {
+                auto sh = GFX_GetCurrentShaderHandle();
+                GFX_UnsetShader();
+                GFX_SetShader(sh);
+            }
+            g_pGFX_CurrentStates->m_bits = -1;
+            g_pGFX_CurrentStates->m_hasRegTypes = -1;
+            g_pGFX_CurrentStates->m_shader = 0;
+            g_pGFX_CurrentStates->m_vaIdx = 0;
+            for (uint32_t j = 0; j < GFX_GetCaps().max_v_attribs; j++)
+                glDisableVertexAttribArray(j);
+            for (int a = 0; a < GFX_GetCaps().max_color_atchs; a++) {
+                auto m = g_pGFX_CurrentStates->m_colorMask[a];
+                if (a) {
+                    if (glColorMaskIndexedEXT)
+                        glColorMaskIndexedEXT(a, m & 1, (m & 2) != 0, (m & 4) != 0, (m & 8) != 0);
+                } else {
+                    glColorMask(m & 1, (m & 2) != 0, (m & 4) != 0, (m & 8) != 0);
+                }
+            }
+            glActiveTexture(g_pGFX_CurrentStates->m_actTex);
+            glBindBuffer(GL_ARRAY_BUFFER, g_pGFX_CurrentStates->m_arrBuf);
+            return;
+        }
+    }
 }
 int GFX_GetCurrentShaderHandle() {
     return g_CurrentShaderHandle;
+}
+void GFX_Internal_SetActiveTexture(int glHandle) {
+    if (g_pGFX_CurrentStates->m_actTex != glHandle) {
+        glActiveTexture(glHandle);
+        g_pGFX_CurrentStates->m_actTex = glHandle;
+    }
+}
+void GFXAPI_ActivateTexture(int handle, int glOffset, const char *uniformName, GFX_TEXTURE_WRAP_MODE wm) {
+    auto sh = GFX_GetCurrentShader();
+    if (sh) {
+        g_FFtextureHandle = -1;
+        if (uniformName) {
+            auto ul = glGetUniformLocation(sh->m_program, uniformName);
+            if (ul > -1) {
+                if ((uint32_t)handle >= _countof(g_Textures)) {
+                    GFX_Internal_SetActiveTexture(ul + GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, g_Textures[g_WhiteHandle].m_glid);
+                    glUniform1i(ul, ul);
+                    if (ul < _countof(sh->m_texHandles))
+                        sh->m_texHandles[ul] = handle;
+                } else {
+                    GFX_Internal_SetActiveTexture(ul + GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, g_Textures[handle].m_glid);
+                    glUniform1i(ul, ul);
+                    if (ul < _countof(sh->m_texHandles))
+                        sh->m_texHandles[ul] = handle;
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[wm]);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[wm]);
+                    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, g_Aniso);
+                }
+            }
+        } else {
+            int glo = 0;
+            if (glOffset != -1)
+                glo = glOffset;
+            if ((uint32_t)handle >= _countof(g_Textures)) {
+                GFX_Internal_SetActiveTexture(glo + GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, g_Textures[g_WhiteHandle].m_glid);
+                glUniform1i(sh->m_samplers[glo], glo);
+                sh->m_texHandles[glo] = handle;
+            } else if (sh->m_texHandles[glo] != handle || (uint32_t)handle >= _countof(g_Textures)) {
+                GFX_Internal_SetActiveTexture(glo + GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, g_Textures[handle].m_glid);
+                if (g_Textures[handle].m_wrapModeS != wm) {
+                    g_Textures[handle].m_wrapModeS = wm;
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[wm]);
+                }
+                if (g_Textures[handle].m_wrapModeT != wm) {
+                    g_Textures[handle].m_wrapModeT = wm;
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[wm]);
+                }
+                if (g_Textures[handle].m_aniso != g_Aniso) {
+                    g_Textures[handle].m_aniso = g_Aniso;
+                    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, g_Aniso);
+                }
+                sh->m_texHandles[glo] = handle;
+            }
+        }
+    } else {
+        if ((uint32_t)handle >= _countof(g_Textures)) {
+            if (g_FFtextureHandle != handle)
+                glBindTexture(GL_TEXTURE_2D, g_Textures[g_WhiteHandle].m_glid);
+        } else if (g_FFtextureHandle != handle) {
+            glBindTexture(GL_TEXTURE_2D, g_Textures[handle].m_glid);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[wm]);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[wm]);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, g_Aniso);
+        }
+        g_FFtextureHandle = handle;
+    }
+    GFX_Internal_SetActiveTexture(GL_TEXTURE0);
 }
 void GFX_ActivateTexture(int, int, const char *, int GFX_TEXTURE_WRAP_MODE) {
     //TODO
@@ -1810,15 +1948,40 @@ void GFX_ActivateTextureEx(int tn, GLfloat lodBias) {
         g_pGFX_CurrentStates->m_actTex = GL_TEXTURE0;
     }
 }
-void GFX_SetBlendFunc(int GFX_BLEND_OP, int GFX_BLEND1, int GFX_BLEND2) {
-    //TODO
+void GFX_SetDepthTestFunc(GFX_COMPARE_FUNC fu) {
+    g_pGFX_CurrentStates->m_depthFunc = fu;
+    glDepthFunc(g_GFX_TO_GL_CMPFUNC[fu]);
+}
+void GFX_SetBlendFunc(GFX_BLEND_OP op, GFX_BLEND s, GFX_BLEND d) {
+    static_assert(sizeof(GFX_BlendFunc) == 4);
+    g_pGFX_CurrentStates->m_blendFunc1 = {op, s, d};
+    if (g_pGFX_CurrentStates->m_blendFunc2 != g_pGFX_CurrentStates->m_blendFunc1) {
+        g_pGFX_CurrentStates->m_blendFunc2 = g_pGFX_CurrentStates->m_blendFunc1;
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
+    }
 }
 void GFX_SetCullMode(GFX_CULL cm) {
-    //TODO
+    auto newCM = GFX_CULL((g_bInvertCulling && cm) ? (cm ^ 3) : cm);
+    g_pGFX_CurrentStates->m_cullIdx1 = newCM;
+    if (g_pGFX_CurrentStates->m_cullIdx2 != newCM) {
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_CULL;
+        g_pGFX_CurrentStates->m_cullIdx2 = newCM;
+    }
 }
-void GFX_SetTextureFilter(uint32_t tn, int filter) {
-    GLint p[6]{ GL_NEAREST,GL_LINEAR,GL_LINEAR_MIPMAP_NEAREST,GL_LINEAR_MIPMAP_LINEAR };
-    assert(filter < _countof(p)); //TODO enum GFX_FILTER
+void GFX_SetDepthBias(float b) {
+    g_pGFX_CurrentStates->m_polyOffset = b;
+    if (b == 0.0f) {
+        glDisable(GL_POLYGON_OFFSET_FILL);
+    } else {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(b, 1.0);
+    }
+}
+void GFX_SetTextureFilter(uint32_t tn, GFX_FILTER filter) {
+    static_assert(sizeof(GFX_StencilFunc) == 8);    
+    static_assert(sizeof(GFX_StateBlock) == 208);
+    static const GLint p[GFF_CNT]{ GL_NEAREST, GL_LINEAR, GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_LINEAR };
+    assert(filter < _countof(p));
     if (tn) {
         auto gltn = tn + GL_TEXTURE0;
         if (g_pGFX_CurrentStates->m_actTex != tn + GL_TEXTURE0) {
@@ -1835,6 +1998,7 @@ void GFX_SetTextureFilter(uint32_t tn, int filter) {
     }
     g_pGFX_CurrentStates->m_filters[tn] = filter;
 }
+int32_t GFX_GetStateU32(int idx) { return ((int32_t *)&g_pGFX_CurrentStates->m_depthTest)[idx]; }
 void GFX_SetupUIProjection() {
     auto pRT = VRAM_GetCurrentRT();
     if (pRT) {
@@ -2014,7 +2178,7 @@ const GFX_RegisterRef GFX_StateBlock::s_registerRefs[] = {
   { GFX_RegisterRef::Ty::Draw, 85, 16 }
 };
 void GFXAPI_ReUploadShaderCache() {
-    bool extra = (0 == g_pGFX_CurrentStates->m_field_C8);
+    bool extra = (0 == g_pGFX_CurrentStates->m_shaderMAT4ARRAY);
     if (g_pCurrentShader) {
         int i = 0;
         for (auto loc : g_pCurrentShader->m_locations) {
@@ -2032,9 +2196,9 @@ void GFXAPI_ReUploadShaderCache() {
             }
             i++;
         }
-        auto mlocEx = g_pCurrentShader->m_matArrLocations[g_pGFX_CurrentStates->m_field_C8];
+        auto mlocEx = g_pCurrentShader->m_matArrLocations[g_pGFX_CurrentStates->m_shaderMAT4ARRAY];
         if (mlocEx >= 0) {
-            const auto &ref = GFX_StateBlock::s_matrixArrayRefs[g_pGFX_CurrentStates->m_field_C8];
+            const auto &ref = GFX_StateBlock::s_matrixArrayRefs[g_pGFX_CurrentStates->m_shaderMAT4ARRAY];
             auto uniform = GFX_StateBlock::GetUniform(ref);
             glUniformMatrix4fv(mlocEx, ref.m_cnt, 0, uniform.m_data);
         }
@@ -2047,18 +2211,18 @@ bool GFX_SetShader(int sh) {
     g_pCurrentShader = &g_Shaders[sh];
     g_CurrentShaderHandle = sh;
     GFXAPI_ReUploadShaderCache();
-    memset(g_pCurrentShader->m_field_12C, 0xFF, sizeof(g_pCurrentShader->m_field_12C));
+    memset(g_pCurrentShader->m_texHandles, 0xFF, sizeof(g_pCurrentShader->m_texHandles));
     return true;
 }
 void GFX_StateBlock::UnbindBuffer(int arrBuf) {
-    if (m_altArrBuf == arrBuf || m_arrBuf == arrBuf) {
-        m_bits |= GSB_PEND_ALTB;
+    if (m_vertexBuffer == arrBuf || m_arrBuf == arrBuf) {
+        m_bits |= GSB_PEND_VBO;
         m_arrBuf = -1;
-        m_altArrBuf = -1;
+        m_vertexBuffer = -1;
     }
-    if (m_elArrBuf == arrBuf) {
-        m_bits |= GSB_PEND_EAB;
-        m_elArrBuf = -1;
+    if (m_indexBuffer == arrBuf) {
+        m_bits |= GSB_PEND_IB;
+        m_indexBuffer = -1;
     }
 }
 void GFX_DestroyBuffer(int *pHandle) {
@@ -2148,48 +2312,43 @@ void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const MATRIX44 &m, u
 }
 void GFX_StateBlock::Reset() {
     m_bits = -1;
-    m_cullIdx = 0;
-    m_blend = 0;
-    m_blendIdxs.m_modeIdx = 0;
-    m_blendIdxs.m_sFactorIdx = 0;
-    m_blendIdxs.m_dFactorIdx = 1;
-    m_altArrBuf = -1;
-    //TODO *(_QWORD *)&this->field_90 = 0i64;
-    //TODO *(_QWORD *)&this->field_B8 = 0i64;
-    m_elArrBuf = m_vaIdx = -1;
-    m_shader = -1;
-    m_field_A4 = 0;
+    m_cullIdx2 = GFC_NONE;
+    m_alphaBlend2 = 0;
+    m_blendFunc2 = { GBO_FUNC_ADD, GB_FALSE, GB_TRUE, GB_FALSE };
+    m_attrData = 0;
+    m_VAO = 0;
+    m_indexBuffer = m_vertex = m_shader -1;
+    m_vaIdx = 0;
     m_field_A8 = 0i64;
-    m_actTex = GL_TEXTURE0;    
-    int alt = -1;
-    int64_t bits = -1;
+    m_actTex = GL_TEXTURE0;
     if (m_arrBuf) {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
-        alt = m_altArrBuf;
-        bits = m_bits;
         m_arrBuf = 0;
     }
-    m_hasRegTypes = -1i64;
-    m_field_C8 = 0;
-    m_bits = bits | (alt ? GSB_PEND_ALTB : 0);
+    m_hasRegTypes = -1;
+    m_shaderMAT4ARRAY;
 }
-const uint32_t g_GFX_VertexFormat_size[] = { 0, 4, 4, 4, 4, 1, 2, 3 };
-const GLenum g_GFX_VertexFormat_format[] = { GL_FALSE, GL_UNSIGNED_BYTE, GL_BYTE, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_FLOAT, GL_FLOAT, GL_FLOAT };
-const uint8_t g_GFX_VertexFormat_normalized[] = { 0, 1, 1, 0, 1, 0, 0, 0 };
-const GLenum g_GFX_TO_GL_CULL[] = { GL_FALSE, GL_FRONT, GL_BACK, GL_FALSE };
-const GLenum g_GFX_TO_GL_BLENDFUNC[] = { GL_FALSE, GL_TRUE, GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_COLOR, GL_ONE_MINUS_DST_COLOR, GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA, GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_COLOR, GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA };
-const GLenum g_GFX_TO_GL_BLENDOP[] = { GL_FUNC_ADD, GL_FUNC_SUBTRACT, GL_MIN, GL_MAX, GL_FUNC_REVERSE_SUBTRACT, GL_FALSE };
+const uint32_t g_GFX_VertexFormat_size[GVF_CNT] = { 0, 4, 4, 4, 4, 1, 2, 3 };
+const GLenum g_GFX_VertexFormat_format[GVF_CNT] = { GL_FALSE, GL_UNSIGNED_BYTE, GL_BYTE, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_FLOAT, GL_FLOAT, GL_FLOAT };
+const uint8_t g_GFX_VertexFormat_normalized[GVF_CNT] = { 0, 1, 1, 0, 1, 0, 0, 0 };
+const GLenum g_GFX_TO_GL_CULL[GFC_CNT + 1] = { GL_FALSE, GL_FRONT, GL_BACK, GL_FALSE }; //gap, maybe
+const GLenum g_GFX_TO_GL_BLENDFUNC[GB_CNT] = { GL_FALSE, GL_TRUE, GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_COLOR, GL_ONE_MINUS_DST_COLOR, GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA, GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_COLOR, GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA };
+const GLenum g_GFX_TO_GL_BLENDOP[GBO_CNT] = { GL_FUNC_ADD, GL_FUNC_SUBTRACT, GL_MIN, GL_MAX, GL_FUNC_REVERSE_SUBTRACT, GL_FALSE };
 bool GFX_StateBlock::Realize() {
-    if (m_shader == -1 || m_vaIdx == -1)
+    if (m_shader == -1 || m_vertex == -1)
         return false;
-    if (m_bits & GSB_PEND_ALTB)
-        GFX_StateBlock::BindVertexBuffer(std::clamp(m_altArrBuf, 0, std::numeric_limits<int>::max()));
+    if (m_bits & GSB_PEND_VBO) {
+        auto vb = m_vertexBuffer;
+        if (m_vertexBuffer == -1)
+            vb = 0;
+        GFX_StateBlock::BindVertexBuffer(vb);
+    }
     if (m_bits & 0xF) {
         uint64_t field_B8 = 0;
-        if (m_altArrBuf == -1)
+        if (m_vertexBuffer == -1)
             field_B8 = m_VAO;
         uint64_t inv = 0i64;
-        auto vx = g_vertexArray.fast64[m_vaIdx];
+        auto vx = g_vertexArray.fast64[m_vertex];
         auto pAttr = vx->m_creParams.m_attrs + 1;
         for (int vi = 0; vi < vx->m_creParams.m_attrCnt; vi++) {
             auto atrIdx = pAttr->m_idx;
@@ -2197,13 +2356,14 @@ bool GFX_StateBlock::Realize() {
             inv |= addm;
             if ((addm & g_pGFX_CurrentStates->m_field_A8) == 0)
                 glEnableVertexAttribArray(atrIdx);
+            static_assert(sizeof(GFX_VertexAttr) == 4);
             glVertexAttribPointer(
                 atrIdx,
                 g_GFX_VertexFormat_size[pAttr->m_fmtIdx],
                 g_GFX_VertexFormat_format[pAttr->m_fmtIdx],
                 g_GFX_VertexFormat_normalized[pAttr->m_fmtIdx],
                 vx->m_strides[pAttr[-1].m_strideIdx], //GLsizei stride
-                &m_attrData[field_B8 + pAttr->m_dataOffset]); //const void * pointer
+                (const void *)uintptr_t(m_attrData + field_B8 + pAttr->m_dataOffset)); //const void * pointer
             ++pAttr;
         }
         uint32_t index = 0;
@@ -2216,24 +2376,27 @@ bool GFX_StateBlock::Realize() {
         }
         g_pGFX_CurrentStates->m_field_A8 = inv;
     }
-    if (m_bits & GSB_PEND_EAB) {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, std::clamp(m_elArrBuf, 0, std::numeric_limits<int>::max()));
+    if (m_bits & GSB_PEND_IB) {
+        auto field_98 = m_indexBuffer;
+        if (field_98 == -1)
+            field_98 = 0;
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, field_98);
     }
     if (m_bits & GSB_PEND_CULL) {
-        if (m_cullIdx) {
+        if (m_cullIdx2) {
             glEnable(GL_CULL_FACE);
-            glCullFace((GLenum)g_GFX_TO_GL_CULL[m_cullIdx]);
+            glCullFace((GLenum)g_GFX_TO_GL_CULL[m_cullIdx2]);
         } else {
             glDisable(GL_CULL_FACE);
         }
     }
     if (m_bits & GSB_PEND_BLEND) {
-        if (m_blend)
+        if (m_alphaBlend2)
             glEnable(GL_BLEND);
         else
             glDisable(GL_BLEND);
-        glBlendEquation(g_GFX_TO_GL_BLENDOP[m_blendIdxs.m_modeIdx]);
-        glBlendFunc(g_GFX_TO_GL_BLENDFUNC[m_blendIdxs.m_sFactorIdx], g_GFX_TO_GL_BLENDFUNC[m_blendIdxs.m_dFactorIdx]);
+        glBlendEquation(g_GFX_TO_GL_BLENDOP[m_blendFunc2.m_modeIdx]);
+        glBlendFunc(g_GFX_TO_GL_BLENDFUNC[m_blendFunc2.m_sFactorIdx], g_GFX_TO_GL_BLENDFUNC[m_blendFunc2.m_sFactorIdx]);
     }
     m_bits = 0;
     if (m_hasRegTypes) {
@@ -2290,7 +2453,7 @@ void GFX_StateBlock::BindVertexBuffer(int arrBuf) {
         glBindBuffer(GL_ARRAY_BUFFER, arrBuf);
         m_arrBuf = arrBuf;
     }
-    m_bits |= (m_altArrBuf != arrBuf ? GSB_PEND_ALTB : 0);
+    m_bits |= (m_vertexBuffer != arrBuf ? GSB_PEND_VBO : 0);
 }
 void GFX_Begin() { g_pGFX_CurrentStates->Reset(); }
 void GFXAPI_CreateVertex(int idx, const GFX_CreateVertexParams &parms) {
@@ -3084,16 +3247,33 @@ void GFX_DrawFlip() {
     g_PreviousBufferOffset = g_CurrentBufferOffset;
     g_CurrentBufferOffset = 0;
 }
+void GFX_DrawIndexedInstancedPrimitive(GFX_PRIM_TYPE ty, uint32_t a2, uint32_t a3, GFX_IndexFormat gif, uint32_t a5, uint32_t a6) {
+    assert(a6 == 0);
+    if (g_pGFX_CurrentStates->m_indexBuffer != -1 && g_pGFX_CurrentStates->Realize())
+        glDrawElementsInstanced(g_PRIM_TO_GLPRIM[ty], a3, g_IF_TO_GLIF[gif], nullptr, a5);
+}
+void GFX_internal_DrawPrimitive(GFX_PRIM_TYPE ty, int first, uint32_t count) {
+    if (g_pGFX_CurrentStates->Realize())
+        glDrawArrays(g_PRIM_TO_GLPRIM[ty], first, count);
+}
+void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE ty, int baseVertex, uint32_t cnt, GFX_IndexFormat gif, const void *indices) {
+    if (g_pGFX_CurrentStates->m_indexBuffer != -1 && g_pGFX_CurrentStates->Realize()) {
+        if (baseVertex && GLEW_ARB_draw_elements_base_vertex)
+            glDrawElementsBaseVertex(g_PRIM_TO_GLPRIM[ty], cnt, g_IF_TO_GLIF[gif], indices, baseVertex);
+        else
+            glDrawElements(g_PRIM_TO_GLPRIM[ty], cnt, g_IF_TO_GLIF[gif], indices);
+    }
+}
 void DefineVAO_DRAW_VERT_POS_COLOR_UV(uint32_t a1, const /*DRAW_VERT_POS_COLOR_UV*/ void *data, uint32_t cnt) {
     if (g_glCoreContext) {
         g_pGFX_CurrentStates->BindVertexBuffer(g_DrawPrimVBO);
         glBufferData(GL_ARRAY_BUFFER, 32 * cnt, data, GL_STREAM_DRAW);
-        if (g_pGFX_CurrentStates->m_altArrBuf != g_DrawPrimVBO) {
-            g_pGFX_CurrentStates->m_altArrBuf = g_DrawPrimVBO;
-            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ALTB;
+        if (g_pGFX_CurrentStates->m_vertexBuffer != g_DrawPrimVBO) {
+            g_pGFX_CurrentStates->m_vertexBuffer = g_DrawPrimVBO;
+            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VBO;
         }
-        if (g_pGFX_CurrentStates->m_attrData != nullptr) {
-            g_pGFX_CurrentStates->m_attrData = nullptr;
+        if (g_pGFX_CurrentStates->m_attrData != 0) {
+            g_pGFX_CurrentStates->m_attrData = 0;
             g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ATTRDATA;
         }
         if (g_DrawPrimVBO != -1) {
@@ -3108,19 +3288,19 @@ void DefineVAO_DRAW_VERT_POS_COLOR_UV(uint32_t a1, const /*DRAW_VERT_POS_COLOR_U
             g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAO;
         }
         if (data) {
-            if (g_pGFX_CurrentStates->m_attrData != nullptr) {
-                g_pGFX_CurrentStates->m_attrData = nullptr;
+            if (g_pGFX_CurrentStates->m_attrData != 0) {
+                g_pGFX_CurrentStates->m_attrData = 0;
                 g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ATTRDATA;
             }
-            if (g_pGFX_CurrentStates->m_altArrBuf != -1) {
-                g_pGFX_CurrentStates->m_altArrBuf = -1;
-                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ALTB;
+            if (g_pGFX_CurrentStates->m_vertexBuffer != -1) {
+                g_pGFX_CurrentStates->m_vertexBuffer = -1;
+                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VBO;
             }
         }
     }
     auto v17 = GFX_GetVertexHandle_DRAW_VERT_POS_COLOR_UV();
-    if (g_pGFX_CurrentStates->m_vaIdx != v17) {
-        g_pGFX_CurrentStates->m_vaIdx = v17;
+    if (g_pGFX_CurrentStates->m_vertex != v17) {
+        g_pGFX_CurrentStates->m_vertex = v17;
         g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAIDX;
     }
 }
@@ -3128,24 +3308,43 @@ void GFX_DrawPrimitive(GFX_PRIM_TYPE t, const /*DRAW_VERT_POS_COLOR_UV*/ void *d
     if (data && cnt) {
         DefineVAO_DRAW_VERT_POS_COLOR_UV(1, data, cnt);
         if (g_pGFX_CurrentStates->Realize())
-            glDrawArrays(PRIM_TO_GLPRIM[t], 0, cnt);
+            glDrawArrays(g_PRIM_TO_GLPRIM[t], 0, cnt);
     }
 }
 int GFX_GetVertexHandle_DRAW_VERT_POS_COLOR_UV() {
     static int stDRAW_VERT_POS_COLOR_UV = -1;
     if (stDRAW_VERT_POS_COLOR_UV == -1) {
         stDRAW_VERT_POS_COLOR_UV = GFX_CreateVertex(GFX_CreateVertexParams{ 4, 1,
-            { {0, 0, 7, 0}, {0, 4, 1, 12}, {0, 6, 6, 16}, {0, 7, 6, 24} },
+            { {0, GVF_FALSE, 7, 0}, {0, GVF_UNSIGNED_SHORT, 1, 12}, {0, GVF_FLOAT6, 6, 16}, {0, GVF_FLOAT7, 6, 24} },
             { {0, 32, 1, 0} }
             });
     }
     return stDRAW_VERT_POS_COLOR_UV;
 }
+void GFX_SetTextureWrap(uint32_t tn, GFX_TEXTURE_WRAP_MODE t, GFX_TEXTURE_WRAP_MODE s) {
+    if (tn) {
+        auto v6 = tn + GL_TEXTURE0;
+        if (g_pGFX_CurrentStates->m_actTex != v6) {
+            glActiveTexture(v6);
+            g_pGFX_CurrentStates->m_actTex = v6;
+        }
+    }
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[t]);
+    g_pGFX_CurrentStates->m_wrapS[tn] = t;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[s]);
+    g_pGFX_CurrentStates->m_wrapT[tn] = s;
+    if (tn) {
+        if (g_pGFX_CurrentStates->m_actTex != GL_TEXTURE0) {
+            glActiveTexture(GL_TEXTURE0);
+            g_pGFX_CurrentStates->m_actTex = GL_TEXTURE0;
+        }
+    }
+}
 
 //Unit Tests
 TEST(SmokeTest, VertexArray) {
     GFX_CreateVertexParams p{ 4, 1,
-            { {0, 0, 7, 0}, {0, 4, 1, 12}, {0, 6, 6, 16}, {0, 7, 6, 24} },
+            { {0, GVF_FALSE, 7, 0}, {0, GVF_UNSIGNED_SHORT, 1, 12}, {0, GVF_FLOAT6, 6, 16}, {0, GVF_FLOAT7, 6, 24} },
             { {0, 32, 1, 0} }
         };
     for (int i = 0; i < _countof(g_vertexArray.fast64); i++) {

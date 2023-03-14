@@ -325,16 +325,16 @@ int CFont2D::EndCachingAndRender(bool uiProjection) {
             GFX_SetShader(g_fontWShader);
             GFX_ActivateTexture(m_info.m_fileHdrV3.m_tex1, 0, 0, 1);
             GFX_ActivateTexture((m_info.m_fileHdrV3.m_tex2 != -1) ? m_info.m_fileHdrV3.m_tex2 : g_WhiteHandle, 2, 0, 1);
-            GFX_SetTextureFilter(2, 2);
+            GFX_SetTextureFilter(2, GFF_LINEAR_MIPMAP_NEAREST);
             GFX_ActivateTextureEx(2, -0.5);
-            GFX_SetTextureFilter(0, 2);
+            GFX_SetTextureFilter(0, GFF_LINEAR_MIPMAP_NEAREST);
             GFX_ActivateTextureEx(0, -0.5);
         } else {
             GFX_SetShader(g_fontShader);
             GFX_ActivateTexture(m_tex, 0xFFFFFFFF, 0, 1);
         }
         GFX_SetAlphaBlendEnable(true);
-        GFX_SetBlendFunc(0, 4, 5);
+        GFX_SetBlendFunc(GBO_FUNC_ADD, GB_SRC_ALPHA, GB_ONE_MINUS_SRC_ALPHA);
         GFX_MatrixMode(GMT_2);
         GFX_PushMatrix();
         GFX_LoadIdentity();

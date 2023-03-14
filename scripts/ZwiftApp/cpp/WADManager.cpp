@@ -1,6 +1,6 @@
 #include "ZwiftApp.h"
 const char *AssetType(WAD_ASSET_TYPE at) {
-    const char *assetNames[] = { "gde", "sky", "coll", "bog", "snd", "entity", "moby",
+    const char *assetNames[(int)WAD_ASSET_TYPE::CNT + 1] = { "gde", "sky", "coll", "bog", "snd", "entity", "moby",
         "tie", "shrub", "texture", "shader", "particle", "ui", "global", "nav", "pvar_include",
         "tuning_include", "???" };
     return assetNames[(int)at];
