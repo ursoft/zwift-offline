@@ -9,6 +9,8 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
 #define OVR_OS_WIN32
+#define GLFW_INCLUDE_GLCOREARB
+#define GL_GLEXT_PROTOTYPES
 #include "MAT.h"
 #include "GL/glew.h"
 #include "glfw/include/GLFW/glfw3.h"

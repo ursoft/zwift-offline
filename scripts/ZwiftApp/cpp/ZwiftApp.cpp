@@ -205,50 +205,44 @@ void LoadingRender(float time, const wchar_t *text) {
         GFX_SetAlphaBlendEnable(true);
         GFX_SetCullMode(GFC_NONE);
         GFX_SetShader(g_DrawTexturedShaderHandle);
-        GFX_ActivateTexture(g_seeThroughHandle, 0xFFFFFFFF, nullptr, 0);
-#if 0
-        GFX_Draw2DQuad(
-            0.0,
-            0.0,
-            (float)width,
-            (float)height,
-            ((unsigned __int8)(int)(float)((float)(1.0 - time) * 255.0) << 24) | 0xFFFFFF,
-            1);
-        v4 = powf(time, 0.69999999);
-        v5 = (float)((float)((float)(v4 * 2.70158) - 1.70158) * time) * (float)(v4 * v4);
-        if (v5 > 0.0)
-            v5 = v5 * (float)((float)((float)(v5 * 4.5) * v5) + 1.0);
-        v6 = (float)(v5 * 4096.0) + 512.0;
-        v7 = (float)((float)width * 0.5) - (float)(v6 * 0.5);
-        v8 = (float)((float)height * 0.5) - (float)(v6 * 0.5);
+        GFX_ActivateTexture(g_seeThroughHandle, 0xFFFFFFFF, nullptr, TWM_REPEAT);
+        GFX_Draw2DQuad(0.0f, 0.0f, width, height, ((uint8_t)((1.0f - time) * 255.0) << 24) | 0xFFFFFF, true);
+        auto v4 = powf(time, 0.7f);
+        auto v5 = (v4 * 2.70158f - 1.70158f) * time * v4 * v4;
+        if (v5 > 0.0f)
+            v5 = v5 * (v5 * 4.5f * v5 + 1.0f);
+        auto v6 = v5 * 4096.0f + 512.0f;
+        auto l = (width - v6) * 0.5f;
+        auto t = (height - v6) * 0.5f;
+        GFX_Draw2DQuad_720p(l, t, v6, v6, 0.0, 0.0, 1.0, 1.0, 0xFFCC9211, 0.0, -1, 0);
+#if 0 //TODO
         v9 = v7 + v6;
         v10 = v8 + v6;
-        GFX_Draw2DQuad_720p(v7, v8, v6, v6, 0.0, 0.0, 1.0, 1.0, -3370479, 0.0, -1, 0);
         if (v7 >= 0.0)
-            sub_7FF7AC79BF54(0.0, 0.0, v7 + 1.0, (float)height, -3370479);
-        if (v9 <= (float)width)
-            sub_7FF7AC79BF54(v9 - 1.0, 0.0, (float)((float)width - v9) + 2.0, (float)height, -3370479);
+            sub_7FF7AC79BF54(0.0, 0.0, v7 + 1.0, height, -3370479);
+        if (v9 <= width)
+            sub_7FF7AC79BF54(v9 - 1.0, 0.0, (width - v9) + 2.0, height, -3370479);
         if (v8 >= 0.0)
             sub_7FF7AC79BF54(v7, 0.0, v6, v8 + 1.0, -3370479);
         v11 = height;
-        if (v10 <= (float)height) {
-            sub_7FF7AC79BF54(v7, v10 - 1.0, v6, (float)((float)height - v10) + 2.0, -3370479);
+        if (v10 <= height) {
+            sub_7FF7AC79BF54(v7, v10 - 1.0, v6, (height - v10) + 2.0, -3370479);
             v11 = height;
         }
         if (text) {
-            v17 = 1.0 - (float)(time + time);
+            v17 = 1.0 - (time + time);
             v14 = 1065353216;
             v12 = &v17;
             if (v17 >= 1.0)
                 v12 = (float *)&v14;
-            *(_QWORD *)&v13 = COERCE_UNSIGNED_INT((float)width);
+            *(_QWORD *)&v13 = COERCE_UNSIGNED_INT(width);
             *(float *)&v13 = *(float *)&v13 * 0.5;
             CFont2D::RenderWString_utf(
                 &g_GiantFontW,
                 v13,
-                (float)((float)v11 * 0.5) + 170.0,
+                (v11 * 0.5) + 170.0,
                 text,
-                ((unsigned __int8)(int)(float)(fmaxf(*v12, 0.0) * 255.0) << 24) | 0xFFFFFF,
+                ((unsigned __int8)(int)(fmaxf(*v12, 0.0) * 255.0) << 24) | 0xFFFFFF,
                 1,
                 0.66659999,
                 0,

@@ -2,7 +2,7 @@
 enum VRAM_FLAGS { VF_BUF16 = 8, VF_CUBEMAP = 32, VF_MIPMAP = 64 };
 
 inline bool g_HasPickingBuffer;
-const float g_UI_AspectRatio = 1.7777778f; //16x9
+const float g_UI_AspectRatio = 1.777777777f; //16x9
 inline uint64_t g_VRAMBytes_RenderTargets;
 inline int g_nMultiSamples;
 inline RenderTarget *g_pCurrentRenderTarget;

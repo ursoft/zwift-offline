@@ -192,7 +192,7 @@ void VRAM_EndRenderTo(uint8_t flags) {
     g_RT_BackBufferVRAM.m_dw_width = 1280;
     g_pCurrentRenderTarget = &g_RT_BackBufferVRAM;
     g_RT_BackBufferVRAM.m_fb_30 = 0;
-    g_RT_BackBufferVRAM.m_dw_height = (int)(1280.0 / g_UI_AspectRatio);
+    g_RT_BackBufferVRAM.m_dw_height = (int)(1280.0f / g_UI_AspectRatio);
     glViewport(0, 0, g_RT_BackBufferVRAM.m_dw_width, g_RT_BackBufferVRAM.m_dw_height);
     glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
     if (flags & 0x3F) {

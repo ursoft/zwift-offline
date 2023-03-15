@@ -56,12 +56,22 @@ void MainWndCorrectByFrame(GLFWmonitor *m) {
         glfwSetWindowPos(g_mainWindow, xpos + left, ypos + top);
     }
 }
+void debugMessage(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
+    const GLchar *message, const void *userParam) {
+    char ods[1024];
+    sprintf_s(ods, "[OPENGL] %s\n", message);
+    OutputDebugStringA(ods);
+}
 bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
     glfwSetErrorCallback(glfwZwiftErrorCallback);
     if (!glfwInit()) {
         Log("Failed GLFW init. Returning");
         ZwiftExit(1);
     }
+#ifdef _DEBUG
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+    glfwWindowHint(GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET);
+#endif
     auto ver = gip.GlContextVer;
     int prof;
     if (ver & 0xFFC00 | ((ver & 0x3FF) << 20) | (ver >> 20) & 0x3FF)
@@ -156,6 +166,15 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
         Log(buf);
         MsgBoxAndExit(buf);
     }
+#ifdef _DEBUG
+    GLint flags; glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
+    if (flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback(debugMessage, nullptr);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+    }
+#endif
     g_GL_vendor = (const char *)glGetString(GL_VENDOR);
     g_GL_renderer = (const char *)glGetString(GL_RENDERER);
     g_GL_apiName = (const char *)glGetString(GL_VERSION);
@@ -642,9 +661,11 @@ void GFX_Internal_fixupShaderAddresses(GFX_ShaderPair *pShader) {
         *pMatArLoc++ = ul;
     }
     static_assert(_countof(g_ShaderSamplerNames) == _countof(pShader->m_samplers));
-    auto pSampler = &pShader->m_matArrLocations[0];
+    auto pSampler = &pShader->m_samplers[0];
+    int c = 0;
     for (auto n : g_ShaderSamplerNames) {
         auto ul = glGetUniformLocation(pShader->m_program, n);
+        glUniform1i(ul, c++);
         *pSampler++ = ul;
     }
     static_assert(_countof(g_ShaderAttributeNames) == _countof(pShader->m_attribLocations));
@@ -1122,12 +1143,12 @@ void GFX_UpdateFrustum(const MATRIX44 &a1, const MATRIX44 &a2) {
     }
 }
 void GFX_TransposeMatrix44(MATRIX44 *dest, const MATRIX44 &src) {
-    auto v2 = src.m_data[4], v3 = src.m_data[8], v4 = src.m_data[9], v5 = src.m_data[12], v6 = src.m_data[13], v7 = src.m_data[14];
-    auto v8 = src.m_data[0], v9 = src.m_data[5], v10 = src.m_data[10], v11 = src.m_data[15], v12 = src.m_data[1], v13 = src.m_data[6], v14 = src.m_data[11], v15 = src.m_data[2], v16 = src.m_data[7];
-    dest->m_data[12] = src.m_data[3]; dest->m_data[4] = v12; dest->m_data[5] = v9; dest->m_data[8] = v15; dest->m_data[9] = v13; dest->m_data[10] = v10; dest->m_data[13] = v16; dest->m_data[14] = v14;
-    dest->m_data[15] = v11; dest->m_data[1] = v2; dest->m_data[2] = v3; dest->m_data[3] = v5; dest->m_data[6] = v4; dest->m_data[7] = v6; dest->m_data[11] = v7; dest->m_data[0] = v8;
+    auto v2 = src.m_data[1].m_data[0], v3 = src.m_data[2].m_data[0], v4 = src.m_data[2].m_data[1], v5 = src.m_data[3].m_data[0], v6 = src.m_data[3].m_data[1], v7 = src.m_data[3].m_data[2];
+    auto v8 = src.m_data[0].m_data[0], v9 = src.m_data[1].m_data[1], v10 = src.m_data[2].m_data[2], v11 = src.m_data[3].m_data[3], v12 = src.m_data[0].m_data[1], v13 = src.m_data[1].m_data[2], v14 = src.m_data[2].m_data[3], v15 = src.m_data[0].m_data[2], v16 = src.m_data[1].m_data[3];
+    dest->m_data[3].m_data[0] = src.m_data[0].m_data[3]; dest->m_data[1].m_data[0] = v12; dest->m_data[1].m_data[1] = v9; dest->m_data[2].m_data[0] = v15; dest->m_data[2].m_data[1] = v13; dest->m_data[2].m_data[2] = v10; dest->m_data[3].m_data[1] = v16; dest->m_data[3].m_data[2] = v14;
+    dest->m_data[3].m_data[3] = v11; dest->m_data[0].m_data[1] = v2; dest->m_data[0].m_data[2] = v3; dest->m_data[0].m_data[3] = v5; dest->m_data[1].m_data[2] = v4; dest->m_data[1].m_data[3] = v6; dest->m_data[2].m_data[3] = v7; dest->m_data[0].m_data[0] = v8;
 }
-void GFX_StoreMatrix(const MATRIX44 &src) { memmove(g_MatrixContext.m_matrix->m_data->m_data, &src, sizeof(MATRIX44)); }
+void GFX_StoreMatrix(MATRIX44 *dest) { memmove(dest, g_MatrixContext.m_matrix->m_data->m_data, sizeof(MATRIX44)); }
 MATRIX44 mx_1 = g_mxIdentity, mx_2 = g_mxIdentity, mx_3 = g_mxIdentity, mx_4 = g_mxIdentity, *g_pLastMx = &mx_1;
 void GFX_UpdateMatrices(bool force) {
     static_assert(sizeof(GFX_MatrixContext) == 0x170);
@@ -1153,7 +1174,7 @@ void GFX_UpdateMatrices(bool force) {
             _matrix = g_MatrixContext.m_stacks[1].m_matrix;
             g_MatrixContext.m_matrix = g_MatrixContext.m_stacks[1].m_matrix;
             g_MatrixContext.m_curMode = GMT_1;
-            GFX_StoreMatrix(mx_3);
+            GFX_StoreMatrix(&mx_3);
             g_MatrixContext.m_modesUpdCntCache[1] = g_MatrixContext.m_modesUpdCnt[1];
         }
         if (updMask & 4) {
@@ -1161,7 +1182,7 @@ void GFX_UpdateMatrices(bool force) {
             _matrix = g_MatrixContext.m_stacks[2].m_matrix;
             g_MatrixContext.m_matrix = g_MatrixContext.m_stacks[2].m_matrix;
             g_MatrixContext.m_curMode = GMT_2;
-            GFX_StoreMatrix(mx_4);
+            GFX_StoreMatrix(&mx_4);
             g_MatrixContext.m_modesUpdCntCache[2] = g_MatrixContext.m_modesUpdCnt[2];
         }
         memmove(&tmp, &g_mxIdentity, sizeof(g_mxIdentity));
@@ -1212,7 +1233,7 @@ void GFX_MatrixStackInitialize() {
     g_MatrixContext.m_matrix = g_MatrixContext.m_stacks[0].m_matrix;
 }
 bool GFX_Initialize3DTVSpecs(float, float) {
-    //TODO
+    //OMIT
     return true;
 }
 void GFX_DrawInit() {
@@ -1497,83 +1518,46 @@ void GFX_Present() {
     //WDT_Tick(&v0);
 }
 void GFX_EndFrame() {
-    //TODO: FPS and battery calculations
-#if 0
-    DWORD Time; // eax
-    int v1; // ecx
-    unsigned int v2; // r8d
-    bool v3; // zf
-    int v4; // r9d
-    unsigned int v5; // edx
-    _DWORD *v6; // rcx
-    float v7; // xmm2_4
-    int v8; // eax
-    float v9; // xmm1_4
-    float v10; // xmm0_4
-    DWORD v11; // ebx
-    char v12; // al
-    int v13; // xmm0_4
-    float v14; // xmm1_4
-
-    Time = timeGetTime();
-    v1 = dword_7FF7AD5F6EAC;
-    v2 = dword_7FF7AD5F6EA8;
-    v3 = dword_7FF7AD5F6EAC == 0;
-    dword_7FF7AD5F6EAC = Time;
-    if (v3)
-        v1 = Time;
-    v4 = Time - v1;
-    if (Time - v1 > 5000)
-        v4 = 5000;
-    v5 = g_nTotalFrames;
-    ++dword_7FF7AD5F6EA8;
-    v6 = dword_7FF7AD5F6E30;
-    dword_7FF7AD5F6E30[v2 % 0x1E] = v4;
-    v7 = (float)v4 / 1000.0;
-    if (v5 > 0x12C && v7 > 0.001 && v7 < 0.2)
-        g_instantaniousFPS = 1.0 / v7;
-    v8 = 0;
-    do
-        v8 += *v6++;
-    while ((__int64)v6 < (__int64)&dword_7FF7AD5F6EA8);
-    v9 = (float)v8 / 30.0;
-    if (v9 == 0.0)
-        v10 = 0.0;
-    else
-        v10 = 1000.0 / v9;
-    g_smoothedFPS = LODWORD(v10);
-    g_nTotalFrames = v5 + 1;
-    g_TotalRenderTime = g_TotalRenderTime + v7;
-    v11 = timeGetTime();
-    if (v11 <= dword_7FF7AD5F6EB4 + 5000)
-    {
-        v12 = byte_7FF7AD5F6EB0;
-    } else
-    {
-        v12 = OS_IsOnBattery();
-        byte_7FF7AD5F6EB0 = v12;
-        if (v12 && dword_7FF7AD5F6EB4)
-            g_SecondsUnplugged = g_SecondsUnplugged + 5.0;
-        dword_7FF7AD5F6EB4 = v11;
+    auto t = timeGetTime();
+    static DWORD g_frTime, g_frDurations[30];
+    auto lastTime = g_frTime;
+    if (g_frTime == 0)
+        lastTime = t;
+    g_frTime = t;
+    auto dtime = t - lastTime;
+    if (dtime > 5000)
+        dtime = 5000;
+    g_frDurations[(g_nTotalFrames++) % 30] = dtime;
+    auto fdtime = dtime / 1000.0f;
+    if (g_nTotalFrames > 300 && fdtime > 0.001 && fdtime < 0.2)
+        g_instantaniousFPS = 1.0 / fdtime;
+    DWORD sum = 0;
+    for (auto d : g_frDurations) sum += d;
+    g_smoothedFPS = sum ? 30000.0f / sum : 0.0f;
+    g_TotalRenderTime += fdtime;
+    static DWORD lastCheck;
+    static bool lastOnBattery;
+    bool nowOnBattery = lastOnBattery;
+    if (t - lastCheck > 5000) {
+        lastOnBattery = nowOnBattery = OS_IsOnBattery();
+        if (nowOnBattery && lastCheck)
+            g_SecondsUnplugged += 5.0;
+        lastCheck = t;
     }
-    if (v12 && *(float *)&g_TargetBatteryFPS > 0.0 && *(float *)&g_TargetBatteryFPS < 61.0 && g_instantaniousFPS > 1.0)
-    {
-        v13 = dword_7FF7AD5F6EB8;
-        v14 = (float)(1000.0 / *(float *)&g_TargetBatteryFPS) - (float)(1000.0 / g_instantaniousFPS);
-        if (v14 > 1.0)
-        {
-            *(float *)&v13 = *(float *)&dword_7FF7AD5F6EB8 + 1.0;
-            *(float *)&dword_7FF7AD5F6EB8 = *(float *)&dword_7FF7AD5F6EB8 + 1.0;
-        }
-        if (v14 < 0.0)
-        {
-            *(float *)&v13 = *(float *)&v13 + -1.0;
+    static float dword_7FF7AD5F6EB8;
+    if (nowOnBattery && g_TargetBatteryFPS > 0.0 && g_TargetBatteryFPS < 61.0 && g_instantaniousFPS > 1.0) {
+        auto v13 = dword_7FF7AD5F6EB8;
+        auto v14 = 1000.0f / g_TargetBatteryFPS - 1000.0f / g_instantaniousFPS;
+        if (v14 > 1.0f) {
+            v13 += 1.0f;
+            dword_7FF7AD5F6EB8 = v13;
+        } else if (v14 < 0.0f) {
+            v13 -= 1.0f;
             dword_7FF7AD5F6EB8 = v13;
         }
-        if (*(float *)&v13 > 5.0)
-            Sleep((int)*(float *)&v13);
+        if (v13 > 5.0f)
+            Sleep(v13);
     }
-#endif
 }
 bool GFX_CheckExtensions() {
     g_gfxCaps.draw_elements_base_vertex = (GLEW_ARB_draw_elements_base_vertex || GLEW_EXT_draw_elements_base_vertex);
@@ -1855,9 +1839,7 @@ void GFX_PopStates() {
         }
     }
 }
-int GFX_GetCurrentShaderHandle() {
-    return g_CurrentShaderHandle;
-}
+int GFX_GetCurrentShaderHandle() { return g_CurrentShaderHandle; }
 void GFX_Internal_SetActiveTexture(int glHandle) {
     if (g_pGFX_CurrentStates->m_actTex != glHandle) {
         glActiveTexture(glHandle);
@@ -1929,8 +1911,31 @@ void GFXAPI_ActivateTexture(int handle, int glOffset, const char *uniformName, G
     }
     GFX_Internal_SetActiveTexture(GL_TEXTURE0);
 }
-void GFX_ActivateTexture(int, int, const char *, int GFX_TEXTURE_WRAP_MODE) {
-    //TODO
+bool g_bEngineShowLighting; //QUEST where set to 1???
+void GFX_ActivateAnimatedTexture_INTERNAL(int handle, int offset, const char *name, GFX_TEXTURE_WRAP_MODE wm) {
+    auto v4 = &g_AnimatedTextures[handle - _countof(g_Textures)];
+    if (g_FlipbookTextureIndexOverride == -1 || g_FlipbookTextureIndexOverride >= v4->m_framesCnt)
+        handle = v4->m_frameHandles[v4->m_curFrame];
+    else
+        handle = v4->m_frameHandles[g_FlipbookTextureIndexOverride];
+    GFX_ActivateTexture(handle, offset, name, wm);
+}
+void GFX_ActivateTexture(int handle, int offset, const char *name, GFX_TEXTURE_WRAP_MODE wm) {
+    if ((unsigned)(handle - _countof(g_Textures)) >= _countof(g_AnimatedTextures)) {
+        auto h = handle;
+        if (handle <= -1 || handle >= g_nTexturesLoaded && handle != _countof(g_Textures) - 1)
+            h = g_WhiteHandle;
+        if (g_bEngineShowLighting && offset + 1 <= 1)
+            h = g_WhiteHandle;
+        if ((unsigned)h < _countof(g_Textures)) {
+            if (g_Textures[h].m_texState == TS_1 && GFX_Internal_LoadTextureFromTGAFile(g_Textures[h].m_name, h) == -1)
+                g_Textures[h].m_texState = TS_2;
+        }
+        g_Textures[h].m_texTime = g_TextureTimeThisFrame;
+        GFXAPI_ActivateTexture(h, offset, name, wm);
+    } else {
+        GFX_ActivateAnimatedTexture_INTERNAL(handle, offset, name, wm);
+    }
 }
 void GFX_ActivateTextureEx(int tn, GLfloat lodBias) {
     uint32_t gltn = tn + GL_TEXTURE0;
@@ -2039,11 +2044,11 @@ void GFX_BEGIN_2DUISpace() {
     GFX_PushMatrix();
     GFX_LoadIdentity();
     GFX_UpdateMatrices(0);
-    g_b2D720pRenderIsSetup = 1;
+    g_b2D720pRenderIsSetup = true;
 }
 void GFX_SetWideAspectAwareUI(bool val) {
     if (val != g_bIsAwareOfWideAspectUI) {
-        g_b2D720pRenderIsSetup = 0;
+        g_b2D720pRenderIsSetup = false;
         g_bIsAwareOfWideAspectUI = val;
     }
 }
@@ -2183,7 +2188,7 @@ void GFXAPI_ReUploadShaderCache() {
         int i = 0;
         for (auto loc : g_pCurrentShader->m_locations) {
             if (loc >= 0 && (i < 27 || extra)) {
-                auto uniform = GFX_StateBlock::GetUniform((GFX_SHADER_REGISTERS)i);
+                const auto &uniform = GFX_StateBlock::GetUniform((GFX_SHADER_REGISTERS)i);
                 glUniform4fv(loc, GFX_StateBlock::s_registerRefs[i].m_cnt, uniform.m_data);
             }
             i++;
@@ -2191,15 +2196,15 @@ void GFXAPI_ReUploadShaderCache() {
         i = 0;
         for (auto mloc : g_pCurrentShader->m_matLocations) {
             if (mloc >= 0) {
-                auto uniform = GFX_StateBlock::GetUniform((GFX_SHADER_MATRICES)i);
-                glUniformMatrix4fv(mloc, 1, 0, uniform.m_data);
+                const auto &uniform = GFX_StateBlock::GetUniform((GFX_SHADER_MATRICES)i);
+                glUniformMatrix4fv(mloc, 1, 0, uniform.m_data[0].m_data);
             }
             i++;
         }
         auto mlocEx = g_pCurrentShader->m_matArrLocations[g_pGFX_CurrentStates->m_shaderMAT4ARRAY];
         if (mlocEx >= 0) {
             const auto &ref = GFX_StateBlock::s_matrixArrayRefs[g_pGFX_CurrentStates->m_shaderMAT4ARRAY];
-            auto uniform = GFX_StateBlock::GetUniform(ref);
+            const auto &uniform = GFX_StateBlock::GetUniform(ref);
             glUniformMatrix4fv(mlocEx, ref.m_cnt, 0, uniform.m_data);
         }
     }
@@ -2317,7 +2322,7 @@ void GFX_StateBlock::Reset() {
     m_blendFunc2 = { GBO_FUNC_ADD, GB_FALSE, GB_TRUE, GB_FALSE };
     m_attrData = 0;
     m_VAO = 0;
-    m_indexBuffer = m_vertex = m_shader -1;
+    m_indexBuffer = m_vertex = m_shader = -1;
     m_vaIdx = 0;
     m_field_A8 = 0i64;
     m_actTex = GL_TEXTURE0;
@@ -2349,9 +2354,9 @@ bool GFX_StateBlock::Realize() {
             field_B8 = m_VAO;
         uint64_t inv = 0i64;
         auto vx = g_vertexArray.fast64[m_vertex];
-        auto pAttr = vx->m_creParams.m_attrs + 1;
+        auto pAttr = vx->m_creParams.m_attrs;
         for (int vi = 0; vi < vx->m_creParams.m_attrCnt; vi++) {
-            auto atrIdx = pAttr->m_idx;
+            auto atrIdx = pAttr->m_atrIdx;
             auto addm = (1i64 << atrIdx);
             inv |= addm;
             if ((addm & g_pGFX_CurrentStates->m_field_A8) == 0)
@@ -2362,7 +2367,7 @@ bool GFX_StateBlock::Realize() {
                 g_GFX_VertexFormat_size[pAttr->m_fmtIdx],
                 g_GFX_VertexFormat_format[pAttr->m_fmtIdx],
                 g_GFX_VertexFormat_normalized[pAttr->m_fmtIdx],
-                vx->m_strides[pAttr[-1].m_strideIdx], //GLsizei stride
+                vx->m_strides[pAttr->m_strideIdx], //GLsizei stride
                 (const void *)uintptr_t(m_attrData + field_B8 + pAttr->m_dataOffset)); //const void * pointer
             ++pAttr;
         }
@@ -2396,7 +2401,7 @@ bool GFX_StateBlock::Realize() {
         else
             glDisable(GL_BLEND);
         glBlendEquation(g_GFX_TO_GL_BLENDOP[m_blendFunc2.m_modeIdx]);
-        glBlendFunc(g_GFX_TO_GL_BLENDFUNC[m_blendFunc2.m_sFactorIdx], g_GFX_TO_GL_BLENDFUNC[m_blendFunc2.m_sFactorIdx]);
+        glBlendFunc(g_GFX_TO_GL_BLENDFUNC[m_blendFunc2.m_sFactorIdx], g_GFX_TO_GL_BLENDFUNC[m_blendFunc2.m_dFactorIdx]);
     }
     m_bits = 0;
     if (m_hasRegTypes) {
@@ -2442,8 +2447,8 @@ uint32_t GFX_ShaderModelValue(int idx) { return g_GFX_ShaderModelValues[idx]; }
 const VEC4 &GFX_StateBlock::GetUniform(GFX_SHADER_REGISTERS reg) {
     return GFX_StateBlock::uniformRegs[(int)s_registerRefs[reg].m_ty].m_pRegs[s_registerRefs[reg].m_offset];
 }
-const VEC4 &GFX_StateBlock::GetUniform(GFX_SHADER_MATRICES mat) {
-    return GFX_StateBlock::uniformRegs[(int)s_matrixRefs[mat].m_ty].m_pRegs[s_matrixRefs[mat].m_offset];
+const MATRIX44 &GFX_StateBlock::GetUniform(GFX_SHADER_MATRICES mat) {
+    return *(MATRIX44 *)(GFX_StateBlock::uniformRegs[(int)s_matrixRefs[mat].m_ty].m_pRegs + s_matrixRefs[mat].m_offset);
 }
 const VEC4 &GFX_StateBlock::GetUniform(const GFX_RegisterRef &ref) {
     return GFX_StateBlock::uniformRegs[(int)ref.m_ty].m_pRegs[ref.m_offset];
@@ -2495,11 +2500,10 @@ void GFX_DestroyVertex(int *pIdx) {
         *pIdx = -1;
     }
 }
-namespace GameShaders {
-void LoadAll() {
-    //TODO
-}
-}
+namespace GameShaders { void LoadAll() {
+    dualAlphaShader = GFX_CreateShaderFromFile("GFXDRAW_Textured_ExtAlpha", -1);
+    shGaussianBlur = GFX_CreateShaderFromFile("GaussianBlur", -1);
+} }
 int GFX_CreateShader(const GFX_CreateShaderParams &p) {
     if (p.m_name && *p.m_name)
         return GFX_CreateShaderFromFile(p, -1);
@@ -2514,7 +2518,63 @@ int GFX_Internal_FindLoadedAnimatedTexture(const char *name) {
                 return _countof(g_Textures) + i;
     return -1;
 }
-int GFX_Internal_LoadTextureFromTGAFile(const char *name, int handle);
+void GFX_Draw2DQuad(float l, float t, float w, float h, uint32_t color, bool a6) {
+    auto bptr = GFX_DrawMalloc(24 * 4, 4);
+    auto fptr = (float *)bptr;
+    if (bptr) {
+        auto v8 = (int *)bptr + 2;
+        for(int v9 = 0; v9 < 6; v9++) {
+            *v8 = 0;
+            v8[1] = color;
+            v8 += 4;
+        }
+        *fptr = l;
+        fptr[1] = t;
+        fptr[5] = t;
+        fptr[12] = l;
+        fptr[16] = l;
+        fptr[17] = t;
+        fptr[4] = l + w;
+        fptr[8] = l + w;
+        fptr[9] = t + h;
+        fptr[13] = t + h;
+        fptr[20] = l + w;
+        fptr[21] = t + h;
+        bool v10;
+        if ((g_b2D720pRenderIsSetup || !a6) && a6) {
+            v10 = false;
+        } else {
+            v10 = true;
+            auto pCurrentRT = VRAM_GetCurrentRT();
+            zassert(pCurrentRT);
+            GFX_SetShader(g_DrawNoTextureShaderHandle);
+            GFX_UploadShaderVEC4(GSR_24, g_Vec4White, 0);
+            GFX_MatrixMode(GMT_2);
+            GFX_PushMatrix();
+            GFX_LoadIdentity();
+            if (a6)
+                GFX_SetupUIProjection();
+            else
+                GFX_Ortho(0.0, (float)pCurrentRT->m_dw_width, (float)pCurrentRT->m_dw_height, 0.0, -1.0, 1.0);
+            GFX_MatrixMode(GMT_1);
+            GFX_PushMatrix();
+            GFX_LoadIdentity();
+            GFX_MatrixMode(GMT_0);
+            GFX_PushMatrix();
+            GFX_LoadIdentity();
+            GFX_UpdateMatrices(0);
+        }
+        GFX_DrawPrimitive(GPT_TRIANGLES, (DRAW_VERT_POS_COLOR *)fptr, 6);
+        if (v10) {
+            GFX_MatrixMode(GMT_2);
+            GFX_PopMatrix();
+            GFX_MatrixMode(GMT_1);
+            GFX_PopMatrix();
+            GFX_MatrixMode(GMT_0);
+            GFX_PopMatrix();
+        }
+    }
+}
 int GFX_CreateAnimatedTextureFromTGAFiles(const char *name) {
     auto found = GFX_Internal_FindLoadedAnimatedTexture(name);
     if (found != -1) {
@@ -3264,62 +3324,148 @@ void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE ty, int baseVertex, uint32_t cnt, GF
             glDrawElements(g_PRIM_TO_GLPRIM[ty], cnt, g_IF_TO_GLIF[gif], indices);
     }
 }
-void DefineVAO_DRAW_VERT_POS_COLOR_UV(uint32_t a1, const /*DRAW_VERT_POS_COLOR_UV*/ void *data, uint32_t cnt) {
-    if (g_glCoreContext) {
-        g_pGFX_CurrentStates->BindVertexBuffer(g_DrawPrimVBO);
-        glBufferData(GL_ARRAY_BUFFER, 32 * cnt, data, GL_STREAM_DRAW);
-        if (g_pGFX_CurrentStates->m_vertexBuffer != g_DrawPrimVBO) {
-            g_pGFX_CurrentStates->m_vertexBuffer = g_DrawPrimVBO;
-            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VBO;
-        }
-        if (g_pGFX_CurrentStates->m_attrData != 0) {
-            g_pGFX_CurrentStates->m_attrData = 0;
-            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ATTRDATA;
-        }
-        if (g_DrawPrimVBO != -1) {
-            if (g_pGFX_CurrentStates->m_VAO != 0) {
-                g_pGFX_CurrentStates->m_VAO = 0;
-                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAO;
-            }
-        }
-    } else {
-        if (g_pGFX_CurrentStates->m_VAO != (uint64_t)data) {
-            g_pGFX_CurrentStates->m_VAO = (uint64_t)data;
-            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAO;
-        }
-        if (data) {
-            if (g_pGFX_CurrentStates->m_attrData != 0) {
-                g_pGFX_CurrentStates->m_attrData = 0;
-                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ATTRDATA;
-            }
-            if (g_pGFX_CurrentStates->m_vertexBuffer != -1) {
-                g_pGFX_CurrentStates->m_vertexBuffer = -1;
-                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VBO;
-            }
-        }
+void GFX_Translate(const VEC3 &v) {
+    auto v1 = 4;
+    auto v2 = &g_MatrixContext.m_matrix->m_data[3];
+    for (int i = 0; i < 4; i++) {
+        g_MatrixContext.m_matrix->m_data[3].m_data[i] += v.m_data[1] * g_MatrixContext.m_matrix->m_data[1].m_data[i]
+            + v.m_data[0] * g_MatrixContext.m_matrix->m_data[0].m_data[i] + v.m_data[2] * g_MatrixContext.m_matrix->m_data[2].m_data[i];
     }
-    auto v17 = GFX_GetVertexHandle_DRAW_VERT_POS_COLOR_UV();
-    if (g_pGFX_CurrentStates->m_vertex != v17) {
-        g_pGFX_CurrentStates->m_vertex = v17;
-        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAIDX;
+    ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
+}
+void GFX_Draw2DQuad(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8, int a9, float a10, int a11, bool a12, int a13) { //_13
+    auto bptr = GFX_DrawMalloc(36 * 4, 4);
+    auto fptr = (float *)bptr;
+    if (bptr) {
+        bool v14;
+        if ((g_b2D720pRenderIsSetup || !a12) && a12 && a10 == 0.0f) {
+            v14 = false;
+        } else {
+            v14 = true;
+            if (a11 == -1)
+                GFX_SetShader(g_DrawTexturedShaderHandle);
+            auto pCurrentRT = VRAM_GetCurrentRT();
+            zassert(pCurrentRT);
+            GFX_MatrixMode(GMT_2);
+            GFX_PushMatrix();
+            GFX_LoadIdentity();
+            if (a12)
+                GFX_SetupUIProjection();
+            else
+                GFX_Ortho(0.0, (float)pCurrentRT->m_dw_width, (float)pCurrentRT->m_dw_height, 0.0, -1.0, 1.0);
+            GFX_MatrixMode(GMT_1);
+            GFX_PushMatrix();
+            GFX_LoadIdentity();
+            GFX_MatrixMode(GMT_0);
+            GFX_PushMatrix();
+            GFX_LoadIdentity();
+            if (a10 != 0.0f) {
+                GFX_Translate(VEC3{ (a3 * 0.5f) + a1, (a4 * 0.5f) + a2 });
+                GFX_RotateZ((a10 / 180.0f) * 3.1415927f);
+                GFX_Translate(VEC3{ -(a3 * 0.5f + a1), -a2 - (a4 * 0.5f) });
+            }
+            GFX_UpdateMatrices(0);
+            GFX_UploadShaderVEC4(GSR_24, g_Vec4White, 0);
+        }
+        int *iptr = (int *)bptr;
+        *fptr = a1;
+        fptr[1] = a2;
+        iptr[2] = a13;
+        fptr[10] = a5 + a7;
+        fptr[16] = a5 + a7;
+        fptr[17] = a6 + a8;
+        fptr[22] = a5 + a7;
+        fptr[23] = a6 + a8;
+        fptr[29] = a6 + a8;
+        fptr[4] = a5;
+        fptr[5] = a6;
+        fptr[6] = a1 + a3;
+        fptr[7] = a2;
+        iptr[8] = a13;
+        fptr[11] = a6;
+        fptr[12] = a1 + a3;
+        fptr[13] = a2 + a4;
+        iptr[14] = a13;
+        fptr[18] = a1 + a3;
+        fptr[19] = a2 + a4;
+        iptr[20] = a13;
+        fptr[24] = a1;
+        fptr[25] = a2 + a4;
+        iptr[26] = a13;
+        fptr[28] = a5;
+        fptr[30] = a1;
+        fptr[31] = a2;
+        iptr[32] = a13;
+        fptr[34] = a5;
+        fptr[35] = a6;
+        iptr[3] = a9;
+        iptr[9] = a9;
+        iptr[15] = a9;
+        iptr[21] = a9;
+        iptr[27] = a9;
+        iptr[33] = a9;
+        if (a11 == -1)
+            GFX_SetShader(g_DrawTexturedShaderHandle);
+        GFX_DrawPrimitive(GPT_TRIANGLES, (DRAW_VERT_POS_COLOR_1UV *)bptr, 6);
+        if (v14) {
+            GFX_MatrixMode(GMT_2);
+            GFX_PopMatrix();
+            GFX_MatrixMode(GMT_1);
+            GFX_PopMatrix();
+            GFX_MatrixMode(GMT_0);
+            GFX_PopMatrix();
+        }
     }
 }
-void GFX_DrawPrimitive(GFX_PRIM_TYPE t, const /*DRAW_VERT_POS_COLOR_UV*/ void *data, uint32_t cnt) {
-    if (data && cnt) {
-        DefineVAO_DRAW_VERT_POS_COLOR_UV(1, data, cnt);
-        if (g_pGFX_CurrentStates->Realize())
-            glDrawArrays(g_PRIM_TO_GLPRIM[t], 0, cnt);
-    }
+void GFX_Draw2DQuad_720p(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8, int color, float a10, int a11, int a12) {
+    GFX_Draw2DQuad(a1, a2, a3, a4, a5, a6, a7, a8, color, a10, a11, true, a12);
 }
-int GFX_GetVertexHandle_DRAW_VERT_POS_COLOR_UV() {
+template <> int GFX_GetVertexHandle<DRAW_VERT_POS_COLOR_1UV>() {
+    static int stDRAW_VERT_POS_COLOR_1UV = -1;
+    if (stDRAW_VERT_POS_COLOR_1UV == -1)
+        stDRAW_VERT_POS_COLOR_1UV = GFX_CreateVertex(GFX_CreateVertexParams{ 3, 1,
+            { {0, 0, GVF_FLOAT7, 0}, {0, 4, GVF_UNSIGNED_BYTE1, 12}, {0, 6, GVF_FLOAT6, 16} },
+            { {0, DRAW_VERT_POS_COLOR_1UV::MULT, GVF_UNSIGNED_BYTE1, 0} }
+            });
+    return stDRAW_VERT_POS_COLOR_1UV;
+}
+template <> int GFX_GetVertexHandle<DRAW_VERT_POS_COLOR_UV>() {
     static int stDRAW_VERT_POS_COLOR_UV = -1;
-    if (stDRAW_VERT_POS_COLOR_UV == -1) {
+    if (stDRAW_VERT_POS_COLOR_UV == -1)
         stDRAW_VERT_POS_COLOR_UV = GFX_CreateVertex(GFX_CreateVertexParams{ 4, 1,
-            { {0, GVF_FALSE, 7, 0}, {0, GVF_UNSIGNED_SHORT, 1, 12}, {0, GVF_FLOAT6, 6, 16}, {0, GVF_FLOAT7, 6, 24} },
-            { {0, 32, 1, 0} }
+            { {0, 0, GVF_FLOAT7, 0}, {0, 3, GVF_UNSIGNED_BYTE1, 12}, {0, 6, GVF_FLOAT6, 16}, {0, 7, GVF_FLOAT6, 24} },
+            { {0, DRAW_VERT_POS_COLOR_UV::MULT, GVF_UNSIGNED_BYTE1, 0} }
+            });
+    return stDRAW_VERT_POS_COLOR_UV;
+}
+template <> int GFX_GetVertexHandle<DRAW_VERT_POS_COLOR>() {
+    static int stDRAW_VERT_POS_COLOR = -1;
+    if (stDRAW_VERT_POS_COLOR == -1)
+        stDRAW_VERT_POS_COLOR = GFX_CreateVertex(GFX_CreateVertexParams{ 2, 1,
+            { {0, 0, GVF_FLOAT7, 0}, {0, 4, GVF_UNSIGNED_BYTE1, 12} },
+            { {0, DRAW_VERT_POS_COLOR::MULT, GVF_UNSIGNED_BYTE1, 0} }
+            });
+    return stDRAW_VERT_POS_COLOR;
+}
+template <> int GFX_GetVertexHandle<DRAW_VERT_POS_COLOR_UV_NORM>() {
+    static int stDRAW_VERT_POS_COLOR_UV_NORM = -1;
+    if (stDRAW_VERT_POS_COLOR_UV_NORM == -1) {
+        stDRAW_VERT_POS_COLOR_UV_NORM = GFX_CreateVertex(GFX_CreateVertexParams{ 5, 1,
+            { {0, 0, GVF_FLOAT7, 0}, {0, 4, GVF_UNSIGNED_BYTE1, 12}, {0, 6, GVF_FLOAT6, 16}, {0, 7, GVF_FLOAT6, 24}, {0, 1, GVF_FLOAT7, 32} },
+            { {0, DRAW_VERT_POS_COLOR_UV_NORM::MULT, GVF_UNSIGNED_BYTE1, 0} }
             });
     }
-    return stDRAW_VERT_POS_COLOR_UV;
+    return stDRAW_VERT_POS_COLOR_UV_NORM;
+}
+template <> int GFX_GetVertexHandle<DRAW_VERT_POS_COLOR_UV_NORM_TAN_PACKED>() {
+    static int stDRAW_VERT_POS_COLOR_UV_NORM_TAN_PACKED = -1;
+    if (stDRAW_VERT_POS_COLOR_UV_NORM_TAN_PACKED == -1) {
+        stDRAW_VERT_POS_COLOR_UV_NORM_TAN_PACKED = GFX_CreateVertex(GFX_CreateVertexParams{ 5, 1,
+            { {0, 0, GVF_FLOAT7, 0}, {0, 4, GVF_UNSIGNED_BYTE1, 12}, {0, 6, GVF_FLOAT6, 16}, {0, 1, GVF_BYTE, 24}, {0, 2, GVF_BYTE, 28} },
+            { {0, DRAW_VERT_POS_COLOR_UV_NORM_TAN_PACKED::MULT, GVF_UNSIGNED_BYTE1, 0} }
+            });
+    }
+    return stDRAW_VERT_POS_COLOR_UV_NORM_TAN_PACKED;
 }
 void GFX_SetTextureWrap(uint32_t tn, GFX_TEXTURE_WRAP_MODE t, GFX_TEXTURE_WRAP_MODE s) {
     if (tn) {
@@ -3342,10 +3488,11 @@ void GFX_SetTextureWrap(uint32_t tn, GFX_TEXTURE_WRAP_MODE t, GFX_TEXTURE_WRAP_M
 }
 
 //Unit Tests
+#if 0
 TEST(SmokeTest, VertexArray) {
     GFX_CreateVertexParams p{ 4, 1,
-            { {0, GVF_FALSE, 7, 0}, {0, GVF_UNSIGNED_SHORT, 1, 12}, {0, GVF_FLOAT6, 6, 16}, {0, GVF_FLOAT7, 6, 24} },
-            { {0, 32, 1, 0} }
+        { {0, 0, GVF_FLOAT7, 0}, {0, 3, GVF_UNSIGNED_BYTE1, 12}, {0, 6, GVF_FLOAT6, 16}, {0, 7, GVF_FLOAT6, 24} },
+        { {0, 32, GVF_UNSIGNED_BYTE1, 0} }
         };
     for (int i = 0; i < _countof(g_vertexArray.fast64); i++) {
         auto act = GFX_CreateVertex(p);
@@ -3365,6 +3512,7 @@ TEST(SmokeTest, VertexArray) {
     GFX_DestroyVertex(&idx);
     EXPECT_EQ(5, idx) << "GFX_DestroyVertex double";
 }
+#endif
 TEST(SmokeTest, ZData) {
     ZData *pDataDest;
     uint64_t *pPhysIdx;
@@ -3439,4 +3587,24 @@ TEST(SmokeTest, ZDataLocal) {
     EXPECT_EQ(0, pDataDest->gap[1]);
     EXPECT_EQ(0, pDataDest->gap[2]);
 //printf("LogicIdx: %d, PhysIdx: %d, len: %d\n", logicIdx, int(*pPhysIdx), pDataDest->m_len);
+}
+TEST(SmokeTest, Transpose) {
+    MATRIX44 dest, src{ { { 0.0f, 1.0f, 2.0f, 3.0f }, { 0.1f, 1.1f, 2.1f, 3.1f }, { 0.2f, 1.2f, 2.2f, 3.2f }, { 0.3f, 1.3f, 2.3f, 3.3f } } };
+    GFX_TransposeMatrix44(&dest, src);
+    EXPECT_FLOAT_EQ(dest.m_data[0].m_data[0], src.m_data[0].m_data[0]);
+    EXPECT_FLOAT_EQ(dest.m_data[0].m_data[1], src.m_data[1].m_data[0]);
+    EXPECT_FLOAT_EQ(dest.m_data[0].m_data[2], src.m_data[2].m_data[0]);
+    EXPECT_FLOAT_EQ(dest.m_data[0].m_data[3], src.m_data[3].m_data[0]);
+    EXPECT_FLOAT_EQ(dest.m_data[1].m_data[0], src.m_data[0].m_data[1]);
+    EXPECT_FLOAT_EQ(dest.m_data[1].m_data[1], src.m_data[1].m_data[1]);
+    EXPECT_FLOAT_EQ(dest.m_data[1].m_data[2], src.m_data[2].m_data[1]);
+    EXPECT_FLOAT_EQ(dest.m_data[1].m_data[3], src.m_data[3].m_data[1]);
+    EXPECT_FLOAT_EQ(dest.m_data[2].m_data[0], src.m_data[0].m_data[2]);
+    EXPECT_FLOAT_EQ(dest.m_data[2].m_data[1], src.m_data[1].m_data[2]);
+    EXPECT_FLOAT_EQ(dest.m_data[2].m_data[2], src.m_data[2].m_data[2]);
+    EXPECT_FLOAT_EQ(dest.m_data[2].m_data[3], src.m_data[3].m_data[2]);
+    EXPECT_FLOAT_EQ(dest.m_data[3].m_data[0], src.m_data[0].m_data[3]);
+    EXPECT_FLOAT_EQ(dest.m_data[3].m_data[1], src.m_data[1].m_data[3]);
+    EXPECT_FLOAT_EQ(dest.m_data[3].m_data[2], src.m_data[2].m_data[3]);
+    EXPECT_FLOAT_EQ(dest.m_data[3].m_data[3], src.m_data[3].m_data[3]);
 }

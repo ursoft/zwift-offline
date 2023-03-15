@@ -1,99 +1,82 @@
 #include "ZwiftApp.h"
 void GDEMESH_Initialize() {
-#if 0 //TODO
-    GFX_CreateVertexParams parms;
-    *parms.m_field_10 = 0x70000;
-    *&parms.m_field_10[4] = 0xC060600;
-    *&parms.m_field_10[8] = 0x14060700;
+    /*enum GFX_VertexFormat : uint8_t { GVF_FALSE=0, GVF_UNSIGNED_BYTE1, GVF_BYTE=2, GVF_UNSIGNED_BYTE3, GVF_UNSIGNED_SHORT=4, GVF_FLOAT5, GVF_FLOAT6, GVF_FLOAT7, GVF_CNT };
     parms.m_attrCnt = 7i64;
-    *&parms.m_field_10[12] = 470221056;
-    *&parms.m_field_10[16] = 671547904;
-    *&parms.m_field_10[20] = 872874752;
-    parms.m_field_8 = 1i64;
-    *parms.m_field_28 = 1073808384;
-    memset(&parms.m_field_28[4], 0, 36);
-    parms.m_field_50 = 83968;
-    memset(parms.m_field_54, 0, sizeof(parms.m_field_54));
-    g_hGDE_TRI_VERT = GFX_CreateVertex(&parms);
-    parms.m_attrCnt = 6i64;
-    parms.m_field_8 = 1i64;
-    *parms.m_field_10 = 458752;
-    *&parms.m_field_10[4] = 268830208;
-    *&parms.m_field_10[8] = 402784512;
-    *&parms.m_field_10[12] = 469893632;
-    *&parms.m_field_10[16] = 537002752;
-    *&parms.m_field_10[20] = 201393152;
-    memset(parms.m_field_28, 0, sizeof(parms.m_field_28));
-    parms.m_field_50 = 0x12400;
-    memset(parms.m_field_54, 0, sizeof(parms.m_field_54));
-    g_hTRI_VERT_COLOR1_UV1 = GFX_CreateVertex(&parms);
-    parms.m_attrCnt = 7i64;
-    parms.m_field_8 = 1i64;
-    *parms.m_field_10 = 458752;
-    *&parms.m_field_10[4] = 201393152;
-    *&parms.m_field_10[8] = 268830208;
-    *&parms.m_field_10[12] = 403048192;
-    *&parms.m_field_10[16] = 537002240;
-    *&parms.m_field_10[20] = 604111360;
-    *parms.m_field_28 = 671220480;
-    memset(&parms.m_field_28[4], 0, 36);
-    parms.m_field_50 = 76800;
-    memset(parms.m_field_54, 0, sizeof(parms.m_field_54));
-    g_hTRI_VERT_COLOR1_UV2 = GFX_CreateVertex(&parms);
-    parms.m_attrCnt = 7i64;
-    parms.m_field_8 = 1i64;
-    *parms.m_field_10 = 458752;
-    *&parms.m_field_10[4] = 201393152;
-    *&parms.m_field_10[8] = 268502272;
-    *&parms.m_field_10[12] = 335939072;
-    *&parms.m_field_10[16] = 469893376;
-    *&parms.m_field_10[20] = 537002496;
-    *parms.m_field_28 = 604111616;
-    memset(&parms.m_field_28[4], 0, 36);
-    parms.m_field_50 = 75776;
-    memset(parms.m_field_54, 0, sizeof(parms.m_field_54));
-    g_hTRI_VERT_COLOR2_UV1 = GFX_CreateVertex(&parms);
-    parms.m_attrCnt = 8i64;
-    parms.m_field_8 = 1i64;
-    *parms.m_field_10 = 458752;
-    *&parms.m_field_10[4] = 201393152;
-    *&parms.m_field_10[8] = 268502272;
-    *&parms.m_field_10[12] = 335939072;
-    *&parms.m_field_10[16] = 470157056;
-    *&parms.m_field_10[20] = 604111104;
-    *parms.m_field_28 = 671220224;
-    *&parms.m_field_28[4] = 738329344;
-    memset(&parms.m_field_28[8], 0, 32);
-    parms.m_field_50 = 77824;
-    memset(parms.m_field_54, 0, sizeof(parms.m_field_54));
-    g_hTRI_VERT_COLOR2_UV2 = GFX_CreateVertex(&parms);
-    parms.m_attrCnt = 8i64;
-    parms.m_field_8 = 1i64;
-    *parms.m_field_10 = 458752;
-    *&parms.m_field_10[4] = 335675648;
-    *&parms.m_field_10[8] = 402784768;
-    *&parms.m_field_10[12] = 469893888;
-    *&parms.m_field_10[16] = 201721344;
-    *&parms.m_field_10[20] = 536937472;
-    *parms.m_field_28 = 671156480;
-    *&parms.m_field_28[4] = 604178432;
-    memset(&parms.m_field_28[8], 0, 32);
-    parms.m_field_50 = 76800;
-    memset(parms.m_field_54, 0, sizeof(parms.m_field_54));
-    g_hDEFORM_SKIN_VERT_GL = GFX_CreateVertex(&parms);
-    parms.m_attrCnt = 6i64;
-    parms.m_field_8 = 1i64;
-    *parms.m_field_10 = 458752;
-    *&parms.m_field_10[4] = 336003328;
-    *&parms.m_field_10[8] = 537330176;
-    *&parms.m_field_10[12] = 738657024;
-    *&parms.m_field_10[16] = 201721344;
-    *&parms.m_field_10[20] = 939590656;
-    memset(parms.m_field_28, 0, sizeof(parms.m_field_28));
-    parms.m_field_50 = 81920;
-    memset(parms.m_field_54, 0, sizeof(parms.m_field_54));
-    g_hGDE_RIGID_SKIN_VERT = GFX_CreateVertex(&parms);
-#endif
+    parms.m_stridesCnt = 1i64;
+    parms.m_attrs[0] = (GFX_VertexAttr)0x70000;
+    parms.m_attrs[1] = (GFX_VertexAttr)0xC060600;
+    parms.m_attrs[2] = (GFX_VertexAttr)0x14060700;
+    parms.m_attrs[3] = (GFX_VertexAttr)0x1C070100;
+    parms.m_attrs[4] = (GFX_VertexAttr)0x28070200;
+    parms.m_attrs[5] = (GFX_VertexAttr)0x34070300;
+    parms.m_attrs[6] = (GFX_VertexAttr)0x40010400;
+    parms.m_strides[0] = (GFX_Stride)0x14800;*/
+    g_hGDE_TRI_VERT = GFX_CreateVertex(GFX_CreateVertexParams{7, 1, { // m_attrCnt, m_stridesCnt, m_attrs
+        //m_strideIdx, m_atrIdx, m_fmtIdx, m_dataOffset
+            { 0, 0, GVF_FLOAT7 },       //0x7 00 00
+            { 0, 6, GVF_FLOAT6, 0xC },  //0xC 06 06 00
+            { 0, 7, GVF_FLOAT6, 0x14 }, //0x14 06 07 00
+            { 0, 1, GVF_FLOAT7, 0x1C },
+            { 0, 2, GVF_FLOAT7, 0x28 },
+            { 0, 3, GVF_FLOAT7, 0x34 },
+            { 0, 4, GVF_UNSIGNED_BYTE1, 0x40 }
+        }, { //m_strides
+            {0, 0x48, 1} //each stride: 0x14800 m_strideIdx, m_strideCnt, field_2
+        } });
+    g_hTRI_VERT_COLOR1_UV1 = GFX_CreateVertex(GFX_CreateVertexParams{6, 1, {
+            { 0, 0, GVF_FLOAT7 },
+            { 0, 6, GVF_FLOAT6, 0x10 },
+            { 0, 1, GVF_BYTE, 0x10 },
+            { 0, 2, GVF_BYTE, 0x1C },
+            { 0, 3, GVF_BYTE, 0x20 },
+            { 0, 4, GVF_UNSIGNED_BYTE1, 0x0C }
+        }, { {0, 0x24, 1} } });
+    g_hTRI_VERT_COLOR1_UV2 = GFX_CreateVertex(GFX_CreateVertexParams{7, 1, {
+            { 0, 0, GVF_FLOAT7 }, 
+            { 0, 4, GVF_UNSIGNED_BYTE1, 0x0C },
+            { 0, 6, GVF_FLOAT6, 0x10 },
+            { 0, 7, GVF_FLOAT6, 0x18 },
+            { 0, 1, GVF_BYTE, 0x20 },
+            { 0, 2, GVF_BYTE, 0x24 },
+            { 0, 3, GVF_BYTE, 0x28 }
+        }, { {0, 0x2C, 1} } });
+    g_hTRI_VERT_COLOR2_UV1 = GFX_CreateVertex(GFX_CreateVertexParams{7, 1, {
+            { 0, 0, GVF_FLOAT7 },
+            { 0, 4, GVF_UNSIGNED_BYTE1, 0x0C },
+            { 0, 5, GVF_UNSIGNED_BYTE1, 0x10 },
+            { 0, 6, GVF_FLOAT6, 0x14 },
+            { 0, 1, GVF_BYTE, 0x1C },
+            { 0, 2, GVF_BYTE, 0x20 },
+            { 0, 3, GVF_BYTE, 0x24 }
+        }, { {0, 0x28, 1} } });
+    g_hTRI_VERT_COLOR2_UV2 = GFX_CreateVertex(GFX_CreateVertexParams{8, 1, {
+            { 0, 0, GVF_FLOAT7 },
+            { 0, 4, GVF_UNSIGNED_BYTE1, 0x0C },
+            { 0, 5, GVF_UNSIGNED_BYTE1, 0x10 },
+            { 0, 6, GVF_FLOAT6, 0x14 },
+            { 0, 7, GVF_FLOAT6, 0x1C },
+            { 0, 1, GVF_BYTE, 0x24 },
+            { 0, 2, GVF_BYTE, 0x28 },
+            { 0, 3, GVF_BYTE, 0x2C }
+        }, { {0, 0x30, 1} } });
+    g_hDEFORM_SKIN_VERT_GL = GFX_CreateVertex(GFX_CreateVertexParams{8, 1, {
+            { 0, 0, GVF_FLOAT7 },
+            { 0, 1, GVF_BYTE, 0x14 },
+            { 0, 2, GVF_BYTE, 0x18 },
+            { 0, 3, GVF_BYTE, 0x1C },
+            { 0, 6, GVF_FLOAT6, 0x0C },
+            { 0, 4, GVF_UNSIGNED_BYTE1, 0x20 },
+            { 0, 9, GVF_UNSIGNED_BYTE1, 0x28 },
+            { 0, 8, GVF_UNSIGNED_BYTE3, 0x24 }
+        }, { {0, 0x2C, 1} } });
+    g_hGDE_RIGID_SKIN_VERT = GFX_CreateVertex(GFX_CreateVertexParams{ 6, 1, {
+            { 0, 0, GVF_FLOAT7 },
+            { 0, 1, GVF_FLOAT7, 0x14 },
+            { 0, 2, GVF_FLOAT7, 0x20 },
+            { 0, 3, GVF_FLOAT7, 0x2C },
+            { 0, 6, GVF_FLOAT6, 0x0C },
+            { 0, 4, GVF_UNSIGNED_BYTE1, 0x38 }
+        }, { {0, 0x40, 1} } });
 }
 int GDEMESH_Internal_FindLoadedMesh(const char *name, bool manyInstances /*multiframe???*/) {
     auto crc = SIG_CalcCaseSensitiveSignature(name);

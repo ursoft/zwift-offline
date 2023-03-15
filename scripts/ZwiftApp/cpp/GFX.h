@@ -20,6 +20,11 @@ enum GFX_VertexFormat : uint8_t { GVF_FALSE, GVF_UNSIGNED_BYTE1, GVF_BYTE, GVF_U
 inline const GLenum g_PRIM_TO_GLPRIM[GPT_CNT] = { GL_FALSE, GL_TRUE, GL_LINE_STRIP, GL_TRIANGLES, GL_TRIANGLE_STRIP, GL_QUADS, GL_POLYGON_BIT, GL_FALSE };
 inline const GLenum g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[TWM_CNT] = { GL_REPEAT, GL_CLAMP_TO_EDGE, GL_MIRRORED_REPEAT, GL_CLAMP_TO_BORDER };
 inline const GLenum g_IF_TO_GLIF[GIF_CNT] = { GL_UNSIGNED_SHORT, GL_UNSIGNED_INT };
+struct DRAW_VERT_POS_COLOR_1UV { enum { MULT = 24, VAO = 2 }; };
+struct DRAW_VERT_POS_COLOR_UV { enum { MULT = 32, VAO = 1 }; };
+struct DRAW_VERT_POS_COLOR { enum { MULT = 16, VAO = 0 }; };
+struct DRAW_VERT_POS_COLOR_UV_NORM  { enum { MULT = 44, VAO = 3 }; };
+struct DRAW_VERT_POS_COLOR_UV_NORM_TAN_PACKED { enum { MULT = 32, VAO = 5 };};
 struct GFX_InitializeParams {
     int WINWIDTH, WINHEIGHT;
     bool field_8, FullScreen, GlCoreProfile, HasPickingBuf;
@@ -126,7 +131,7 @@ struct GFX_StateBlock { // 0xD0 (208) bytes
     void Reset();
     bool Realize();
     static const VEC4 &GetUniform(GFX_SHADER_REGISTERS);
-    static const VEC4 &GetUniform(GFX_SHADER_MATRICES);
+    static const MATRIX44 &GetUniform(GFX_SHADER_MATRICES);
     static const VEC4 &GetUniform(const GFX_RegisterRef &);
     void BindVertexBuffer(int);
     enum tagCounts { TCN_SCENE = 46, TCN_OBJECT = 12, TCN_DRAW = 197, TCN_USER = 256 };
@@ -150,6 +155,7 @@ namespace GfxConfig {
     inline int gLODBias, gFXAA;
 }
 namespace GameShaders {
+    inline int dualAlphaShader, shGaussianBlur;
     void LoadAll();
     inline int shGNLinearizeDepth, shGNDownsampleLinearizeDepth, shGNRoadSSR;
 }
@@ -160,9 +166,9 @@ struct GFX_ShaderPair { //440 bytes
     uint8_t m_modelIndex;
 };
 struct GFX_VertexAttr { //4 byte
-    uint8_t m_idx;
+    uint8_t m_strideIdx, m_atrIdx;
     GFX_VertexFormat m_fmtIdx;
-    uint8_t m_dataOffset, m_strideIdx;
+    uint8_t m_dataOffset;
 };
 struct GFX_Stride {
     char m_strideIdx;
@@ -201,7 +207,7 @@ struct TGAX_HEADER {
     uint16_t        wType;
 };
 #pragma pack(pop)
-enum TEX_STATE { TS_UNLOADED = 0, TS_LOADED = 5, TS_INVALID = -1 };
+enum TEX_STATE { TS_UNLOADED = 0, TS_1, TS_2, TS_LOADED = 5, TS_INVALID = -1 };
 struct GFX_TextureStruct { //64 bytes
     const char *m_name;
     uint32_t m_glid;
@@ -232,7 +238,7 @@ struct GFX_CreateBufferParams {
     void *m_pData;
 };
 struct GFX_AnimatedTexture { //0x104 (260) bytes
-    uint32_t m_field_0;
+    uint32_t m_curFrame;
     int m_framesCnt;
     float m_delay;
     char field_C;
@@ -247,13 +253,12 @@ struct GFX_AnimatedTexture { //0x104 (260) bytes
 inline GFX_TextureStruct g_Textures[0x3000];        // 0xC0'000 / 64
 inline GFX_AnimatedTexture g_AnimatedTextures[256];
 inline static uint8_t g_WhiteTexture[0x1000];
-inline int g_WhiteHandle, g_nTexturesLoaded, g_nAnimatedTexturesLoaded;
+inline int g_WhiteHandle, g_nTexturesLoaded, g_nAnimatedTexturesLoaded, g_FlipbookTextureIndexOverride;
 inline int64_t g_VRAMBytes_Textures;
 inline const int g_DrawBufferSize = 0x800'000, MAX_SHADERS = 0x400;
 inline GFX_VertexArray g_vertexArray;
 inline GFX_ShaderPair g_Shaders[MAX_SHADERS], *g_pCurrentShader;
 inline GFX_ShaderPair *GFX_GetCurrentShader() { return g_pCurrentShader; }
-inline float g_TargetBatteryFPS;
 inline size_t g_TotalMemoryInKilobytes;
 inline AssetCategory g_CurrentAssetCategory = AC_1;
 inline uint64_t g_GFX_PerformanceFlags, g_VRAMBytes_VBO;
@@ -262,12 +267,12 @@ inline int g_nSkipMipCount;
 inline const char *g_GL_vendor = "", *g_GL_renderer = "", *g_GL_apiName = "";
 inline bool g_openglDebug, g_glCoreContext, g_bGFXINITIALIZED, g_bUseEmptyShadowMapsHack, g_bInvertCulling;
 inline char g_strCPU[0x40];
-inline int g_BlurShaderHandle, g_CurrentShaderHandle;
+inline int g_BlurShaderHandle, g_CurrentShaderHandle = -1;
 enum DetailedRender { DR_NO, DR_MIDDLE, DR_VERBOSE };
 inline DetailedRender g_renderDetailed = DR_VERBOSE;
 inline GLFWwindow *g_mainWindow;
 inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion, g_openglFail;
-inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h, g_Aniso = 1.0f;
+inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h, g_Aniso = 1.0f, g_instantaniousFPS, g_smoothedFPS, g_SecondsUnplugged, g_TargetBatteryFPS, g_TotalRenderTime;
 inline int g_width, g_height, g_MinimalUI, g_bFullScreen, g_nShadersLoaded, g_TotalShaderCreationTime;
 inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_gfxTier, g_DrawPrimVBO, g_nTotalFrames;
 inline uint8_t g_colorChannels, g_gfxShaderModel;
@@ -302,11 +307,9 @@ extern const MATRIX44 g_mxIdentity;
 inline bool g_bIsAwareOfWideAspectUI, g_b2D720pRenderIsSetup;
 inline float g_CurrentUISpace_Height = 720.0f, g_WideUISpace_Height = 720.0f, g_CurrentUISpace_Width = 1280.0f, g_WideUISpace_Width = 1280.0f, g_OrthoScalarW = 1.0f, g_OrthoScalarH = 1.0f;
 
-void DefineVAO_DRAW_VERT_POS_COLOR_UV(uint32_t a1, const /*DRAW_VERT_POS_COLOR_UV*/ void *data, uint32_t cnt);
-void GFX_DrawPrimitive(GFX_PRIM_TYPE t, const /*DRAW_VERT_POS_COLOR_UV*/ void *data, uint32_t cnt);
 void GFX_BEGIN_2DUISpace();
 inline bool GFX_GetWideAspectAwareUI() { return g_bIsAwareOfWideAspectUI; }
-void GFX_ActivateTexture(int, int, const char *, int GFX_TEXTURE_WRAP_MODE);
+void GFX_ActivateTexture(int, int, const char *, GFX_TEXTURE_WRAP_MODE);
 void GFX_SetBlendFunc(GFX_BLEND_OP op, GFX_BLEND b1, GFX_BLEND b2);
 void GFX_SetTextureFilter(uint32_t tn, GFX_FILTER f);
 void GFX_SetupUIProjection();
@@ -315,7 +318,6 @@ void GFX_UpdateMatrices(bool);
 void GFX_SetAlphaBlendEnable(bool en);
 void GFX_ActivateTextureEx(int tn, GLfloat lodBias);
 void GFX_DestroyVertex(int *pIdx);
-int GFX_GetVertexHandle_DRAW_VERT_POS_COLOR_UV();
 int GFX_CreateVertex(const GFX_CreateVertexParams &parms);
 void GFXAPI_CreateVertex(int idx, const GFX_CreateVertexParams &parms);
 void GFX_SetColorMask(uint64_t idx, uint8_t mask);
@@ -394,7 +396,7 @@ void GFX_PushMatrix();
 void GFX_UploadShaderMAT4(GFX_SHADER_MATRICES where, const MATRIX44 &what, uint64_t counter);
 void GFX_TransposeMatrix44(MATRIX44 *dest, const MATRIX44 &src);
 void GFX_UpdateFrustum(const MATRIX44 &a1, const MATRIX44 &a2);
-void GFX_StoreMatrix(const MATRIX44 &src);
+void GFX_StoreMatrix(MATRIX44 *dest);
 void GFX_UploadShaderVEC4(GFX_SHADER_REGISTERS, const VEC4 &, uint64_t);
 uint32_t GFX_Align(uint32_t addr, uint32_t align);
 uint8_t *GFX_DrawMalloc(int size, uint32_t align);
@@ -422,3 +424,54 @@ void GFXAPI_ReUploadShaderCache();
 void GFX_DrawIndexedInstancedPrimitive(GFX_PRIM_TYPE a1, uint32_t a2, uint32_t a3, GFX_IndexFormat gif, uint32_t a5, uint32_t a6);
 void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE ty, int baseVertex, uint32_t cnt, GFX_IndexFormat gif, const void *indices);
 void GFX_internal_DrawPrimitive(GFX_PRIM_TYPE ty, int first, uint32_t count);
+int GFX_Internal_LoadTextureFromTGAFile(const char *name, int handle);
+void GFX_Draw2DQuad(float, float, float, float, uint32_t, bool);
+void GFX_Draw2DQuad_720p(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8, int color, float a10, int a11, int a12);
+template <typename T> int GFX_GetVertexHandle();
+template <typename T> void DefineVAO(uint32_t a1, const T *data, uint32_t cnt) {
+    if (g_glCoreContext) {
+        g_pGFX_CurrentStates->BindVertexBuffer(g_DrawPrimVBO);
+        glBufferData(GL_ARRAY_BUFFER, T::MULT * cnt, data, GL_STREAM_DRAW);
+        if (g_pGFX_CurrentStates->m_vertexBuffer != g_DrawPrimVBO) {
+            g_pGFX_CurrentStates->m_vertexBuffer = g_DrawPrimVBO;
+            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VBO;
+        }
+        if (g_pGFX_CurrentStates->m_attrData != 0) {
+            g_pGFX_CurrentStates->m_attrData = 0;
+            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ATTRDATA;
+        }
+        if (g_DrawPrimVBO != -1) {
+            if (g_pGFX_CurrentStates->m_VAO != 0) {
+                g_pGFX_CurrentStates->m_VAO = 0;
+                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAO;
+            }
+        }
+    } else {
+        if (g_pGFX_CurrentStates->m_VAO != (uint64_t)data) {
+            g_pGFX_CurrentStates->m_VAO = (uint64_t)data;
+            g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAO;
+        }
+        if (data) {
+            if (g_pGFX_CurrentStates->m_attrData != 0) {
+                g_pGFX_CurrentStates->m_attrData = 0;
+                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_ATTRDATA;
+            }
+            if (g_pGFX_CurrentStates->m_vertexBuffer != -1) {
+                g_pGFX_CurrentStates->m_vertexBuffer = -1;
+                g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VBO;
+            }
+        }
+    }
+    auto v17 = GFX_GetVertexHandle<T>();
+    if (g_pGFX_CurrentStates->m_vertex != v17) {
+        g_pGFX_CurrentStates->m_vertex = v17;
+        g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_VAIDX;
+    }
+}
+template <typename T> void GFX_DrawPrimitive(GFX_PRIM_TYPE t, const T *data, uint32_t cnt) {
+    if (data && cnt) {
+        DefineVAO<T>(T::VAO, data, cnt);
+        if (g_pGFX_CurrentStates->Realize())
+            glDrawArrays(g_PRIM_TO_GLPRIM[t], 0, cnt);
+    }
+}

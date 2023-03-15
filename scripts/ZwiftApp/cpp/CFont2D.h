@@ -186,4 +186,4 @@ UChar *SafeToUTF8(const char *ansi, BufSafeToUTF8  *buf);
 
 inline CFont2D *g_ChatFontGW, *g_ChatFontLW, g_GiantFontW, g_LargeFontW, g_debugFont, g_SmallFont, g_MediumFont;
 inline const bool g_bSupportFontCaching = true;
-inline int g_fontWShader, g_fontShader;
+inline int g_fontWShader = -1, g_fontShader = -1;

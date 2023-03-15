@@ -58,11 +58,14 @@ void VRAM_CreateAllRenderTargets() {
         VRAM_CreateRenderTarget(&g_RT_TerrainPickingBuffer, BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT, true, false, false);
     }
     int v14 = 2; //2: 0 & 1, 4: 2 & 3, 8: 4 & 5, 16: 6 & 7, 32: 8 & 9
+    bool odd = false;
     for (auto &v13 : g_RT_BackBufferDownsamples) {
         v13.m_field_90 = 1;
         v13.m_name = "BackBufferDownsamples";
         VRAM_CreateRenderTarget(&v13, g_RT_BackBuffer.m_dw_width / v14, g_RT_BackBuffer.m_dw_height / v14, false, b16, true);
-        v14 <<= 1;
+        if(odd) 
+            v14 <<= 1;
+        odd = !odd;
     }
     VRAM_CreateRenderTarget(&g_RT_Luminance, LUMINANCE_WIDTH, LUMINANCE_HEIGHT, false, false, false);
     const char *names[] = { "ShadowMap[0]", "ShadowMap[1]", "ShadowMap[2]", "ShadowMap[3]" };

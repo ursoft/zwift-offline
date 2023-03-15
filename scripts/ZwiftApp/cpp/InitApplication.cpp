@@ -176,7 +176,9 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     JM_Initialize();
     ANIM_PostInit();
     AUDIO_Init();
+#ifdef URSOFT_FIXES
     g_WADManager.LoadWADFile("assets/fonts/font.wad");
+#endif // URSOFT_FIXES
     GFX_Initialize();
     ZNETWORK_Initialize();
     ConnectionManager::Initialize();
@@ -188,9 +190,12 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     VRAM_EndRenderTo(0);
     MATERIAL_Init();
     GFX_DrawInit();
+#ifndef URSOFT_FIXES
+    g_WADManager.LoadWADFile("assets/fonts/font.wad");
+#endif // !URSOFT_FIXES
     g_ChatFontGW = &g_GiantFontW;
     g_ChatFontLW = &g_LargeFontW;
-    g_GiantFontW.Load(FS_SMALL);
+    g_GiantFontW.Load(FS_FONDO_BLACK);
     g_GiantFontW.SetScaleAndKerning(0.34108528, 0.93000001);
     ZWIFT_UpdateLoading(nullptr, false); //first screen
     switch (GFX_GetPerformanceGroup()) {
