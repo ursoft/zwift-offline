@@ -264,3 +264,10 @@ namespace non_zwift {
         return RUN_ALL_TESTS();
     }
 }
+bool CMD_SetLanguage(const char *lang) {
+    auto l = LOC_GetLanguageFromString(lang);
+    if (l == LOC_CNT)
+        return false;
+    LOC_SetLanguageFromEnum(l, true);
+    return true;
+}

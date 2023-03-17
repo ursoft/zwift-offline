@@ -22,7 +22,12 @@ inline const GLenum g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[TWM_CNT] = { GL_REPEAT, GL_
 inline const GLenum g_IF_TO_GLIF[GIF_CNT] = { GL_UNSIGNED_SHORT, GL_UNSIGNED_INT };
 struct DRAW_VERT_POS_COLOR_1UV { enum { MULT = 24, VAO = 2 }; };
 struct DRAW_VERT_POS_COLOR_UV { enum { MULT = 32, VAO = 1 }; };
-struct DRAW_VERT_POS_COLOR { enum { MULT = 16, VAO = 0 }; };
+struct DRAW_VERT_POS_COLOR { //16 bytes 
+    enum { MULT = 16, VAO = 0 }; 
+    VEC2 m_point;
+    int m_dummy;
+    uint32_t m_color;
+};
 struct DRAW_VERT_POS_COLOR_UV_NORM  { enum { MULT = 44, VAO = 3 }; };
 struct DRAW_VERT_POS_COLOR_UV_NORM_TAN_PACKED { enum { MULT = 32, VAO = 5 };};
 struct GFX_InitializeParams {
@@ -73,10 +78,10 @@ struct GFX_RegisterRef {
 enum GFX_SHADER_REGISTERS { GSR_0 = 0, GSR_24 = 24, GSR_CNT = 29 };
 enum GFX_SHADER_MATRICES { GSM_0 = 0, GSM_1, GSM_2, GSM_3, GSM_CNT = 9 };
 struct GFX_BlendFunc {
-    bool operator == (const GFX_BlendFunc &peer) { return m_modeIdx == peer.m_modeIdx && m_sFactorIdx == peer.m_sFactorIdx && m_dFactorIdx == peer.m_dFactorIdx; }
+    bool operator == (const GFX_BlendFunc &peer) { return m_mode == peer.m_mode && m_srcFactor == peer.m_srcFactor && m_dstFactor == peer.m_dstFactor; }
     bool operator != (const GFX_BlendFunc &peer) { return !(*this == peer); }
-    GFX_BLEND_OP m_modeIdx;
-    GFX_BLEND m_sFactorIdx, m_dFactorIdx, gap;
+    GFX_BLEND_OP m_mode;
+    GFX_BLEND m_srcFactor, m_dstFactor, gap;
 };
 struct GFX_StencilFunc {
     bool m_testEnabled;
@@ -281,7 +286,7 @@ inline const GfxCaps &GFX_GetCaps() { return g_gfxCaps; }
 enum GFX_CoordinateMap { GCM_CNT = 12 };
 inline float g_coordMap[GCM_CNT] = { 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.0 };
 inline float *GFX_GetCoordinateMap() { return g_coordMap; }
-inline GFX_StateBlock g_GFX_CurrentStates[8 /*TODO: maybe more*/], *g_pGFX_CurrentStates = g_GFX_CurrentStates;
+inline GFX_StateBlock g_GFX_CurrentStates[8], *g_pGFX_CurrentStates = g_GFX_CurrentStates;
 inline int g_DrawNoTextureShaderHandle = -1, g_DrawTexturedShaderHandle = -1, g_DrawTexturedSimpleShaderHandle = -1, g_DrawTexturedGammaCorrectShaderHandle = -1;
 inline uint8_t *g_DrawBuffers[2];
 inline uint32_t g_CurrentBuffer, g_CurrentBufferOffset, g_PreviousBufferOffset;
@@ -309,11 +314,11 @@ inline float g_CurrentUISpace_Height = 720.0f, g_WideUISpace_Height = 720.0f, g_
 
 void GFX_BEGIN_2DUISpace();
 inline bool GFX_GetWideAspectAwareUI() { return g_bIsAwareOfWideAspectUI; }
-void GFX_ActivateTexture(int, int, const char *, GFX_TEXTURE_WRAP_MODE);
-void GFX_SetBlendFunc(GFX_BLEND_OP op, GFX_BLEND b1, GFX_BLEND b2);
+void GFX_ActivateTexture(int handle, int offset, const char *name, GFX_TEXTURE_WRAP_MODE wm);
+void GFX_SetBlendFunc(GFX_BLEND_OP op, GFX_BLEND src, GFX_BLEND dst);
 void GFX_SetTextureFilter(uint32_t tn, GFX_FILTER f);
 void GFX_SetupUIProjection();
-void GFX_Ortho(float, float, float, float, float, float);
+void GFX_Ortho(float, float w, float h, float, float, float);
 void GFX_UpdateMatrices(bool);
 void GFX_SetAlphaBlendEnable(bool en);
 void GFX_ActivateTextureEx(int tn, GLfloat lodBias);
@@ -425,7 +430,7 @@ void GFX_DrawIndexedInstancedPrimitive(GFX_PRIM_TYPE a1, uint32_t a2, uint32_t a
 void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE ty, int baseVertex, uint32_t cnt, GFX_IndexFormat gif, const void *indices);
 void GFX_internal_DrawPrimitive(GFX_PRIM_TYPE ty, int first, uint32_t count);
 int GFX_Internal_LoadTextureFromTGAFile(const char *name, int handle);
-void GFX_Draw2DQuad(float, float, float, float, uint32_t, bool);
+void GFX_Draw2DQuad(float l, float t, float w, float h, uint32_t color, bool uiProjection);
 void GFX_Draw2DQuad_720p(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8, int color, float a10, int a11, int a12);
 template <typename T> int GFX_GetVertexHandle();
 template <typename T> void DefineVAO(uint32_t a1, const T *data, uint32_t cnt) {
@@ -475,3 +480,4 @@ template <typename T> void GFX_DrawPrimitive(GFX_PRIM_TYPE t, const T *data, uin
             glDrawArrays(g_PRIM_TO_GLPRIM[t], 0, cnt);
     }
 }
+inline void GFX_Draw2DQuad_UI(float l, float t, float w, float h, int color) { GFX_Draw2DQuad(l, t, w, h, color, true); }

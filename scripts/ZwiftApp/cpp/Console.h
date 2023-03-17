@@ -11,6 +11,7 @@ void SetupConsoleCommands();
 void CONSOLE_Init();
 void CONSOLE_AddCommand(const char *name, CMD_bool f1 = nullptr, CMD_static_str f2 = nullptr, CMD_ac_search f3 = nullptr, CMD_string f4 = nullptr);
 bool CMD_LoadConfig(const char *);
+bool CMD_SetLanguage(const char *);
 bool CMD_Time(const char *);
 bool CMD_PairHr(const char *);
 bool CMD_PairPower(const char *);

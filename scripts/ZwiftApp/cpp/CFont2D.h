@@ -7,16 +7,8 @@ struct CFont2D_struc24 {
 struct CFont2D_glyph { // 20 bytes
     uint16_t m_codePoint;
     char m_kernIdx;
-    char m_cnt;
-    char field_4;
-    char field_5;
-    char field_6;
-    char field_7;
-    char field_8;
-    char field_9;
-    char field_A;
-    char field_B;
-    float m_width, m_height;
+    uint8_t m_cnt;
+    float m_field_4, m_field_8, m_width, m_height;
 };
 struct CFont2D_fileHdrV1 { //0x9C bytes
     uint16_t m_version;
@@ -58,6 +50,7 @@ struct CFont2D_info {
 struct CFont2D_cache { //192 bytes
     char gap[192];
 };
+enum RenderFlags { RF_CX_ISCENTER = 1, RF_CY_ISCENTER = 2, RF_CX_ISRIGHT = 4, RF_CY_ISTOP = 8 };
 class CFont2D {
 public:
     std::string m_fileName;
@@ -122,6 +115,8 @@ public:
     bool LoadFontFromWad(const char *name);
     void LoadFontV1(const uint8_t *data);
     void LoadLanguageTextures(LOC_LANGS l);
+    void RenderWString(float cx, float cy, const char *text, uint32_t color, uint32_t flags, float, bool, bool);
+    void RenderWString(float cx, float cy, const UChar *text, uint32_t color, uint32_t flags, float, bool, bool, bool uiProjection);
     ~CFont2D();
 
     void GetParagraphBoxSize(const char *text, float, float, float);
@@ -169,8 +164,6 @@ public:
     void RenderStringBounded(float, float, float, float, const char *, uint32_t, int, bool, bool);
     void RenderStringMultisized(float, float, int, const char **, uint32_t *, float *, int, int, bool, int, bool);
     void RenderStringRT(float, float, const char *, uint32_t, int, float, bool, bool);
-    void RenderWString(float, float, const char *, uint32_t, int, float, bool, bool);
-    void RenderWString(float, float, const UChar *, uint32_t, int, float, bool, bool, bool);
     void RenderWStringBounded(float, float, float, float, const UChar *, uint32_t, int, bool, bool);
     void RenderWStringMultisized(float, float, int, const char **, uint32_t *, float *, int, int, bool, int, bool);
     void RenderWStringMultisized(float, float, int, const UChar **, uint32_t *, float *, int, int, bool, int, bool);

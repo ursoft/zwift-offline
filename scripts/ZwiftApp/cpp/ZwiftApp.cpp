@@ -128,10 +128,8 @@ ATOM MyRegisterClass(HINSTANCE hInstance) {
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_ZWIFTAPP));
-
     return RegisterClassExW(&wcex);
 }
-
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
     case WM_DESTROY:
@@ -169,9 +167,6 @@ void ZwiftExit(int code) {
     ShutdownSingletons();
     exit(code);
 }
-void GameCritical_AbortJobs() {
-    //TODO
-}
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
     UNREFERENCED_PARAMETER(lParam);
     switch (message) {
@@ -189,7 +184,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 void doFrameWorldID(zwiftUpdateContext *ptr) {
     //TODO
 }
-void LoadingRender(float time, const wchar_t *text) {
+void LoadingRender(float time, const UChar *text) {
     if (time <= 1.0) {
         GFX_UploadShaderVEC4(GSR_24, g_Vec4White, 0);
         GFX_SetScissorTestEnable(false);
@@ -214,138 +209,63 @@ void LoadingRender(float time, const wchar_t *text) {
         auto v6 = v5 * 4096.0f + 512.0f;
         auto l = (width - v6) * 0.5f;
         auto t = (height - v6) * 0.5f;
-        GFX_Draw2DQuad_720p(l, t, v6, v6, 0.0, 0.0, 1.0, 1.0, 0xFFCC9211, 0.0, -1, 0);
-#if 0 //TODO
-        v9 = v7 + v6;
-        v10 = v8 + v6;
-        if (v7 >= 0.0)
-            sub_7FF7AC79BF54(0.0, 0.0, v7 + 1.0, height, -3370479);
-        if (v9 <= width)
-            sub_7FF7AC79BF54(v9 - 1.0, 0.0, (width - v9) + 2.0, height, -3370479);
-        if (v8 >= 0.0)
-            sub_7FF7AC79BF54(v7, 0.0, v6, v8 + 1.0, -3370479);
-        v11 = height;
-        if (v10 <= height) {
-            sub_7FF7AC79BF54(v7, v10 - 1.0, v6, (height - v10) + 2.0, -3370479);
-            v11 = height;
+        const int loaderColor = 0xFFCC9211;
+        GFX_Draw2DQuad_720p(l, t, v6, v6, 0.0, 0.0, 1.0, 1.0, loaderColor, 0.0, -1, 0);
+        auto v9 = l + v6;
+        auto v10 = t + v6;
+        if (l >= 0.0f)
+            GFX_Draw2DQuad_UI(0.0f, 0.0f, l + 1.0f, (float)height, loaderColor);
+        if (v9 <= (float)width)
+            GFX_Draw2DQuad_UI(v9 - 1.0f, 0.0f, width - v9 + 2.0f, (float)height, loaderColor);
+        if (t >= 0.0f)
+            GFX_Draw2DQuad_UI(l, 0.0f, v6, t + 1.0f, loaderColor);
+        if (v10 <= (float)height) {
+            GFX_Draw2DQuad_UI(l, v10 - 1.0f, v6, height - v10 + 2.0f, loaderColor);
         }
-        if (text) {
-            v17 = 1.0 - (time + time);
-            v14 = 1065353216;
-            v12 = &v17;
-            if (v17 >= 1.0)
-                v12 = (float *)&v14;
-            *(_QWORD *)&v13 = COERCE_UNSIGNED_INT(width);
-            *(float *)&v13 = *(float *)&v13 * 0.5;
-            CFont2D::RenderWString_utf(
-                &g_GiantFontW,
-                v13,
-                (v11 * 0.5) + 170.0,
-                text,
-                ((unsigned __int8)(int)(fmaxf(*v12, 0.0) * 255.0) << 24) | 0xFFFFFF,
-                1,
-                0.66659999,
-                0,
-                0,
-                1);
-        }
-#endif
+        if (text)
+            g_GiantFontW.RenderWString(width * 0.5f, height * 0.5f + 170.0f, text,
+                ((int)(std::clamp(1.0f - time - time, 0.0f, 1.0f) * 255.0f) << 24) | 0xFFFFFF,
+                1, 0.6666f, false, false, true);
         GFX_SetDepthTestEnable(true);
         GFX_SetDepthWrite(true);
     }
 }
-void ZWIFT_UpdateLoading(const wchar_t *text, bool last) {
+struct UpdateLoadingItem {
+    const UChar *m_msg;
+    bool m_bShown;
+};
+void ZWIFT_UpdateLoading(const UChar *text, bool last) {
     g_mDownloader.Update();
-#if 0 //TODO
-    if (dword_7FF7AD797670 > *(_DWORD *)(*(_QWORD *)NtCurrentTeb()->ThreadLocalStoragePointer + 192i64))
-    {
-        Init_thread_header(&dword_7FF7AD797670);
-        if (dword_7FF7AD797670 == -1)
-        {
-            qword_7FF7AD78B3C0[0] = (__int64)GetText_0("LOC_LOADING_QUIP_0");
-            byte_7FF7AD78B3C8 = 0;
-            qword_7FF7AD78B3D0 = (__int64)GetText_0("LOC_LOADING_QUIP_1");
-            byte_7FF7AD78B3D8 = 0;
-            qword_7FF7AD78B3E0 = (__int64)GetText_0("LOC_LOADING_QUIP_2");
-            byte_7FF7AD78B3E8 = 0;
-            qword_7FF7AD78B3F0 = (__int64)GetText_0("LOC_LOADING_QUIP_3");
-            byte_7FF7AD78B3F8 = 0;
-            qword_7FF7AD78B400 = (__int64)GetText_0("LOC_LOADING_QUIP_4");
-            byte_7FF7AD78B408 = 0;
-            qword_7FF7AD78B410 = (__int64)GetText_0("LOC_LOADING_QUIP_5");
-            byte_7FF7AD78B418 = 0;
-            qword_7FF7AD78B420 = (__int64)GetText_0("LOC_LOADING_QUIP_6");
-            byte_7FF7AD78B428 = 0;
-            qword_7FF7AD78B430 = (__int64)GetText_0("LOC_LOADING_QUIP_7");
-            byte_7FF7AD78B438 = 0;
-            qword_7FF7AD78B440 = (__int64)GetText_0("LOC_LOADING_QUIP_8");
-            byte_7FF7AD78B448 = 0;
-            qword_7FF7AD78B450 = (__int64)GetText_0("LOC_LOADING_QUIP_9");
-            byte_7FF7AD78B458 = 0;
-            qword_7FF7AD78B460 = (__int64)GetText_0("LOC_LOADING_QUIP_10");
-            byte_7FF7AD78B468 = 0;
-            qword_7FF7AD78B470 = (__int64)GetText_0("LOC_LOADING_QUIP_11");
-            byte_7FF7AD78B478 = 0;
-            qword_7FF7AD78B480 = (__int64)GetText_0("LOC_LOADING_QUIP_12");
-            byte_7FF7AD78B488 = 0;
-            qword_7FF7AD78B490 = (__int64)GetText_0("LOC_LOADING_QUIP_13");
-            byte_7FF7AD78B498 = 0;
-            qword_7FF7AD78B4A0 = (__int64)GetText_0("LOC_LOADING_QUIP_14");
-            byte_7FF7AD78B4A8 = 0;
-            qword_7FF7AD78B4B0 = (__int64)GetText_0("LOC_LOADING_QUIP_15");
-            byte_7FF7AD78B4B8 = 0;
-            qword_7FF7AD78B4C0 = (__int64)GetText_0("LOC_LOADING_QUIP_16");
-            byte_7FF7AD78B4C8 = 0;
-            qword_7FF7AD78B4D0 = (__int64)GetText_0("LOC_LOADING_QUIP_17");
-            byte_7FF7AD78B4D8 = 0;
-            qword_7FF7AD78B4E0 = (__int64)GetText_0("LOC_LOADING_QUIP_18");
-            byte_7FF7AD78B4E8 = 0;
-            qword_7FF7AD78B4F0 = (__int64)GetText_0("LOC_LOADING_QUIP_19");
-            byte_7FF7AD78B4F8 = 0;
-            qword_7FF7AD78B500 = (__int64)GetText_0("LOC_LOADING_QUIP_20");
-            byte_7FF7AD78B508 = 0;
-            qword_7FF7AD78B510 = (__int64)GetText_0("LOC_LOADING_QUIP_21");
-            byte_7FF7AD78B518 = 0;
-            qword_7FF7AD78B520 = (__int64)GetText_0("LOC_LOADING_QUIP_22");
-            byte_7FF7AD78B528 = 0;
-            qword_7FF7AD78B530 = (__int64)GetText_0("LOC_LOADING_QUIP_23");
-            byte_7FF7AD78B538 = 0;
-            qword_7FF7AD78B540 = (__int64)GetText_0("LOC_LOADING_QUIP_24");
-            byte_7FF7AD78B548 = 0;
-            qword_7FF7AD78B550 = (__int64)GetText_0("LOC_LOADING_QUIP_25");
-            byte_7FF7AD78B558 = 0;
-            qword_7FF7AD78B560 = (__int64)GetText_0("LOC_LOADING_QUIP_26");
-            byte_7FF7AD78B568 = 0;
-            qword_7FF7AD78B570 = (__int64)GetText_0("LOC_LOADING_QUIP_27");
-            byte_7FF7AD78B578 = 0;
-            qword_7FF7AD78B580 = (__int64)GetText_0("LOC_LOADING_QUIP_28");
-            byte_7FF7AD78B588 = 0;
-            Init_thread_footer(&dword_7FF7AD797670);
-        }
-    }
-#endif
+    static UpdateLoadingItem g_UpdateLoadingDB[] = {
+        { GetTextW("LOC_LOADING_QUIP_0") }, { GetTextW("LOC_LOADING_QUIP_1") }, { GetTextW("LOC_LOADING_QUIP_2") }, { GetTextW("LOC_LOADING_QUIP_3") }, 
+        { GetTextW("LOC_LOADING_QUIP_4") }, { GetTextW("LOC_LOADING_QUIP_5") }, { GetTextW("LOC_LOADING_QUIP_6") }, { GetTextW("LOC_LOADING_QUIP_7") }, 
+        { GetTextW("LOC_LOADING_QUIP_8") }, { GetTextW("LOC_LOADING_QUIP_9") }, { GetTextW("LOC_LOADING_QUIP_10") }, { GetTextW("LOC_LOADING_QUIP_11") }, 
+        { GetTextW("LOC_LOADING_QUIP_12") }, { GetTextW("LOC_LOADING_QUIP_13") }, { GetTextW("LOC_LOADING_QUIP_14") }, { GetTextW("LOC_LOADING_QUIP_15") }, 
+        { GetTextW("LOC_LOADING_QUIP_16") }, { GetTextW("LOC_LOADING_QUIP_17") }, { GetTextW("LOC_LOADING_QUIP_18") }, { GetTextW("LOC_LOADING_QUIP_19") }, 
+        { GetTextW("LOC_LOADING_QUIP_20") }, { GetTextW("LOC_LOADING_QUIP_21") }, { GetTextW("LOC_LOADING_QUIP_22") }, { GetTextW("LOC_LOADING_QUIP_23") }, 
+        { GetTextW("LOC_LOADING_QUIP_24") }, { GetTextW("LOC_LOADING_QUIP_25") }, { GetTextW("LOC_LOADING_QUIP_26") }, { GetTextW("LOC_LOADING_QUIP_27") }, 
+        { GetTextW("LOC_LOADING_QUIP_28") }
+    };
     static uint32_t g_lastTime, g_txtChanges;
     uint32_t now = timeGetTime();
     if (now - g_lastTime >= 500.0 || last) {
         ++g_txtChanges;
         if (!text) {
-            /* TODO v4 = timeGetTime() % 0x1D;
-            for (i = 0; i < 4; ++i)
-            {
-                if (!LOBYTE(qword_7FF7AD78B3C0[2 * v4 + 1]))
+            auto dbi = timeGetTime() % _countof(g_UpdateLoadingDB);
+            for (auto i = 0; i < 4; ++i) {
+                if (!g_UpdateLoadingDB[dbi].m_bShown)
                     break;
-                v4 = (v4 + 1) % 0x1D;
+                dbi = (dbi + 1) % _countof(g_UpdateLoadingDB);
             }
-            text = (_WORD *)qword_7FF7AD78B3C0[2 * v4];
-            LOBYTE(qword_7FF7AD78B3C0[2 * v4 + 1]) = 1;*/
-            text = L"TEST";
+            text = g_UpdateLoadingDB[dbi].m_msg;
+            g_UpdateLoadingDB[dbi].m_bShown = true;
         }
         GFX_Begin();
         VRAM_EndRenderTo(0);
         glClearColor(1.0, 1.0, 1.0, 1.0);
         GFX_Clear(60);
         LoadingRender(0.0, text);
-        //v6 = 0;
+        //OMIT v6 = 0;
         //WDT_Tick(&v6);
         GFX_Present();
         GFX_EndFrame();

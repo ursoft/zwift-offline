@@ -19,7 +19,7 @@ bool CFont2D::LoadFont(const char *name) {
             auto r = fread(m_RGBAv1, 1, cb, f);
             assert(r == cb);
             LoadFontV1((uint8_t *)m_RGBAv1);
-            m_info.m_field_190[33].m_field_4 *= 0.7;
+            m_info.m_field_190[33].m_field_4 *= 0.7f;
             result = true;
             m_loadedV1 = 1;
         } else {
@@ -140,7 +140,7 @@ bool CFont2D::LoadFontFromWad(const char *name) {
             //memset(m_RGBAv1, 0x11, 4 * m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_height); //QUEST why not m_height * m_width ???
             //assert(m_info.m_fileHdrV1.m_width >= m_info.m_fileHdrV1.m_height);
             LoadFontV1((uint8_t *)(pFontHeaderV1 + 1) + cb_3);
-            m_info.m_field_190[33].m_field_4 *= 0.7;
+            m_info.m_field_190[33].m_field_4 *= 0.7f;
             result = true;
             m_loadedV1 = 1;
         } else {
@@ -175,7 +175,7 @@ bool CFont2D::LoadFontFromWad(const char *name) {
                                     vect.push_back(m_glyphs[g].m_kernIdx);
                             }
                             if (codePoint == 33)
-                                m_glyphs[g].m_width *= 0.7;
+                                m_glyphs[g].m_width *= 0.7f;
                         }
                     }
                     char tname[MAX_PATH], *pDest = tname;
@@ -204,7 +204,7 @@ void CFont2D::LoadFontV1(const uint8_t *data) {
     if (g_fontShader == -1)
         g_fontShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
     m_tex = GFXAPI_CreateTextureFromRGBA(m_info.m_fileHdrV1.m_width, m_info.m_fileHdrV1.m_height, data, true);
-    m_lineHeight = 0.0;
+    m_lineHeight = 0.0f;
     int16_t v6 = 0;
     for (auto x = m_info.m_fileHdrV1.m_from; x < m_info.m_fileHdrV1.m_to; x++) {
         static_assert(sizeof(CFont2D_v1_8b) == 8);
@@ -236,7 +236,7 @@ void CFont2D::Load(FONT_STYLE s) {
             LoadDirectEast("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_J.bin", "data/Fonts/ZwiftFondoMedium54ptW_EFIGS_JK.bin");
         } else {
             LoadDirect("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_K.bin");
-            m_field_20A54 = 1.98;
+            m_field_20A54 = 1.98f;
             if (!m_loadedV3)
                 LoadDirect("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_JK.bin");
         }
@@ -248,7 +248,7 @@ void CFont2D::Load(FONT_STYLE s) {
             LoadDirectEast("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_J.bin", "data/Fonts/ZwiftFondoBlack105ptW_EFIGS_JK.bin");
         } else {
             LoadDirect("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_K.bin");
-            m_field_20A54 = 1.5;
+            m_field_20A54 = 1.5f;
             if (!m_loadedV3)
                 LoadDirect("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_JK.bin");
         }
@@ -264,12 +264,12 @@ void CFont2D::SetScaleAndKerning(float scale, float kerning) {
 }
 CFont2D::CFont2D() {
     m_field_20A50 = 0;
-    m_field_20A54 = 1.0;
+    m_field_20A54 = 1.0f;
     m_glyphs = nullptr;
     m_RGBAv1 = nullptr;
-    m_field_20A3C = 1.0;
-    m_scale = 1.0;
-    m_kerning = 1.0;
+    m_field_20A3C = 1.0f;
+    m_scale = 1.0f;
+    m_kerning = 1.0f;
     m_cache = nullptr;
     m_cacheCnt = 0;
     m_cacheCntUsed = 0;
@@ -277,12 +277,12 @@ CFont2D::CFont2D() {
     m_loadedV3 = false;
     m_info.m_langId = LID_CNT;
     m_texSuffix = LID_LAT;
-    m_kern[0] = 1.0;
-    m_kern[1] = 1.08935;
-    m_kern[2] = 1.0;
-    m_kern[3] = 1.08435;
-    m_headLine = 22.0;
-    m_baseLine = 10.0;
+    m_kern[0] = 1.0f;
+    m_kern[1] = 1.08935f;
+    m_kern[2] = 1.0f;
+    m_kern[3] = 1.08435f;
+    m_headLine = 22.0f;
+    m_baseLine = 10.0f;
 }
 CFont2D::~CFont2D() {
     free(m_RGBAv1);
@@ -323,12 +323,12 @@ int CFont2D::EndCachingAndRender(bool uiProjection) {
         auto sh = GFX_GetCurrentShaderHandle();
         if (m_loadedV3) {
             GFX_SetShader(g_fontWShader);
-            GFX_ActivateTexture(m_info.m_fileHdrV3.m_tex1, 0, 0, TWM_CLAMP_TO_EDGE);
-            GFX_ActivateTexture((m_info.m_fileHdrV3.m_tex2 != -1) ? m_info.m_fileHdrV3.m_tex2 : g_WhiteHandle, 2, 0, TWM_CLAMP_TO_EDGE);
+            GFX_ActivateTexture(m_info.m_fileHdrV3.m_tex1, 0, nullptr, TWM_CLAMP_TO_EDGE);
+            GFX_ActivateTexture((m_info.m_fileHdrV3.m_tex2 != -1) ? m_info.m_fileHdrV3.m_tex2 : g_WhiteHandle, 2, nullptr, TWM_CLAMP_TO_EDGE);
             GFX_SetTextureFilter(2, GFF_LINEAR_MIPMAP_NEAREST);
-            GFX_ActivateTextureEx(2, -0.5);
+            GFX_ActivateTextureEx(2, -0.5f);
             GFX_SetTextureFilter(0, GFF_LINEAR_MIPMAP_NEAREST);
-            GFX_ActivateTextureEx(0, -0.5);
+            GFX_ActivateTextureEx(0, -0.5f);
         } else {
             GFX_SetShader(g_fontShader);
             GFX_ActivateTexture(m_tex, 0xFFFFFFFF, 0, TWM_CLAMP_TO_EDGE);
@@ -342,7 +342,7 @@ int CFont2D::EndCachingAndRender(bool uiProjection) {
         if (uiProjection)
             GFX_SetupUIProjection();
         else
-            GFX_Ortho(0.0, (float)pRT->m_dw_width, (float)pRT->m_dw_height, 0.0, -1.0, 1.0);
+            GFX_Ortho(0.0f, (float)pRT->m_dw_width, (float)pRT->m_dw_height, 0.0f, -1.0f, 1.0f);
         GFX_MatrixMode(GMT_1);
         GFX_PushMatrix();
         GFX_LoadIdentity();
@@ -351,14 +351,14 @@ int CFont2D::EndCachingAndRender(bool uiProjection) {
         GFX_LoadIdentity();
         GFX_UpdateMatrices(false);
         GFX_DrawPrimitive(GPT_TRIANGLES, (DRAW_VERT_POS_COLOR_UV *)m_cache, 6 * m_cacheCntUsed);
-        GFX_ActivateTextureEx(2, 0.0);
+        GFX_ActivateTextureEx(2, 0.0f);
         GFX_MatrixMode(GMT_2);
         GFX_PopMatrix();
         GFX_MatrixMode(GMT_1);
         GFX_PopMatrix();
         GFX_MatrixMode(GMT_0);
         GFX_PopMatrix();
-        GFX_ActivateTextureEx(0, 0.0);
+        GFX_ActivateTextureEx(0, 0.0f);
         GFX_SetShader(sh);
     }
     auto result = m_curCache + m_cacheCntUsed;
@@ -455,4 +455,165 @@ UChar *SafeToUTF8(const char *ansi, BufSafeToUTF8 *buf) {
     alreadyReportedW = true;
     LogTyped(LOG_ERROR, "SafeToUTF8--Temp buffer already written, %s", ansi);
     return nullptr;
+}
+void CFont2D::RenderWString(float cx, float cy, const char *text, uint32_t color, uint32_t flags, float a7, bool needShadow, bool forceDrawMalloc) {
+    BufSafeToUTF8 buf;
+    auto u8_text = SafeToUTF8(text, &buf);
+    RenderWString(cx, cy, u8_text, color, flags, a7, needShadow, forceDrawMalloc, true);
+}
+void CFont2D::RenderWString(float cx, float cy, const UChar *text, uint32_t color, uint32_t flags, float a7, bool needShadow, bool forceDrawMalloc, bool uiProjection) { //RenderWString_utf
+    if (!m_loadedV3 || !text || !*text)
+        return;
+    auto v17 = m_scale * a7;
+    auto v16 = m_lineHeight * v17;
+    if (uiProjection && (-v16 > cy || cy > 1280.0f / VRAM_GetUIAspectRatio() + 10.0f))
+        return;
+    if (needShadow) {
+        auto shadowOffset = fmaxf(1.0f, v16 / 25.0f);
+        RenderWString(shadowOffset + cx, shadowOffset + cy, text, (color >> 1) & 0x7F000000, flags, a7, false, forceDrawMalloc, uiProjection);
+    }
+    if (flags & RF_CX_ISCENTER)
+        cx -= StringWidthW(text) * a7 * 0.5f;
+    else if (flags & 4)
+        cx -= StringWidthW(text) * a7;
+    if (flags & RF_CY_ISCENTER)
+        cy -= GetHeight() * a7 * m_field_20A3C * 0.5f;
+    else if (flags & RF_CY_ISTOP)
+        cy -= GetHeight() * a7 * m_field_20A3C;
+    auto v15 = m_field_20A3C * v17;
+    auto v25 = cy + v15 * m_field_20A50;
+    auto textLen = u_strlen(text);
+    auto v29 = (!m_cache || forceDrawMalloc) ? (CFont2D_cache *)GFX_DrawMalloc(sizeof(CFont2D_cache) * textLen, 4) : CacheMallocCharacters(textLen, uiProjection);
+    if (v29) {
+        int v31 = -1;
+        auto pflt = (float *)v29;
+        if (textLen)
+        {
+            for (int i = 0; i < textLen; ++i, ++text) {
+                auto v35 = v31;
+                auto v36 = m_info.m_glyphIndexes[*text];
+                if (v36 == 0xFFFF) {
+                    if (m_cache && !forceDrawMalloc && m_cacheCntUsed) {
+                        ++m_curCache;
+                        m_cacheCntUsed--;
+                    }
+                } else {
+                    auto v39 = color;
+                    const auto &g = m_glyphs[v36];
+                    //if (g.m_kernIdx && g.m_kernIdx != m_texSuffix)
+                    //    v39 = 0;
+                    v31 = g.m_kernIdx;
+                    if (v35 != -1)
+                        v31 = v35;
+                    auto v42 = m_info.m_fileHdrV3.m_kern[g.m_kernIdx];
+                    float dx;
+                    if (*text == 32) {
+                        dx = g.m_width * v42 * v17 * m_kerning * m_kern[g.m_kernIdx] * m_field_20A54;
+                        if (m_cache && !forceDrawMalloc && m_cacheCntUsed) {
+                            ++m_curCache;
+                            m_cacheCntUsed--;
+                        }
+                    } else {
+                        auto pint = (uint32_t *)pflt;
+                        pflt[0] = cx;
+                        pflt[1] = v25;
+                        auto v33 = pflt + 7;
+                        pint[2] = 0;
+                        pint[3] = v39;
+                        pflt[4] = g.m_field_4 + 0.001f;
+                        pflt[5] = g.m_field_8 + 0.001f;
+                        pflt[9] = v25;
+                        auto v45 = g.m_width - 0.002f + g.m_field_4 + 0.001f;
+                        pflt[13] = g.m_field_8 + 0.001f;
+                        pint[7] = 0;
+                        pint[10] = 0;
+                        pint[11] = v39;
+                        pflt[12] = v45;
+                        auto v46 = g.m_width * v42 * v17;
+                        auto v47 = fminf(1.0, (float)g.m_kernIdx);
+                        pflt[6] = v47;
+                        auto v48 = g.m_height - 0.002f + g.m_field_8 + 0.001f;
+                        pflt[8] = v46 + cx;
+                        pflt[14] = v47;
+                        pflt[16] = v46 + cx;
+                        auto v49 = g.m_height * v42 * v15 + v25;
+                        pflt[21] = v48;
+                        pflt[20] = v45;
+                        pint[15] = 0;
+                        pint[18] = 0;
+                        pflt[17] = v49;
+                        pint[19] = v39;
+                        pflt[29] = v48;
+                        pflt[22] = v47;
+                        pflt[24] = cx;
+                        pflt[25] = v49;
+                        pflt[28] = g.m_field_4 + 0.001f;
+                        pint[23] = 0;
+                        pint[26] = 0;
+                        pint[27] = v39;
+                        pflt[37] = v48;
+                        pflt[30] = v47;
+                        pflt[32] = v46 + cx;
+                        pflt[33] = v49;
+                        pflt[36] = v45;
+                        pint[31] = 0;
+                        pint[34] = 0;
+                        pint[35] = v39;
+                        pint[43] = v39;
+                        pflt[38] = v47;
+                        pflt[40] = cx;
+                        pflt[41] = v25;
+                        pflt[44] = g.m_field_4 + 0.001f;
+                        pflt[45] = g.m_field_8 + 0.001f;
+                        pint[39] = 0;
+                        pint[42] = 0;
+                        pflt[46] = v47;
+                        pint[47] = 0;
+                        dx = m_kerning * m_kern[g.m_kernIdx] * v46;
+                        pflt += 48;
+                    }
+                    cx += dx;
+                }
+            }
+        }
+        if (!m_cache || forceDrawMalloc) {
+            auto CurrentShaderHandle = GFX_GetCurrentShaderHandle();
+            GFX_SetShader(g_fontWShader);
+            GFX_SetAlphaBlendEnable(true);
+            GFX_SetBlendFunc(GBO_FUNC_ADD, GB_SRC_ALPHA, GB_ONE_MINUS_SRC_ALPHA);
+            if (m_loadedV3) {
+                GFX_ActivateTexture(m_info.m_fileHdrV3.m_tex1, 0, nullptr, TWM_CLAMP_TO_EDGE);
+                GFX_ActivateTexture((m_info.m_fileHdrV3.m_tex2 != -1) ? m_info.m_fileHdrV3.m_tex2 : g_WhiteHandle, 2, nullptr, TWM_CLAMP_TO_EDGE);
+            }
+            GFX_SetTextureFilter(2, GFF_LINEAR_MIPMAP_NEAREST);
+            GFX_ActivateTextureEx(2, -0.5f);
+            GFX_SetTextureFilter(0, GFF_LINEAR_MIPMAP_NEAREST);
+            GFX_ActivateTextureEx(0, -0.5f);
+            GFX_MatrixMode(GMT_2);
+            GFX_PushMatrix();
+            GFX_LoadIdentity();
+            auto CurrentRT = VRAM_GetCurrentRT();
+            if (uiProjection)
+                GFX_SetupUIProjection();
+            else
+                GFX_Ortho(0.0, (float)CurrentRT->m_dw_width, (float)CurrentRT->m_dw_height, 0.0f, -1.0f, 1.0f);
+            GFX_MatrixMode(GMT_0);
+            GFX_PushMatrix();
+            GFX_LoadIdentity();
+            GFX_MatrixMode(GMT_1);
+            GFX_PushMatrix();
+            GFX_LoadIdentity();
+            GFX_UpdateMatrices(0);
+            GFX_DrawPrimitive(GPT_TRIANGLES, (DRAW_VERT_POS_COLOR_UV *)v29, ((char *)pflt - (char *)v29) >> 5);
+            GFX_MatrixMode(GMT_2);
+            GFX_PopMatrix();
+            GFX_MatrixMode(GMT_0);
+            GFX_PopMatrix();
+            GFX_MatrixMode(GMT_1);
+            GFX_PopMatrix();
+            GFX_ActivateTextureEx(2, -0.5f);
+            GFX_ActivateTextureEx(0, -0.5f);
+            GFX_SetShader(CurrentShaderHandle);
+        }
+    }
 }

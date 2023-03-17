@@ -770,7 +770,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
             g_gameStartupFlowState = ZSF_LOGIN;
         }
         ZSF_SwitchState(g_gameStartupFlowState, g_startupFlowStateParam);
-        ZWIFT_UpdateLoading(L"Ride On.", true);
+        ZWIFT_UpdateLoading(u"Ride On.", true);
         ANTRECEIVER_PostConnect();
         auto TotalLoadTimeInSeconds = (timeGetTime() - startTime) * 0.001;
         if (parse.error()) {

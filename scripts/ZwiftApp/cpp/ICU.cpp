@@ -61,3 +61,5 @@ char *FromUTF8(UChar *src, char *dest, size_t length) {
     }
     return dest;
 }
+static UChar g_UtfBuffer[46000];
+UChar *ToUTF8_ib(const char *src) { return ToUTF8(src, g_UtfBuffer, _countof(g_UtfBuffer)); }

@@ -1957,9 +1957,9 @@ void GFX_SetDepthTestFunc(GFX_COMPARE_FUNC fu) {
     g_pGFX_CurrentStates->m_depthFunc = fu;
     glDepthFunc(g_GFX_TO_GL_CMPFUNC[fu]);
 }
-void GFX_SetBlendFunc(GFX_BLEND_OP op, GFX_BLEND s, GFX_BLEND d) {
+void GFX_SetBlendFunc(GFX_BLEND_OP op, GFX_BLEND src, GFX_BLEND dst) {
     static_assert(sizeof(GFX_BlendFunc) == 4);
-    g_pGFX_CurrentStates->m_blendFunc1 = {op, s, d};
+    g_pGFX_CurrentStates->m_blendFunc1 = {op, src, dst};
     if (g_pGFX_CurrentStates->m_blendFunc2 != g_pGFX_CurrentStates->m_blendFunc1) {
         g_pGFX_CurrentStates->m_blendFunc2 = g_pGFX_CurrentStates->m_blendFunc1;
         g_pGFX_CurrentStates->m_bits |= GFX_StateBlock::GSB_PEND_BLEND;
@@ -2052,7 +2052,7 @@ void GFX_SetWideAspectAwareUI(bool val) {
         g_bIsAwareOfWideAspectUI = val;
     }
 }
-void GFX_Ortho(float a1, float a2, float a3, float a4, float a5, float a6) {
+void GFX_Ortho(float a1, float w, float h, float a4, float a5, float a6) {
     MATRIX44 m2;
     m2.m_data[1].m_data[0] = 0.0f;
     m2.m_data[1].m_data[2] = 0.0f;
@@ -2060,14 +2060,14 @@ void GFX_Ortho(float a1, float a2, float a3, float a4, float a5, float a6) {
     m2.m_data[2].m_data[0] = 0.0f;
     m2.m_data[2].m_data[1] = 0.0f;
     m2.m_data[2].m_data[3] = 0.0f;
-    auto v7 = a3 - a4;
+    auto v7 = h - a4;
     auto v8 = 1.0f;
     m2.m_data[3].m_data[3] = 1.0f;
-    auto v9 = (a2 - a1) * 0.5f;
+    auto v9 = (w - a1) * 0.5f;
     auto v10 = v7 * 0.5f;
     auto v11 = 0.0f;
     if (g_OrthoScalarH != 0.0f)
-        v11 = (a2 - a1) / g_OrthoScalarH;
+        v11 = (w - a1) / g_OrthoScalarH;
     auto v12 = 0.0f;
     if (g_OrthoScalarW != 0.0f)
         v12 = v7 / g_OrthoScalarW;
@@ -2400,8 +2400,8 @@ bool GFX_StateBlock::Realize() {
             glEnable(GL_BLEND);
         else
             glDisable(GL_BLEND);
-        glBlendEquation(g_GFX_TO_GL_BLENDOP[m_blendFunc2.m_modeIdx]);
-        glBlendFunc(g_GFX_TO_GL_BLENDFUNC[m_blendFunc2.m_sFactorIdx], g_GFX_TO_GL_BLENDFUNC[m_blendFunc2.m_dFactorIdx]);
+        glBlendEquation(g_GFX_TO_GL_BLENDOP[m_blendFunc2.m_mode]);
+        glBlendFunc(g_GFX_TO_GL_BLENDFUNC[m_blendFunc2.m_srcFactor], g_GFX_TO_GL_BLENDFUNC[m_blendFunc2.m_dstFactor]);
     }
     m_bits = 0;
     if (m_hasRegTypes) {
@@ -2518,33 +2518,26 @@ int GFX_Internal_FindLoadedAnimatedTexture(const char *name) {
                 return _countof(g_Textures) + i;
     return -1;
 }
-void GFX_Draw2DQuad(float l, float t, float w, float h, uint32_t color, bool a6) {
-    auto bptr = GFX_DrawMalloc(24 * 4, 4);
-    auto fptr = (float *)bptr;
-    if (bptr) {
-        auto v8 = (int *)bptr + 2;
-        for(int v9 = 0; v9 < 6; v9++) {
-            *v8 = 0;
-            v8[1] = color;
-            v8 += 4;
+void GFX_Draw2DQuad(float l, float t, float w, float h, uint32_t color, bool uiProjection) {
+    static_assert(sizeof(DRAW_VERT_POS_COLOR) == 16);
+    const int cnt = 6;
+    auto ptr = (DRAW_VERT_POS_COLOR *)GFX_DrawMalloc(sizeof(DRAW_VERT_POS_COLOR) * cnt, 4);
+    if (ptr) {
+        for (int i = 0; i < cnt; i++) {
+            ptr[i].m_dummy = 0;
+            ptr[i].m_color = color;
         }
-        *fptr = l;
-        fptr[1] = t;
-        fptr[5] = t;
-        fptr[12] = l;
-        fptr[16] = l;
-        fptr[17] = t;
-        fptr[4] = l + w;
-        fptr[8] = l + w;
-        fptr[9] = t + h;
-        fptr[13] = t + h;
-        fptr[20] = l + w;
-        fptr[21] = t + h;
-        bool v10;
-        if ((g_b2D720pRenderIsSetup || !a6) && a6) {
-            v10 = false;
+        ptr[0].m_point = { l, t };
+        ptr[1].m_point = { l + w, t };
+        ptr[2].m_point = { l + w, t + h };
+        ptr[3].m_point = { l, t + h };
+        ptr[4].m_point = { l, t };
+        ptr[5].m_point = { l + w, t + h };
+        bool mx;
+        if (g_b2D720pRenderIsSetup && uiProjection) {
+            mx = false;
         } else {
-            v10 = true;
+            mx = true;
             auto pCurrentRT = VRAM_GetCurrentRT();
             zassert(pCurrentRT);
             GFX_SetShader(g_DrawNoTextureShaderHandle);
@@ -2552,20 +2545,20 @@ void GFX_Draw2DQuad(float l, float t, float w, float h, uint32_t color, bool a6)
             GFX_MatrixMode(GMT_2);
             GFX_PushMatrix();
             GFX_LoadIdentity();
-            if (a6)
+            if (uiProjection)
                 GFX_SetupUIProjection();
             else
-                GFX_Ortho(0.0, (float)pCurrentRT->m_dw_width, (float)pCurrentRT->m_dw_height, 0.0, -1.0, 1.0);
+                GFX_Ortho(0.0f, (float)pCurrentRT->m_dw_width, (float)pCurrentRT->m_dw_height, 0.0f, -1.0f, 1.0f);
             GFX_MatrixMode(GMT_1);
             GFX_PushMatrix();
             GFX_LoadIdentity();
             GFX_MatrixMode(GMT_0);
             GFX_PushMatrix();
             GFX_LoadIdentity();
-            GFX_UpdateMatrices(0);
+            GFX_UpdateMatrices(false);
         }
-        GFX_DrawPrimitive(GPT_TRIANGLES, (DRAW_VERT_POS_COLOR *)fptr, 6);
-        if (v10) {
+        GFX_DrawPrimitive(GPT_TRIANGLES, ptr, cnt);
+        if (mx) {
             GFX_MatrixMode(GMT_2);
             GFX_PopMatrix();
             GFX_MatrixMode(GMT_1);
@@ -3333,12 +3326,12 @@ void GFX_Translate(const VEC3 &v) {
     }
     ++g_MatrixContext.m_modesUpdCnt[g_MatrixContext.m_curMode];
 }
-void GFX_Draw2DQuad(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8, int a9, float a10, int a11, bool a12, int a13) { //_13
+void GFX_Draw2DQuad(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8, int a9, float a10, int a11, bool uiProjection, int a13) { //_13
     auto bptr = GFX_DrawMalloc(36 * 4, 4);
     auto fptr = (float *)bptr;
     if (bptr) {
         bool v14;
-        if ((g_b2D720pRenderIsSetup || !a12) && a12 && a10 == 0.0f) {
+        if ((g_b2D720pRenderIsSetup || !uiProjection) && uiProjection && a10 == 0.0f) {
             v14 = false;
         } else {
             v14 = true;
@@ -3349,10 +3342,10 @@ void GFX_Draw2DQuad(float a1, float a2, float a3, float a4, float a5, float a6, 
             GFX_MatrixMode(GMT_2);
             GFX_PushMatrix();
             GFX_LoadIdentity();
-            if (a12)
+            if (uiProjection)
                 GFX_SetupUIProjection();
             else
-                GFX_Ortho(0.0, (float)pCurrentRT->m_dw_width, (float)pCurrentRT->m_dw_height, 0.0, -1.0, 1.0);
+                GFX_Ortho(0.0f, (float)pCurrentRT->m_dw_width, (float)pCurrentRT->m_dw_height, 0.0f, -1.0f, 1.0f);
             GFX_MatrixMode(GMT_1);
             GFX_PushMatrix();
             GFX_LoadIdentity();
@@ -3433,7 +3426,7 @@ template <> int GFX_GetVertexHandle<DRAW_VERT_POS_COLOR_UV>() {
     static int stDRAW_VERT_POS_COLOR_UV = -1;
     if (stDRAW_VERT_POS_COLOR_UV == -1)
         stDRAW_VERT_POS_COLOR_UV = GFX_CreateVertex(GFX_CreateVertexParams{ 4, 1,
-            { {0, 0, GVF_FLOAT7, 0}, {0, 3, GVF_UNSIGNED_BYTE1, 12}, {0, 6, GVF_FLOAT6, 16}, {0, 7, GVF_FLOAT6, 24} },
+            { {0, 0, GVF_FLOAT7, 0}, {0, 4, GVF_UNSIGNED_BYTE1, 12}, {0, 6, GVF_FLOAT6, 16}, {0, 7, GVF_FLOAT6, 24} },
             { {0, DRAW_VERT_POS_COLOR_UV::MULT, GVF_UNSIGNED_BYTE1, 0} }
             });
     return stDRAW_VERT_POS_COLOR_UV;
