@@ -48,5 +48,8 @@ public:
 std::vector<std::string> ParseSuppressedLogs(const char *ls);
 void LogSetSuppressedLogTypes(const std::vector<std::string> &supprLogs);
 void glfwZwiftErrorCallback(int code, const char *msg);
+struct ConsoleRenderer;
+void CONSOLE_DrawCmdline(const ConsoleRenderer &cr, const char *line, int *lineNo, int lineCount, int lineType);
+void CONSOLE_DrawPar(const ConsoleRenderer &cr, const char *str, int *a3, int a4, int a5);
 
 inline bool g_useLogLevelSettings = true;

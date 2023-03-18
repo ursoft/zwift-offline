@@ -37,7 +37,6 @@ void VRAM_CreateDepthRenderTarget(RenderTarget *rt, GLsizei w, GLsizei h) {
     }
 }
 void VRAM_CreateAllRenderTargets() {
-    const int BACKBUFFER_WIDTH = 0x500, BACKBUFFER_HEIGHT = 0x2D0, SHADOWMAP_WIDTH = 0x800, SHADOWMAP_HEIGHT = 0x800, LUMINANCE_WIDTH = 0xF0, LUMINANCE_HEIGHT = 0x87, ENVCUBEMAP_SIZE = 0x80;
     auto pf = (uint64_t)GFX_GetPerformanceFlags();
     int buf16 = (~(uint8_t)(pf >> 24)) & 8;
     bool b16 = (pf & 0x8000000) == 0;

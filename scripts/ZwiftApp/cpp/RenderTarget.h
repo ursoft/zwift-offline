@@ -135,3 +135,4 @@ inline const int g_nShadowMaps = 3; //QUEST: why fourth allocated and not used
 inline RenderTarget g_RT_PreviewWindow(""), g_RT_BackBuffer("BackBuffer"), g_RT_ReflectionMap("ReflectionMap"), g_RT_TerrainPickingBuffer("TerrainPickingBuffer"), g_RT_EntityPickingBuffer("EntityPickingBuffer"), 
     g_RT_BackBuffer_Final("BackBuffer_Final"), g_RT_BackBuffer_Temp("BackBuffer_Temp"), g_RT_BackBuffer_Prev("BackBuffer_Prev"), g_RT_CubeMap(""), g_RT_BackBufferVRAM("") /* QUEST: in Android = g_RT_BackBuffer...*/,
     g_RT_SpotlightShadowMap("SpotlightShadowMap"), g_RT_EmptyShadowMap("EmptyShadowMap"), g_RT_Luminance("Luminance"), g_RT_BackBufferDownsamples[10], g_RT_ShadowMaps[4];
+inline int BACKBUFFER_WIDTH = 0x500, BACKBUFFER_HEIGHT = 0x2D0, SHADOWMAP_WIDTH = 0x800, SHADOWMAP_HEIGHT = 0x800, LUMINANCE_WIDTH = 0xF0, LUMINANCE_HEIGHT = 0x87, ENVCUBEMAP_SIZE = 0x80;

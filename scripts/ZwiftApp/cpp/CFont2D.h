@@ -102,7 +102,7 @@ public:
     float GetBaseline(float mult);
     float GetHeadline(float mult);
     float GetHeadToBase(float mult);
-    float StringWidthW(const char *text);
+    float StringWidth(const char *text);
     float StringWidthW(const UChar *uText);
     float StringWidthW(const UChar *uText, uint32_t len);
     float GetBoundedScaleW(float w, float h, const UChar *uText);
@@ -115,8 +115,12 @@ public:
     bool LoadFontFromWad(const char *name);
     void LoadFontV1(const uint8_t *data);
     void LoadLanguageTextures(LOC_LANGS l);
-    void RenderWString(float cx, float cy, const char *text, uint32_t color, uint32_t flags, float, bool, bool);
-    void RenderWString(float cx, float cy, const UChar *text, uint32_t color, uint32_t flags, float, bool, bool, bool uiProjection);
+    void RenderWString(float cx, float cy, const char *text, uint32_t color, uint32_t flags, float scale, bool needShadow, bool forceDrawMalloc);
+    void RenderWString(float cx, float cy, const UChar *text, uint32_t color, uint32_t flags, float scale, bool needShadow, bool forceDrawMalloc, bool uiProjection);
+    int GetParagraphLineCount(float, const char *, float, float, bool);
+    int GetParagraphLineCountW(float, const UChar *, float, float, bool);
+    int RenderParagraph(float, float, float, float, const char *, uint32_t, int, float, bool, float, float);
+    int RenderParagraphW(float, float, float, float, const UChar *, uint32_t, int, float, bool, float, float);
     ~CFont2D();
 
     void GetParagraphBoxSize(const char *text, float, float, float);
@@ -131,7 +135,6 @@ public:
     void FitCharsToWidthW(const UChar *, int);
     void FitParagraphInBox(float, float, const UChar *);
     void FitWordsToWidth(const char *, int, float);
-    void FitWordsToWidthW(const char *, int, float);
     void FitWordsToWidthW(const UChar *, int, float);
     void GetBaseOffset(float, float);
     void GetBoundedScale(float, float, const char *);
@@ -141,11 +144,8 @@ public:
     void GetHeadOffset(float, float);
     void GetHeadToBottom(float);
     void GetParagraphIndexByPosition(float, float, float, float, const UChar *, int, float, float, float *, float *);
-    void GetParagraphLineCount(float, const char *, float, float, bool);
-    void GetParagraphLineCountW(float, const char *, float, float, bool);
-    void GetParagraphLineCountW(float, const UChar *, float, float, bool);
     void GetParagraphPositionByIndex(int, float, float, const char *, int, float, float);
-    void GetParagraphPositionByIndex(int, float, float, const UChar *, int, float, float);
+    void GetParagraphPositionByIndexW(int, float, float, const UChar *, int, float, float);
     void GetScaleAndKerning(float *, float *);
     void GetTexture(uint32_t);
     void GetTopToBase(float);
@@ -153,21 +153,15 @@ public:
     void IsFontTextureLoaded(uint16_t);
     void RenderBorderedString(float, float, const char *, uint32_t, int, float, bool, bool, float, uint32_t);
     void RenderBorderedStringMultisized(float, float, int, const char **, uint32_t *, float *, int, int, bool, int, bool);
-    void RenderBorderedWString(float, float, const char *, uint32_t, int, float, bool, bool, uint32_t);
+    void RenderBorderedString(float, float, const char *, uint32_t, int, float, bool, bool, uint32_t);
     void RenderBorderedWString(float, float, const UChar *, uint32_t, int, float, bool, bool, uint32_t);
-    void RenderBorderedWStringMultisized(float, float, int, const char **, uint32_t *, float *, int, int, bool, int, bool);
     void RenderBorderedWStringMultisized(float, float, int, const UChar **, uint32_t *, float *, int, int, bool, int, bool);
-    void RenderParagraph(float, float, float, float, const char *, uint32_t, int, float, bool, float, float);
-    void RenderParagraphW(float, float, float, float, const char *, uint32_t, int, float, bool, float, float);
-    void RenderParagraphW(float, float, float, float, const UChar *, uint32_t, int, float, bool, float, float);
     void RenderString(float, float, const char *, uint32_t, int, float, bool, bool, float, bool);
     void RenderStringBounded(float, float, float, float, const char *, uint32_t, int, bool, bool);
     void RenderStringMultisized(float, float, int, const char **, uint32_t *, float *, int, int, bool, int, bool);
     void RenderStringRT(float, float, const char *, uint32_t, int, float, bool, bool);
     void RenderWStringBounded(float, float, float, float, const UChar *, uint32_t, int, bool, bool);
-    void RenderWStringMultisized(float, float, int, const char **, uint32_t *, float *, int, int, bool, int, bool);
     void RenderWStringMultisized(float, float, int, const UChar **, uint32_t *, float *, int, int, bool, int, bool);
-    void RenderWStringRT(float, float, const char *, uint32_t, int, float, bool, bool);
     void RenderWStringRT(float, float, const UChar *, uint32_t, int, float, bool, bool);
     void SetHeadAndBaseLines(float, float);
     void SetLanguageKerningScalar(LANGUAGE_IDS, float);

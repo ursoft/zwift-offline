@@ -1,4 +1,9 @@
 #include "ZwiftApp.h"
+const int LOGC_LINE_BUF = 0x400, LOGC_LINES = 1000, LOGC_PAGE = 37;
+int g_nLogLines, g_curLogLine, g_scrollLogPos;
+LOG_TYPE g_LogLineTypes[LOGC_LINES];
+bool g_overflowScroll;
+char *g_LogLines[LOGC_LINES];
 LOG_LEVEL g_MinLogLevel = LL_CNT; // NOT_SET_YET;
 FILE *g_logFile;
 LOG_LEVEL g_noesisLogLevels[NLL_CNT] = { LL_DEBUG /*NLL_TRACE*/, LL_DEBUG, LL_INFO, LL_WARNING, LL_ERROR};
@@ -188,17 +193,12 @@ void LogInitialize() {
         CreateDirectoryA(PathName, nullptr);
         sprintf_s(PathName, "%s\\Logs", PathName);
         CreateDirectoryA(PathName, nullptr);
-        //TODO: g_LogLines and g_LogLineTypes are used in CONSOLE_Draw, but are not filled in release build yet
-        /*v0 = g_LogLines;
-        memset(g_LogLines, 0, sizeof(g_LogLines));
-        for (i = 0; i < 0x3E8; ++i) {
-            v2 = j__malloc_base(0x400ui64);
-            *v0 = v2;
-            memset(v2, 0, 0x400ui64);
-            ++v0;
-        }*/
+        for (auto &i : g_LogLines) {
+            i = (char *)malloc(LOGC_LINE_BUF);
+            i[0] = 0;
+        }
         g_canUseLogging = true;
-        //memset(g_LogLineTypes, 0, 0xFA0ui64);
+        //memset(g_LogLineTypes, 0, sizeof(g_LogLineTypes)); //not need for static data
         g_LogMutexIdx = ZMUTEX_Create("log");
         strcpy(v18, PathName);
         sprintf(PathName, "%s/%s.txt", PathName, "Log");
@@ -220,4 +220,78 @@ void LogInitialize() {
         Log("Device:       PC");
         tHigFile::SetLogHandler(LogDebug);
     }
+}
+int LogGetLineCount() { return std::min(LOGC_LINES, g_nLogLines); }
+LOG_TYPE LogGetLineType(int a1) { return LOG_TYPE(g_LogLineTypes[(a1 + g_curLogLine) % LOGC_LINES] % LOG_CNT); }
+const char *LogGetLine(int a1) { return g_LogLines[(a1 + g_curLogLine) % LOGC_LINES]; }
+void CONSOLE_DrawCmdline(const ConsoleRenderer &cr, const char *line) {
+    g_LargeFontW.RenderWString(cr.m_cmdX1, cr.m_cmdY, ">", 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
+    g_LargeFontW.RenderWString(cr.m_cmdX2, cr.m_cmdY, line, 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
+}
+void CONSOLE_DrawPar(const ConsoleRenderer &cr, const char *str, int *lineNo, int lineCount, LOG_TYPE lineType) {
+    auto ustr = ToUTF8_ib(str);
+    auto mea = g_LargeFontW.GetParagraphLineCountW(cr.m_width, ustr, 0.4f, 0.0f, false);
+    int lines = g_LargeFontW.RenderParagraphW(15.0f, 16.0f * (lineCount - mea + 1) + cr.m_atY - 16.0f * (*lineNo),
+        cr.m_width, cr.m_height, ustr, ConsoleRenderer::TYPE_COLORS[lineType],
+        0, 0.4f, 1, 1.0f, 0.0f);
+    if (lines > 1)
+        *lineNo += lines - 1;
+}
+void ScrollLog(int dir) {
+    int scrollLogPos;
+    int maxScroll = LogGetLineCount() - (LOGC_PAGE - 1);
+    if (dir <= 0) {
+        scrollLogPos = std::clamp(g_scrollLogPos + 1, 0, maxScroll);
+        g_overflowScroll = (g_scrollLogPos >= maxScroll);
+    } else {
+        scrollLogPos = std::clamp((int)g_scrollLogPos - 1, 0, maxScroll);
+        g_overflowScroll = false;
+    }
+    g_scrollLogPos = scrollLogPos;
+}
+float g_blinkTime;
+char g_consolePrompt[1024];
+void ConsoleRenderer::Update(float atY) {
+    if (m_mirrorY)
+        atY = -atY;
+    m_atY = atY;
+    m_height = 1280.0f / VRAM_GetUIAspectRatio();
+    m_cmdY = m_atY + 608.0f + 5.0f;
+    m_freeHeight = fminf(m_height - m_cmdY, 150.0f);
+    m_top = m_cmdY;
+    if (m_visible)
+        m_top = m_atY;
+    m_delimHeight = m_height;
+    if (!m_visible)
+        m_delimHeight -= m_freeHeight;
+    m_field_40 = m_height - 32.0f + m_atY;
+}
+void CONSOLE_Draw(float atY, float dt) {
+    int lc = std::min(LOGC_PAGE, LogGetLineCount());
+    if (g_overflowScroll) {
+        g_scrollLogPos = LogGetLineCount() - LOGC_PAGE;
+        if (g_scrollLogPos < 0)
+            g_scrollLogPos = 0;
+    }
+    const char *cursor = "";
+    g_blinkTime += dt;
+    if (((int)(g_blinkTime + g_blinkTime) & 1) == 0)
+        cursor = "_";
+    char buf[4];
+    sprintf(buf, "%s%s", g_consolePrompt, cursor);
+    g_Console.Update(atY);
+    GFX_Draw2DQuad(0.0f, g_Console.m_top, g_Console.m_width, g_Console.m_delimHeight, ConsoleRenderer::LogBGColor, true);
+    if (g_Console.m_visible) {
+        for(int v6 = 0; lc > v6; --lc) {
+            //sprintf(v11, "linenum = %d\n", lc);
+            auto str = LogGetLine(lc + g_scrollLogPos);
+            if (str)
+                CONSOLE_DrawPar(g_Console, str, &v6, lc, LogGetLineType(lc + g_scrollLogPos));
+        }
+        if (g_Console.m_visible)
+            GFX_Draw2DQuad(0.0f, 0.0f, 1280.0f, 1.0f, -1, false);
+    }
+    CONSOLE_DrawCmdline(g_Console, buf);
+    if (!g_Console.m_logBanner.empty())
+        g_LargeFontW.RenderWString(15.0f, 0.0f, g_Console.m_logBanner.c_str(), 0xFFFFFF00, 0, 0.4f, true, false);
 }

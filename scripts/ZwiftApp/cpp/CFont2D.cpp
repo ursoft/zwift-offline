@@ -398,7 +398,7 @@ void CFont2D::PushHeadBase(float head, float base) {
 float CFont2D::GetBaseline(float mult) { return m_baseLine * m_field_20A3C * m_scale * mult; }
 float CFont2D::GetHeadline(float mult) { return m_headLine * m_field_20A3C * m_scale * mult; }
 float CFont2D::GetHeadToBase(float mult) { return (GetHeight() - m_field_20A3C * m_baseLine * m_scale - m_field_20A3C * m_headLine * m_scale) * mult; }
-float CFont2D::StringWidthW(const char *text) {
+float CFont2D::StringWidth(const char *text) {
     BufSafeToUTF8 buf;
     return StringWidthW(SafeToUTF8(text, &buf));
 }
@@ -456,30 +456,46 @@ UChar *SafeToUTF8(const char *ansi, BufSafeToUTF8 *buf) {
     LogTyped(LOG_ERROR, "SafeToUTF8--Temp buffer already written, %s", ansi);
     return nullptr;
 }
-void CFont2D::RenderWString(float cx, float cy, const char *text, uint32_t color, uint32_t flags, float a7, bool needShadow, bool forceDrawMalloc) {
+int CFont2D::GetParagraphLineCount(float w, const char *str, float, float, bool) {
+    //TODO
+    return 0;
+}
+int CFont2D::GetParagraphLineCountW(float w, const UChar *str, float, float, bool) {
+    //TODO
+    return 0;
+}
+int CFont2D::RenderParagraph(float, float, float, float, const char *, uint32_t, int, float, bool, float, float) {
+    //TODO
+    return 0;
+}
+int CFont2D::RenderParagraphW(float, float, float, float, const UChar *, uint32_t, int, float, bool, float, float) {
+    //TODO
+    return 0;
+}
+void CFont2D::RenderWString(float cx, float cy, const char *text, uint32_t color, uint32_t flags, float scale, bool needShadow, bool forceDrawMalloc) {
     BufSafeToUTF8 buf;
     auto u8_text = SafeToUTF8(text, &buf);
-    RenderWString(cx, cy, u8_text, color, flags, a7, needShadow, forceDrawMalloc, true);
+    RenderWString(cx, cy, u8_text, color, flags, scale, needShadow, forceDrawMalloc, true);
 }
-void CFont2D::RenderWString(float cx, float cy, const UChar *text, uint32_t color, uint32_t flags, float a7, bool needShadow, bool forceDrawMalloc, bool uiProjection) { //RenderWString_utf
+void CFont2D::RenderWString(float cx, float cy, const UChar *text, uint32_t color, uint32_t flags, float scale, bool needShadow, bool forceDrawMalloc, bool uiProjection) { //RenderWString_utf
     if (!m_loadedV3 || !text || !*text)
         return;
-    auto v17 = m_scale * a7;
+    auto v17 = m_scale * scale;
     auto v16 = m_lineHeight * v17;
     if (uiProjection && (-v16 > cy || cy > 1280.0f / VRAM_GetUIAspectRatio() + 10.0f))
         return;
     if (needShadow) {
         auto shadowOffset = fmaxf(1.0f, v16 / 25.0f);
-        RenderWString(shadowOffset + cx, shadowOffset + cy, text, (color >> 1) & 0x7F000000, flags, a7, false, forceDrawMalloc, uiProjection);
+        RenderWString(shadowOffset + cx, shadowOffset + cy, text, (color >> 1) & 0x7F000000, flags, scale, false, forceDrawMalloc, uiProjection);
     }
     if (flags & RF_CX_ISCENTER)
-        cx -= StringWidthW(text) * a7 * 0.5f;
+        cx -= StringWidthW(text) * scale * 0.5f;
     else if (flags & 4)
-        cx -= StringWidthW(text) * a7;
+        cx -= StringWidthW(text) * scale;
     if (flags & RF_CY_ISCENTER)
-        cy -= GetHeight() * a7 * m_field_20A3C * 0.5f;
+        cy -= GetHeight() * scale * m_field_20A3C * 0.5f;
     else if (flags & RF_CY_ISTOP)
-        cy -= GetHeight() * a7 * m_field_20A3C;
+        cy -= GetHeight() * scale * m_field_20A3C;
     auto v15 = m_field_20A3C * v17;
     auto v25 = cy + v15 * m_field_20A50;
     auto textLen = u_strlen(text);
