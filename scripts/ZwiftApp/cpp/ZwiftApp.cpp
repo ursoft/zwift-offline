@@ -1,20 +1,20 @@
 #include "ZwiftApp.h"
 #define MAX_LOADSTRING 100
-HINSTANCE hInst;                                // current instance
-WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+HINSTANCE        hInst;                         // current instance
+WCHAR            szTitle[MAX_LOADSTRING];       // The title bar text
+WCHAR            szWindowClass[MAX_LOADSTRING]; // the main window class name
 ATOM                MyRegisterClass(HINSTANCE hInstance);
-LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 void CheckEnvironment() {
     PROCESSENTRY32W pe = {};
     pe.dwSize = sizeof(PROCESSENTRY32W);
-    HANDLE Toolhelp32Snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    const char *lpCaption = "ERROR ZA2";
+    HANDLE          Toolhelp32Snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    const char      *lpCaption = "ERROR ZA2";
     if (Process32FirstW(Toolhelp32Snapshot, &pe)) {
         while (true) {
             if (!_wcsicmp(pe.szExeFile, L"zwiftapp.exe")) {
-                HANDLE hProcess = OpenProcess(0x410u, 0, pe.th32ParentProcessID);
+                HANDLE  hProcess = OpenProcess(0x410u, 0, pe.th32ParentProcessID);
                 wchar_t moduleName[MAX_PATH + 4] = {};
                 if (hProcess) {
                     GetModuleFileNameExW(hProcess, 0i64, moduleName, 260i64);
@@ -28,9 +28,9 @@ void CheckEnvironment() {
                 return;
             }
         }
-        STARTUPINFOW StartupInfo = {};
+        STARTUPINFOW        StartupInfo = {};
         StartupInfo.cb = sizeof(StartupInfo);
-        WCHAR cmdLauncher[] = L"ZwiftLauncher.exe";
+        WCHAR               cmdLauncher[] = L"ZwiftLauncher.exe";
         PROCESS_INFORMATION ProcessInformation = {};
         if (CreateProcessW(nullptr, cmdLauncher, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &StartupInfo, &ProcessInformation)) {
             CloseHandle(Toolhelp32Snapshot);
@@ -61,36 +61,36 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
     //OutputDebugStringA(lpCmdLine);
     std::vector<std::string> argv;
     argv.push_back(__argv[0]);
-    std::istringstream cmd_parser(lpCmdLine);
+    std::istringstream       cmd_parser(lpCmdLine);
     while (cmd_parser.good()) {
         std::string param;
-        int ch = cmd_parser.peek();
+        int         ch = cmd_parser.peek();
         if (ch != '"') {
             cmd_parser >> param;
         } else while (cmd_parser.good()) {
-            ch = cmd_parser.peek();
-            cmd_parser.ignore();
-            if (ch == -1)
-                break;
-            else if (ch == '\\') {
                 ch = cmd_parser.peek();
                 cmd_parser.ignore();
                 if (ch == -1)
                     break;
-            } else if (ch == '"') {
-                if (param.length())
-                    break;
-                else
-                    continue;
+                else if (ch == '\\') {
+                    ch = cmd_parser.peek();
+                    cmd_parser.ignore();
+                    if (ch == -1)
+                        break;
+                } else if (ch == '"') {
+                    if (param.length())
+                        break;
+                    else
+                        continue;
+                }
+                param += (char)ch;
             }
-            param += (char)ch;
-        }
         if (param.length()) argv.emplace_back(param);
     }
     _set_FMA3_enable(0);
     ZwiftInitialize(argv);
-    int iteration = 0;
-    HWND hMainWindow = nullptr;
+    int   iteration = 0;
+    HWND  hMainWindow = nullptr;
     float fcounter = 0;
     zwiftUpdateContext zuc = {};
     while (!glfwWindowShouldClose(g_mainWindow)) {
@@ -120,42 +120,42 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
 ATOM MyRegisterClass(HINSTANCE hInstance) {
     WNDCLASSEXW wcex = {};
     wcex.cbSize = sizeof(WNDCLASSEX);
-    wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = WndProc;
-    wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ZWIFTAPP));
-    wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszClassName  = szWindowClass;
-    wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_ZWIFTAPP));
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc = WndProc;
+    wcex.hInstance = hInstance;
+    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ZWIFTAPP));
+    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wcex.lpszClassName = szWindowClass;
+    wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_ZWIFTAPP));
     return RegisterClassExW(&wcex);
 }
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
-    case WM_DESTROY:
-        PostQuitMessage(0);
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            break;
+        case WM_COMMAND: {
+            switch (LOWORD(wParam)) {
+                case IDM_ABOUT:
+                    DialogBoxParam(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About, 0);
+                    break;
+                case IDM_EXIT:
+                    DestroyWindow(hWnd);
+                    break;
+                default:
+                    return DefWindowProc(hWnd, message, wParam, lParam);
+            }
+        }
         break;
-    case WM_COMMAND: {
-        switch (LOWORD(wParam)) {
-        case IDM_ABOUT:
-            DialogBoxParam(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About, 0);
-            break;
-        case IDM_EXIT:
-            DestroyWindow(hWnd);
-            break;
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            BeginPaint(hWnd, &ps);
+            EndPaint(hWnd, &ps);
+        }
+        break;
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
-        }
-    }
-    break;
-    case WM_PAINT: {
-        PAINTSTRUCT ps;
-        BeginPaint(hWnd, &ps);
-        EndPaint(hWnd, &ps);
-    }
-    break;
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
 }
@@ -170,18 +170,22 @@ void ZwiftExit(int code) {
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
     UNREFERENCED_PARAMETER(lParam);
     switch (message) {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) {
-            EndDialog(hDlg, LOWORD(wParam));
+        case WM_INITDIALOG:
             return (INT_PTR)TRUE;
-        }
-        break;
+        case WM_COMMAND:
+            if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) {
+                EndDialog(hDlg, LOWORD(wParam));
+                return (INT_PTR)TRUE;
+            }
+            break;
     }
     return (INT_PTR)FALSE;
 }
-void doFrameWorldID(zwiftUpdateContext *ptr) {
+bool g_bDisableConsoleRendering;
+void Render(double tim) {
+    //TODO
+    if (!g_bDisableConsoleRendering /*read-only*/ && g_bShowConsole)
+        CONSOLE_Draw(0.0f, 0.03333333333f);
     //TODO
 }
 void LoadingRender(float time, const UChar *text) {
@@ -189,7 +193,7 @@ void LoadingRender(float time, const UChar *text) {
         GFX_UploadShaderVEC4(GSR_24, g_Vec4White, 0);
         GFX_SetScissorTestEnable(false);
         static auto g_seeThroughHandle = GFX_CreateTextureFromTGAFile("UI/z_logo_see_through.tga", -1, true);
-        int width = 1280, height = 720;
+        int         width = 1280, height = 720;
         glfwGetWindowSize(g_mainWindow, &width, &height);
         glViewport(0, 0, width, height);
         width = 1280;
@@ -206,13 +210,13 @@ void LoadingRender(float time, const UChar *text) {
         auto v5 = (v4 * 2.70158f - 1.70158f) * time * v4 * v4;
         if (v5 > 0.0f)
             v5 = v5 * (v5 * 4.5f * v5 + 1.0f);
-        auto v6 = v5 * 4096.0f + 512.0f;
-        auto l = (width - v6) * 0.5f;
-        auto t = (height - v6) * 0.5f;
+        auto      v6 = v5 * 4096.0f + 512.0f;
+        auto      l = (width - v6) * 0.5f;
+        auto      t = (height - v6) * 0.5f;
         const int loaderColor = 0xFFCC9211;
         GFX_Draw2DQuad_720p(l, t, v6, v6, 0.0, 0.0, 1.0, 1.0, loaderColor, 0.0, -1, 0);
-        auto v9 = l + v6;
-        auto v10 = t + v6;
+        auto      v9 = l + v6;
+        auto      v10 = t + v6;
         if (l >= 0.0f)
             GFX_Draw2DQuad_UI(0.0f, 0.0f, l + 1.0f, (float)height, loaderColor);
         if (v9 <= (float)width)
@@ -224,29 +228,51 @@ void LoadingRender(float time, const UChar *text) {
         }
         if (text)
             g_GiantFontW.RenderWString(width * 0.5f, height * 0.5f + 170.0f, text,
-                ((int)(std::clamp(1.0f - time - time, 0.0f, 1.0f) * 255.0f) << 24) | 0xFFFFFF,
-                1, 0.6666f, false, false, true);
+                                       ((int)(std::clamp(1.0f - time - time, 0.0f, 1.0f) * 255.0f) << 24) | 0xFFFFFF,
+                                       1, 0.6666f, false, false, true);
         GFX_SetDepthTestEnable(true);
         GFX_SetDepthWrite(true);
     }
 }
+void doFrameWorldID(zwiftUpdateContext *ptr) {
+    //TODO fake1 {
+    GFX_Begin();
+    VRAM_EndRenderTo(0);
+    GFX_Clear(60);
+    glClearColor(0.0f, 0.0f, 0.9f, 1.0f);
+    int width, height;
+    glfwGetWindowSize(g_mainWindow, &width, &height);
+    glViewport(0, 0, width, height);
+    GFX_SetDepthTestEnable(false);
+    GFX_SetDepthWrite(false);
+    //TODO fake1 }
+
+    Render(timeGetTime() / 1000.0f);
+
+    //TODO fake2 {
+    GFX_SetDepthTestEnable(true);
+    GFX_SetDepthWrite(true);
+    GFX_Present();
+    GFX_EndFrame();
+    //TODO fake2 }
+}
 struct UpdateLoadingItem {
     const UChar *m_msg;
-    bool m_bShown;
+    bool        m_bShown;
 };
 void ZWIFT_UpdateLoading(const UChar *text, bool last) {
     g_mDownloader.Update();
     static UpdateLoadingItem g_UpdateLoadingDB[] = {
-        { GetTextW("LOC_LOADING_QUIP_0") }, { GetTextW("LOC_LOADING_QUIP_1") }, { GetTextW("LOC_LOADING_QUIP_2") }, { GetTextW("LOC_LOADING_QUIP_3") }, 
-        { GetTextW("LOC_LOADING_QUIP_4") }, { GetTextW("LOC_LOADING_QUIP_5") }, { GetTextW("LOC_LOADING_QUIP_6") }, { GetTextW("LOC_LOADING_QUIP_7") }, 
-        { GetTextW("LOC_LOADING_QUIP_8") }, { GetTextW("LOC_LOADING_QUIP_9") }, { GetTextW("LOC_LOADING_QUIP_10") }, { GetTextW("LOC_LOADING_QUIP_11") }, 
-        { GetTextW("LOC_LOADING_QUIP_12") }, { GetTextW("LOC_LOADING_QUIP_13") }, { GetTextW("LOC_LOADING_QUIP_14") }, { GetTextW("LOC_LOADING_QUIP_15") }, 
-        { GetTextW("LOC_LOADING_QUIP_16") }, { GetTextW("LOC_LOADING_QUIP_17") }, { GetTextW("LOC_LOADING_QUIP_18") }, { GetTextW("LOC_LOADING_QUIP_19") }, 
-        { GetTextW("LOC_LOADING_QUIP_20") }, { GetTextW("LOC_LOADING_QUIP_21") }, { GetTextW("LOC_LOADING_QUIP_22") }, { GetTextW("LOC_LOADING_QUIP_23") }, 
-        { GetTextW("LOC_LOADING_QUIP_24") }, { GetTextW("LOC_LOADING_QUIP_25") }, { GetTextW("LOC_LOADING_QUIP_26") }, { GetTextW("LOC_LOADING_QUIP_27") }, 
+        { GetTextW("LOC_LOADING_QUIP_0") }, { GetTextW("LOC_LOADING_QUIP_1") }, { GetTextW("LOC_LOADING_QUIP_2") }, { GetTextW("LOC_LOADING_QUIP_3") },
+        { GetTextW("LOC_LOADING_QUIP_4") }, { GetTextW("LOC_LOADING_QUIP_5") }, { GetTextW("LOC_LOADING_QUIP_6") }, { GetTextW("LOC_LOADING_QUIP_7") },
+        { GetTextW("LOC_LOADING_QUIP_8") }, { GetTextW("LOC_LOADING_QUIP_9") }, { GetTextW("LOC_LOADING_QUIP_10") }, { GetTextW("LOC_LOADING_QUIP_11") },
+        { GetTextW("LOC_LOADING_QUIP_12") }, { GetTextW("LOC_LOADING_QUIP_13") }, { GetTextW("LOC_LOADING_QUIP_14") }, { GetTextW("LOC_LOADING_QUIP_15") },
+        { GetTextW("LOC_LOADING_QUIP_16") }, { GetTextW("LOC_LOADING_QUIP_17") }, { GetTextW("LOC_LOADING_QUIP_18") }, { GetTextW("LOC_LOADING_QUIP_19") },
+        { GetTextW("LOC_LOADING_QUIP_20") }, { GetTextW("LOC_LOADING_QUIP_21") }, { GetTextW("LOC_LOADING_QUIP_22") }, { GetTextW("LOC_LOADING_QUIP_23") },
+        { GetTextW("LOC_LOADING_QUIP_24") }, { GetTextW("LOC_LOADING_QUIP_25") }, { GetTextW("LOC_LOADING_QUIP_26") }, { GetTextW("LOC_LOADING_QUIP_27") },
         { GetTextW("LOC_LOADING_QUIP_28") }
     };
-    static uint32_t g_lastTime, g_txtChanges;
+    static uint32_t          g_lastTime, g_txtChanges;
     uint32_t now = timeGetTime();
     if (now - g_lastTime >= 500.0 || last) {
         ++g_txtChanges;
@@ -262,9 +288,9 @@ void ZWIFT_UpdateLoading(const UChar *text, bool last) {
         }
         GFX_Begin();
         VRAM_EndRenderTo(0);
-        glClearColor(1.0, 1.0, 1.0, 1.0);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         GFX_Clear(60);
-        LoadingRender(0.0, text);
+        LoadingRender(0.0f, text);
         //OMIT v6 = 0;
         //WDT_Tick(&v6);
         GFX_Present();
@@ -278,8 +304,8 @@ void MsgBoxAndExit(const char *lpText) {
 }
 
 //Unit Tests
-TEST(SmokeTest, Linkage) { //testing if libs are linked properly
-    AK::MemoryMgr::GetDefaultSettings(g_memSettings); //Wwize, not debuggable
+TEST(SmokeTest, Linkage) {                                        //testing if libs are linked properly
+    AK::MemoryMgr::GetDefaultSettings(g_memSettings);             //Wwize, not debuggable
     Noesis::GUI::SetLicense("NS_LICENSE_NAME", "NS_LICENSE_KEY"); //NOESIS, not debuggable
     EXPECT_TRUE(g_memSettings.pfAllocVM != nullptr) << "AK::MemoryMgr";
 
@@ -288,14 +314,14 @@ TEST(SmokeTest, Linkage) { //testing if libs are linked properly
     auto bs = fr.ByteSize();
     EXPECT_EQ(2, bs) << "protobuf::ByteSize";
 
-    boost::asio::io_context io_context; //boost ASIO, openssl
+    boost::asio::io_context        io_context; //boost ASIO, openssl
     boost::asio::ip::tcp::resolver resolver(io_context);
-    boost::asio::ssl::context ctx(boost::asio::ssl::context::sslv23);
+    boost::asio::ssl::context      ctx(boost::asio::ssl::context::sslv23);
     auto iocr = io_context.run(); //nothing to do
     EXPECT_EQ(0, iocr) << "io_context.run";
 
     z_stream strm{}; //zlib
-    auto di = deflateInit(&strm, 6);
+    auto     di = deflateInit(&strm, 6);
     EXPECT_EQ(0, di) << "deflateInit";
 
     tinyxml2::XMLDocument doc; //tinyxml2
@@ -310,7 +336,7 @@ TEST(SmokeTest, Linkage) { //testing if libs are linked properly
     EXPECT_EQ(0, dec) << "decContextTestEndian";
 
     UErrorCode uc_err = U_AMBIGUOUS_ALIAS_WARNING; //ICU
-    auto conv = ucnv_open("utf-8", &uc_err);
+    auto       conv = ucnv_open("utf-8", &uc_err);
     EXPECT_EQ(U_AMBIGUOUS_ALIAS_WARNING, uc_err) << "ucnv_open err";
     EXPECT_TRUE(conv != nullptr) << "ucnv_open";
     ucnv_close(conv);
@@ -320,7 +346,7 @@ TEST(SmokeTest, Linkage) { //testing if libs are linked properly
     EXPECT_STREQ("123\n", jss.c_str()) << "json.toStyledString";
 
     auto hMainWindow = glfwGetWin32Window(g_mainWindow); //glfw
-    EXPECT_TRUE(hMainWindow  == nullptr) << "glfwGetWin32Window";
+    EXPECT_TRUE(hMainWindow == nullptr) << "glfwGetWin32Window";
 
     char openssl_err[128];
     ERR_error_string_n(SSL_ERROR_WANT_READ, openssl_err, sizeof(openssl_err));

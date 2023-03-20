@@ -2,7 +2,7 @@
 std::deque<Downloader::CompletedFile>::iterator Downloader::FindCompleted(const std::string &path) {
     std::deque<CompletedFile>::iterator it = m_filesCompleted.begin();
     for (; it != m_filesCompleted.end(); it++)
-        if (it->m_name == path) 
+        if (it->m_name == path)
             break;
     return it;
 }
@@ -13,7 +13,7 @@ bool Downloader::CompletedSuccessfully(const std::string &path) {
     else
         return c->m_succ;
 }
-bool Downloader::Download/*IDA: DownloadStr*/(const std::string &path, std::function<void(const char *)> fsucc, void (*cbFail)(const std::string &, int)) {
+bool Downloader::Download/*IDA: DownloadStr*/ (const std::string &path, std::function<void(const char *)> fsucc, void (*cbFail)(const std::string &, int)) {
     for (auto &it : m_filesPending)
         if (it.m_name == path) {
             if (fsucc) it.m_succCallbacks.push_back(fsucc);
@@ -37,7 +37,7 @@ bool Downloader::Download/*IDA: DownloadStr*/(const std::string &path, std::func
     }
     return false;
 }
-void Downloader::Download/*IDA: DownloadCStr*/(const char *name, std::function<void(const char *)> fsucc) {
+void Downloader::Download/*IDA: DownloadCStr*/ (const char *name, std::function<void(const char *)> fsucc) {
     std::string sname(name);
     if (!Download(sname, fsucc, nullptr)) {
         PendingFile newPf;
@@ -64,7 +64,7 @@ Downloader::Downloader() {
     }
     m_constructed = true;
 }
-void Downloader::Download/*IDA: DownloadFptr*/(const std::string &name, uint64_t expectedLength, int64_t fileTime, uint32_t checksumWant, void (*cbFail)(const std::string &, int)) {
+void Downloader::Download/*IDA: DownloadFptr*/ (const std::string &name, uint64_t expectedLength, int64_t fileTime, uint32_t checksumWant, void (*cbFail)(const std::string &, int)) {
     auto f = FindCompleted(name);
     if (f != m_filesCompleted.end() && f->m_succ == false) {
         m_filesCompleted.erase(f);
@@ -115,7 +115,7 @@ size_t Downloader::CurlWriteData(char *ptr, size_t size, size_t nmemb, void *use
     char Source[1024];
     sprintf_s(Source, "Downloader::CurlWriteData(): 1st of buffer=%d, size=%d, count=%d, file=%p\n", *ptr, (int)size, (int)nmemb, userdata);
     strcpy_s(debugDestination, Source);
-    auto total_size = size * nmemb;
+    auto   total_size = size * nmemb;
     size_t i = 0;
     if (total_size >= 6 && !memcmp(ptr, "<html>", 6) && strstr_s(ptr, std::min(52ULL, total_size), "404 Not Found", 13))
         return 0;
@@ -123,8 +123,8 @@ size_t Downloader::CurlWriteData(char *ptr, size_t size, size_t nmemb, void *use
     auto written = fwrite(ptr, size, nmemb, f);
     if (written != total_size) {
         sprintf_s(Source, "Downloader::CurlWriteData(): ERROR: \"fwrite\" returned incorrect written bytes! passed=%d, written=%d\n",
-            (int)total_size,
-            (int)written);
+                  (int)total_size,
+                  (int)written);
         strcpy_s(debugDestination, Source);
         return 0;
     }
@@ -175,12 +175,12 @@ size_t SubstringPos(const char *path, size_t path_len, size_t offset, const char
     return fnd - path;
 }
 bool Downloader::EnsurePath(std::string path) {
-    std::error_code ec;
+    std::error_code       ec;
     std::replace(path.begin(), path.end(), '/', '\\');
     std::filesystem::path fpath(path);
-    if (!std::filesystem::create_directories(fpath.parent_path(), ec)) {
+    if (!std::filesystem::create_directories(fpath.parent_path(), ec) && ec) {
         auto msg = ec.message();
-        Log("Downloader: Failed to create_directories for %s. Error msg: %s.\n", path.c_str(), msg.c_str());
+        Log("Downloader: Failed to create_directories for %s. Error msg: %s\n", path.c_str(), msg.c_str());
         m_error = true;
         m_lastErrorCode = 117;
         return false;
@@ -223,9 +223,9 @@ void Downloader::Update() {
     do {
         m_curlmLastCode = curl_multi_perform(m_curlMulti, &m_curlStillRunning);
     } while (m_curlmLastCode == -1); //deprecated
-    int msgs_in_queue;
-    int cur_idx = 0;
-    CurrentFile *cur = nullptr;
+    int              msgs_in_queue;
+    int              cur_idx = 0;
+    CurrentFile      *cur = nullptr;
     std::vector<int> idx_del_cur;
     do {
         m_error = 0;
@@ -275,7 +275,7 @@ void Downloader::Update() {
                             cur->m_checksumGot = tmpcrc;
                         Log("Downloader: \"%s\" downloaded successfully (local checksum=%d, manifest checksum=%d).\n", fullname.c_str(), cur->m_checksumGot, cur->m_checksumWant);
                     }
-                    if (!g_mDownloader.m_error) 
+                    if (!g_mDownloader.m_error)
                         for (auto cbSuccess : cur->m_succCallbacks)
                             cbSuccess(fullname.c_str());
                 }
@@ -337,7 +337,7 @@ void Downloader::Update() {
         if (!will_repeat) {
             std::string fullPath(m_locp + cur->m_name);
             std::replace(fullPath.begin(), fullPath.end(), '/', '\\');
-            bool succ = (cur->m_failed == 0);
+            bool        succ = (cur->m_failed == 0);
             m_filesCompleted.emplace_back(fullPath, succ, 1);
             Log("Downloader::Update m_filesCompleted.push_back path=%s success=%d", fullPath.c_str(), succ);
             for (auto cbFail : cur->m_failCallbacks)
@@ -352,9 +352,9 @@ void Downloader::Update() {
             auto xnow = _Xtime_get_ticks();
             auto dt = xnow / 10000 - m_highLoadStartTime;
             if (dt > 50) {
-                auto now_clt = GetFileCurLengthTotal();
+                auto     now_clt = GetFileCurLengthTotal();
                 uint64_t delta = now_clt - m_highLoadStartLength;
-                float fdelta;
+                float    fdelta;
                 if ((int64_t)delta < 0)
                     fdelta = (float)(int)(delta & 1 | (delta >> 1)) + (float)(int)(delta & 1 | (delta >> 1));
                 else
@@ -375,7 +375,7 @@ void Downloader::Update() {
     while (m_filesCurrent.size() < m_limitCurrents && !m_filesPending.empty()) {
         m_error = 0;
         m_lastErrorCode = 100;
-        auto pend_src = m_filesPending.front();
+        auto        pend_src = m_filesPending.front();
         std::string fileName(pend_src.m_locp + pend_src.m_name);
         std::replace(fileName.begin(), fileName.end(), '/', '\\');
         if (!EnsurePath(fileName)) {

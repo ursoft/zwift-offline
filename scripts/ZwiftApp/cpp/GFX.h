@@ -481,3 +481,4 @@ template <typename T> void GFX_DrawPrimitive(GFX_PRIM_TYPE t, const T *data, uin
     }
 }
 inline void GFX_Draw2DQuad_UI(float l, float t, float w, float h, int color) { GFX_Draw2DQuad(l, t, w, h, color, true); }
+inline float GFX_UI_GetCurrentSpaceWidth() { return g_CurrentUISpace_Width; }

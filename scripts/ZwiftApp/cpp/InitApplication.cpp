@@ -20,7 +20,7 @@ void WindowSizeCallback(GLFWwindow *wnd, int w, int h) {
         g_view_x = ((float)g_width - g_view_w) * 0.5f;
     }
     if (auto pNoesisGUI = g_pNoesisGUI.lock()) {
-        pNoesisGUI->sub_7FF6D4A23DC0(g_width, g_height, 0/*v7*/, 0/*rx_w*/);
+        pNoesisGUI->sub_7FF6D4A23DC0(g_width, g_height, 0 /*v7*/, 0 /*rx_w*/);
     }
 }
 void WindowFocusCallback(GLFWwindow *, int) {
@@ -29,19 +29,47 @@ void WindowFocusCallback(GLFWwindow *, int) {
 void FramebufferSizeCallback(GLFWwindow *, int, int) {
     //TODO
 }
-void CharModsCallback(GLFWwindow *, uint32_t, int) {
+void CharModsCallback(GLFWwindow *, uint32_t codePoint, int keyModifiers) {
     //TODO
+    //GLFW_MOD_SHIFT           0x0001, GLFW_MOD_CONTROL         0x0002, GLFW_MOD_ALT             0x0004, GLFW_MOD_SUPER           0x0008
+    CONSOLE_KeyFilter(codePoint, keyModifiers | 0x2000);
 }
 void MouseButtonCallback(GLFWwindow *, int, int, int) {
     //TODO
 }
-void KeyCallback(GLFWwindow *, int, int, int, int) {
+void KeyCallback(GLFWwindow *, int key, int scanCode, int action, int mods) {
+    //URSOFT FIX (anti-bouncing algo)
+    static int      lastTime = timeGetTime(), lastMod = -1;
+    static uint32_t lastCodePoint = -1, waiting = 300;
+    auto            nowTime = timeGetTime();
+    if (nowTime - lastTime > 300)
+        waiting = 300;
+    if (lastCodePoint == key && lastMod == mods && nowTime - lastTime < waiting)
+        return;
+    if (lastCodePoint == key && lastMod == mods) {
+        if (waiting == 300)
+            waiting = 100;
+    } else {
+        waiting = 300;
+    }
+    lastCodePoint = key;
+    lastMod = mods;
+    lastTime = nowTime;
+    if (action == GLFW_RELEASE)
+        lastCodePoint = -1;
     //TODO
+    if (action == GLFW_PRESS || (action == GLFW_REPEAT && (key == GLFW_KEY_BACKSPACE || key == GLFW_KEY_PAGE_UP || key == GLFW_KEY_PAGE_DOWN || key == GLFW_KEY_UP || key == GLFW_KEY_DOWN || key == GLFW_KEY_HOME || key == GLFW_KEY_END)))
+        if (key > 255 || (mods & (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) == GLFW_MOD_CONTROL)
+            CONSOLE_KeyFilter(key, mods);
 }
 void WindowCloseCallback(GLFWwindow *) {
     //TODO
 }
-void ScrollCallback(GLFWwindow *, double, double) {
+void ScrollCallback(GLFWwindow *wnd, double, double dir) { //mouse scrolling
+    auto v3 = -1;
+    if (dir > 0.0)
+        v3 = 1;
+    ScrollLog(v3);
     //TODO
 }
 void CursorPosCallback(GLFWwindow *, double, double) {
@@ -57,11 +85,11 @@ void SetIcon() {
 }
 #include "optionparser.h"
 enum optionIndex { UNKNOWN, LAUNCHER, TOKEN };
-const option::Descriptor g_countOptsMetadata[] = { 
-    {UNKNOWN,  0, "" , "",                 option::Arg::None,     "USAGE: ZwiftAdmin [options]\n\nOptions:"},
-    {LAUNCHER, 0, "l", "launcher_version", option::Arg::Optional, "  --launcher_version=1.0.8     The version of the Launcher"},
-    {TOKEN,    0, "t", "token",            option::Arg::Optional, "  --token=jsonToken     Login Token"},
-    {UNKNOWN,  0, "" , "",                 option::Arg::None,     "\nExamples:\n  example --launcher_version=1.0.8 --token=jsonToken\n"}, {}};
+const option::Descriptor        g_countOptsMetadata[] = {
+    { UNKNOWN, 0, "", "", option::Arg::None, "USAGE: ZwiftAdmin [options]\n\nOptions:" },
+    { LAUNCHER, 0, "l", "launcher_version", option::Arg::Optional, "  --launcher_version=1.0.8     The version of the Launcher" },
+    { TOKEN, 0, "t", "token", option::Arg::Optional, "  --token=jsonToken     Login Token" },
+    { UNKNOWN, 0, "", "", option::Arg::None, "\nExamples:\n  example --launcher_version=1.0.8 --token=jsonToken\n" }, {} };
 std::unique_ptr<CrashReporting> g_sCrashReportingUPtr;
 void LauncherUpdate(const std::string &launcherVersion) {
     //OMIT (if launcherVersion < "1.1.1" -> restart and update)
@@ -80,7 +108,7 @@ void BroadcastPrompt(EVENT_ID, va_list) {
 void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_MainThread = GetCurrentThreadId();
     uint32_t startTime = timeGetTime();
-    auto evSysInst = EventSystem::GetInst();
+    auto     evSysInst = EventSystem::GetInst();
     zassert(g_sCrashReportingUPtr.get() == nullptr);
     CrashReporting::Initialize(evSysInst);
     Experimentation::Initialize(evSysInst);
@@ -105,7 +133,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     std::vector<option::Option> options(stats.options_max);
     std::vector<option::Option> buffer(stats.buffer_max);
     option::Parser parse(g_countOptsMetadata, useful_argc, myargv, &options[0], &buffer[0]);
-    auto launcherVer = options[LAUNCHER].arg;
+    auto           launcherVer = options[LAUNCHER].arg;
     if (launcherVer)
         LauncherUpdate(launcherVer);
     GFX_SetLoadedAssetMode(true);
@@ -160,7 +188,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     if (!g_RaceDictionary->LoadFromData())
         LogTyped(LOG_ERROR, "[ZwiftApp] Failed to load Race Dictionary!");
     SetupConsoleCommands();
-    LOC_SetLanguageChangeCallback(LanguageChangeCallback);// GameLocalization::Init
+    LOC_SetLanguageChangeCallback(LanguageChangeCallback); // GameLocalization::Init
     auto wadhLoc = g_WADManager.GetWadFileHeaderByItemName(
         "Localization/Localization.xml", WAD_ASSET_TYPE::GLOBAL, nullptr);
     if (wadhLoc)
@@ -199,26 +227,26 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_GiantFontW.SetScaleAndKerning(0.34108528, 0.93000001);
     ZWIFT_UpdateLoading(nullptr, false); //first screen
     switch (GFX_GetPerformanceGroup()) {
-    case GPG_BASIC:
-        Log("Using basic graphics profile");
-        g_nSkipMipCount = 2;
-        COMMAND_RunCommandsFromFile("basic");
-        break;
-    case GPG_MEDIUM:
-        Log("Using medium graphics profile");
-        g_nSkipMipCount = 1;
-        COMMAND_RunCommandsFromFile("medium");
-        break;
-    case GPG_HIGH:
-        Log("Using high graphics profile");
-        g_nSkipMipCount = 0;
-        COMMAND_RunCommandsFromFile("high");
-        break;
-    case GPG_ULTRA:
-        Log("Using ultra graphics profile");
-        g_nSkipMipCount = 0;
-        COMMAND_RunCommandsFromFile("ultra");
-        break;
+        case GPG_BASIC:
+            Log("Using basic graphics profile");
+            g_nSkipMipCount = 2;
+            COMMAND_RunCommandsFromFile("basic");
+            break;
+        case GPG_MEDIUM:
+            Log("Using medium graphics profile");
+            g_nSkipMipCount = 1;
+            COMMAND_RunCommandsFromFile("medium");
+            break;
+        case GPG_HIGH:
+            Log("Using high graphics profile");
+            g_nSkipMipCount = 0;
+            COMMAND_RunCommandsFromFile("high");
+            break;
+        case GPG_ULTRA:
+            Log("Using ultra graphics profile");
+            g_nSkipMipCount = 0;
+            COMMAND_RunCommandsFromFile("ultra");
+            break;
     }
     if (GFX_GetPerformanceFlags() & 3) {
         GfxConfig::gLODBias = 1;
@@ -229,8 +257,8 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         g_nSkipMipCount = 2;
     ZWIFT_UpdateLoading(nullptr, false);
     GFX_SetMaxFPSOnBattery(float(g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\BATTPREFS", 20, true)));
-    auto s_urp = g_UserConfigDoc.GetCStr("ZWIFT\\CONFIG\\USER_RESOLUTION_PREF", nullptr, true);
-    char cmdRes[32];
+    auto       s_urp = g_UserConfigDoc.GetCStr("ZWIFT\\CONFIG\\USER_RESOLUTION_PREF", nullptr, true);
+    char       cmdRes[32];
     const char *cmdRes_do = nullptr;
     if (s_urp) {
         sprintf_s(cmdRes, "res %s", s_urp);
@@ -279,8 +307,8 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     Log("Graphics Renderer: %s", r ? r : "UNKNOWN");
     if (GetPhysicallyInstalledSystemMemory(&g_TotalMemoryInKilobytes))
         Log("RAM: %dGB", g_TotalMemoryInKilobytes >> 20);
-    int CPUInfo[4] = { -1 };
-    unsigned   nExIds, i = 0;
+    int      CPUInfo[4] = { -1 };
+    unsigned nExIds, i = 0;
     // Get the information associated with each extended ID.
     __cpuid(CPUInfo, 0x80000000);
     nExIds = CPUInfo[0];
@@ -308,13 +336,13 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     v400._Mysize = 0i64;
     v400._Myres = 15i64;
     v401._Ptr = 0i64;
-    *&v402 = 0i64;
+    * &v402 = 0i64;
     *(&v402 + 1) = 15i64;
     Bx._Ptr = 0i64;
-    *&v404 = 0i64;
+    * &v404 = 0i64;
     *(&v404 + 1) = 15i64;
     v405._Ptr = 0i64;
-    *&v406 = 0i64;
+    * &v406 = 0i64;
     *(&v406 + 1) = 15i64;
     v407._Bx._Ptr = 0i64;
     v407._Mysize = 0i64;
@@ -339,20 +367,17 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     string_assign(&v400, "1.32.1", v221);
     v222 = GFX_GetAPIName();
     v223 = zu::ToUpper(&coa2, v222);
-    if (&Bx != v223)
-    {
-        if (*(&v404 + 1) >= 0x10ui64)
-        {
+    if (&Bx != v223) {
+        if (*(&v404 + 1) >= 0x10ui64) {
             v224 = Bx._Ptr;
-            if ((*(&v404 + 1) + 1i64) >= 0x1000)
-            {
+            if ((*(&v404 + 1) + 1i64) >= 0x1000) {
                 v224 = *(Bx._Ptr - 1);
                 if ((Bx._Ptr - v224 - 8) > 0x1F)
                     invalid_parameter_noinfo_noreturn();
             }
             j_j_free(v224);
         }
-        *&v404 = 0i64;
+        * &v404 = 0i64;
         *(&v404 + 1) = 15i64;
         Bx._Buf[0] = 0;
         Bx = v223->_Bx;
@@ -364,20 +389,17 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     string_dtr(&coa2.vptr);
     v225 = GFX_GetRendererName();
     v226 = zu::ToUpper(&coa2, v225);
-    if (&v401 != v226)
-    {
-        if (*(&v402 + 1) >= 0x10ui64)
-        {
+    if (&v401 != v226) {
+        if (*(&v402 + 1) >= 0x10ui64) {
             v227 = v401._Ptr;
-            if ((*(&v402 + 1) + 1i64) >= 0x1000)
-            {
+            if ((*(&v402 + 1) + 1i64) >= 0x1000) {
                 v227 = *(v401._Ptr - 1);
                 if ((v401._Ptr - v227 - 8) > 0x1F)
                     invalid_parameter_noinfo_noreturn();
             }
             j_j_free(v227);
         }
-        *&v402 = 0i64;
+        * &v402 = 0i64;
         *(&v402 + 1) = 15i64;
         v401._Buf[0] = 0;
         v401 = v226->_Bx;
@@ -389,20 +411,17 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     string_dtr(&coa2.vptr);
     v228 = GFX_GetVendorName();
     v229 = zu::ToUpper(&coa2, v228);
-    if (&v405 != v229)
-    {
-        if (*(&v406 + 1) >= 0x10ui64)
-        {
+    if (&v405 != v229) {
+        if (*(&v406 + 1) >= 0x10ui64) {
             v230 = v405._Ptr;
-            if ((*(&v406 + 1) + 1i64) >= 0x1000)
-            {
+            if ((*(&v406 + 1) + 1i64) >= 0x1000) {
                 v230 = *(v405._Ptr - 1);
                 if ((v405._Ptr - v230 - 8) > 0x1F)
                     invalid_parameter_noinfo_noreturn();
             }
             j_j_free(v230);
         }
-        *&v406 = 0i64;
+        * &v406 = 0i64;
         *(&v406 + 1) = 15i64;
         v405._Buf[0] = 0;
         v405 = v229->_Bx;
@@ -528,7 +547,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_ShadowmapSkinShader = GFX_CreateShaderFromFile("shadowmapSkin", -1);
     g_SkinShaderHologram = GFX_CreateShaderFromFile("skinShaderHologram", -1);
     g_grayScaleShader = GFX_CreateShaderFromFile("grayScale", -1);
-    GNSceneCreateParams sceneParams{0, 0x100010, 0x100010 };
+    GNSceneCreateParams sceneParams{ 0, 0x100010, 0x100010 };
     if (GFX_GetTier()) {
         auto _WorldShaderTerrainHandle = GFX_CreateShader(GFX_CreateShaderParams{ "GNdefaultWorld_Terrain" });
         auto _WorldShaderTerrainHeightMapHandle = GFX_CreateShader(GFX_CreateShaderParams{ "GNdefaultWorld_Terrain", 1 });
@@ -586,8 +605,8 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
             && _RoadWetShader != -1 && _WorldShaderHandle != -1 && _WorldShaderBillboardedHandle != -1 && _WorldShaderInstancedHandle != -1 && _WorldShaderInstancedTerrainConformingHandle != -1
             && _BikeShaderInstancedHandle != -1 && _SkinShader != -1 && _ShadowmapSkinShader != -1 && _HairShaderHandle != -1 && _ShadowmapHairShaderHandle != -1 && _TestShaderHandle != -1
             && _ShadowmapShaderHandle != -1 && _ShadowmapInstancedShaderHandle != -1 && _VegetationShaderHandle != -1 && _VegetationShaderInstancedHandle != -1 && _VegetationShadowmapShaderHandle != -1
-            && _VegetationShadowmapInstancedShaderHandle != -1 && _VegetationShaderInstancedTerrainConformHandle != -1 && _WaterShader != -1 && _WaterShader2 != -1 && _bibShader != -1 
-            && GameShaders::shGNLinearizeDepth != -1 && GameShaders::shGNDownsampleLinearizeDepth != -1&& GameShaders::shGNRoadSSR != -1) {
+            && _VegetationShadowmapInstancedShaderHandle != -1 && _VegetationShaderInstancedTerrainConformHandle != -1 && _WaterShader != -1 && _WaterShader2 != -1 && _bibShader != -1
+            && GameShaders::shGNLinearizeDepth != -1 && GameShaders::shGNDownsampleLinearizeDepth != -1 && GameShaders::shGNRoadSSR != -1) {
             sceneParams.m_tier = 1;
             sceneParams.m_field_18 = -10.0f;
             sceneParams.m_field_1C = 1.0f;
@@ -725,7 +744,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         if (!UI_DialogPointer(UID_CONNECTION_NOTIFICATIONS))
             UI_CreateDialog(UID_CONNECTION_NOTIFICATIONS, nullptr, nullptr);
         ZWIFT_UpdateLoading(nullptr, false);
-        auto ltd = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", -1, true);
+        auto     ltd = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", -1, true);
         uint64_t Power;
         if (ltd != -1 && (Power = ZwiftPowers::GetInst()->GetPower(ltd)) != 0) {
             BikeManager::Instance()->m_mainBike->m_bc->m_lastPower = Power;
@@ -736,7 +755,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         evSysInst->Subscribe(EV_SLIPPING_ON, PopWheelSlippingMessage);
         evSysInst->Subscribe(EV_SLIPPING_OFF, ClearWheelSlippingMessage);
         evSysInst->Subscribe(EV_BC_PROMPT, BroadcastPrompt);
-        glClearColor(0.21176472, 0.24313727, 0.27843139, 0.0);
+        glClearColor(0.21176472f, 0.24313727f, 0.27843139f, 0.0f);
         glfwSetCharModsCallback(g_mainWindow, CharModsCallback);
         glfwSetKeyCallback(g_mainWindow, KeyCallback);
         glfwSetMouseButtonCallback(g_mainWindow, MouseButtonCallback);
@@ -807,7 +826,7 @@ void ShutdownSingletons() {
         NoesisPerfAnalytics::Shutdown();
     //CrashReporting::AddBreadcrumb(0i64, "Shutting down GoalsManager");
     GoalsManager::Shutdown();
-   //CrashReporting::AddBreadcrumb(0i64, "Shutting down UnitTypeManager");
+    //CrashReporting::AddBreadcrumb(0i64, "Shutting down UnitTypeManager");
     UnitTypeManager::Shutdown();
     //CrashReporting::AddBreadcrumb(0i64, "Shutting down ClientTelemetry");
     ClientTelemetry::Shutdown();

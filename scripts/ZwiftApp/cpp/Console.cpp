@@ -32,7 +32,7 @@ void CONSOLE_AddCommand(const char *name, CMD_bool f1, CMD_static_str f2, CMD_ac
     for (int i = 0; i < g_knownCommandsCounter; i++)
         if (g_knownCommands[i] == newObj)
             return;
-    g_knownCommands[g_knownCommandsCounter++];
+    g_knownCommands[g_knownCommandsCounter++] = newObj;
 }
 const char *GAMEPATH(const char *path) {
     zassert(g_MainThread == GetCurrentThreadId());
@@ -48,7 +48,7 @@ bool COMMAND_RunCommandsFromFile(const char *name) {
     while (!feof(f)) {
         buf[0] = 0;
         fgets(buf, sizeof(buf) - 1, f);
-        if(*buf)
+        if (*buf)
             COMMAND_RunCommand(buf);
     }
     fclose(f);
@@ -59,10 +59,10 @@ void StripPaddedSpaces(std::string *dest, const std::string &src) {
     if (srcSize) {
         int i = 0, j = srcSize - 1;
         for (; i < srcSize; ++i)
-            if (src[i] != ' ')
+            if (!std::isspace(src[i]))
                 break;
         for (; j > i; --j)
-            if (src[j] != ' ')
+            if (!std::isspace(src[j]))
                 break;
         dest->assign(src, i, j - i + 1);
     } else {
@@ -72,7 +72,7 @@ void StripPaddedSpaces(std::string *dest, const std::string &src) {
 void SplitCommand(const std::string &cmd, std::string *name, std::string *params, char delim) {
     int i = 0;
     for (; i < cmd.size(); ++i)
-        if (cmd[i] == delim)
+        if (cmd[i] == delim || cmd[i] < ' ' /*CR etc*/)
             break;
     name->assign(cmd, 0, i);
     if (i >= cmd.size())
@@ -80,18 +80,17 @@ void SplitCommand(const std::string &cmd, std::string *name, std::string *params
     else
         StripPaddedSpaces(params, std::string(cmd, i, cmd.size() - i));
 }
-bool findStringIC(const std::string &strHaystack, const std::string &strNeedle)
-{
+bool findStringIC(const std::string &strHaystack, const std::string &strNeedle) {
     auto it = std::search(
         strHaystack.begin(), strHaystack.end(),
         strNeedle.begin(), strNeedle.end(),
         [](unsigned char ch1, unsigned char ch2) { return std::toupper(ch1) == std::toupper(ch2); }
-    );
-    return (it != strHaystack.end());
+        );
+    return it != strHaystack.end();
 }
 bool iequals(const std::string &a, const std::string &b) {
     return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-        [](char a, char b) { return tolower(a) == tolower(b); });
+                      [](char a, char b) { return tolower(a) == tolower(b); });
 }
 void FindCommands(std::vector<ConsoleCommandFuncs *> *dest, const std::string &name) {
     for (int i = 0; i < g_knownCommandsCounter; ++i) {
@@ -111,7 +110,10 @@ void FindCommands(std::vector<ConsoleCommandFuncs *> *dest, const std::string &n
     }
 }
 bool COMMAND_RunCommand(const char *cmd) {
-    std::string scmd(cmd), name, params;
+    while (isspace(*cmd)) ++cmd;
+    int         i = strlen(cmd);
+    while (i > 0 && isspace(cmd[i - 1])) i--;
+    std::string scmd(cmd, i), name, params;
     SplitCommand(scmd, &name, &params, ' ');
     std::vector<ConsoleCommandFuncs *> foundCommands;
     FindCommands(&foundCommands, name);
@@ -130,7 +132,7 @@ bool COMMAND_RunCommand(const char *cmd) {
     }
     if (!selFunc || foundCommands.empty()) {
         CMD_Set(cmd);
-        LogTyped(LOG_COMMAND_OUTPUT, "Unknown command \"%s\"", cmd);
+        LogTyped(LOG_COMMAND_OUTPUT, "Unknown command \"%s\"", scmd.c_str());
     } else {
         LogTyped(LOG_COMMAND, "%s", cmd);
         if (selFunc->m_bool)
@@ -196,8 +198,27 @@ bool CMD_ChangeRes(const char *par) {
     }
     return true;
 }
-bool CMD_ChangeShadowRes(const char *) {
-    return true; //TODO
+bool CMD_ChangeShadowRes(const char *par) {
+    int w, h;
+    if (strstr(par, "x")) {
+        sscanf(par, "%dx%d", &w, &h);
+        if (sscanf(par, "%dx%d", &w, &h) != 2 || w < 0x100 || h < 0x100 || w > 0x1000 || h > 0x1000) {
+            LogTyped(LOG_COMMAND_OUTPUT, "Error with resolution values (%d x %d)\n", w, h);
+            return 0;
+        }
+        SHADOWMAP_WIDTH = w;
+        SHADOWMAP_HEIGHT = h;
+        VRAM_CreateAllRenderTargets();
+        LogTyped(LOG_COMMAND_OUTPUT, "Changed shadow resolution to %d x %d\n", w, h);
+    } else {
+        LogTyped(
+            LOG_COMMAND_OUTPUT,
+            "Current SHADOW resolution is %d x %d",
+            SHADOWMAP_WIDTH,
+            SHADOWMAP_HEIGHT);
+        LogTyped(LOG_COMMAND_OUTPUT, "To Change use: sres WIDTHxHEIGHT");
+    }
+    return true;
 }
 bool CMD_TrainerSetSimGrade(const char *arg) {
     float v = 0.0;
@@ -244,144 +265,437 @@ bool CMD_ShowUI(const char *) {
 bool CMD_Help(const char *) {
     LogTyped(LOG_COMMAND_OUTPUT, "Known Commands: ");
     for (int i = 0; i < g_knownCommandsCounter; i++)
-        LogTyped(LOG_COMMAND_OUTPUT, "%s", g_knownCommands[i].m_name);
+        LogTyped(LOG_COMMAND_OUTPUT, "%s", g_knownCommands[i].m_name.c_str());
     return true;
 }
 bool CMD_ToggleLog(const char *) {
-    g_Console.m_visible = !g_Console.m_visible;
+    g_Console.m_logVisible = !g_Console.m_logVisible;
     return true;
 }
 bool CMD_Set(const char *) {
     return true; //TODO
 }
-CMD_AutoCompleteParamSearchResults CMD_Set3(const char *) {
-    return TODO; //TODO
+void CMD_Set3(CMD_AutoCompleteParamSearchResults *dest, const char *par) {
+    return; //TODO
 }
 std::string CMD_Set4(const char *) {
-    return ""; //TODO
+    return "set <TweakableID> [parameters] {sets TweakableID to parameters; use 'listvars' to show all tweakable IDs}";
 }
-bool CMD_ListVars(const char *) {
-    return true; //TODO
+bool CMD_ListVars(const char *) { //TweakMaster_DumpMatchedToLog
+    return true;                  //TODO
 }
 std::string CMD_ListVars4(const char *) {
-    return ""; //TODO
+    return "listvars {prints all Tweakable IDs to console log; use 'set' to modify a Tweakable}";
 }
 //non-zwift: console redirection (useful for debugging and unit testing)
 //https://stackoverflow.com/questions/191842/how-do-i-get-console-output-in-c-with-a-windows-program
 namespace non_zwift {
-    bool RedirectConsoleIO() {
-        bool result = true;
-        FILE *fp;
-        // Redirect STDIN if the console has an input handle
-        if (GetStdHandle(STD_INPUT_HANDLE) != INVALID_HANDLE_VALUE)
-            if (freopen_s(&fp, "CONIN$", "r", stdin) != 0)
-                result = false;
-            else
-                setvbuf(stdin, NULL, _IONBF, 0);
-        // Redirect STDOUT if the console has an output handle
-        if (GetStdHandle(STD_OUTPUT_HANDLE) != INVALID_HANDLE_VALUE)
-            if (freopen_s(&fp, "CONOUT$", "w", stdout) != 0)
-                result = false;
-            else
-                setvbuf(stdout, NULL, _IONBF, 0);
-        // Redirect STDERR if the console has an error handle
-        if (GetStdHandle(STD_ERROR_HANDLE) != INVALID_HANDLE_VALUE)
-            if (freopen_s(&fp, "CONOUT$", "w", stderr) != 0)
-                result = false;
-            else
-                setvbuf(stderr, NULL, _IONBF, 0);
-        // Make C++ standard streams point to console as well.
-        std::ios::sync_with_stdio(true);
-        // Clear the error state for each of the C++ standard streams.
-        std::wcout.clear();
-        std::cout.clear();
-        std::wcerr.clear();
-        std::cerr.clear();
-        std::wcin.clear();
-        std::cin.clear();
-        return result;
-    }
-    bool ReleaseConsole() {
-        bool result = true;
-        FILE *fp;
-        // Just to be safe, redirect standard IO to NUL before releasing.
-        // Redirect STDIN to NUL
-        if (freopen_s(&fp, "NUL:", "r", stdin) != 0)
+bool RedirectConsoleIO() {
+    bool result = true;
+    FILE *fp;
+    // Redirect STDIN if the console has an input handle
+    if (GetStdHandle(STD_INPUT_HANDLE) != INVALID_HANDLE_VALUE)
+        if (freopen_s(&fp, "CONIN$", "r", stdin) != 0)
             result = false;
         else
             setvbuf(stdin, NULL, _IONBF, 0);
-        // Redirect STDOUT to NUL
-        if (freopen_s(&fp, "NUL:", "w", stdout) != 0)
+    // Redirect STDOUT if the console has an output handle
+    if (GetStdHandle(STD_OUTPUT_HANDLE) != INVALID_HANDLE_VALUE)
+        if (freopen_s(&fp, "CONOUT$", "w", stdout) != 0)
             result = false;
         else
             setvbuf(stdout, NULL, _IONBF, 0);
-        // Redirect STDERR to NUL
-        if (freopen_s(&fp, "NUL:", "w", stderr) != 0)
+    // Redirect STDERR if the console has an error handle
+    if (GetStdHandle(STD_ERROR_HANDLE) != INVALID_HANDLE_VALUE)
+        if (freopen_s(&fp, "CONOUT$", "w", stderr) != 0)
             result = false;
         else
             setvbuf(stderr, NULL, _IONBF, 0);
-        // Detach from console
-        if (!FreeConsole())
-            result = false;
-        return result;
-    }
-    void AdjustConsoleBuffer(int16_t minLength) {
-        // Set the screen buffer to be big enough to scroll some text
-        CONSOLE_SCREEN_BUFFER_INFO conInfo;
-        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &conInfo);
-        if (conInfo.dwSize.Y < minLength)
-            conInfo.dwSize.Y = minLength;
-        SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), conInfo.dwSize);
-    }
-    bool CreateNewConsole(int16_t minLength) {
-        bool result = false;
-        // Release any current console and redirect IO to NUL
-        ReleaseConsole();
-        // Attempt to create new console
-        if (AllocConsole()) {
-            AdjustConsoleBuffer(minLength);
-            result = RedirectConsoleIO();
-        }
-        return result;
-    }
-    bool AttachParentConsole(int16_t minLength) {
-        bool result = false;
-        // Release any current console and redirect IO to NUL
-        ReleaseConsole();
-        // Attempt to attach to parent process's console
-        if (AttachConsole(ATTACH_PARENT_PROCESS)) {
-            AdjustConsoleBuffer(minLength);
-            result = RedirectConsoleIO();
-        }
-        return result;
-    }
-    ConsoleHandler::ConsoleHandler(int16_t minLength) {
-        m_releaseNeed = AttachParentConsole(minLength);
-        if (!m_releaseNeed) {
-            m_releaseNeed = CreateNewConsole(minLength);
-            OutputDebugStringA("non_zwift: ConsoleHandler: AttachParentConsole failed");
-        }
-        if (!m_releaseNeed)
-            OutputDebugStringA("non_zwift: ConsoleHandler: CreateNewConsole failed");
-    }
-    bool ConsoleHandler::LaunchUnitTests(int argc, char **argv) {
-        ::testing::InitGoogleTest(&argc, argv);
-        return RUN_ALL_TESTS() == 0;
-    }
-    ConsoleHandler::~ConsoleHandler() {
-        if (m_releaseNeed)
-            ReleaseConsole();
-    }
-    //for google tests
-    int main(int argc, char **argv) {
-        ::testing::InitGoogleTest(&argc, argv);
-        return RUN_ALL_TESTS();
-    }
+    // Make C++ standard streams point to console as well.
+    std::ios::sync_with_stdio(true);
+    // Clear the error state for each of the C++ standard streams.
+    std::wcout.clear();
+    std::cout.clear();
+    std::wcerr.clear();
+    std::cerr.clear();
+    std::wcin.clear();
+    std::cin.clear();
+    return result;
 }
+bool ReleaseConsole() {
+    bool result = true;
+    FILE *fp;
+    // Just to be safe, redirect standard IO to NUL before releasing.
+    // Redirect STDIN to NUL
+    if (freopen_s(&fp, "NUL:", "r", stdin) != 0)
+        result = false;
+    else
+        setvbuf(stdin, NULL, _IONBF, 0);
+    // Redirect STDOUT to NUL
+    if (freopen_s(&fp, "NUL:", "w", stdout) != 0)
+        result = false;
+    else
+        setvbuf(stdout, NULL, _IONBF, 0);
+    // Redirect STDERR to NUL
+    if (freopen_s(&fp, "NUL:", "w", stderr) != 0)
+        result = false;
+    else
+        setvbuf(stderr, NULL, _IONBF, 0);
+    // Detach from console
+    if (!FreeConsole())
+        result = false;
+    return result;
+}
+void AdjustConsoleBuffer(int16_t minLength) {
+    // Set the screen buffer to be big enough to scroll some text
+    CONSOLE_SCREEN_BUFFER_INFO conInfo;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &conInfo);
+    if (conInfo.dwSize.Y < minLength)
+        conInfo.dwSize.Y = minLength;
+    SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), conInfo.dwSize);
+}
+bool CreateNewConsole(int16_t minLength) {
+    bool result = false;
+    // Release any current console and redirect IO to NUL
+    ReleaseConsole();
+    // Attempt to create new console
+    if (AllocConsole()) {
+        AdjustConsoleBuffer(minLength);
+        result = RedirectConsoleIO();
+    }
+    return result;
+}
+bool AttachParentConsole(int16_t minLength) {
+    bool result = false;
+    // Release any current console and redirect IO to NUL
+    ReleaseConsole();
+    // Attempt to attach to parent process's console
+    if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+        AdjustConsoleBuffer(minLength);
+        result = RedirectConsoleIO();
+    }
+    return result;
+}
+ConsoleHandler::ConsoleHandler(int16_t minLength) {
+    m_releaseNeed = AttachParentConsole(minLength);
+    if (!m_releaseNeed) {
+        m_releaseNeed = CreateNewConsole(minLength);
+        OutputDebugStringA("non_zwift: ConsoleHandler: AttachParentConsole failed");
+    }
+    if (!m_releaseNeed)
+        OutputDebugStringA("non_zwift: ConsoleHandler: CreateNewConsole failed");
+}
+bool ConsoleHandler::LaunchUnitTests(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS() == 0;
+}
+ConsoleHandler::~ConsoleHandler() {
+    if (m_releaseNeed)
+        ReleaseConsole();
+}
+//for google tests
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+} // namespace non_zwift
 bool CMD_SetLanguage(const char *lang) {
     auto l = LOC_GetLanguageFromString(lang);
     if (l == LOC_CNT)
         return false;
     LOC_SetLanguageFromEnum(l, true);
     return true;
+}
+void CONSOLE_DrawCmdline(const ConsoleRenderer &cr, const char *line) {
+    g_LargeFontW.RenderWString(cr.m_cmdX1, cr.m_cmdY, ">", 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
+    g_LargeFontW.RenderWString(cr.m_cmdX2, cr.m_cmdY, line, 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
+}
+void CONSOLE_DrawPar(const ConsoleRenderer &cr, const char *str, int *lineNo, int lineCount, LOG_TYPE lineType) {
+    auto ustr = ToUTF8_ib(str);
+    auto mea = g_LargeFontW.GetParagraphLineCountW(cr.m_width, ustr, g_Console.LargeFontScale, 0.0f, false);
+    int  lines = g_LargeFontW.RenderParagraphW(15.0f, cr.m_atY + 16.0f * (lineCount - mea + 1 - *lineNo),
+                                               cr.m_width, cr.m_height, ustr, ConsoleRenderer::TYPE_COLORS[lineType],
+                                               0,
+                                               0.35f, //URSOFT FIX (was 0.4)
+                                               true,
+                                               0.886f, //URSOFT FIX (was 1.0)
+                                               0.0f,
+                                               cr.m_atY + 16.0f /*URSOFT FIX, otherwise multiline overwrites top line*/);
+    if (lines > 1)
+        *lineNo += lines - 1;
+}
+void ScrollLog(int dir) {
+    int maxScroll = LogGetLineCount() - (LOGC_PAGE + 1);
+    g_scrollLogPos = std::clamp(g_scrollLogPos + (dir <= 0 ? 1 : -1), 0, maxScroll);
+    g_overflowScroll = (g_scrollLogPos > maxScroll);
+}
+float     g_blinkTime;
+const int CONSOLE_CMD_BUF = 1024, CONSOLE_CMDS_HISTORY = 16;
+char      g_consoleCommand[CONSOLE_CMD_BUF], g_consoleCmdHistory[CONSOLE_CMDS_HISTORY][CONSOLE_CMD_BUF], g_consoleCmdHistoryIdx;
+void ConsoleRenderer::Update(float atY) {
+    if (m_mirrorY)
+        atY = -atY;
+    m_atY = atY;
+    m_height = 1280.0f / VRAM_GetUIAspectRatio();
+    m_cmdY = m_atY + 608.0f + 5.0f;
+    m_freeHeight = fminf(m_height - m_cmdY, 150.0f);
+    m_top = m_cmdY;
+    if (m_logVisible)
+        m_top = m_atY;
+    m_delimHeight = m_height;
+    if (!m_logVisible)
+        m_delimHeight -= m_freeHeight;
+    m_field_40 = m_height - 32.0f + m_atY;
+}
+CircularVector g_autoComplete;
+CircularVector::CircularVector() { clear(); }
+void CircularVector::clear() { m_vec.clear(); m_iter = m_vec.begin(); }
+CircularVector::~CircularVector() { clear(); }
+CircularVectorData *CircularVector::Current() const {
+    if (m_vec.empty())
+        return nullptr;
+    if (m_iter != m_vec.end())
+        return m_iter.operator->();
+    zassert(m_iter != m_vec.end() && "Invalid invariant for CircularVector: iter == end()");
+    return m_iter.operator->();
+}
+void CONSOLE_Paste(int cmdLen) {
+    auto cs = glfwGetClipboardString(g_mainWindow);
+    if (cs) {
+        auto pDest = g_consoleCommand + cmdLen, pDestMax = g_consoleCommand + sizeof(g_consoleCommand) - 1;
+        while (*cs >= ' ' && pDest < pDestMax) {
+            if (*cs == '\x7f')
+                break;
+            *pDest++ = *cs++;
+        }
+        *pDest = 0;
+    }
+}
+void CONSOLE_DefaultKey(int codePoint, int keyMods, unsigned int promptLen) {
+    if (codePoint < 255) {
+        if (keyMods & GLFW_MOD_CONTROL) {
+            if (codePoint == 'C') {
+                glfwSetClipboardString(g_mainWindow, g_consoleCommand);
+            } else if (codePoint == 'V') {
+                CONSOLE_Paste(promptLen);
+            }
+        } else {
+            if (promptLen < 0x3FF) {
+                g_consoleCommand[promptLen] = codePoint;
+                g_consoleCommand[promptLen + 1] = 0;
+            } else {
+                zassert(0);
+            }
+            g_autoComplete.clear();
+        }
+    }
+}
+void CircularVectorData::toString(std::string *dest) {
+    dest->reserve(m_descr.size() + 1 + m_params.size());
+    dest->assign(m_descr);
+    if (m_params.size()) {
+        *dest += ' ';
+        *dest += m_params;
+    }
+}
+void CONSOLE_PrepareAutocompleteItem(ConsoleCommandFuncs *funcs, const char *params, bool isParams) {
+    CMD_AutoCompleteParamSearchResults v30;
+    if (funcs->m_string)
+        v30.m_descr = funcs->m_string(params);
+    if (funcs->m_ac_search) {
+        funcs->m_ac_search(&v30, params);
+        if (v30.m_field_38) {
+            for (auto &pars : v30.m_field_20) {
+                g_autoComplete.m_vec.push_back(CircularVectorData{ funcs->m_name, pars, v30.m_descr });
+                g_autoComplete.m_iter = g_autoComplete.m_vec.begin();
+            }
+            return;
+        }
+        if (isParams) {
+            g_autoComplete.m_vec.push_back(CircularVectorData{ funcs->m_name, params, v30.m_descr });
+            g_autoComplete.m_iter = g_autoComplete.m_vec.begin();
+        }
+        return;
+    }
+    if (funcs->m_static_str) {
+        auto v27 = funcs->m_static_str(params);
+        if (v27) {
+            g_autoComplete.m_vec.push_back(CircularVectorData{ funcs->m_name, v27, v30.m_descr });
+            g_autoComplete.m_iter = g_autoComplete.m_vec.begin();
+            return;
+        }
+    }
+    if (isParams) {
+        g_autoComplete.m_vec.push_back(CircularVectorData{ funcs->m_name, params, v30.m_descr });
+        g_autoComplete.m_iter = g_autoComplete.m_vec.begin();
+    }
+}
+void CONSOLE_PrepareAutocomplete(const char *cmd) {
+    if (cmd == nullptr || *cmd == 0)
+        return;
+    const char *startCmd = cmd, *endCmd = startCmd + strlen(cmd);
+    while (*startCmd && *startCmd == ' ') ++startCmd;
+    while (endCmd >= startCmd && endCmd[-1] == ' ')
+        --endCmd;
+    std::string scmd(startCmd, endCmd), name, params;
+    SplitCommand(scmd, &name, &params, ' ');
+    if (name.size() || params.size()) {
+        g_Console.m_logBanner.swap(scmd);
+        g_autoComplete.clear();
+        g_autoComplete.m_vec.push_back(CircularVectorData{ name, params, scmd });
+        g_autoComplete.m_iter = g_autoComplete.m_vec.begin();
+        std::vector<ConsoleCommandFuncs *> foundCommands;
+        FindCommands(&foundCommands, name);
+        for (auto j : foundCommands)
+            CONSOLE_PrepareAutocompleteItem(j, params.c_str(), 1);
+        if (!params.size()) {
+            for (int k = 0; k < g_knownCommandsCounter; ++k)
+                CONSOLE_PrepareAutocompleteItem(&g_knownCommands[k], name.c_str(), 0);
+        }
+    }
+}
+void CONSOLE_KeyPress(int codePoint, int keyModifiers) {
+    auto cmdLen = strlen(g_consoleCommand);
+    int  scrollDelta = 0;
+    switch (codePoint) {
+        case GLFW_KEY_ESCAPE:
+            if (g_autoComplete.m_vec.empty()) {
+                g_consoleCommand[0] = 0;
+            } else {
+                g_Console.m_logBanner.clear();
+                g_autoComplete.m_iter = g_autoComplete.m_vec.begin();
+                auto v29 = g_autoComplete.CircularVector::Current();
+                if (v29) {
+                    std::string cts;
+                    v29->toString(&cts);
+                    strncpy(g_consoleCommand, cts.c_str(), sizeof(g_consoleCommand));
+                }
+            }
+            break;
+        case GLFW_KEY_ENTER:
+            if (!cmdLen)
+                return;
+            g_overflowScroll = true;
+            COMMAND_RunCommand(g_consoleCommand);
+            memmove(g_consoleCmdHistory[g_consoleCmdHistoryIdx % CONSOLE_CMDS_HISTORY], g_consoleCommand, cmdLen + 1);
+            g_consoleCmdHistoryIdx++;
+            g_consoleCommand[0] = 0;
+            g_autoComplete.clear();
+            return;
+        case GLFW_KEY_TAB:
+            if (g_autoComplete.m_vec.empty())
+                CONSOLE_PrepareAutocomplete(g_consoleCommand);
+            if (!g_autoComplete.m_vec.empty()) {
+                if (keyModifiers & GLFW_MOD_SHIFT) {
+                    if (g_autoComplete.m_iter == g_autoComplete.m_vec.begin())
+                        g_autoComplete.m_iter = g_autoComplete.m_vec.end();
+                    g_autoComplete.m_iter--;
+                } else {
+                    if (g_autoComplete.m_iter == g_autoComplete.m_vec.end())
+                        g_autoComplete.m_iter = g_autoComplete.m_vec.begin();
+                    g_autoComplete.m_iter++;
+                    if (g_autoComplete.m_iter == g_autoComplete.m_vec.end())
+                        g_autoComplete.m_iter = g_autoComplete.m_vec.begin();
+                }
+                auto v16 = g_autoComplete.Current();
+                if (v16) {
+                    v16->toString(&g_Console.m_logBanner);
+                    strncpy(g_consoleCommand, v16->m_name.c_str(), sizeof(g_consoleCommand));
+                    return;
+                }
+            }
+            break;
+        case GLFW_KEY_BACKSPACE:
+            if (cmdLen) {
+                g_consoleCommand[cmdLen - 1] = 0;
+                g_autoComplete.clear();
+            }
+            return;
+        case GLFW_KEY_INSERT:
+            if (keyModifiers & GLFW_MOD_SHIFT)
+                CONSOLE_Paste(cmdLen);
+            break;
+        case GLFW_KEY_F12:
+            if (keyModifiers & GLFW_MOD_CONTROL)
+                g_Console.m_logVisible = !g_Console.m_logVisible;
+            break;
+        //URSOFT ADDITIONS:
+        case GLFW_KEY_UP:
+            scrollDelta = -1;
+            break;
+        case GLFW_KEY_DOWN:
+            scrollDelta = 1;
+            break;
+        case GLFW_KEY_PAGE_UP:
+            scrollDelta = -LOGC_PAGE;
+            break;
+        case GLFW_KEY_PAGE_DOWN:
+            scrollDelta = LOGC_PAGE;
+            break;
+        case GLFW_KEY_HOME:
+            if (keyModifiers & GLFW_MOD_CONTROL)
+                scrollDelta = -g_scrollLogPos;
+            break;
+        case GLFW_KEY_END:
+            if (keyModifiers & GLFW_MOD_CONTROL)
+                scrollDelta = LogGetLineCount();
+            break;
+        default:
+            CONSOLE_DefaultKey(codePoint, keyModifiers, cmdLen);
+    }
+    if (scrollDelta) {
+        int maxScroll = LogGetLineCount() - (LOGC_PAGE + 1);
+        g_scrollLogPos = std::clamp(g_scrollLogPos + scrollDelta, 0, maxScroll);
+        g_overflowScroll = (g_scrollLogPos > maxScroll);
+    }
+}
+void CONSOLE_KeyFilter(uint32_t codePoint, int keyModifiers) {
+    int v3 = GLFW_KEY_ENTER;
+    if (codePoint != GLFW_KEY_KP_ENTER)
+        v3 = codePoint;
+    if (v3 == '`' && !g_bShowConsole && (keyModifiers & (GLFW_MOD_SHIFT | GLFW_MOD_CONTROL | GLFW_MOD_ALT)) == 0) { //URSOFT FIX
+        g_bShowConsole = true;
+        return;
+    }
+    if (g_bShowConsole) {
+        if (v3 == '`')
+            g_bShowConsole = false;
+        else
+            CONSOLE_KeyPress(v3, keyModifiers);
+    } else {
+        ZwiftAppKeyProcessorManager::Instance()->m_stack.ProcessKey(v3, keyModifiers);
+    }
+}
+void CONSOLE_Draw(float atY, float dt) {
+    int lc = std::min(LOGC_PAGE, LogGetLineCount());
+    int scrollLogPos = g_scrollLogPos;
+    if (g_overflowScroll) {
+        scrollLogPos = LogGetLineCount() - LOGC_PAGE - 1;
+        if (scrollLogPos < 0)
+            scrollLogPos = 0;
+    }
+    g_scrollLogPos = scrollLogPos;
+    const char *cursor = "";
+    g_blinkTime += dt;
+    if (((int)(g_blinkTime + g_blinkTime) & 1) == 0)
+        cursor = "_";
+    char buf[sizeof(g_consoleCommand) + 4];
+    sprintf(buf, "%s%s", g_consoleCommand, cursor);
+    g_Console.Update(atY);
+    GFX_Draw2DQuad(0.0f, g_Console.m_top, g_Console.m_width, g_Console.m_delimHeight, ConsoleRenderer::LogBGColor, true);
+    if (g_Console.m_logVisible) {
+        for (int v6 = 0; lc > v6; --lc) {
+            //sprintf(v11, "linenum = %d\n", lc);
+            auto str = LogGetLine(lc + scrollLogPos);
+            if (str)
+                CONSOLE_DrawPar(g_Console, str, &v6, lc, LogGetLineType(lc + scrollLogPos));
+        }
+        if (g_Console.m_logVisible)
+            GFX_Draw2DQuad(0.0f, g_Console.m_cmdY, 1280.0f, 1.0f, -1, false);
+    }
+    CONSOLE_DrawCmdline(g_Console, buf);
+    if (!g_Console.m_logBanner.empty())
+        g_LargeFontW.RenderWString(15.0f, 0.0f, g_Console.m_logBanner.c_str(), 0xFFFFFF00, 0,
+                                   0.35f, //URSOFT FIX: was 0.4
+                                   true, false);
 }

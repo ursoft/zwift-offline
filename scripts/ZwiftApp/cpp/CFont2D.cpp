@@ -77,25 +77,25 @@ bool CFont2D::LoadFont(const char *name) {
             }
         }
     }
-    if (f) 
+    if (f)
         fclose(f);
     return result;
 }
-void CFont2D::LoadLanguageTextures(LOC_LANGS l) {
+void CFont2D::LoadLanguageTextures(LOC_LANGS left) {
     GFX_SetLoadedAssetMode(true);
     m_texSuffix = LID_LAT;
-    switch (l) {
-    default:
-        break;
-    case LOC_JAPAN:
-        m_texSuffix = LID_JAPAN;
-        break;
-    case LOC_KOREAN:
-        m_texSuffix = LID_KOREAN;
-        break;
-    case LOC_CHINESE:
-        m_texSuffix = LID_CHINESE;
-        break;
+    switch (left) {
+        default:
+            break;
+        case LOC_JAPAN:
+            m_texSuffix = LID_JAPAN;
+            break;
+        case LOC_KOREAN:
+            m_texSuffix = LID_KOREAN;
+            break;
+        case LOC_CHINESE:
+            m_texSuffix = LID_CHINESE;
+            break;
     }
     if (g_fontWShader == -1)
         g_fontWShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
@@ -103,7 +103,7 @@ void CFont2D::LoadLanguageTextures(LOC_LANGS l) {
         GFX_UnloadTexture(m_info.m_fileHdrV3.m_tex2);
         m_info.m_fileHdrV3.m_tex2 = -1;
     }
-    char tname[MAX_PATH], *dest = tname;
+    char       tname[MAX_PATH], *dest = tname;
     const char *src = m_fileName.c_str();
     tname[0] = 0;
     while (*src) {
@@ -117,9 +117,9 @@ void CFont2D::LoadLanguageTextures(LOC_LANGS l) {
     m_info.m_langId = m_texSuffix;
     if (m_texSuffix)
         m_info.m_fileHdrV3.m_tex2 = GFX_CreateTextureFromTGAFile(tname, -1, true);
-    m_lineHeight = 0.0;
+    m_lineHeight = 0;
     for (int i = 0; i < m_info.m_fileHdrV3.m_usedGlyphs; i++) {
-        auto v23 = m_info.m_fileHdrV3.m_kern[m_glyphs[i].m_kernIdx] * m_glyphs[i].m_height;
+        auto v23 = int(0.5f + m_info.m_fileHdrV3.m_kern[m_glyphs[i].m_kernIdx] * m_glyphs[i].m_height);
         if (v23 > m_lineHeight)
             m_lineHeight = v23;
     }
@@ -204,7 +204,7 @@ void CFont2D::LoadFontV1(const uint8_t *data) {
     if (g_fontShader == -1)
         g_fontShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
     m_tex = GFXAPI_CreateTextureFromRGBA(m_info.m_fileHdrV1.m_width, m_info.m_fileHdrV1.m_height, data, true);
-    m_lineHeight = 0.0f;
+    m_lineHeight = 0;
     int16_t v6 = 0;
     for (auto x = m_info.m_fileHdrV1.m_from; x < m_info.m_fileHdrV1.m_to; x++) {
         static_assert(sizeof(CFont2D_v1_8b) == 8);
@@ -223,39 +223,39 @@ void CFont2D::LoadDirectEast(const char *name1, const char *name2) {
 }
 void CFont2D::Load(FONT_STYLE s) {
     switch (s) {
-    case FS_SMALL:
-        LoadDirect("data/Fonts/smallfont.bin");
-        break;
-    case FS_SANSERIF:
-        LoadDirect("data/Fonts/sanserif14.bin");
-        break;
-    case FS_FONDO_MED:
-        if (LOC_GetLanguageIndex() == LOC_CHINESE) {
-            LoadDirectEast("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_C.bin", "data/Fonts/ZwiftFondoMedium54ptW_EFIGS_JK.bin");
-        } else if (LOC_GetLanguageIndex() == LOC_JAPAN) {
-            LoadDirectEast("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_J.bin", "data/Fonts/ZwiftFondoMedium54ptW_EFIGS_JK.bin");
-        } else {
-            LoadDirect("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_K.bin");
-            m_field_20A54 = 1.98f;
-            if (!m_loadedV3)
-                LoadDirect("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_JK.bin");
-        }
-        break;
-    case FS_FONDO_BLACK:
-        if (LOC_GetLanguageIndex() == LOC_CHINESE) {
-            LoadDirectEast("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_C.bin", "data/Fonts/ZwiftFondoBlack105ptW_EFIGS_JK.bin");
-        } else if (LOC_GetLanguageIndex() == LOC_JAPAN) {
-            LoadDirectEast("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_J.bin", "data/Fonts/ZwiftFondoBlack105ptW_EFIGS_JK.bin");
-        } else {
-            LoadDirect("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_K.bin");
-            m_field_20A54 = 1.5f;
-            if (!m_loadedV3)
-                LoadDirect("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_JK.bin");
-        }
-        break;
-    default:
-        Log("Trying to Load unknown font");
-        break;
+        case FS_SMALL:
+            LoadDirect("data/Fonts/smallfont.bin");
+            break;
+        case FS_SANSERIF:
+            LoadDirect("data/Fonts/sanserif14.bin");
+            break;
+        case FS_FONDO_MED:
+            if (LOC_GetLanguageIndex() == LOC_CHINESE) {
+                LoadDirectEast("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_C.bin", "data/Fonts/ZwiftFondoMedium54ptW_EFIGS_JK.bin");
+            } else if (LOC_GetLanguageIndex() == LOC_JAPAN) {
+                LoadDirectEast("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_J.bin", "data/Fonts/ZwiftFondoMedium54ptW_EFIGS_JK.bin");
+            } else {
+                LoadDirect("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_K.bin");
+                m_field_20A54 = 1.98f;
+                if (!m_loadedV3)
+                    LoadDirect("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_JK.bin");
+            }
+            break;
+        case FS_FONDO_BLACK:
+            if (LOC_GetLanguageIndex() == LOC_CHINESE) {
+                LoadDirectEast("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_C.bin", "data/Fonts/ZwiftFondoBlack105ptW_EFIGS_JK.bin");
+            } else if (LOC_GetLanguageIndex() == LOC_JAPAN) {
+                LoadDirectEast("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_J.bin", "data/Fonts/ZwiftFondoBlack105ptW_EFIGS_JK.bin");
+            } else {
+                LoadDirect("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_K.bin");
+                m_field_20A54 = 1.5f;
+                if (!m_loadedV3)
+                    LoadDirect("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_JK.bin");
+            }
+            break;
+        default:
+            Log("Trying to Load unknown font");
+            break;
     }
 }
 void CFont2D::SetScaleAndKerning(float scale, float kerning) {
@@ -391,7 +391,7 @@ bool CFont2D::PopHeadBase() {
 }
 void CFont2D::PushHeadBase(float head, float base) {
     auto mult = m_field_20A3C * m_scale;
-    m_hbStack.emplace_back(VEC2{ mult * m_headLine, mult * m_baseLine });
+    m_hbStack.emplace_back(VEC2{ mult *m_headLine, mult * m_baseLine });
     m_headLine = head;
     m_baseLine = base;
 }
@@ -406,16 +406,16 @@ float CFont2D::StringWidthW(const UChar *uText) { return CFont2D::StringWidthW(u
 float CFont2D::StringWidthW(const UChar *uText, uint32_t textLen) {
     static_assert(sizeof(CFont2D_info) == 0x20990);
     static_assert(sizeof(CFont2D_glyph) == 20);
-    
+
     if (!m_loadedV3 || !uText || !*uText || !textLen)
         return 0.0f;
-    float ret = 0.0f;
+    float       ret = 0.0f;
     const UChar *uEnd = uText + textLen;
     do {
         auto gidx = m_info.m_glyphIndexes[*uText];
         if (gidx != 0xFFFF) {
             float mult = (*uText == 32) ? this->m_field_20A54 : 1.0f;
-            auto kidx = m_glyphs[gidx].m_kernIdx;
+            auto  kidx = m_glyphs[gidx].m_kernIdx;
             ret += m_kern[kidx] * m_kerning * m_info.m_fileHdrV3.m_kern[kidx] * m_glyphs[gidx].m_width * mult;
         }
     } while (++uText != uEnd);
@@ -458,23 +458,181 @@ UChar *SafeToUTF8(const char *ansi, BufSafeToUTF8 *buf) {
 }
 int CFont2D::GetParagraphLineCount(float w, const char *str, float, float, bool) {
     //TODO
+    assert(false);
     return 0;
 }
-int CFont2D::GetParagraphLineCountW(float w, const UChar *str, float, float, bool) {
-    //TODO
-    return 0;
+int CFont2D::FitCharsToWidthW(const UChar *str, int w) {
+    if (!str || !m_loadedV3)
+        return 0;
+    int  len = u_strlen(str);
+    auto v8 = 0.0f;
+    if (!len)
+        return len;
+    int i = 0;
+    while (true) {
+        auto v11 = m_info.m_glyphIndexes[str[i]];
+        if (v11 != 0xFFFF) {
+            auto kernIdx = m_glyphs[v11].m_kernIdx;
+            v8 += m_kern[kernIdx] * m_kerning * m_info.m_fileHdrV3.m_kern[kernIdx] * m_glyphs[v11].m_width * m_scale * (str[i] == 32 ? m_field_20A54 : 1.0);
+        }
+        if (v8 >= w)
+            break;
+        if (++i >= len)
+            return len;
+    }
+    return i;
 }
-int CFont2D::RenderParagraph(float, float, float, float, const char *, uint32_t, int, float, bool, float, float) {
-    //TODO
-    return 0;
+int CFont2D::FitWordsToWidthW(const UChar *str, int w, float a4) {
+    if (!str || !m_loadedV3)
+        return 0;
+    int  len = u_strlen(str);
+    int  v9 = 0, v11 = 0, v12 = 0, v14 = 0;
+    auto v15 = 0.0f;
+    auto goalWidth = w - a4;
+    bool v27 = false;
+    for (; v11 <= len && !v27; ++v11) {
+        auto v16 = 0.0f;
+        for (; v11 < len; ++v11) {
+            if (str[v11] == 32)
+                break;
+            if (str[v11] == 10)
+                break;
+        }
+        while (str[v11] == 32)
+            ++v11;
+        for (int i = 0; i < v11; i++) {
+            auto v21 = m_info.m_glyphIndexes[str[i]];
+            if (v21 != 0xFFFF) {
+                auto kernIdx = m_glyphs[v21].m_kernIdx;
+                v16 += m_kern[kernIdx] * m_kerning * m_info.m_fileHdrV3.m_kern[kernIdx] * m_glyphs[v21].m_width * m_scale * (str[i] == 32 ? m_field_20A54 : 1.0f);
+            }
+        }
+        ++v14;
+        if (str[v11] == 10) {
+            if (goalWidth <= v16) {
+                if (v14 == 1)
+                    v12 = 1;
+            } else {
+                v9 = v11 + 1;
+            }
+            v27 = true;
+            continue;
+        }
+        if (goalWidth <= v16) {
+            if (v14 == 1) {
+                auto v28 = 0;
+                v16 = 0.0;
+                if (v11) {
+                    auto v29 = str;
+                    while (1) {
+                        auto v30 = m_info.m_glyphIndexes[*v29];
+                        if (v30 != 0xFFFF) {
+                            auto v33 = m_glyphs[v30].m_kernIdx;
+                            v16 += m_kern[v33] * m_kerning * m_info.m_fileHdrV3.m_kern[v33] * m_glyphs[v30].m_width * m_scale * (*v29 == 32 ? m_field_20A54 : 1.0f);
+                        }
+                        if (v16 > goalWidth)
+                            break;
+                        ++v28;
+                        ++v29;
+                        if (v28 >= v11) {
+                            v9 = v11;
+                            v27 = true;
+                            continue;
+                        }
+                    }
+                    v11 = v28;
+                }
+                v9 = v11;
+            }
+            v27 = true;
+            continue;
+        }
+        v27 = false;
+        v9 = v11;
+    }
+    if (v12) {
+        for (int v35 = 0; v35 < v11; ++v35) {
+            auto v36 = str[v35];
+            auto v37 = m_info.m_glyphIndexes[v36];
+            if (v37 != 0xFFFF) {
+                auto v40 = m_glyphs[v37].m_kernIdx;
+                v15 += m_kern[v40] * m_kerning * m_info.m_fileHdrV3.m_kern[v40] * m_glyphs[v37].m_width * m_scale * ((v36 == 32) ? m_field_20A54 : 1.0f);
+            }
+            if (v15 > goalWidth) {
+                v11 = v35;
+                break;
+            }
+        }
+        v9 = v11;
+    }
+    if (len < v9)
+        v9 = len;
+    if (v9)
+        return v9;
+    else
+        return FitCharsToWidthW(str, goalWidth);
 }
-int CFont2D::RenderParagraphW(float, float, float, float, const UChar *, uint32_t, int, float, bool, float, float) {
-    //TODO
-    return 0;
+int CFont2D::GetParagraphLineCountW(float w, const UChar *str, float a4, float a5, bool a6) {
+    if (!m_loadedV3 || !str || !*str)
+        return 0;
+    int len = u_strlen(str);
+    if (!a6 && len > 0x400)
+        return 1;
+    int ret = 0, wordsLen;
+    for (auto *end = str + len; str < end; str += wordsLen) {
+        wordsLen = FitWordsToWidthW(str, int(1.0f / a4 * w), 1.0f / a4 * a5);
+        a5 = 0.0f;
+        if (!wordsLen)
+            wordsLen = len;
+        ++ret;
+    }
+    return ret;
+}
+int CFont2D::RenderParagraph(float a2, float a3, float a4, float a5, const char *str, uint32_t color, uint32_t flags, float a9, bool a10, float a11, float a12, float cropTop /*= 0.0f*/) {
+    BufSafeToUTF8 buf;
+    return RenderParagraphW(a2, a3, a4, a5, SafeToUTF8(str, &buf), color, flags, a9, a10, a11, a12);
+}
+int CFont2D::RenderParagraphW(float left, float top, float width, float height, const UChar *str, uint32_t color, uint32_t flags, float a9, bool needShadow, float a11, float a12, float cropTop /*= 0.0f*/) {
+    if (!m_loadedV3 || left > GFX_UI_GetCurrentSpaceWidth() || left + width < 0.0f || !str)
+        return 0;
+    auto ret = 0;
+    auto v14 = str;
+    auto v15 = a9 * m_field_20A3C * GetHeight() * a11;
+    auto v16 = top;
+    auto v17 = a12;
+    auto v18 = u_strlen(str);
+    if (flags & RF_CY_ISCENTER)
+        v16 = height * 0.5f + top - v15 * GetParagraphLineCountW(width, str, a9, (1.0f / a9) * a12, 0) * 0.5f;
+    else if (flags & RF_CY_ISTOP)
+        v16 = top + height - v15 * GetParagraphLineCountW(width, str, a9, (1.0f / a9) * a12, 0);
+    if (top + height <= v16)
+        return ret;
+    auto  v23 = &str[v18];
+    UChar text[328];
+    do {
+        if (v14 >= v23)
+            break;
+        auto v24 = 1.0f / a9 * v17;
+        auto v25 = 1.0f / a9 * width;
+        auto v26 = FitWordsToWidthW(v14, v25, v24);
+        auto v27 = 255;
+        if (v26 < 0xFF)
+            v27 = FitWordsToWidthW(v14, v25, v24);
+        for (int i = 0; i < v27; ++i)
+            text[i] = v14[i];
+        text[v27] = 0;
+        if (v16 >= cropTop)
+            RenderWString(left + v17, v16, text, color, flags & ~(RF_CY_ISTOP | RF_CY_ISCENTER), a9, needShadow, 0, 1);
+        v17 = 0.0f;
+        v14 += v27;
+        ++ret;
+        v16 += v15;
+    } while (top + height > v16);
+    return ret;
 }
 void CFont2D::RenderWString(float cx, float cy, const char *text, uint32_t color, uint32_t flags, float scale, bool needShadow, bool forceDrawMalloc) {
     BufSafeToUTF8 buf;
-    auto u8_text = SafeToUTF8(text, &buf);
+    auto          u8_text = SafeToUTF8(text, &buf);
     RenderWString(cx, cy, u8_text, color, flags, scale, needShadow, forceDrawMalloc, true);
 }
 void CFont2D::RenderWString(float cx, float cy, const UChar *text, uint32_t color, uint32_t flags, float scale, bool needShadow, bool forceDrawMalloc, bool uiProjection) { //RenderWString_utf
@@ -501,10 +659,9 @@ void CFont2D::RenderWString(float cx, float cy, const UChar *text, uint32_t colo
     auto textLen = u_strlen(text);
     auto v29 = (!m_cache || forceDrawMalloc) ? (CFont2D_cache *)GFX_DrawMalloc(sizeof(CFont2D_cache) * textLen, 4) : CacheMallocCharacters(textLen, uiProjection);
     if (v29) {
-        int v31 = -1;
+        int  v31 = -1;
         auto pflt = (float *)v29;
-        if (textLen)
-        {
+        if (textLen) {
             for (int i = 0; i < textLen; ++i, ++text) {
                 auto v35 = v31;
                 auto v36 = m_info.m_glyphIndexes[*text];
@@ -514,14 +671,14 @@ void CFont2D::RenderWString(float cx, float cy, const UChar *text, uint32_t colo
                         m_cacheCntUsed--;
                     }
                 } else {
-                    auto v39 = color;
+                    auto       v39 = color;
                     const auto &g = m_glyphs[v36];
                     //if (g.m_kernIdx && g.m_kernIdx != m_texSuffix)
                     //    v39 = 0;
                     v31 = g.m_kernIdx;
                     if (v35 != -1)
                         v31 = v35;
-                    auto v42 = m_info.m_fileHdrV3.m_kern[g.m_kernIdx];
+                    auto  v42 = m_info.m_fileHdrV3.m_kern[g.m_kernIdx];
                     float dx;
                     if (*text == 32) {
                         dx = g.m_width * v42 * v17 * m_kerning * m_kern[g.m_kernIdx] * m_field_20A54;

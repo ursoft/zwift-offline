@@ -167,7 +167,7 @@ static int str_compare(std::string &s1, const char *s2) {
 }
 tinyxml2::XMLElement *XMLDoc::FindNextElement(const char *path, bool replaceRoot, bool enableCreate) {
     tinyxml2::XMLElement *ret = nullptr, *nextElement = nullptr;
-    std::string spath(path);
+    std::string          spath(path);
     auto pathCRC = SIG_CalcCaseInsensitiveSignature(path);
     auto pp = ZStringUtil::Split(path, '\\');
     if (!replaceRoot) {
@@ -337,7 +337,7 @@ void XMLDoc::Save() {
 void XMLDoc::SaveAs(const char *, bool) {
     //TODO
 }
-void XMLDoc::SetBool(const char *path, bool val , bool enableCreate) {
+void XMLDoc::SetBool(const char *path, bool val, bool enableCreate) {
     auto Element = FindElement(path, enableCreate);
     if (Element)
         Element->SetText(val);
@@ -385,7 +385,7 @@ bool XMLDoc::UserLoad(const char *fileName) {
     if (up) {
         sprintf_s(m_path, "%s\\Zwift", up);
         CreateDirectoryA(m_path, nullptr);
-        sprintf_s(m_path, "%s/%s", m_path, fileName);
+        sprintf_s(m_path, "%s\\%s", m_path, fileName);
         m_loadResult = (m_tiny_doc.LoadFile(m_path) == 0);
         return m_loadResult;
     }

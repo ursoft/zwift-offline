@@ -1,6 +1,7 @@
 #pragma once
+inline const int LOGC_LINE_BUF = 0x400, LOGC_LINES = 1000, LOGC_PAGE = 37;
 enum LOG_TYPE {
-    LOG_GENERAL = 0, LOG_WARNING = 1, LOG_ERROR = 2, LOG_COMMAND = 3, LOG_COMMAND_OUTPUT = 4, LOG_ASSET = 5, LOG_NETWORK = 6, LOG_ZNETWORK_INTERNAL = 7, LOG_ANT = 8, LOG_ANT_IMPORTANT = 9, LOG_BLE = 10, LOG_STEERING = 11, 
+    LOG_GENERAL = 0, LOG_WARNING = 1, LOG_ERROR = 2, LOG_COMMAND = 3, LOG_COMMAND_OUTPUT = 4, LOG_ASSET = 5, LOG_NETWORK = 6, LOG_ZNETWORK_INTERNAL = 7, LOG_ANT = 8, LOG_ANT_IMPORTANT = 9, LOG_BLE = 10, LOG_STEERING = 11,
     LOG_VIDEO_CAPTURE = 12, LOG_BRAKING = 13, LOG_AUTOBRAKING = 14, LOG_AUTOMATION = 15, LOG_CNT = 16
 };
 enum LOG_LEVEL { LL_VERBOSE = 0, LL_DEBUG = 1, LL_INFO = 2, LL_WARNING = 3, LL_ERROR = 4, LL_FATAL = 5, LL_CNT = 6 };
@@ -32,7 +33,7 @@ public:
     //static void SetOnceFlag(const char *, int);
 };
 class ZwiftAssert {
-    static inline std::mutex g_abortMutex;
+    static inline std::mutex        g_abortMutex;
     static inline thread_local bool g_abortProcessing;
     static inline GameAssertHandler *g_abortListener;
 public:
@@ -42,14 +43,19 @@ public:
     static bool IsBeingDebugged() { return IsDebuggerPresent(); }
     //static void Test_(bool, const char *, const char *, const char *, int, bool);
 };
-#define zassert(c) if(!(c)) { \
-  if (ZwiftAssert::IsBeingDebugged()) __debugbreak(); \
-  if (ZwiftAssert::BeforeAbort(#c, __FILE__, __LINE__)) ZwiftAssert::Abort(); }
+#define zassert(c) if (!(c)) { \
+        if (ZwiftAssert::IsBeingDebugged()) __debugbreak(); \
+        if (ZwiftAssert::BeforeAbort(#c, __FILE__, __LINE__)) ZwiftAssert::Abort(); }
 std::vector<std::string> ParseSuppressedLogs(const char *ls);
 void LogSetSuppressedLogTypes(const std::vector<std::string> &supprLogs);
 void glfwZwiftErrorCallback(int code, const char *msg);
 struct ConsoleRenderer;
 void CONSOLE_DrawCmdline(const ConsoleRenderer &cr, const char *line, int *lineNo, int lineCount, int lineType);
 void CONSOLE_DrawPar(const ConsoleRenderer &cr, const char *str, int *a3, int a4, int a5);
+void ScrollLog(int dir);
+int LogGetLineCount();
+LOG_TYPE LogGetLineType(int a1);
+const char *LogGetLine(int a1);
 
-inline bool g_useLogLevelSettings = true;
+inline bool g_useLogLevelSettings = true, g_overflowScroll;
+inline int  g_nLogLines, g_curLogLine, g_scrollLogPos;
