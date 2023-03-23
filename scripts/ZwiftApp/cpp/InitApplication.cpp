@@ -63,7 +63,25 @@ void KeyCallback(GLFWwindow *, int key, int scanCode, int action, int mods) {
             CONSOLE_KeyFilter(key, mods);
 }
 void WindowCloseCallback(GLFWwindow *) {
-    //TODO
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    if (mainBike) { //TODO
+        /*if (m_mainBike->m_bc->m_distance <= 0.01) {
+            g_ResetLastSaveTime = 1;
+            GAME_ResetScreenshotsForActivity();
+            *(_QWORD *)&xmmword_7FF63035FD78 = qword_7FF63035FD70;
+            qword_7FF6303F5258 = 0i64;
+            byte_7FF6303F48DB = 0;
+            dword_7FF630341A34 = 0;
+            dword_7FF630341A5C = 0;
+            EndGameSession(0);
+        } else {
+            UI_CreateDialog(UID_QUIT, sub_7FF62F1F9000, 0i64, a4);
+            sub_7FF62F6CC1A0((__int64)g_mainWindow, 0);
+        }
+        return;
+        */
+    }
+    ZwiftExit(0); //URSOFT FIX
 }
 void ScrollCallback(GLFWwindow *wnd, double, double dir) { //mouse scrolling
     auto v3 = -1;

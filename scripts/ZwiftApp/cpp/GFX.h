@@ -278,7 +278,7 @@ inline DetailedRender g_renderDetailed = DR_VERBOSE;
 inline GLFWwindow *g_mainWindow;
 inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion, g_openglFail;
 inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h, g_Aniso = 1.0f, g_instantaniousFPS, g_smoothedFPS, g_SecondsUnplugged, g_TargetBatteryFPS, g_TotalRenderTime;
-inline int g_width, g_height, g_MinimalUI, g_bFullScreen, g_nShadersLoaded, g_TotalShaderCreationTime;
+inline int g_width, g_height, g_bFullScreen, g_nShadersLoaded, g_TotalShaderCreationTime;
 inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_gfxTier, g_DrawPrimVBO, g_nTotalFrames;
 inline uint8_t g_colorChannels, g_gfxShaderModel;
 inline GfxCaps g_gfxCaps;

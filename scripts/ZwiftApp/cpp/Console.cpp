@@ -78,7 +78,7 @@ void SplitCommand(const std::string &cmd, std::string *name, std::string *params
     if (i >= cmd.size())
         params->clear();
     else
-        StripPaddedSpaces(params, std::string(cmd, i, cmd.size() - i));
+        StripPaddedSpaces(params, std::string(cmd, i + 1, cmd.size() - i - 1));
 }
 bool findStringIC(const std::string &strHaystack, const std::string &strNeedle) {
     auto it = std::search(
@@ -272,17 +272,204 @@ bool CMD_ToggleLog(const char *) {
     g_Console.m_logVisible = !g_Console.m_logVisible;
     return true;
 }
-bool CMD_Set(const char *) {
-    return true; //TODO
+consteval uint32_t f2u(float f) { return std::bit_cast<uint32_t, float>(f); }
+static_assert(f2u(300.0f) == 0x43960000);
+TweakInfo g_tweakArray[] = {
+    //m_valueUnion,  fMin, fMax, um, uM,        im,   iM,   1C,20,      name,                                        file, line                          dataType
+    { 1u,            0.0f, 0.0f, 0u, 1u,        0,    0,    0, nullptr, "s_autoBrakingMode",                         "AutoBrakingModule.cpp",        23, TWD_UINT },
+    { 0u,            0.0f, 0.0f, 0u, 2u,        0,    0,    0, nullptr, "s_AB_onRoadVisualsMode",                    "AutoBrakingModule.cpp",        36, TWD_UINT },
+    { f2u(300.0f),   FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_StrideDistance",                          "BikeComputer.cpp",             60, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_TestUpdateRealTime",                      "BikeComputer.cpp",             61, TWD_BOOL },
+    { f2u(20.0f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_minPowerPauseThreshold",                  "BikeComputer.cpp",             65, TWD_FLOAT },
+    { f2u(10000.0f), FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_BikeSoundDistCutoffCentemeters",          "BikeEntity.cpp",              195, TWD_FLOAT },
+    { f2u(0.86f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_bikeRainParticleForwardOffset",           "BikeEntity.cpp",              197, TWD_FLOAT },
+    { f2u(0.8f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_bikeDustParticleForwardOffset",           "BikeEntity.cpp",              199, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "bShowEventPlacement",                       "BikeEntity.cpp",              250, TWD_BOOL },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "bShowSpeed",                                "BikeEntity.cpp",              251, TWD_BOOL },
+    { f2u(0.75f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "k_MaxPacketAgeInSeconds",                   "BikeEntity.cpp",              260, TWD_FLOAT },
+    { f2u(100.0f),   FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "k_MaxSideProjectionInCm",                   "BikeEntity.cpp",              261, TWD_FLOAT },
+    { f2u(3.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "k_AimForceMultiplier",                      "BikeEntity.cpp",              262, TWD_FLOAT },
+    { f2u(3.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "k_SideForceMultiplier",                     "BikeEntity.cpp",              263, TWD_FLOAT },
+    { f2u(3.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "k_DirectionForceMultiplier",                "BikeEntity.cpp",              264, TWD_FLOAT },
+    { f2u(1.25f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "k_NetworkQualityAmplifier",                 "BikeEntity.cpp",              265, TWD_FLOAT },
+    { f2u(5.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "k_ProjectionTimeMultiplier_AutoSteering",   "BikeEntity.cpp",              266, TWD_FLOAT },
+    { f2u(50.0f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "k_ProjectionTimeMultiplier_ManualSteering", "BikeEntity.cpp",              267, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gDebugRoadWidth",                           "BikeEntity.cpp",              355, TWD_BOOL },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gShowWorldCoordinate",                      "BikeEntity.cpp",              356, TWD_BOOL },
+    { uint32_t(-1),  0.0f, 0.0f, 0u, 0u,        IMIN, IMAX, 0, nullptr, "g_DEBUG_logSplineDistNetworkID",            "BikeEntity.cpp",             1615, TWD_INT },
+    { 0u,            0.0f, 0.0f, 0u, 999u,      0,    0,    0, nullptr, "arch_dir_male",                             "BikeEntity.cpp",             2875, TWD_UINT },
+    { f2u(20.0f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "f3DEffectStrength",                         "BikeManager.cpp",              53, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gPositionAccuracyOverNetwork",              "BikeManager.cpp",              93, TWD_BOOL },
+    { 50u,           0.0f, 0.0f, 0u, 1000u,     0,    0,    0, nullptr, "gSpawnGap",                                 "BikeManager.cpp",             147, TWD_UINT },
+    { 0u,            0.0f, 0.0f, 0u, 10u,       0,    0,    0, nullptr, "gAIgroupingTest",                           "BikeManager.cpp",            2722, TWD_UINT },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_bAllowAvatarsToOverflow",                 "BikeManager.cpp",            3613, TWD_BOOL },
+    { f2u(50.0f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "mass",                                      "Camera.cpp",                  404, TWD_FLOAT },
+    { f2u(600.0f),   FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "maxDamp",                                   "Camera.cpp",                  405, TWD_FLOAT },
+    { f2u(120.0f),   FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "minDamp",                                   "Camera.cpp",                  406, TWD_FLOAT },
+    { f2u(1.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "lerpTime",                                  "Camera.cpp",                  407, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gAllowPlayersOnGrass",                      "CollisionResolver.cpp",         6, TWD_BOOL },
+    { 300u,          0.0f, 0.0f, 0u, 10000u,    0,    0,    0, nullptr, "g_defaultButtonDelay_MS",                   "ControllerActionManager.cpp",  10, TWD_UINT },
+    { f2u(0.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_cullDist",                                "Instancing.cpp",               22, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gShowHistogram",                            "PostEffects.cpp",               8, TWD_BOOL },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gShowLuminance",                            "PostEffects.cpp",               9, TWD_BOOL },
+    { f2u(0.4f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gDefaultLuminanceMean",                     "PostEffects.cpp",              11, TWD_FLOAT },
+    { f2u(0.8f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gDefaultLuminanceMax",                      "PostEffects.cpp",              12, TWD_FLOAT },
+    { f2u(1.4f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gHistogramLuminanceCutoff",                 "PostEffects.cpp",              15, TWD_FLOAT },
+    { 2u,            0.0f, 0.0f, 1u, 8u,        0,    0,    0, nullptr, "gLuminanceSubRectCountX",                   "PostEffects.cpp",              18, TWD_UINT },
+    { 2u,            0.0f, 0.0f, 1u, 8u,        0,    0,    0, nullptr, "gLuminanceSubRectCountY",                   "PostEffects.cpp",              19, TWD_UINT },
+    { f2u(1.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gMaxBloomScale",                            "PostEffects.cpp",              22, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gGetTrigger",                               "AnimatedProp.cpp",           1545, TWD_BOOL },
+    { 200u,          0.0f, 0.0f, 0u, 2000u,     0,    0,    0, nullptr, "g_ShiftingInputDelay_MS",                   "DeviceManager.cpp",            66, TWD_UINT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_FTMS_EnableSimBikeTuning",                "FTMS_Control_v3.cpp",          22, TWD_BOOL },
+    { f2u(0.75f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_FTMS_GradeLookaheadTime",                 "FTMS_Control_v3.cpp",          23, TWD_FLOAT },
+    { 250u,          0.0f, 0.0f, 0u, 0u,        IMIN, IMAX, 0, nullptr, "g_ComputrainerSendTime",                    "SerialTrainerReceiver.cpp",    92, TWD_INT },
+    { 250u,          0.0f, 0.0f, 0u, 0u,        IMIN, IMAX, 0, nullptr, "g_EliteSendTime",                           "SerialTrainerReceiver.cpp",    93, TWD_INT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_bShowSteeringOutro",                      "GameplayEventsManager.cpp",    75, TWD_BOOL },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_bAwardMTB",                               "GameplayEventsManager.cpp",    76, TWD_BOOL },
+    { f2u(0.15f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_IdealBikesPerMeter",                      "Rubberbanding.cpp",           359, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_bForceSteeringUI",                        "UI_PauseScreen.cpp",         2588, TWD_BOOL },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_bForceQuitEventButton",                   "UI_PauseScreen.cpp",         2599, TWD_BOOL },
+    { 1000u,         0.0f, 0.0f, 0u, 0u,        IMIN, IMAX, 0, nullptr, "gPostRideGraphDisplayLimit",                "UI_PostRideStats.cpp",       1166, TWD_INT },
+    { f2u(3.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_workoutAutoPauseTime",                    "workout.cpp",                  50, TWD_FLOAT },
+    { f2u(10.0f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_rampUpTime",                              "workout.cpp",                  51, TWD_FLOAT },
+    { f2u(5.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_minERGModeDisableTime",                   "workout.cpp",                  52, TWD_FLOAT },
+    { f2u(10.0f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_reenableERGPowerThreshold",               "workout.cpp",                  53, TWD_FLOAT },
+    { f2u(0.1f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_steadyStateFailureThreshold",             "workout.cpp",                  54, TWD_FLOAT },
+    { f2u(0.1f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_intervalOnFailureThreshold",              "workout.cpp",                  55, TWD_FLOAT },
+    { f2u(0.25f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g_intervalOffFailureThreshold",             "workout.cpp",                  56, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_bEnableOculus",                           "ZwiftApp.cpp",               1082, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        IMIN, IMAX, 0, nullptr, "g_BikeMaxShadowCascade",                    "ZwiftApp.cpp",               1085, TWD_INT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_3DTVEnabled",                             "ZwiftApp.cpp",               1083, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_MinimalUI",                               "ZwiftApp.cpp",               1092, TWD_BOOL },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gSSAO",                                     "ZwiftApp.cpp",               1115, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gFXAA",                                     "ZwiftApp.cpp",               1116, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gBloom",                                    "ZwiftApp.cpp",               1118, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gRadialBlur",                               "ZwiftApp.cpp",               1119, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gVignette",                                 "ZwiftApp.cpp",               1120, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gColorCorrection",                          "ZwiftApp.cpp",               1121, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gAutoExposure",                             "ZwiftApp.cpp",               1122, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gTonemap",                                  "ZwiftApp.cpp",               1123, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gSSR",                                      "ZwiftApp.cpp",               1124, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gDistortion",                               "ZwiftApp.cpp",               1125, TWD_BOOL },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gHeadlight",                                "ZwiftApp.cpp",               1126, TWD_BOOL },
+    { f2u(0.5f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gHeadlightIntensity",                       "ZwiftApp.cpp",               1127, TWD_FLOAT },
+    { 1u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gSunRays",                                  "ZwiftApp.cpp",               1132, TWD_BOOL },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gSimpleReflections",                        "ZwiftApp.cpp",               1135, TWD_BOOL },
+    { f2u(0.5f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gBloomStrength",                            "ZwiftApp.cpp",               1137, TWD_FLOAT },
+    { f2u(0.99f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gBloomThreshold",                           "ZwiftApp.cpp",               1138, TWD_FLOAT },
+    { f2u(2.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gRainExposureMultiplier",                   "ZwiftApp.cpp",               1140, TWD_FLOAT },
+    { f2u(2.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gBlurMultiplier",                           "ZwiftApp.cpp",               1141, TWD_FLOAT },
+    { f2u(0.6f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gTonemapExponentBias",                      "ZwiftApp.cpp",               1143, TWD_FLOAT },
+    { f2u(1.3f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gTonemapExponentScale",                     "ZwiftApp.cpp",               1144, TWD_FLOAT },
+    { f2u(0.75f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gExposureRate",                             "ZwiftApp.cpp",               1145, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "gShowFPS",                                  "ZwiftApp.cpp",               1154, TWD_BOOL },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        IMIN, IMAX, 0, nullptr, "gLODBias",                                  "ZwiftApp.cpp",               1160, TWD_INT },
+    { f2u(8.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g3DTVScreenDistance",                       "ZwiftApp.cpp",               1183, TWD_FLOAT },
+    { f2u(0.18f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g3DTVEffect",                               "ZwiftApp.cpp",               1184, TWD_FLOAT },
+    { f2u(50.0f),    FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g3DTVSizeInches",                           "ZwiftApp.cpp",               1185, TWD_FLOAT },
+    { f2u(6.4f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "g3DTVEyeSpacingCM",                         "ZwiftApp.cpp",               1186, TWD_FLOAT },
+    { f2u(1.0f),     FMIN, FMAX, 0u, 0u,        0,    0,    0, nullptr, "gFoliagePercent",                           "ZwiftApp.cpp",               1188, TWD_FLOAT },
+    { 0u,            0.0f, 0.0f, 0u, 0u,        0,    0,    0, nullptr, "g_bShowPacketDelay",                        "ZwiftApp.cpp",               7964, TWD_BOOL },
+};
+static_assert(TWI_CNT == _countof(g_tweakArray));
+void CMD_Set3_Populate(std::vector<std::string> *dest, const std::string &par) {
+    std::string lowPar;
+    lowPar.reserve(par.size());
+    for (auto c : par)
+        lowPar.push_back(std::tolower(c));
+    for (auto &tw : g_tweakArray) {
+        std::string lowTw;
+        auto        *pName = tw.m_name;
+        while (*pName)
+            lowTw.push_back(std::tolower(*pName++));
+        if (lowPar.size() <= lowTw.size()) {
+            auto f = lowTw.find(lowPar);
+            if (f != -1)
+                dest->push_back("set " + std::string(tw.m_name) + '=');
+        }
+    }
+}
+bool CMD_Set(const char *par) {
+    std::string spar(par), name, value;
+    SplitCommand(spar, &name, &value, '=');
+    if (value.empty()) {
+        LogTyped(LOG_COMMAND_OUTPUT, "Syntax Error.  USAGE: set VARNAME=VALUE");
+        LogTyped(LOG_COMMAND_OUTPUT, "Type 'listvars' for list of tweakable variables");
+    } else {
+        std::string lowPar;
+        lowPar.reserve(name.size());
+        for (auto c : name)
+            lowPar.push_back(std::tolower(c));
+        TweakInfo *pFound = nullptr;
+        for (auto &tw : g_tweakArray) {
+            std::string lowTw;
+            auto        *pName = tw.m_name;
+            while (*pName)
+                lowTw.push_back(std::tolower(*pName++));
+            if (lowPar == lowTw) {
+                pFound = &tw;
+                break;
+            }
+        }
+        if (pFound) {
+            if (pFound->SetValue(value))
+                CMD_ListVars(name.c_str());
+            else
+                LogTyped(LOG_COMMAND_OUTPUT, "Error setting %s. Possible error with value \"%s\".", name.c_str(), value.c_str());
+        } else {
+            LogTyped(LOG_COMMAND_OUTPUT, "Error: Variable \"%s\" not found! ", name.c_str());
+        }
+    }
+    return true;
 }
 void CMD_Set3(CMD_AutoCompleteParamSearchResults *dest, const char *par) {
-    return; //TODO
+    if (par && *par && 0 != strcmp(par, "set")) {
+        dest->m_descr.assign(par);
+        CMD_Set3_Populate(&dest->m_field_20, dest->m_descr);
+        dest->m_field_38 = true;
+        return;
+    }
+    dest->m_descr.clear();
+    dest->m_field_20.clear();
+    dest->m_field_38 = false;
 }
 std::string CMD_Set4(const char *) {
     return "set <TweakableID> [parameters] {sets TweakableID to parameters; use 'listvars' to show all tweakable IDs}";
 }
-bool CMD_ListVars(const char *) { //TweakMaster_DumpMatchedToLog
-    return true;                  //TODO
+bool CMD_ListVars(const char *par) { //TweakMaster_DumpMatchedToLog
+    std::string lowPar, spar(par);
+    lowPar.reserve(spar.size());
+    for (auto c : spar)
+        lowPar.push_back(std::tolower(c));
+    for (auto &tw : g_tweakArray) {
+        std::string lowTw;
+        auto        *pName = tw.m_name;
+        while (*pName)
+            lowTw.push_back(std::tolower(*pName++));
+        if (lowPar.size() <= lowTw.size()) {
+            auto f = lowTw.find(lowPar);
+            if (f != -1) {
+                switch (tw.m_dataType) {
+                    case TWD_STRING:
+                        LogTyped(LOG_COMMAND_OUTPUT, "%s = %s", tw.m_name, tw.m_str.c_str());
+                        break;
+                    case TWD_BOOL:
+                        LogTyped(LOG_COMMAND_OUTPUT, "%s = %s", tw.m_name, tw.m_valueUnion ? "TRUE" : "FALSE");
+                        break;
+                    case TWD_INT:
+                        LogTyped(LOG_COMMAND_OUTPUT, "%s = %d (valid: %d...%d)", tw.m_name, tw.IntValue(), tw.m_intMin, tw.m_intMax);
+                        break;
+                    case TWD_UINT:
+                        LogTyped(LOG_COMMAND_OUTPUT, "%s = %uu (valid: %d...%d)", tw.m_name, tw.m_valueUnion, tw.m_uintMin, tw.m_uintMax);
+                        break;
+                    case TWD_FLOAT:
+                        LogTyped(LOG_COMMAND_OUTPUT, "%s = %3.2f (valid: %g..%g)", tw.m_name, tw.FloatValue(), tw.m_floatMin, tw.m_floatMax);
+                        break;
+                }
+            }
+        }
+    }
+    return true;
 }
 std::string CMD_ListVars4(const char *) {
     return "listvars {prints all Tweakable IDs to console log; use 'set' to modify a Tweakable}";
@@ -412,11 +599,12 @@ void CONSOLE_DrawCmdline(const ConsoleRenderer &cr, const char *line) {
 }
 void CONSOLE_DrawPar(const ConsoleRenderer &cr, const char *str, int *lineNo, int lineCount, LOG_TYPE lineType) {
     auto ustr = ToUTF8_ib(str);
-    auto mea = g_LargeFontW.GetParagraphLineCountW(cr.m_width, ustr, g_Console.LargeFontScale, 0.0f, false);
+    auto w = cr.m_width - 6.0f /*URSOFT scrollbar*/;
+    auto mea = g_LargeFontW.GetParagraphLineCountW(w, ustr, g_Console.LargeFontScale, 0.0f, false);
     int  lines = g_LargeFontW.RenderParagraphW(15.0f, cr.m_atY + 16.0f * (lineCount - mea + 1 - *lineNo),
-                                               cr.m_width, cr.m_height, ustr, ConsoleRenderer::TYPE_COLORS[lineType],
+                                               w, cr.m_height, ustr, ConsoleRenderer::TYPE_COLORS[lineType],
                                                0,
-                                               0.35f, //URSOFT FIX (was 0.4)
+                                               g_Console.LargeFontScale,
                                                true,
                                                0.886f, //URSOFT FIX (was 1.0)
                                                0.0f,
@@ -427,7 +615,7 @@ void CONSOLE_DrawPar(const ConsoleRenderer &cr, const char *str, int *lineNo, in
 void ScrollLog(int dir) {
     int maxScroll = LogGetLineCount() - (LOGC_PAGE + 1);
     g_scrollLogPos = std::clamp(g_scrollLogPos + (dir <= 0 ? 1 : -1), 0, maxScroll);
-    g_overflowScroll = (g_scrollLogPos > maxScroll);
+    g_alwaysScrollToEnd = (g_scrollLogPos >= maxScroll);
 }
 float     g_blinkTime;
 const int CONSOLE_CMD_BUF = 1024, CONSOLE_CMDS_HISTORY = 16;
@@ -506,7 +694,7 @@ void CONSOLE_PrepareAutocompleteItem(ConsoleCommandFuncs *funcs, const char *par
         funcs->m_ac_search(&v30, params);
         if (v30.m_field_38) {
             for (auto &pars : v30.m_field_20) {
-                g_autoComplete.m_vec.push_back(CircularVectorData{ funcs->m_name, pars, v30.m_descr });
+                g_autoComplete.m_vec.push_back(CircularVectorData{ pars, pars, v30.m_descr });
                 g_autoComplete.m_iter = g_autoComplete.m_vec.begin();
             }
             return;
@@ -532,7 +720,7 @@ void CONSOLE_PrepareAutocompleteItem(ConsoleCommandFuncs *funcs, const char *par
 }
 void CONSOLE_PrepareAutocomplete(const char *cmd) {
     if (cmd == nullptr || *cmd == 0)
-        return;
+        cmd = "help";
     const char *startCmd = cmd, *endCmd = startCmd + strlen(cmd);
     while (*startCmd && *startCmd == ' ') ++startCmd;
     while (endCmd >= startCmd && endCmd[-1] == ' ')
@@ -575,7 +763,7 @@ void CONSOLE_KeyPress(int codePoint, int keyModifiers) {
         case GLFW_KEY_ENTER:
             if (!cmdLen)
                 return;
-            g_overflowScroll = true;
+            g_alwaysScrollToEnd = true;
             COMMAND_RunCommand(g_consoleCommand);
             memmove(g_consoleCmdHistory[g_consoleCmdHistoryIdx % CONSOLE_CMDS_HISTORY], g_consoleCommand, cmdLen + 1);
             g_consoleCmdHistoryIdx++;
@@ -646,7 +834,7 @@ void CONSOLE_KeyPress(int codePoint, int keyModifiers) {
     if (scrollDelta) {
         int maxScroll = LogGetLineCount() - (LOGC_PAGE + 1);
         g_scrollLogPos = std::clamp(g_scrollLogPos + scrollDelta, 0, maxScroll);
-        g_overflowScroll = (g_scrollLogPos > maxScroll);
+        g_alwaysScrollToEnd = (g_scrollLogPos >= maxScroll);
     }
 }
 void CONSOLE_KeyFilter(uint32_t codePoint, int keyModifiers) {
@@ -669,7 +857,7 @@ void CONSOLE_KeyFilter(uint32_t codePoint, int keyModifiers) {
 void CONSOLE_Draw(float atY, float dt) {
     int lc = std::min(LOGC_PAGE, LogGetLineCount());
     int scrollLogPos = g_scrollLogPos;
-    if (g_overflowScroll) {
+    if (g_alwaysScrollToEnd) {
         scrollLogPos = LogGetLineCount() - LOGC_PAGE - 1;
         if (scrollLogPos < 0)
             scrollLogPos = 0;
@@ -684,18 +872,39 @@ void CONSOLE_Draw(float atY, float dt) {
     g_Console.Update(atY);
     GFX_Draw2DQuad(0.0f, g_Console.m_top, g_Console.m_width, g_Console.m_delimHeight, ConsoleRenderer::LogBGColor, true);
     if (g_Console.m_logVisible) {
+        float lastLinePrinted = lc + scrollLogPos;
         for (int v6 = 0; lc > v6; --lc) {
             //sprintf(v11, "linenum = %d\n", lc);
             auto str = LogGetLine(lc + scrollLogPos);
             if (str)
                 CONSOLE_DrawPar(g_Console, str, &v6, lc, LogGetLineType(lc + scrollLogPos));
         }
-        if (g_Console.m_logVisible)
-            GFX_Draw2DQuad(0.0f, g_Console.m_cmdY, 1280.0f, 1.0f, -1, false);
+        float firstLinePrinted = lc + scrollLogPos;
+        GFX_Draw2DQuad(0.0f, g_Console.m_cmdY, 1280.0f, 1.0f, -1, false);
+        //scrollBarTop, scrollBarHeight=0..g_Console.m_cmdY
+        float scrollBarTop = firstLinePrinted / LogGetLineCount() * g_Console.m_cmdY, scrollBarHeight = (lastLinePrinted - firstLinePrinted + 1) / LogGetLineCount() * g_Console.m_cmdY;
+        GFX_Draw2DQuad(1274.0f, scrollBarTop, 6.0f, scrollBarHeight, 0xFFFFFF00, false);
+        GFX_Draw2DQuad(1276.0f, scrollBarTop + 2.0, 2.0f, scrollBarHeight - 4.0, g_alwaysScrollToEnd ? 0xFF0000FF : 0xFFFF0000, false);
     }
     CONSOLE_DrawCmdline(g_Console, buf);
+    auto banner = "Zwift Debug Console (toggle with ` key and Ctrl+F12; tab for autocomplete)";
     if (!g_Console.m_logBanner.empty())
-        g_LargeFontW.RenderWString(15.0f, 0.0f, g_Console.m_logBanner.c_str(), 0xFFFFFF00, 0,
-                                   0.35f, //URSOFT FIX: was 0.4
-                                   true, false);
+        banner = g_Console.m_logBanner.c_str();
+    g_LargeFontW.RenderWString(15.0f, 0.0f, banner, 0xFFFFFF00, 0, 0.35f /*URSOFT FIX : was 0.4*/, true, false);
+}
+bool CMD_PlayWem(const char *) {
+    //TODO
+    return true;
+}
+char g_cmdPlayFileName[1024];
+bool CMD_PlayWemLocal(const char *par) {
+    char cd[MAX_PATH + 1];
+    cd[0] = 0;
+    if (GetCurrentDirectoryA(sizeof(cd) - 1, cd)) {
+        auto v2 = sprintf(g_cmdPlayFileName, "%s/data/%s", cd, par);
+        for (auto &s : g_cmdPlayFileName)
+            if (!s) break; else if (s == '/') s = '\\';
+        AUDIO_PlayFlatFile(g_cmdPlayFileName, 0.0f);
+    }
+    return true;
 }

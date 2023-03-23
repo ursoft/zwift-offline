@@ -1,5 +1,6 @@
 #pragma once
 #define NOMINMAX
+//#define AK_USE_UWP_API
 #include "framework.h"
 #include <ShellScalingApi.h>
 #include <tlhelp32.h>

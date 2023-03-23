@@ -3,7 +3,7 @@ void GFX_SetLoadedAssetMode(bool mode) {
     g_CurrentAssetCategory = mode ? AC_1 : AC_2;
 }
 bool GFX_Initialize() {
-    g_MinimalUI = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\MINIMAL_UI", 0, true) == 0;
+    g_tweakArray[TWI_MINIMALUI].IntValue() = (g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\MINIMAL_UI", 0, true) == 0);
     g_WorkoutDistortion = g_UserConfigDoc.GetBool("ZWIFT\\CONFIG\\WORKOUTDISTORTION", true, true);
     g_bFullScreen = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\FULLSCREEN", 0, true) != 0;
     auto WINWIDTH = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\WINWIDTH", 0, true);

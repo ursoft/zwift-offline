@@ -7,7 +7,6 @@ void GAME_GetSuppressedLogTypes();
 void GAME_SetUseErgModeInWorkouts(bool);
 void GAME_Initialize();
 void GAME_AddMode(EGameMode);
-void GAME_AudioUpdate(GameWorld *, Camera *, float);
 void GAME_CancelWorkout();
 //void GAME_CheckEventBikeFrameChange(bool, GroupEvents::SubgroupState *)
 void GAME_CheckForKonaHeatItUp_Unlocks(BikeEntity *, float, float);

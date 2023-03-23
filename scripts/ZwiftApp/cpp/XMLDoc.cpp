@@ -270,7 +270,7 @@ const char *XMLDoc::GetCStr(const char *, const char *, bool) {
 }
 float XMLDoc::GetF32(const char *, float, bool) {
     //TODO
-    return 0.0f;
+    return 1.0f;
 }
 float *XMLDoc::GetF32Array(const char *, bool) {
     //TODO

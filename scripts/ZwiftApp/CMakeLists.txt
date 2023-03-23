@@ -49,7 +49,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   Noesis.lib #NoesisApp.lib
   Winmm.lib Shcore
   Opengl32.lib GLEW::GLEW
-  AkSoundEngine.lib AkMemoryMgr.lib AkMusicEngine.lib AkStreamMgr.lib
+  AkSoundEngine.lib AkMemoryMgr.lib AkMusicEngine.lib AkStreamMgr.lib $<LINK_LIBRARY:WHOLE_ARCHIVE,AkVorbisDecoder.lib> #AkAudioInputSource.lib AkAutobahn.lib AkCompressorFX.lib AkDelayFX.lib
+   #AkExpanderFX.lib AkFlangerFX.lib AkGainFX.lib AkGuitarDistortionFX.lib AkHarmonizerFX.lib AkMatrixReverbFX.lib AkMeterFX.lib AkOpusDecoder.lib AkParametricEQFX.lib
+   #AkPeakLimiterFX.lib AkPitchShifterFX.lib AkRecorderFX.lib AkRoomVerbFX.lib AkSilenceSource.lib AkSineSource.lib AkSpatialAudio.lib AkStereoDelayFX.lib AkSynthOneSource.lib
+   #AkTimeStretchFX.lib AkToneSource.lib AkTremoloFX.lib CommunicationCentral.lib
   ${CMAKE_CURRENT_BINARY_DIR}/glfw/lib/glfw3.lib
   CURL::libcurl
   OpenSSL::SSL OpenSSL::Crypto
