@@ -87,8 +87,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
             }
         if (param.length()) argv.emplace_back(param);
     }
-    _set_FMA3_enable(0);
+    _set_FMA3_enable(0);    
+    DWORD t1 = GetTickCount();
     ZwiftInitialize(argv);
+    t1 = GetTickCount() - t1;
+    printf("ZwiftInitialize took: %dms\n", t1);
     int   iteration = 0;
     HWND  hMainWindow = nullptr;
     float fcounter = 0;

@@ -1,10 +1,4 @@
 {
-  "OutputFoldersPerTargetSystem": {
-    "Local Machine": [
-      "..\\..\\..\\ZwiftApp_build\\Debug-host",
-      "1.32.1_106405-Debug"
-    ]
-  },
   "ExpandedNodes": [
     "",
     "\\cmake",
@@ -13,5 +7,12 @@
     "\\res"
   ],
   "SelectedNode": "\\cpp\\GFX.h",
-  "PreviewInSolutionExplorer": false
+  "PreviewInSolutionExplorer": false,
+  "OutputFoldersPerTargetSystem": {
+    "Local Machine": [
+      "..\\..\\..\\ZwiftApp_build\\Debug-host",
+      "1.32.1_106405-Debug",
+      "..\\..\\..\\ZwiftApp_build\\RelWithDebInfo-host"
+    ]
+  }
 }

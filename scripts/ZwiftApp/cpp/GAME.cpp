@@ -46,3 +46,6 @@ void GAME_GetMapForTime_New(time_t t) {
 void GAME_LoadLevel(int) {
     //TODO
 }
+void GAME_ResetScreenshotsForActivity() {
+    //TODO
+}

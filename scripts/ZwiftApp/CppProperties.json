@@ -21,6 +21,28 @@
         "_UNICODE"
       ],
       "intelliSenseMode": "windows-msvc-x64"
+    },
+    {
+        "inheritEnvironments": [
+            "msvc_x64"
+        ],
+        "name": "x64-RelWithDebInfo",
+        "includePath": [
+            "${env.INCLUDE}",
+            "${workspaceRoot}\\**",
+            "${workspaceRoot}\\..\\..\\..\\ZwiftApp_build\\Wwise_v2021.1.11\\SDK\\include",
+            "${workspaceRoot}\\..\\..\\..\\ZwiftApp_build\\Noesis-3.0.12\\Include",
+            "${workspaceRoot}\\..\\..\\..\\ZwiftApp_build\\RelWithDebInfo-host\\decNumber\\decNumber-icu-368",
+            "${workspaceRoot}\\..\\..\\..\\ZwiftApp_build\\RelWithDebInfo-host\\",
+            "C:\\Users\\builder\\projects\\ALL\\vcpkg\\installed\\x64-windows-static\\include"
+        ],
+        "defines": [
+            "WIN32",
+            "NDEBUG",
+            "UNICODE",
+            "_UNICODE"
+        ],
+        "intelliSenseMode": "windows-msvc-x64"
     }
   ]
 }

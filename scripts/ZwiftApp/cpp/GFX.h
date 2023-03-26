@@ -272,7 +272,7 @@ inline int g_nSkipMipCount;
 inline const char *g_GL_vendor = "", *g_GL_renderer = "", *g_GL_apiName = "";
 inline bool g_openglDebug, g_glCoreContext, g_bGFXINITIALIZED, g_bUseEmptyShadowMapsHack, g_bInvertCulling;
 inline char g_strCPU[0x40];
-inline int g_BlurShaderHandle, g_CurrentShaderHandle = -1;
+inline int g_BlurShaderHandle = -1, g_CurrentShaderHandle = -1;
 enum DetailedRender { DR_NO, DR_MIDDLE, DR_VERBOSE };
 inline DetailedRender g_renderDetailed = DR_VERBOSE;
 inline GLFWwindow *g_mainWindow;
@@ -291,20 +291,20 @@ inline int g_DrawNoTextureShaderHandle = -1, g_DrawTexturedShaderHandle = -1, g_
 inline uint8_t *g_DrawBuffers[2];
 inline uint32_t g_CurrentBuffer, g_CurrentBufferOffset, g_PreviousBufferOffset;
 inline std::unordered_map<uint32_t, int> g_ShaderMap; //shaderId (name & params crc) -> shaderHandle (0...MAX_SHADERS)
-inline int g_SimpleShaderHandle, g_WorldNoLightingHandle, g_ShadowmapShaderHandle, g_ShadowmapInstancedShaderHandle, g_ShadowmapHairShaderHandle,
-    g_TestShaderHandle, g_RoadShader, g_RoadAccessoryShader, g_RoadAccessoryShaderSSR, g_RoadWetShader, g_RoadAccessoryWetShader, g_HeatHazeShader, g_CausticShader, g_CrepuscularHandle,
-    g_WorldShaderHandle, g_WorldAOShaderHandle, g_WorldShaderBillboardedHandle, g_WorldShaderShinyHandle, g_WorldShaderSimpleHandle, g_HologramShader,
-    g_LockedItemShader, g_LondonTerrainShader, g_LondonTerrainHeightMapShader, g_FranceTerrainShader, g_FranceTerrainHeightMapShader, g_BasicTerrainShader,
-    g_BasicTerrainHeightMapShader, g_BasicTerrainNoSnowShader, g_BasicTerrainNoSnowHeightMapShader, g_InnsbruckTerrainHeightMapShader, g_InnsbruckTerrainHandle,
-    g_BolognaTerrainHeightMapShader, g_BolognaTerrainShader, g_YorkshireTerrainShader, g_YorkshireTerrainHeightMapShader, g_RichmondTerrainShader, g_RichmondTerrainHeightMapShader,
-    g_WorkoutHologramShader, g_WorkoutHologramPrShader, g_FinalCopyShader, g_WorldShaderTerrainHandle, g_WorldShaderTerrainHeightMapHandle, g_ShadowShaderTerrainHeightMap,
-    g_WatopiaSpecialTileShaderHeightmap, g_WatopiaSpecialTileShader, g_WorldShaderInstancedHandle, g_WorldShaderInstancedTerrainConformingHandle, g_World2LayerShaderHandle,
-    g_VegetationShaderHandle, g_VegetationShaderInstancedTerrainConformHandle, g_VegetationShaderInstancedHandle, g_VegetationShadowmapShaderHandle, g_VegetationShadowmapInstancedShaderHandle,
-    g_WireShaderHandle, g_WireShadowShaderHandle, g_BikeShaderInstancedHandle, g_HairShaderHandle, g_SkinShader, g_ShadowmapSkinShader, g_SkinShaderHologram, g_grayScaleShader;
+inline int g_SimpleShaderHandle = -1, g_WorldNoLightingHandle = -1, g_ShadowmapShaderHandle = -1, g_ShadowmapInstancedShaderHandle = -1, g_ShadowmapHairShaderHandle = -1, g_TestShaderHandle = -1, 
+    g_RoadShader = -1, g_RoadAccessoryShader = -1, g_RoadAccessoryShaderSSR = -1, g_RoadWetShader = -1, g_RoadAccessoryWetShader = -1, g_HeatHazeShader = -1, g_CausticShader = -1, g_CrepuscularHandle = -1,
+    g_WorldShaderHandle = -1, g_WorldAOShaderHandle = -1, g_WorldShaderBillboardedHandle = -1, g_WorldShaderShinyHandle = -1, g_WorldShaderSimpleHandle = -1, g_HologramShader = -1,
+    g_LockedItemShader = -1, g_LondonTerrainShader = -1, g_LondonTerrainHeightMapShader = -1, g_FranceTerrainShader = -1, g_FranceTerrainHeightMapShader = -1, g_BasicTerrainShader = -1,
+    g_BasicTerrainHeightMapShader = -1, g_BasicTerrainNoSnowShader = -1, g_BasicTerrainNoSnowHeightMapShader = -1, g_InnsbruckTerrainHeightMapShader = -1, g_InnsbruckTerrainHandle = -1,
+    g_BolognaTerrainHeightMapShader = -1, g_BolognaTerrainShader = -1, g_YorkshireTerrainShader = -1, g_YorkshireTerrainHeightMapShader = -1, g_RichmondTerrainShader = -1, g_RichmondTerrainHeightMapShader = -1,
+    g_WorkoutHologramShader = -1, g_WorkoutHologramPrShader = -1, g_FinalCopyShader = -1, g_WorldShaderTerrainHandle = -1, g_WorldShaderTerrainHeightMapHandle = -1, g_ShadowShaderTerrainHeightMap = -1,
+    g_WatopiaSpecialTileShaderHeightmap = -1, g_WatopiaSpecialTileShader = -1, g_WorldShaderInstancedHandle = -1, g_WorldShaderInstancedTerrainConformingHandle = -1, g_World2LayerShaderHandle = -1,
+    g_VegetationShaderHandle = -1, g_VegetationShaderInstancedTerrainConformHandle = -1, g_VegetationShaderInstancedHandle = -1, g_VegetationShadowmapShaderHandle = -1, g_VegetationShadowmapInstancedShaderHandle = -1,
+    g_WireShaderHandle = -1, g_WireShadowShaderHandle = -1, g_BikeShaderInstancedHandle = -1, g_HairShaderHandle = -1, g_SkinShader = -1, g_ShadowmapSkinShader = -1, g_SkinShaderHologram = -1, g_grayScaleShader = -1;
 inline bool g_bUseTextureHeightmaps = true;
-inline int g_ButterflyTexture, g_RedButterflyTexture, g_MonarchTexture, g_FireflyTexture, g_CausticTexture, g_GrassTexture, g_GravelMtnGrassTexture,
-    g_InnsbruckConcreteTexture, g_ParisConcreteTexture, g_DefaultNormalMapNoGloss, g_RoadDustTexture, g_GravelDustTexture, g_SandTexture, g_SandNormalTexture,
-    g_RockTexture, g_FranceRockTexture, g_FranceRockNTexture, g_RockNormalTexture, g_ShowroomFloorTexture, g_HeadlightTexture, g_VignetteTexture, g_FFtextureHandle;
+inline int g_ButterflyTexture = -1, g_RedButterflyTexture = -1, g_MonarchTexture = -1, g_FireflyTexture = -1, g_CausticTexture = -1, g_GrassTexture = -1, g_GravelMtnGrassTexture,
+    g_InnsbruckConcreteTexture = -1, g_ParisConcreteTexture = -1, g_DefaultNormalMapNoGloss, g_RoadDustTexture = -1, g_GravelDustTexture = -1, g_SandTexture = -1, g_SandNormalTexture,
+    g_RockTexture = -1, g_FranceRockTexture = -1, g_FranceRockNTexture = -1, g_RockNormalTexture = -1, g_ShowroomFloorTexture = -1, g_HeadlightTexture = -1, g_VignetteTexture = -1, g_FFtextureHandle;
 inline uint32_t g_TextureTimeThisFrame, g_MeshTimeThisFrame;
 inline GFX_MatrixContext g_MatrixContext;
 inline VEC4 g_frustumPlanes[6], g_Vec4White{1.0, 1.0, 1.0, 1.0};

@@ -62,24 +62,66 @@ void KeyCallback(GLFWwindow *, int key, int scanCode, int action, int mods) {
         if (key > 255 || (mods & (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) == GLFW_MOD_CONTROL)
             CONSOLE_KeyFilter(key, mods);
 }
+bool g_ResetLastSaveTime, g_onceEndSession = true;
+int g_NumberOfAutoStravaScreenshotsTaken, g_NumberOfJerseryScreenshotsRequested, g_screenShotCounter;
+enum PHOTO_UPLOAD { PU_NONE = 0, PU_USER_TRIGGERED = 1, PU_USER_TRIGGERED_COMPANION_APP = 2, PU_TIMER_TRIGGERED = 3, PU_STOCK = 4, PU_CNT } g_photoUploadKind;
+struct ScreenShot {
+    //TODO
+};
+std::vector<ScreenShot> g_screenShots;
+void Zwift_EndSession(bool bShutdown) {
+    g_ResetLastSaveTime = true;
+    GAME_ResetScreenshotsForActivity();
+    g_screenShots.clear();
+    g_screenShotCounter = 0;
+    g_photoUploadKind = PU_NONE;
+    g_NumberOfAutoStravaScreenshotsTaken = 0;
+    g_NumberOfJerseryScreenshotsRequested = 0;
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    static auto orgJersey = SIG_CalcCaseInsensitiveSignature("Humans/Accessories/CyclingJerseys/Originals_Zwift_02.xml");
+    if (bShutdown && mainBike && Experimentation::Instance()->IsEnabled(FID_TDFFEM)
+        && mainBike->m_yellowJersey && mainBike->m_jersey == orgJersey) {
+        mainBike->m_changeFlags0 |= BCH0_JERSEY;
+        mainBike->m_jersey = mainBike->m_yellowJersey;
+        mainBike->m_yellowJersey = 0;
+        EndGameSession(false);
+    } else {
+        EndGameSession(false);
+        if (!bShutdown)
+            return;
+    }
+    if (g_onceEndSession) {
+        g_onceEndSession = false;
+        glfwSetWindowShouldClose(g_mainWindow, 1);
+    }
+}
+void OnQuit(int a1) {
+    UI_CloseDialog(UID_QUIT);
+    if (a1) {
+        //OMIT crashReport
+    } else {
+        Zwift_EndSession(g_bShutdown);
+        if (!g_bShutdown)
+            ZSF_SwitchState(ZSF_c, nullptr);
+    }
+}
 void WindowCloseCallback(GLFWwindow *) {
     auto mainBike = BikeManager::Instance()->m_mainBike;
     if (mainBike) { //TODO
-        /*if (m_mainBike->m_bc->m_distance <= 0.01) {
-            g_ResetLastSaveTime = 1;
+        if (mainBike->m_bc->m_distance <= 0.01) {
+            g_ResetLastSaveTime = true;
             GAME_ResetScreenshotsForActivity();
-            *(_QWORD *)&xmmword_7FF63035FD78 = qword_7FF63035FD70;
+            /* TODO (_QWORD *)&xmmword_7FF63035FD78 = qword_7FF63035FD70;
             qword_7FF6303F5258 = 0i64;
             byte_7FF6303F48DB = 0;
             dword_7FF630341A34 = 0;
-            dword_7FF630341A5C = 0;
+            dword_7FF630341A5C = 0;*/
             EndGameSession(0);
         } else {
-            UI_CreateDialog(UID_QUIT, sub_7FF62F1F9000, 0i64, a4);
-            sub_7FF62F6CC1A0((__int64)g_mainWindow, 0);
+            UI_CreateDialog(UID_QUIT, OnQuit, nullptr);
+            glfwSetWindowShouldClose(g_mainWindow, 0);
         }
-        return;
-        */
+        //return; //TODO: delete remarks
     }
     ZwiftExit(0); //URSOFT FIX
 }
@@ -242,7 +284,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_ChatFontGW = &g_GiantFontW;
     g_ChatFontLW = &g_LargeFontW;
     g_GiantFontW.Load(FS_FONDO_BLACK);
-    g_GiantFontW.SetScaleAndKerning(0.34108528, 0.93000001);
+    g_GiantFontW.SetScaleAndKerning(0.34108528f, 0.93f);
     ZWIFT_UpdateLoading(nullptr, false); //first screen
     switch (GFX_GetPerformanceGroup()) {
         case GPG_BASIC:
@@ -537,7 +579,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_WorldShaderTerrainHeightMapHandle = GFX_CreateShaderFromFile("defaultWorld_TerrainHeightMap", -1);
     g_ShadowShaderTerrainHeightMap = GFX_CreateShaderFromFile("shadowmap_TerrainHeightMap", -1);
     g_WatopiaSpecialTileShaderHeightmap = GFX_CreateShaderFromFile("WatopiaDesert_TerrainHeightMap", -1);
-    g_WatopiaSpecialTileShader = GFX_CreateShaderFromFile("WatopiaDesert", -1);
+    g_WatopiaSpecialTileShader = -1; //FIX RTL GFX_CreateShaderFromFile("WatopiaDesert", -1);
     if (g_ShadowShaderTerrainHeightMap == -1 || g_WorldShaderTerrainHeightMapHandle == -1 || g_LondonTerrainHeightMapShader == -1) {
         Log("Disabling heightmap shaders");
         g_bUseTextureHeightmaps = false;
@@ -557,7 +599,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     g_VegetationShadowmapShaderHandle = GFX_CreateShaderFromFile("vegetationShadowmap", -1);
     g_VegetationShadowmapInstancedShaderHandle = GFX_CreateShaderFromFile("vegetationShadowmapInstance", -1);
     g_WireShaderHandle = GFX_CreateShaderFromFile("wire", -1);
-    g_WireShadowShaderHandle = GFX_CreateShaderFromFile("wireShadow", -1);
+    g_WireShadowShaderHandle = -1; //FIX RTL GFX_CreateShaderFromFile("wireShadow", -1);
     g_BikeShaderInstancedHandle = GFX_CreateShaderFromFile("accessory_instanced", -1);
     g_HairShaderHandle = GFX_CreateShaderFromFile("Hair", -1);
     //GFX_CreateShaderFromFile("defaultWorld_notShadowed", -1);// g_WorldShaderNoShadowHandle

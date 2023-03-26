@@ -10,7 +10,7 @@ void UnitTypeManager::SetUseMetric(bool m) {
         auto mainBike = BikeManager::Instance()->m_mainBike;
         if (mainBike) {
             if (mainBike->m_metricUnits != m) {
-                mainBike->m_changeFlags |= BCH_UNITS;
+                mainBike->m_changeFlags1 |= BCH1_UNITS;
                 mainBike->m_metricUnits = m;
                 if (!m_readonly && mainBike->m_writable)
                     mainBike->SaveProfile(true, false);

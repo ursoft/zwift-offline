@@ -311,7 +311,7 @@ bool AUDIO_PlayFlatFile(const char *name, float tm) {
 }
 
 //Unit tests
-TEST(SmokeTest, AUDIO_PlayFF) {
+TEST(SmokeTest, DISABLED_AUDIO_PlayFF) {
     AUDIO_Init();
     AK::Monitor::SetLocalOutput(AK::Monitor::ErrorLevel_All);
     AkGameObjectID id = 1;

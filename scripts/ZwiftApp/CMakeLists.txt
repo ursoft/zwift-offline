@@ -63,9 +63,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   GTest::gtest
   unofficial::libsquish::squish
 )
+target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:RELWITHDEBINFO>:/PROFILE>)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ./)
 install(FILES $<TARGET_PDB_FILE:${PROJECT_NAME}> DESTINATION ./ OPTIONAL)
 install(FILES ${CMAKE_NOESIS_DIR}/Bin/windows_x86_64/Noesis.dll DESTINATION ./)
+install(FILES ${CMAKE_WWISE_DIR}/x64_vc170/Release/bin/AkCompressor.dll DESTINATION ./)
+install(FILES ${CMAKE_WWISE_DIR}/x64_vc170/Release/bin/AkCompressor.pdb DESTINATION ./)
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE cpp/pch.h)

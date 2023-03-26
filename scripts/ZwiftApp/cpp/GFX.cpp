@@ -62,28 +62,27 @@ void debugMessage(GLenum source, GLenum type, GLuint id, GLenum severity, GLsize
     sprintf_s(ods, "[OPENGL] %s\n", message);
     OutputDebugStringA(ods);
 }
+//#define ZGL_DEBUG
 bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
     glfwSetErrorCallback(glfwZwiftErrorCallback);
     if (!glfwInit()) {
         Log("Failed GLFW init. Returning");
         ZwiftExit(1);
     }
-#ifdef _DEBUG
+#ifdef ZGL_DEBUG
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET);
 #endif
     auto ver = gip.GlContextVer;
     int prof;
-    if (ver & 0xFFC00 | ((ver & 0x3FF) << 20) | (ver >> 20) & 0x3FF)
-    {
+    if (ver & 0xFFC00 | ((ver & 0x3FF) << 20) | (ver >> 20) & 0x3FF) {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, ver & 0x3FF);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, (ver >> 10) & 0x3FF);
         if ((ver & 0xFFC00 | ((ver & 0x3FF) << 20) | (ver >> 20) & 0x3FF) < 0x300800)
             prof = 0;
         else
             prof = GLFW_OPENGL_COMPAT_PROFILE - gip.GlCoreProfile;
-    } else
-    {
+    } else {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         prof = GLFW_OPENGL_COMPAT_PROFILE - gip.GlCoreProfile;
@@ -166,7 +165,7 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
         Log(buf);
         MsgBoxAndExit(buf);
     }
-#ifdef _DEBUG
+#ifdef ZGL_DEBUG
     GLint flags; glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
     if (flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
         glEnable(GL_DEBUG_OUTPUT);
@@ -420,7 +419,9 @@ void GFX_TextureSys_Initialize() {
 }
 int GFX_CreateShaderFromFile(const char *fileName, int handle) {
     GFX_CreateShaderParams s{ fileName };
-    return GFX_CreateShaderFromFile(s, handle);
+    int ret = GFX_CreateShaderFromFile(s, handle);
+    zassert(ret != -1);
+    return ret;
 }
 int GFX_Internal_GetNextShaderHandle() {
     auto ret = g_nShadersLoaded++;
@@ -679,7 +680,89 @@ void GFX_Internal_fixupShaderAddresses(GFX_ShaderPair *pShader) {
     glUseProgram(0);
     g_pGFX_CurrentStates->m_shader = -1;
 }
+typedef std::chrono::high_resolution_clock Clock;
+typedef std::chrono::milliseconds ms;
+int dms(const Clock::time_point &from) {
+    auto d = Clock::now() - from;
+    return std::chrono::duration_cast<ms>(d).count();
+}
+int maxdms = -1;
+//#define OWN_SHADER_CACHE //применял, пока в коде была ошибка (кеш шейдеров распухал из-за неправильной длины буфера)
+#define TIME(f) f
+#define TIME2(f) ret=f
+#define TIME3(f) { \
+auto s = Clock::now(); ret=f; auto d=dms(s);\
+if(d > maxdms) { /*maxdms=d;*/ printf("%s: %s=%d\n", vsh, #f, d);} \
+}
+int GFXAPI_CreateShaderFromBuffers_(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh);
 int GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh) {
+    int ret;
+    TIME2(GFXAPI_CreateShaderFromBuffers_(handle, vshLength, vshd, vsh, pshLength, pshd, psh));
+    return ret;
+}
+void GFX_CacheShader(int program, const char *fn) {
+    GLint binaryLength;
+    GLenum binaryFormat;
+    auto outfile = fopen(fn, "wb");
+    if (outfile) {
+        glGetProgramiv(program, GL_PROGRAM_BINARY_LENGTH, &binaryLength);
+        auto binary = (void *)malloc(binaryLength);
+        glGetProgramBinary(program, binaryLength, nullptr, &binaryFormat, binary);
+        fwrite(&binaryFormat, sizeof(binaryFormat), 1, outfile);
+        fwrite(binary, binaryLength, 1, outfile);
+        fclose(outfile);
+        free(binary);
+    }
+}
+bool GFX_UseCachedShader(GFX_ShaderPair *curShader, const char *fn) {
+    GLint   success;
+    GLenum binaryFormat;
+    auto infile = fopen(fn, "rb");
+    if (!infile) 
+        return false;
+    fseek(infile, 0, SEEK_END);
+    auto binaryLength = (GLint)ftell(infile) - sizeof(binaryFormat);
+    auto binary = (void *)malloc(binaryLength);
+    fseek(infile, 0, SEEK_SET);
+    fread(&binaryFormat, sizeof(binaryFormat), 1, infile);
+    fread(binary, binaryLength, 1, infile);
+    fclose(infile);
+    if (curShader->m_program)
+        glDeleteProgram(curShader->m_program);
+    curShader->m_program = glCreateProgram();
+    glAttachShader(curShader->m_program, curShader->m_vshId);
+    glAttachShader(curShader->m_program, curShader->m_fshId);
+    uint32_t i = 0;
+    for (auto san : g_ShaderAttributeNames)
+        glBindAttribLocation(curShader->m_program, i++, san);
+    glProgramBinary(curShader->m_program, binaryFormat, binary, binaryLength);
+    free(binary);
+    glGetProgramiv(curShader->m_program, GL_LINK_STATUS, &success);
+    if (!success) {
+        return false;
+    }
+    return true;
+}
+int GFXAPI_CreateShaderFromBuffers_(int handle, int vshLength, const char *vshd, const char *vsh, int pshLength, const char *pshd, const char *psh) {
+#ifdef OWN_SHADER_CACHE
+    char cacheFileName[MAX_PATH];
+    const char *envCacheRoot = getenv("__GL_SHADER_DISK_CACHE_PATH");
+    envCacheRoot = envCacheRoot ? envCacheRoot : getenv("__ZGL_SHADER_DISK_CACHE_PATH");
+    envCacheRoot = envCacheRoot ? envCacheRoot : "";
+    strcpy(cacheFileName, envCacheRoot);
+    char *pCacheFileName = cacheFileName + strlen(cacheFileName);
+    if (*cacheFileName) {
+        *pCacheFileName++ = '\\';
+        *pCacheFileName = 0;
+    }
+    uint32_t signature = SIG_CalcCaseSensitiveSignature(vshd) ^ SIG_CalcCaseSensitiveSignature(pshd);
+    sprintf(pCacheFileName, "%x", signature);
+    static bool once = true;
+    if (once) {
+        once = false;
+        //glMaxShaderCompilerThreadsARB(-1); //already, default
+    }
+#endif
     bool newHandle = (handle == -1);
     if (newHandle)
         handle = GFX_Internal_GetNextShaderHandle();
@@ -690,31 +773,39 @@ int GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, 
     if (curShader->m_fshId)
         glDeleteShader(curShader->m_fshId);
     curShader->m_fshId = glCreateShader(GL_FRAGMENT_SHADER);
+#ifdef OWN_SHADER_CACHE
+    if (GFX_UseCachedShader(curShader, cacheFileName)) {
+        GFX_Internal_fixupShaderAddresses(curShader);
+        return handle;
+    }
+#endif
     glShaderSource(curShader->m_vshId, 1, &vshd, &vshLength);
     glShaderSource(curShader->m_fshId, 1, &pshd, &pshLength);
-    glCompileShader(curShader->m_vshId);
+    TIME(glCompileShader(curShader->m_vshId));
     int vCompileStatus = 0, vInfoLog = 0, dummyLength;
     glGetShaderiv(curShader->m_vshId, GL_COMPILE_STATUS, &vCompileStatus);
-    glGetShaderiv(curShader->m_vshId, GL_INFO_LOG_LENGTH, &vInfoLog);
-    if (vInfoLog > 1) {
-        auto v22 = (char *)malloc(vInfoLog);
-        glGetShaderInfoLog(curShader->m_vshId, vInfoLog, &dummyLength, v22);
-        if (!vCompileStatus)
-            LogTyped(LOG_ERROR, "[GFX]: GLSLvsherr log: %s", v22);
-        free(v22);
-    }
-    if (vCompileStatus) {
-        glCompileShader(curShader->m_fshId);
-        glGetShaderiv(curShader->m_fshId, GL_COMPILE_STATUS, &vCompileStatus);
-        glGetShaderiv(curShader->m_fshId, GL_INFO_LOG_LENGTH, &vInfoLog);
+    if (!vCompileStatus) {
+        glGetShaderiv(curShader->m_vshId, GL_INFO_LOG_LENGTH, &vInfoLog);
         if (vInfoLog > 1) {
-            auto v24 = (char *)malloc(vInfoLog);
-            glGetShaderInfoLog(curShader->m_fshId, vInfoLog, &dummyLength, v24);
-            if (!vCompileStatus)
-                LogTyped(LOG_ERROR, " [GFX]: GLSLpsherr log: %s", v24);
-            free(v24);
+            auto v22 = (char *)malloc(vInfoLog);
+            glGetShaderInfoLog(curShader->m_vshId, vInfoLog, &dummyLength, v22);
+            //if (!vCompileStatus)
+            LogTyped(LOG_ERROR, "[GFX]: GLSLvsherr log: %s", v22);
+            free(v22);
         }
-        if (vCompileStatus) {
+    } else {
+        TIME(glCompileShader(curShader->m_fshId));
+        glGetShaderiv(curShader->m_fshId, GL_COMPILE_STATUS, &vCompileStatus);
+        if (!vCompileStatus) {
+            glGetShaderiv(curShader->m_fshId, GL_INFO_LOG_LENGTH, &vInfoLog);
+            if (vInfoLog > 1) {
+                auto v24 = (char *)malloc(vInfoLog);
+                glGetShaderInfoLog(curShader->m_fshId, vInfoLog, &dummyLength, v24);
+                //if (!vCompileStatus)
+                LogTyped(LOG_ERROR, " [GFX]: GLSLpsherr log: %s", v24);
+                free(v24);
+            }
+        } else {
             if (curShader->m_program)
                 glDeleteProgram(curShader->m_program);
             curShader->m_program = glCreateProgram();
@@ -723,21 +814,25 @@ int GFXAPI_CreateShaderFromBuffers(int handle, int vshLength, const char *vshd, 
             uint32_t i = 0;
             for (auto san : g_ShaderAttributeNames)
                 glBindAttribLocation(curShader->m_program, i++, san);
-            glLinkProgram(curShader->m_program);
+            TIME(glLinkProgram(curShader->m_program));
             int linkStatus;
             glGetProgramiv(curShader->m_program, GL_LINK_STATUS, &linkStatus);
-            vInfoLog = 0;
-            dummyLength = 0;
-            glGetProgramiv(curShader->m_program, GL_INFO_LOG_LENGTH, &vInfoLog);
-            if (vInfoLog > 1) {
-                auto v31 = (char *)malloc(vInfoLog);
-                glGetProgramInfoLog(curShader->m_program, vInfoLog, &dummyLength, v31);
-                if (!linkStatus)
+            if (!linkStatus) {
+                vInfoLog = 0;
+                dummyLength = 0;
+                glGetProgramiv(curShader->m_program, GL_INFO_LOG_LENGTH, &vInfoLog);
+                if (vInfoLog > 1) {
+                    auto v31 = (char *)malloc(vInfoLog);
+                    glGetProgramInfoLog(curShader->m_program, vInfoLog, &dummyLength, v31);
+                    //if (!linkStatus)
                     LogTyped(LOG_ERROR, "[GFX]: GLSLprogerr log: %s", v31);
-                free(v31);
-            }
-            if (linkStatus) {
-                Log("Shader Loaded successfully.  %s", psh);
+                    free(v31);
+                }
+            } else {
+                Log("Shader Loaded successfully. %s", psh);
+#ifdef OWN_SHADER_CACHE
+                GFX_CacheShader(curShader->m_program, cacheFileName); //QUEST: or after fixup?
+#endif
                 GFX_Internal_fixupShaderAddresses(curShader);
                 return handle;
             }
@@ -826,7 +921,7 @@ int GFXAPI_CreateShaderFromFile(int handle, const GFX_CreateShaderParams &s) {
                     sprintf_s(vsh, "data/%s", vshh->m_filePath);
                     result = GFXAPI_CreateShaderFromBuffers(
                         handle,
-                        pshh->m_fileLength,
+                        vshh->m_fileLength,
                         (const char *)vshh->FirstChar(),
                         vsh,
                         pshh->m_fileLength,
@@ -2502,7 +2597,7 @@ void GFX_DestroyVertex(int *pIdx) {
 }
 namespace GameShaders { void LoadAll() {
     dualAlphaShader = GFX_CreateShaderFromFile("GFXDRAW_Textured_ExtAlpha", -1);
-    shGaussianBlur = GFX_CreateShaderFromFile("GaussianBlur", -1);
+    shGaussianBlur = -1; //FIX RTL GFX_CreateShaderFromFile("GaussianBlur", -1);
 } }
 int GFX_CreateShader(const GFX_CreateShaderParams &p) {
     if (p.m_name && *p.m_name)
@@ -3481,8 +3576,7 @@ void GFX_SetTextureWrap(uint32_t tn, GFX_TEXTURE_WRAP_MODE t, GFX_TEXTURE_WRAP_M
 }
 
 //Unit Tests
-#if 0
-TEST(SmokeTest, VertexArray) {
+TEST(SmokeTest, DISABLED_VertexArray) {
     GFX_CreateVertexParams p{ 4, 1,
         { {0, 0, GVF_FLOAT7, 0}, {0, 3, GVF_UNSIGNED_BYTE1, 12}, {0, 6, GVF_FLOAT6, 16}, {0, 7, GVF_FLOAT6, 24} },
         { {0, 32, GVF_UNSIGNED_BYTE1, 0} }
@@ -3505,7 +3599,6 @@ TEST(SmokeTest, VertexArray) {
     GFX_DestroyVertex(&idx);
     EXPECT_EQ(5, idx) << "GFX_DestroyVertex double";
 }
-#endif
 TEST(SmokeTest, ZData) {
     ZData *pDataDest;
     uint64_t *pPhysIdx;
@@ -3600,4 +3693,16 @@ TEST(SmokeTest, Transpose) {
     EXPECT_FLOAT_EQ(dest.m_data[3].m_data[1], src.m_data[1].m_data[3]);
     EXPECT_FLOAT_EQ(dest.m_data[3].m_data[2], src.m_data[2].m_data[3]);
     EXPECT_FLOAT_EQ(dest.m_data[3].m_data[3], src.m_data[3].m_data[3]);
+}
+TEST(SmokeTest, DISABLED_ShaderCacheGrow) {
+    EXPECT_TRUE(glfwInit());
+    g_mainWindow = glfwCreateWindow(10, 10, "Zwift", nullptr, nullptr);
+    EXPECT_TRUE(g_mainWindow != nullptr);
+    glfwMakeContextCurrent(g_mainWindow);
+    EXPECT_EQ(GLEW_OK, glewInit());
+    g_MainThread = GetCurrentThreadId();
+    g_WADManager.LoadWADFile("assets/global.wad");
+    g_gfxShaderModel = 4;
+    g_BlurShaderHandle = GFX_CreateShaderFromFile("Blur", -1);
+    EXPECT_TRUE(g_BlurShaderHandle != -1);
 }

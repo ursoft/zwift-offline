@@ -104,7 +104,7 @@ tinyxml2::XMLElement *XMLDoc::FindFirstElement(tinyxml2::XMLNode *from, int pidx
     }
     return nullptr;
 }
-tinyxml2::XMLElement *XMLDoc::FindFirstElement(tinyxml2::XMLNode *, const char *path, bool, bool) {
+tinyxml2::XMLElement *XMLDoc::FindFirstElement(tinyxml2::XMLNode *from, const char *path, bool, bool) {
     //TODO
     return nullptr;
 }
@@ -264,13 +264,19 @@ bool XMLDoc::GetBool(const char *path, bool def, bool a4) {
     auto sval = e->GetText();
     return sval && ((sval[0] == '1' && sval[1] == 0) || 0 == strcmp(sval, "true") || 0 == strcmp(sval, "TRUE"));
 }
-const char *XMLDoc::GetCStr(const char *, const char *, bool) {
-    //TODO
-    return nullptr;
+const char *XMLDoc::GetCStr(const char *path, const char *def, bool a4) {
+    tinyxml2::XMLElement *e = a4 ? FindElement(path, false) : FindNextElement(path, false, false);
+    if (!e) return def;
+    return e->GetText();
 }
-float XMLDoc::GetF32(const char *, float, bool) {
-    //TODO
-    return 1.0f;
+float XMLDoc::GetF32(const char *path, float def, bool a4) {
+    tinyxml2::XMLElement *e = a4 ? FindElement(path, false) : FindNextElement(path, false, false);
+    if (!e) return def;
+    auto sval = e->GetText();
+    float ret;
+    if (sscanf(sval, "%f", &ret) == 1)
+        return ret;
+    return def;
 }
 float *XMLDoc::GetF32Array(const char *, bool) {
     //TODO
