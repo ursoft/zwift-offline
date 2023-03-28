@@ -1,4 +1,60 @@
 #include "ZwiftApp.h"
+//#define ZCURL_DEBUG
+static void dump(const char *text, FILE *stream, unsigned char *ptr, size_t size) {
+    size_t i;
+    size_t c;
+    unsigned int width = 0x10;
+    fprintf(stream, "%s, %10.10ld bytes (0x%8.8lx)\n", text, (long)size, (long)size);
+    for (i = 0; i < size; i += width) {
+        fprintf(stream, "%4.4lx: ", (long)i);
+        /* show hex to the left */
+        for (c = 0; c < width; c++) {
+            if (i + c < size)
+                fprintf(stream, "%02x ", ptr[i + c]);
+            else
+                fputs("   ", stream);
+        }
+        /* show data on the right */
+        for (c = 0; (c < width) && (i + c < size); c++) {
+            char x = (ptr[i + c] >= 0x20 && ptr[i + c] < 0x80) ? ptr[i + c] : '.';
+            fputc(x, stream);
+        }
+        fputc('\n', stream); /* newline */
+    }
+}
+static int curl_trace(CURL *handle, curl_infotype type, char *data, size_t size, void *clientp) {
+    const char *text;
+    (void)handle; /* prevent compiler warning */
+    (void)clientp;
+    switch (type) {
+    case CURLINFO_TEXT:
+        fputs("== Info: ", stderr);
+        fwrite(data, size, 1, stderr);
+    default: /* in case a new one is introduced to shock us */
+        return 0;
+
+    case CURLINFO_HEADER_OUT:
+        text = "=> Send header";
+        break;
+    case CURLINFO_DATA_OUT:
+        text = "=> Send data";
+        break;
+    case CURLINFO_SSL_DATA_OUT:
+        text = "=> Send SSL data";
+        break;
+    case CURLINFO_HEADER_IN:
+        text = "<= Recv header";
+        break;
+    case CURLINFO_DATA_IN:
+        text = "<= Recv data";
+        break;
+    case CURLINFO_SSL_DATA_IN:
+        text = "<= Recv SSL data";
+        break;
+    }
+    dump(text, stderr, (unsigned char *)data, size);
+    return 0;
+}
 std::deque<Downloader::CompletedFile>::iterator Downloader::FindCompleted(const std::string &path) {
     std::deque<CompletedFile>::iterator it = m_filesCompleted.begin();
     for (; it != m_filesCompleted.end(); it++)
@@ -396,6 +452,11 @@ void Downloader::Update() {
         curl_easy_setopt(curl, CURLOPT_CAPATH, "./");
         curl_easy_setopt(curl, CURLOPT_CAINFO, "data/cacert.pem");
         curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "gzip");
+        curl_easy_setopt(curl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+#ifdef ZCURL_DEBUG
+        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+        curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, curl_trace);
+#endif
         std::string url(pend_src.m_urlp + pend_src.m_name);
         std::replace(url.begin(), url.end(), '\\', '/');
         m_curlLastCode = curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -421,7 +482,7 @@ void Downloader::Update() {
             curl_easy_cleanup(curl);
             return;
         }
-        auto new_cur = m_filesCurrent.emplace_back(pend_src);
+        auto &new_cur = m_filesCurrent.emplace_back(pend_src);
         new_cur.m_FILE = hFile;
         new_cur.m_curl = curl;
         m_filesPending.pop_front();
@@ -443,4 +504,38 @@ Downloader::CurrentFile::~CurrentFile() {
     if (m_curl)
         curl_easy_cleanup(m_curl);
     m_curl = nullptr;
+}
+
+//Units
+#pragma comment(lib, "winhttp.lib")
+TEST(SmokeTest, DISABLED_SchMap) {
+    /* all_proxy env var is better than: WINHTTP_CURRENT_USER_IE_PROXY_CONFIG proxyConfig{};
+    if (WinHttpGetIEProxyConfigForCurrentUser(&proxyConfig)) {
+        if (proxyConfig.lpszProxy && *proxyConfig.lpszProxy) { //we support http=127.0.0.1:8888;https=127.0.0.1:8888 syntax only, no unicode symbols
+            char *proxyCopy = new char[wcslen(proxyConfig.lpszProxy) + 1], *delim = nullptr, *pDest = proxyCopy;
+            auto *pSrc = proxyConfig.lpszProxy;
+            while (*pSrc) {
+                if (*pSrc == L';')
+                    delim = pDest;
+                *pDest++ = (char)*pSrc++; //narrowing conversion, OK for ASCII
+            }
+            *pDest = 0;
+            if (delim)
+                *delim++ = 0;
+            curl_easy_setopt(g_mDownloader.m_curlEasy, CURLOPT_PROXY, proxyCopy);
+            if (delim)
+                curl_easy_setopt(g_mDownloader.m_curlEasy, CURLOPT_PROXY, delim);
+            if (delim)
+                SetEnvironmentVariableA("http_proxy", delim);
+        }
+    }*/
+    char downloadPath[MAX_PATH] = {};
+    sprintf_s(downloadPath, "%s\\Zwift\\", OS_GetUserPath());
+    g_mDownloader.SetLocalPath(downloadPath);
+    g_mDownloader.SetServerURLPath("https://cdn.zwift.com/gameassets/");
+    std::string file("MapSchedule_v2.xml"), fullFile(downloadPath + file);
+    g_mDownloader.Download(file, 0LL, Downloader::m_noFileTime, -1, GAME_onFinishedDownloadingMapSchedule);
+    while (!g_mDownloader.CompletedSuccessfully(fullFile)) {
+        g_mDownloader.Update();
+    }
 }

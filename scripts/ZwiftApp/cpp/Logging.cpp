@@ -164,16 +164,12 @@ void Log(const char *fmt, ...) {
     va_start(va, fmt);
     LogInternal(LOG_GENERAL, fmt, va);
 }
-//LogDebug, LogNetInt, LogNoesis stored as pointers somewhere
+//LogDebug, LogNoesis stored as pointers somewhere
 void LogDebug(const char *fmt, ...) {
     if (!ShouldLog(LL_DEBUG)) return;
     va_list va;
     va_start(va, fmt);
     doLogInternal(LL_DEBUG, LOG_GENERAL, fmt, va);
-}
-void LogNetInt(const char *msg) {
-    if (msg && ShouldLog(LL_DEBUG))
-        execLogInternal(LL_DEBUG, LOG_ZNETWORK_INTERNAL, msg, strnlen_s(msg, 16384));
 }
 void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void *dummy_a4, const char *msg) {
     LOG_LEVEL l = LL_ERROR;

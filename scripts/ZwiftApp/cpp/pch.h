@@ -2,6 +2,7 @@
 #define NOMINMAX
 //#define AK_USE_UWP_API
 #include "framework.h"
+#include <Winhttp.h>
 #include <ShellScalingApi.h>
 #include <tlhelp32.h>
 #include <psapi.h>
@@ -26,6 +27,7 @@
 #include <deque>
 #include <filesystem>
 #include <fstream>
+#include <random>
 
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>

@@ -11,6 +11,16 @@ namespace zwift_network {
         PB *m_data;
     };
 }
+struct NetworkClientImpl;
+struct NetworkClientOptions;
+struct NetworkClient {
+    NetworkClientImpl *m_pImpl;
+    NetworkClient();
+    ~NetworkClient();
+    static void globalInitialize();
+    static void globalCleanup();
+    void initialize(const std::string &server, const std::string &certs, const std::function<void(char *)> &empty, const std::string &version, const NetworkClientOptions &nco);
+};
 namespace ZNet {
     struct Error {
         Error(std::string_view msg, zwift_network::NetworkRequestOutcome netReqOutcome) : m_msg(msg), m_netReqOutcome(netReqOutcome), m_hasNetReqOutcome(true) {}
@@ -38,9 +48,43 @@ namespace ZNet {
         //void UpdateProfile(bool, const protobuf::PlayerProfile &, bool, std::function<void()(void)> const &, ZNet::Params const &);
     };
 }
+namespace uuid {
+    static std::random_device              rd;
+    static std::mt19937                    gen(rd());
+    static std::uniform_int_distribution<> dis(0, 15);
+    static std::uniform_int_distribution<> dis2(8, 11);
+
+    inline std::string generate_uuid_v4() {
+        std::stringstream ss;
+        int i;
+        ss << std::hex;
+        for (i = 0; i < 8; i++) {
+            ss << dis(gen);
+        }
+        ss << "-";
+        for (i = 0; i < 4; i++) {
+            ss << dis(gen);
+        }
+        ss << "-4";
+        for (i = 0; i < 3; i++) {
+            ss << dis(gen);
+        }
+        ss << "-";
+        ss << dis2(gen);
+        for (i = 0; i < 3; i++) {
+            ss << dis(gen);
+        }
+        ss << "-";
+        for (i = 0; i < 12; i++) {
+            ss << dis(gen);
+        };
+        return ss.str();
+    }
+}
 void ZNETWORK_Shutdown();
 uint64_t ZNETWORK_GetNetworkSyncedTimeGMT();
 bool ZNETWORK_IsLoggedIn();
 void ZNETWORK_Initialize();
 
 inline bool g_IsOnProductionServer = true;
+inline NetworkClient *g_networkClient;

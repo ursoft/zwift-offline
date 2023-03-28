@@ -6,11 +6,15 @@ enum LOG_TYPE {
 };
 enum LOG_LEVEL { LL_VERBOSE = 0, LL_DEBUG = 1, LL_INFO = 2, LL_WARNING = 3, LL_ERROR = 4, LL_FATAL = 5, LL_CNT = 6 };
 enum NoesisLogLevel { NLL_TRACE = 0, NLL_DEBUG = 1, NLL_INFO = 2, NLL_WARNING = 3, NLL_ERROR = 4, NLL_CNT = 5 };
+enum NetworkLogLevel { NL_UNK = 0, NL_ERROR = 1, NL_WARN = 2, NL_INFO = 3, NL_DEBUG = 4 };
+#define NetworkingLogError(...) LogTyped(LOG_ZNETWORK_INTERNAL, "[ERROR] " __VA_ARGS__)
+#define NetworkingLogWarn(...)  LogTyped(LOG_ZNETWORK_INTERNAL, "[WARN] " __VA_ARGS__)
+#define NetworkingLogInfo(...)  LogTyped(LOG_ZNETWORK_INTERNAL, "[INFO] " __VA_ARGS__)
+#define NetworkingLogDebug(...) LogTyped(LOG_ZNETWORK_INTERNAL, "[DEBUG] " __VA_ARGS__)
 void LogTyped(LOG_TYPE type, const char *fmt, ...);
 void Log(const char *fmt, ...);
 void LogLev(LOG_LEVEL level, const char *fmt, ...);
 void LogDebug(const char *fmt, ...);
-void LogNetInt(const char *msg);
 void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void *dummy_a4, const char *msg);
 void LogInitialize();
 typedef void (*LogWriteHandler)(LOG_LEVEL level, LOG_TYPE ty, const char *msg);

@@ -8,19 +8,20 @@
       "projectTarget": "ZwiftApp.exe (Install)",
       "name": "ZwiftApp.exe (Install)",
         "env": {
-            "ZWIFT_UT": "0",
+            "ZWIFT_UT": "1",
             "GTEST_ALSO_RUN_DISABLED_TESTS": "1",
-            "ZWIFT_GAME": "1",
+            "ZWIFT_GAME": "0",
             "__GL_SHADER_DISK_CACHE": "1",
             "__GL_SHADER_DISK_CACHE_SKIP_CLEANUP": "0",
             "__GL_SHADER_DISK_CACHE_PATH": "g:\\Zwift_GLCache",
             "__ZGL_SHADER_DISK_CACHE_PATH": "g:\\Zwift_GLCache",
-            "__GL_THREADED_OPTIMIZATION": "1"
+            "__GL_THREADED_OPTIMIZATION": "1",
+            "all_proxy": "127.0.0.1:8888"
         },
         "args": [
             "--launcher_version=1.1.4",
             "--token={\"access_token\":\"_a_t_\",\"expires_in\":1000021600,\"id_token\":\"_id_t\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\"_r_t_\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}",
-            "--gtest_filter=*AUDIO_PlayFF*"
+            "--gtest_filter=*DISABLED_SchMap*"
         ]
     }
   ]
