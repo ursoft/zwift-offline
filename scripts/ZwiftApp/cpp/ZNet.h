@@ -1,4 +1,5 @@
 #pragma once
+inline void str_tolower(std::string &s) { std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); }); }
 namespace zwift_network {
     enum NetworkRequestOutcome { NRO_NULL, NRO_CNT };
     void shutdown_zwift_network();
@@ -12,14 +13,13 @@ namespace zwift_network {
     };
 }
 struct NetworkClientImpl;
-struct NetworkClientOptions;
 struct NetworkClient {
     NetworkClientImpl *m_pImpl;
     NetworkClient();
     ~NetworkClient();
     static void globalInitialize();
     static void globalCleanup();
-    void initialize(const std::string &server, const std::string &certs, const std::function<void(char *)> &empty, const std::string &version, const NetworkClientOptions &nco);
+    void initialize(const std::string &server, const std::string &certs, const std::string &version);
 };
 namespace ZNet {
     struct Error {
@@ -81,6 +81,22 @@ namespace uuid {
         return ss.str();
     }
 }
+struct SteadyClock {
+    inline static double g_perfPeriod;
+    SteadyClock() {
+        assert(g_perfPeriod != 0.0); // second object???
+        LARGE_INTEGER v1;
+        BOOL result = QueryPerformanceFrequency(&v1);
+        assert(result);
+        g_perfPeriod = 1000000000.0 / v1.LowPart;
+    }
+    uint64_t now() {
+        LARGE_INTEGER PerformanceCount;
+        QueryPerformanceCounter(&PerformanceCount);
+        uint64_t ret = (uint32_t)(int32_t)(PerformanceCount.LowPart * g_perfPeriod); //QUEST: why 32 bit
+    }
+};
+inline SteadyClock g_steadyClock; //one per app is OK, no need for shared ptr
 void ZNETWORK_Shutdown();
 uint64_t ZNETWORK_GetNetworkSyncedTimeGMT();
 bool ZNETWORK_IsLoggedIn();
