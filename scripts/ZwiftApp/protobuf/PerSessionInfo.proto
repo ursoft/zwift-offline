@@ -1,0 +1,27 @@
+syntax = "proto3";
+package protobuf;
+
+message TcpAddress {
+	string ip = 1;
+	int32 port = 2;
+	int32 lb_realm = 3;  //load balancing cluster: server realm or 0 (generic)
+	int32 lb_course = 4; //load balancing cluster: course id (see also TcpAddressService::updateAddresses)
+}
+
+message TcpConfig {
+	//First server: the TCP telemetry server (34.218.60.145)
+	repeated TcpAddress nodes = 1;
+}
+
+message PartnersUrls {
+	string todaysplan_url = 1;
+	string trainingpeaks_url = 2;
+}
+
+message PerSessionInfo {
+	string relay_url = 1;
+	PartnersUrls apis = 2;
+	uint64 time = 3;
+	TcpConfig nodes = 4;
+	int32 max_segm_subscrs = 5; //if received, sub_718DE99570 puts log message "Received max allowed segment subscriptions from session: %d", m_maxSegmSubscrs and stores it into GlobalState...
+}

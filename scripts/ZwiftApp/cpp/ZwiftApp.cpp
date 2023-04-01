@@ -313,7 +313,7 @@ TEST(SmokeTest, Linkage) {                                        //testing if l
     EXPECT_TRUE(g_memSettings.pfAllocVM != nullptr) << "AK::MemoryMgr";
 
     protobuf::FeatureRequest fr; //Google protobuf
-    fr.set_userid(123);
+    fr.set_user_id(123);
     auto bs = fr.ByteSize();
     EXPECT_EQ(2, bs) << "protobuf::ByteSize";
 

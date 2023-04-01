@@ -16,12 +16,12 @@
             "__GL_SHADER_DISK_CACHE_PATH": "g:\\Zwift_GLCache",
             "__ZGL_SHADER_DISK_CACHE_PATH": "g:\\Zwift_GLCache",
             "__GL_THREADED_OPTIMIZATION": "1",
-            "all_proxy": "127.0.0.1:8888"
+            "nall_proxy": "127.0.0.1:8888"
         },
         "args": [
             "--launcher_version=1.1.4",
             "--token={\"access_token\":\"_a_t_\",\"expires_in\":1000021600,\"id_token\":\"_id_t\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\"_r_t_\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}",
-            "--gtest_filter=*DISABLED_SchMap*"
+            "--gtest_filter=*EventLoopTest*"
         ]
     }
   ]

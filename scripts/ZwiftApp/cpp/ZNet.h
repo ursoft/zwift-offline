@@ -84,7 +84,7 @@ namespace uuid {
 struct SteadyClock {
     inline static double g_perfPeriod;
     SteadyClock() {
-        assert(g_perfPeriod != 0.0); // second object???
+        assert(g_perfPeriod == 0.0); // second object???
         LARGE_INTEGER v1;
         BOOL result = QueryPerformanceFrequency(&v1);
         assert(result);

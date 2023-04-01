@@ -142,7 +142,7 @@ void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_l
     }
 }
 void doLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *fmt, va_list args) {
-    char buf[1024];
+    char buf[16384];
     if (g_canUseLogging && g_LogMutexIdx != -1 && g_LogTypes[ty].m_enabled) {
         int cnt1 = sprintf_s(buf, "%s%s", g_logLevelNames[level], g_logTypeNames[ty]);
         if (cnt1 < 0) cnt1 = 0;

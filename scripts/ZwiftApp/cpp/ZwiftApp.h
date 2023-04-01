@@ -5,6 +5,7 @@
 #include "Achievements.pb.h"
 #include "Profile.pb.h"
 #include "Goal.pb.h"
+#include "PerSessionInfo.pb.h"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
