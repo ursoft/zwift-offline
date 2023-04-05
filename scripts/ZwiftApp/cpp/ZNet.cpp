@@ -101,12 +101,12 @@ enum HttpRequestMode { HRM_0, HRM_1 };
 struct AcceptHeader { std::string m_hdr; };
 struct ContentTypeHeader { std::string m_hdr; };
 struct NetworkResponseBase {
-    const char *m_errMsg = nullptr;
+    const char *m_msg = nullptr;
     int m_errCode = 0;
-    void storeError(int code, const char *errMsg) { m_errMsg = errMsg; m_errCode = code; }
-    void storeError(const NetworkResponseBase &src) { m_errMsg = src.m_errMsg; m_errCode = src.m_errCode; }
-    //void storeError(int code, std::string &&errMsg) { m_errMsg = std::move(errMsg); m_errCode = code; }
-    //void storeError(int code, const std::string &errMsg) { m_errMsg = errMsg; m_errCode = code; }
+    void storeError(int code, const char *errMsg) { m_msg = errMsg; m_errCode = code; }
+    void storeError(const NetworkResponseBase &src) { m_msg = src.m_msg; m_errCode = src.m_errCode; }
+    //void storeError(int code, std::string &&errMsg) { m_msg = std::move(errMsg); m_errCode = code; }
+    //void storeError(int code, const std::string &errMsg) { m_msg = errMsg; m_errCode = code; }
     bool ok(NetworkResponseBase *errDest = nullptr) const {
         if (errDest)
             errDest->storeError(*this);
@@ -653,18 +653,22 @@ struct HttpConnectionManager {
     }
     void shutdown() {
         setThreadPoolSize(0);
-        /*TODOv2 = this[10];
-        for (i = this[11]; i != v2; v2 = (std::thread *)((char *)v2 + 8))
-        {
-            if (*(_QWORD *)v2)
-                std::thread::join(v2);
-        }*/
+        for (auto &t : m_pool) {
+            if (t.joinable())
+                t.join();
+        }
     }
     void setUploadTimeout(uint64_t to) { std::lock_guard l(m_mutex); m_ncoUploadTimeoutSec = to; }
     void setTimeout(uint64_t to) { std::lock_guard l(m_mutex); m_ncoTimeoutSec = to; }
-    void setThreadPoolSize(uint64_t val) { 
-        //TODO
-        //not only m_nThreads = val; 
+    void setThreadPoolSize(int val) {
+        int oldVal = m_nThreads;
+        { std::lock_guard l(m_mutex); m_nThreads = val; }
+        if (oldVal) {
+            m_conditionVar.notify_all();
+        } else while (oldVal < m_nThreads) {
+            m_pool.emplace_back([&]() { worker(oldVal); });
+            ++oldVal;
+        }
     }
 };
 struct GenericHttpConnectionManager : public HttpConnectionManager { //0x128 bytes
@@ -830,8 +834,9 @@ struct Oauth2Credentials : public NetworkResponseBase {
 };
 struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, many virtual functions
     std::string m_apiUrl, m_accessToken, m_mail, m_password, m_oauthClient, m_field_F8;
-    uint64_t m_accessTokenDeathTime = 0, m_reqId = 0;
+    uint64_t m_accessTokenDeathTime = 0, m_reqId = 0, m_field_78 = 0;
     Oauth2Credentials m_oauth2;
+    int m_field_70 = 0;
     bool m_field_80 = true, m_loggedIn = false; //all other data also 0
     ZwiftAuthenticationManager(const std::string &server) { m_apiUrl = server + "/api/auth"; }
     ~ZwiftAuthenticationManager() { //vptr[0]
@@ -847,8 +852,35 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
     const std::string &getOauthClient() const { return m_oauthClient; } //vptr[7]
     void setLoggedIn(bool val) { m_loggedIn = val; } //vptr[8]
     bool getLoggedIn() const { return m_loggedIn; } //vptr[9]
-    void attendToAccessToken(CurlHttpConnection *a2) { //vptr[10]
-        //TODO
+    const NetworkResponseBase &attendToAccessToken(CurlHttpConnection *conn) { //vptr[10]
+        auto n = g_steadyClock.now();
+        if (n >= m_field_78) {
+            m_field_78 = n;
+            auto v8 = 60'000'000'000i64;
+            if (m_field_70 < 32) {
+                auto v7 = (uint32_t)(1u << m_field_70);
+                if (v7 > 60)
+                    v7 = 60;
+                v8 = 1'000'000'000 * v7;
+            }
+            m_field_78 += v8;
+            m_field_70++;
+            if (!m_accessToken.empty()) {
+                if (n < m_accessTokenDeathTime) {
+                    m_errCode = 0;
+                    m_msg = nullptr;
+                } else {
+                    refreshAccessToken(conn);
+                    return (m_errCode) ? acquireAccessToken(conn) : *this;
+                }
+            } else {
+                return acquireAccessToken(conn);
+            }
+        } else {
+            m_errCode = 429;
+            m_msg = "Could not acquire access token due to throttling";
+        }
+        return *this;
     }
     void setRequestId(uint64_t id) { m_reqId = id; } //vptr[11]
     uint64_t setRequestId() { return m_reqId; } //vptr[12]
@@ -858,7 +890,8 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
         m_mail.clear();
         m_accessTokenDeathTime = 0;
         m_field_80 = true;
-        //TODO *(_DWORD *)&this->field_70 = 0; *(_QWORD *)&this->field_78 = 0i64;
+        m_field_70 = 0;
+        m_field_78 = 0;
         m_mail.clear();
         m_password.clear();
         m_oauthClient.clear();
@@ -880,7 +913,8 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
         m_accessToken.clear();
         m_accessTokenDeathTime = 0;
         m_field_80 = 1;
-        //TODO *(_DWORD *)&this->field_70 = 0; *(_QWORD *)&this->field_78 = 0i64;
+        m_field_70 = 0;
+        m_field_78 = 0;
         setEmailAndPassword(mail, pwd);
         m_oauthClient = oauthClient;
         m_loggedIn = false;
@@ -908,8 +942,14 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
             m_accessTokenDeathTime = 0;
         }
         m_field_80 = false;
-        /* TODO (_DWORD *)&this->field_70 = 0;
-        *(_QWORD *)&this->field_78 = 0i64;*/
+        m_field_70 = 0;
+        m_field_78 = 0;
+    }
+    const NetworkResponseBase &acquireAccessToken(CurlHttpConnection *conn) {
+        //TODO
+    }
+    const NetworkResponseBase &refreshAccessToken(CurlHttpConnection *conn) {
+        //TODO
     }
 };
 struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
@@ -1515,13 +1555,13 @@ TEST(SmokeTest, JsonWebToken) {
     rt("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ.5e1X1imPlVfXfhDHE_OGmG9CNGvz7hpPYPXcNkPJ5lw"),
         json("{\"access_token\":\"" + at + "\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\"" + rt + "\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}");
     EXPECT_TRUE(o.parse(json));
-    EXPECT_EQ(nullptr, o.m_errMsg);
+    EXPECT_EQ(nullptr, o.m_msg);
     EXPECT_EQ(0, o.m_errCode);
     EXPECT_EQ(json, o.m_json);
     EXPECT_EQ(0x000000003b9b1e60, o.m_exp);
 
     auto &a = o.getAccessToken();
-    EXPECT_EQ(nullptr, a.m_errMsg);
+    EXPECT_EQ(nullptr, a.m_msg);
     EXPECT_EQ(0, a.m_errCode);
     EXPECT_STREQ("02r3deb5-nq9q-476s-9ss0-034q977sp2r1", a.getSubject().c_str());
     EXPECT_STREQ("0846no9n-765q-4p3s-n20p-6pnp9r86r5s3", a.getSessionState().c_str());
@@ -1529,7 +1569,7 @@ TEST(SmokeTest, JsonWebToken) {
     EXPECT_EQ(0x004c4b3fff676980, a.m_exp);
 
     auto &r = o.getRefreshToken();
-    EXPECT_EQ(nullptr, r.m_errMsg);
+    EXPECT_EQ(nullptr, r.m_msg);
     EXPECT_EQ(0, r.m_errCode);
     EXPECT_STREQ("02r3deb5-nq9q-476s-9ss0-034q977sp2r1", r.getSubject().c_str());
     EXPECT_STREQ("0846no9n-765q-4p3s-n20p-6pnp9r86r5s3", r.getSessionState().c_str());
@@ -1540,7 +1580,7 @@ TEST(SmokeTest, JsonWebToken) {
     std::string retail_at("eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJPLUVjXzJJNjg5bW9peGJIZzFfNDZDVFlGeEdZMDViaDluYm5Mcjl0RzY4In0.eyJleHAiOjE2MzY5MTAwODksImlhdCI6MTYzNjg4ODQ4OSwianRpIjoiMmI4YzI0OWEtMGU3MS00YWUyLThlY2ItNzgyYjFiYjZkNjlmIiwiaXNzIjoiaHR0cHM6Ly9zZWN1cmUuendpZnQuY29tL2F1dGgvcmVhbG1zL3p3aWZ0IiwiYXVkIjpbImVtYWlsLXByZWZzLXNlcnZpY2UiLCJteS16d2lmdCIsInNzby1nYXRld2F5Iiwic3Vic2NyaXB0aW9uLXNlcnZpY2UiLCJHYW1lX0xhdW5jaGVyIiwiWndpZnQgWmVuZGVzayIsIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iLCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIiwiZWNvbS1zZXJ2ZXIiLCJhY2NvdW50Il0sInN1YiI6IjFhNzM2ZWNjLTFjYTYtNGFmZi1hMTc2LWU1NzgzMTk3YTE1NyIsInR5cCI6IkJlYXJlciIsImF6cCI6Ilp3aWZ0X01vYmlsZV9MaW5rIiwic2Vzc2lvbl9zdGF0ZSI6ImVjNzJmYWIyLWQ2NDItNDU5Ny04YmZmLTUwOTM5MjRjNTEyMCIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJlbWFpbC1wcmVmcy1zZXJ2aWNlIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwibXktendpZnQiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJzc28tZ2F0ZXdheSI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sInN1YnNjcmlwdGlvbi1zZXJ2aWNlIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoiIiwibmFtZSI6IllvdXJ5IFBlcnNoaW4iLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzdWxpbW92YTA4QG1haWwucnUiLCJnaXZlbl9uYW1lIjoiWW91cnkiLCJmYW1pbHlfbmFtZSI6IlBlcnNoaW4iLCJlbWFpbCI6InN1bGltb3ZhMDhAbWFpbC5ydSJ9.VfuMKYGZzRCBMk7JOCsEIhVsUTHEBfIY7za8no_YtgNXbjxmnwcxMXRRUz_rCzKQDYvo4aTqThhuVMz9DpAMv4csrmWuST8KS4NlkwMBj-IqrGIr5ZI5mkKfFRDXrD44e5wk-3-6Z2F2oWxd3JoyzyuvIcu6CYEYYl4xtWj3TlN_GhlYyWPLJrcCBOHVtEX5diYyqWbHrpfeQ9dat3N3of0v_PXG4cjAMYV6DR-K9nIpKWGWE3siUIkt7pTY-cyJldRYCWzHjo6bwrZgwN5gB6wO-q3A0_gXgpr2oOriuToP-CAqtM60AdwGkckE6h4r-nFVcHV9j0Mo-I0-mgZbxw");
     JsonWebToken rat;
     EXPECT_TRUE(rat.parse(retail_at));
-    EXPECT_EQ(nullptr, rat.m_errMsg);
+    EXPECT_EQ(nullptr, rat.m_msg);
     EXPECT_EQ(0, rat.m_errCode);
     EXPECT_STREQ("1a736ecc-1ca6-4aff-a176-e5783197a157", rat.getSubject().c_str());
     EXPECT_STREQ("ec72fab2-d642-4597-8bff-5093924c5120", rat.getSessionState().c_str());
@@ -1550,7 +1590,7 @@ TEST(SmokeTest, JsonWebToken) {
     std::string retail_rt("eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIxYTY0ZDZkNC1iODVhLTQxZjQtOTFiMy01ZmJhNGQ4Y2FhMzMifQ.eyJleHAiOjE2MzgwOTgwODksImlhdCI6MTYzNjg4ODQ4OSwianRpIjoiZjJhMzhiNDgtMjlhMC00ZDZkLTkxYWQtMTg3ZTliMmQ4ZmViIiwiaXNzIjoiaHR0cHM6Ly9zZWN1cmUuendpZnQuY29tL2F1dGgvcmVhbG1zL3p3aWZ0IiwiYXVkIjoiaHR0cHM6Ly9zZWN1cmUuendpZnQuY29tL2F1dGgvcmVhbG1zL3p3aWZ0Iiwic3ViIjoiMWE3MzZlY2MtMWNhNi00YWZmLWExNzYtZTU3ODMxOTdhMTU3IiwidHlwIjoiUmVmcmVzaCIsImF6cCI6Ilp3aWZ0X01vYmlsZV9MaW5rIiwic2Vzc2lvbl9zdGF0ZSI6ImVjNzJmYWIyLWQ2NDItNDU5Ny04YmZmLTUwOTM5MjRjNTEyMCIsInNjb3BlIjoiIn0.vDBIPqDaOaJKcXK0MPJthsK_0nyHA3iKikE9oroPS3A");
     JsonWebToken rrt;
     EXPECT_TRUE(rrt.parse(retail_rt));
-    EXPECT_EQ(nullptr, rrt.m_errMsg);
+    EXPECT_EQ(nullptr, rrt.m_msg);
     EXPECT_EQ(0, rrt.m_errCode);
     EXPECT_STREQ("1a736ecc-1ca6-4aff-a176-e5783197a157", rrt.getSubject().c_str());
     EXPECT_STREQ("ec72fab2-d642-4597-8bff-5093924c5120", rrt.getSessionState().c_str());
