@@ -94,6 +94,7 @@ struct SteadyClock {
         LARGE_INTEGER PerformanceCount;
         QueryPerformanceCounter(&PerformanceCount);
         uint64_t ret = (uint32_t)(int32_t)(PerformanceCount.LowPart * g_perfPeriod); //QUEST: why 32 bit
+        return ret;
     }
 };
 inline SteadyClock g_steadyClock; //one per app is OK, no need for shared ptr

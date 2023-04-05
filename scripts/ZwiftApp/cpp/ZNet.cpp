@@ -1,5 +1,7 @@
 #include "ZwiftApp.h"
 #include "readerwriterqueue/readerwriterqueue.h"
+#include "concurrentqueue/concurrentqueue.h"
+#include "openssl/md5.h"
 bool g_NetworkOn;
 void ZNETWORK_Shutdown() {
     if (g_NetworkOn) {
@@ -66,124 +68,38 @@ struct MachineIdProviderFactory {
             RegCloseKey(hKey);
     }
 };
-struct HttpStatistics { //0x320 - 16 bytes
-    HttpStatistics() {
-        //TODO
+struct ElapsedTimeStatistics { //32 bytes
+    int64_t m_elapsedTime = 0;
+    int64_t m_minElapsedTime = std::numeric_limits<int64_t>::max();
+    int64_t m_maxElapsedTime = 0;
+    int m_counter = 0;
+    void addElapsedTime(int64_t a2) {
+        m_counter++;
+        m_elapsedTime += a2;
+        if (m_maxElapsedTime < a2) m_maxElapsedTime = a2;
+        if (m_minElapsedTime > a2) m_minElapsedTime = a2;
     }
+    int64_t getAverageTime() { return (m_counter) ? m_elapsedTime / m_counter : 0; }
+    int64_t getSampleCount() { return m_counter; }
+    void toJson() { /*OMIT - telemetry? */ }
+    int64_t getMinTime() { return m_counter ? m_minElapsedTime : 0; }
+    int64_t getMaxTime() { return m_maxElapsedTime; }
 };
-struct CurlHttpConnectionFactory { //0x90 - 16 bytes
-    HttpStatistics m_httpStat;
-    bool m_field_18;
-    std::string m_curlVersion;
-    std::string m_zaVersion;
-    std::string m_machineId;
-    void initialize(const std::string &zaVersion, const std::string &machineId) {
-        auto v = curl_version_info(CURLVERSION_NOW);
-        m_curlVersion = v->version;
-        NetworkingLogDebug("curl/%s ssl/%s zlib/%s", v->version, v->ssl_version, v->libz_version);
-        m_zaVersion = zaVersion;
-        m_machineId = machineId;
+struct HttpStatistics { //0x320 - 16 bytes
+    struct EndpointEvent {};
+    bool m_field_0 = true;
+    ElapsedTimeStatistics m_field_8, m_field_28;
+    moodycamel::ConcurrentQueue<HttpStatistics::EndpointEvent> m_field_80;
+    HttpStatistics() : m_field_80(100) {
+        /*OMIT TELEMETRY (_OWORD *)((char *)this + 104) = 0u;
+        *(_OWORD *)((char *)this + 88) = 0u;
+        *(_OWORD *)((char *)this + 72) = 0u;*/
     }
 };
 const char *g_CNL_VER = "3.27.4";
 enum HttpRequestMode { HRM_0, HRM_1 };
-struct HttpConnection {
-
-};
-struct HttpConnectionManager {
-    CurlHttpConnectionFactory *m_curlf;
-    std::string m_certs;
-    std::mutex m_mutex;
-    std::condition_variable m_conditionVar;
-    int m_ncoTimeoutSec, m_ncoUploadTimeoutSec, m_nThreads;
-    HttpRequestMode m_hrm;
-    bool m_ncoSkipCertCheck;
-    HttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode hrm, int nThreads) :
-        m_curlf(curlf), m_certs(certs), m_ncoTimeoutSec(ncoTimeoutSec), m_ncoUploadTimeoutSec(ncoUploadTimeoutSec), m_hrm(hrm), m_nThreads(nThreads), m_ncoSkipCertCheck(ncoSkipCertCheck) {}
-};
-struct GenericHttpConnectionManager : public HttpConnectionManager { //0x128 bytes
-    GenericHttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode hrm) :
-        HttpConnectionManager(curlf, certs, ncoSkipCertCheck, ncoTimeoutSec, ncoUploadTimeoutSec, hrm, 1) {
-        //TODO
-        /*v12 = (char **)operator new(0x10ui64);
-        v12[1] = 0i64;
-        *(_QWORD *)&this->field_100 = v12;
-        *v12 = &this->field_100;*/
-    }
-};
-struct UdpClient;
-struct EventLoop;
-struct EncryptionInfo;
-struct GlobalState { //0x530 bytes
-    bool m_shouldUseEncryption;
-    GlobalState(EventLoop *, const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &);
-    bool shouldUseEncryption() { return m_shouldUseEncryption; }
-    void registerUdpConfigListener(UdpClient *cli);
-    void registerEncryptionListener(UdpClient *cli);
-};
-struct ZwiftAuthenticationManager;
-struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
-    int m_nThreadds = 0;
-    GlobalState *m_gs;
-    void setGlobalState(GlobalState *gs) { m_gs = gs; }
-    void StartThreads() {
-        for (auto i = 0; i < m_nThreads; ++i) {
-            //TODO
-            /* *(_QWORD *)&v7 = this;
-            DWORD2(v7) = i;
-            v3 = *(_QWORD *)&this->m_base.field_58;
-            if ( v3 == *(_QWORD *)&this->m_base.field_60 )
-            {
-              sub_7FF620A5A610((__int64 *)&this->m_base.field_50, *(char **)&this->m_base.field_58, &v7);
-            }
-            else
-            {
-              v4 = operator new(0x10ui64);
-              v5 = v4;
-              if ( v4 )
-                *v4 = v7;
-              else
-                v5 = 0i64;
-              v8 = v5;
-              v6 = beginthreadex(0i64, 0, sub_7FF620A5A7F0, v5, 0, (unsigned int *)(v3 + 8));
-              *(_QWORD *)v3 = v6;
-              if ( !v6 )
-              {
-                *(_DWORD *)(v3 + 8) = 0;
-                std::_Throw_Cpp_error(6);
-              }
-              *(_QWORD *)&this->m_base.field_58 += 16i64;
-            }
-            */
-        }
-    }
-    ZwiftHttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, ZwiftAuthenticationManager *am, bool some0, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode rm, int nThreads) :
-        HttpConnectionManager(curlf, certs, ncoSkipCertCheck, ncoTimeoutSec, ncoUploadTimeoutSec, rm, nThreads) {
-        //TODO
-        /*  *(_QWORD *)&this->field_100 = 0i64;
-  *(_QWORD *)&this->field_108 = 0i64;
-  *(_QWORD *)&this->field_100 = *a5;
-  *(_QWORD *)&this->field_108 = a5[1];
-  *a5 = 0i64;
-  a5[1] = 0i64;
-  *(_QWORD *)&this->field_110 = a6;
-  *(_QWORD *)&this->field_118 = 0i64;
-  *(_QWORD *)&this->field_120 = 0i64;
-  *(_QWORD *)&this->field_128 = 0i64;
-  *(_QWORD *)&this->field_130 = 0i64;
-  *(_QWORD *)&this->field_138 = 0i64;
-  v15 = (char **)operator new(0x10ui64);
-  v15[1] = 0i64;
-  *(_QWORD *)&this->field_118 = v15;
-  *v15 = &this->field_118;
-  this->field_140 = 0;
-  *(_QWORD *)&this->field_148 = 0i64;
-  *(_QWORD *)&this->field_150 = 0i64;
-  *(_QWORD *)&this->field_158 = 1i64;
-*/
-        StartThreads();
-    }
-};
+struct AcceptHeader { std::string m_hdr; };
+struct ContentTypeHeader { std::string m_hdr; };
 struct NetworkResponseBase {
     const char *m_errMsg = nullptr;
     int m_errCode = 0;
@@ -198,6 +114,604 @@ struct NetworkResponseBase {
     }
 };
 template<class T> struct NetworkResponse : public NetworkResponseBase, T {};
+using QueryResult = NetworkResponse<std::vector<char>>;
+struct CurlHttpConnection {
+    CURL *m_curl = nullptr;
+    curl_slist *m_headers = nullptr;
+    void *m_cbData;
+    std::string m_authHeader, m_sessionState, m_subject, m_sidHeader, m_requestIdHdr, m_cainfo, m_someHeader, m_someHeader1, m_someHeader2;
+    std::string m_field_138;
+    uint64_t m_requestId = 0, m_headersSize = 0;
+    int m_timeout = 0, m_uplTimeout = 0, m_field_58 = 0;
+    bool m_http2 = false, m_sslNoVerify = false;
+    CurlHttpConnection(const std::string &certs, bool ncoSkipCertCheck, bool a5, int ncoTimeoutSec, int ncoUploadTimeoutSec,
+        const std::string &curlVersion, const std::string &zaVersion, const std::string &machineId, bool *pKilled, HttpRequestMode hrm) {
+        //TODO
+    }
+    void appendHeader(const std::string_view &h) {
+        if (h.size()) {
+            m_headers = curl_slist_append(m_headers, h.data());
+            m_headersSize += h.size();
+        }
+    }
+    ~CurlHttpConnection() /*vptr[0]*/ {
+        //TODO
+    }
+    void setAuthorizationHeader(const std::string &ah) /*vptr[1]*/ { m_authHeader = ah; }
+    void clearAuthorizationHeader() /*vptr[2]*/ { m_authHeader.clear(); }
+    void setTokenInfo(const std::string &sessionState, const std::string &subject) /*vptr[3]*/ {
+        m_sessionState = sessionState; m_subject = subject;
+    }
+    void clearTokenInfo() /*vptr[4]*/ { m_sessionState.clear(); m_subject.clear(); }
+    void setSessionIdHeader(const std::string &val) /*vptr[5]*/ { m_sidHeader = "X-Zwift-Session-Id: " + val; }
+    void setRequestId(uint64_t id) /*vptr[6]*/ { m_requestId = id; m_requestIdHdr = "X-Request-Id: " + std::to_string(id); }
+    void setTimeout(int to) /*vptr[7]*/ { m_timeout = to; }
+    int getTimeout() /*vptr[8]*/ { return m_timeout; }
+    void setUploadTimeout(int to) /*vptr[9]*/ { m_uplTimeout = to; }
+    QueryResult performGet(const std::string &url, const AcceptHeader &ach, const std::string &descr) /*vptr[10]*/ {
+        reset(false, 0, true);
+        curl_easy_setopt(m_curl, CURLOPT_HTTPGET, 1);
+        appendHeader(ach.m_hdr);
+        const std::string_view op("GET");
+        return performRequest(op, url, descr, 0);
+    }
+    QueryResult performDelete(const std::string &url, const AcceptHeader &ach, const std::string &descr) /*vptr[11]*/ {
+        reset(false, 0, true);
+        const std::string_view op("DELETE");
+        curl_easy_setopt(m_curl, CURLOPT_CUSTOMREQUEST, op.data());
+        appendHeader(ach.m_hdr);
+        return performRequest(op, url, descr, 0);
+    }
+    const static inline std::string_view POST = "POST";
+    QueryResult performPost(const std::string &url, const ContentTypeHeader &cth, const std::vector<char> &payload, const AcceptHeader &ach, const std::string &descr, bool upload) /*vptr[12,13], performPostVec*/ {
+        reset(upload, 0, true);
+        curl_easy_setopt(m_curl, CURLOPT_POST, 1);
+        appendHeader(cth.m_hdr);
+        appendHeader(ach.m_hdr);
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, payload.size());
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, payload.data());
+        return performRequest(POST, url, descr, payload.size());
+    }
+    QueryResult performPost(const std::string &url, const ContentTypeHeader &cth, const std::string &payload, const AcceptHeader &ach, const std::string &descr, bool upload) { /*vptr[14], performPostStr*/
+        reset(upload, 0, true);
+        curl_easy_setopt(m_curl, CURLOPT_POST, 1);
+        appendHeader(cth.m_hdr);
+        appendHeader(ach.m_hdr);
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, payload.size());
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, payload.data());
+        return performRequest(POST, url, descr, payload.size());
+    }
+    QueryResult performPost(const std::string &url, const AcceptHeader &ach, const std::string &descr) { /*vptr[15]*/
+        reset(false, 0, true);
+        curl_easy_setopt(m_curl, CURLOPT_POST, 1);
+        appendHeader(ach.m_hdr);
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, 0);
+        return performRequest(POST, url, descr, 0);
+    }
+    QueryResult performPostWithTimeout(const std::string &url, const ContentTypeHeader &cth, const std::string &payload, const AcceptHeader &ach, const std::string &descr, int to) { /*vptr[16]*/
+        reset(false, to, true);
+        curl_easy_setopt(m_curl, CURLOPT_POST, 1);
+        appendHeader(cth.m_hdr);
+        appendHeader(ach.m_hdr);
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, payload.size());
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, payload.data());
+        return performRequest(POST, url, descr, payload.size());
+    }
+    QueryResult performPostWithHash(const std::string &url, const ContentTypeHeader &cth, const std::vector<char> &payload, const AcceptHeader &ach, const std::string &descr, const std::string &hash) { /*vptr[17]*/
+        reset(false, 0, true);
+        curl_easy_setopt(m_curl, CURLOPT_POST, 1);
+        appendHeader(cth.m_hdr);
+        appendHeader(ach.m_hdr);
+        appendHashHeader(payload, hash);
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, payload.size());
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, payload.data());
+        return performRequest(POST, url, descr, payload.size());
+    }
+    const static inline std::string_view PUT = "PUT";
+    QueryResult performPut(const std::string &url, const ContentTypeHeader &cth, const std::vector<char> &payload, const AcceptHeader &ach, const std::string &descr, bool upload) { /*vptr[18] performPutVec*/
+        reset(upload, 0, true);
+        curl_easy_setopt(m_curl, CURLOPT_CUSTOMREQUEST, PUT.data());
+        appendHeader(cth.m_hdr);
+        appendHeader(ach.m_hdr);
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, payload.size());
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, payload.data());
+        return performRequest(PUT, url, descr, payload.size());
+    }
+    QueryResult performPut(const std::string &url, const ContentTypeHeader &cth, const std::string &payload, const AcceptHeader &ach, const std::string &descr, bool upload) { /*vptr[19] performPutStr*/
+        reset(upload, 0, true);
+        curl_easy_setopt(m_curl, CURLOPT_CUSTOMREQUEST, PUT.data());
+        appendHeader(cth.m_hdr);
+        appendHeader(ach.m_hdr);
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, payload.size());
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, payload.data());
+        return performRequest(PUT, url, descr, payload.size());
+    }
+    QueryResult performPut(const std::string &url, const AcceptHeader &ach, const std::string &descr, bool upload) { /*vptr[20]*/
+        reset(false, 0, true);
+        curl_easy_setopt(m_curl, CURLOPT_CUSTOMREQUEST, PUT.data());
+        appendHeader(ach.m_hdr);
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, 0);
+        return performRequest(PUT, url, descr, 0);
+    }
+    QueryResult performPutOrPost(bool put, const std::string &url, const ContentTypeHeader &cth, const std::vector<char> &payload, const AcceptHeader &ach, const std::string &putDescr, const std::string &postDescr, bool upload) { /*vptr[21] performPutOrPostVec*/
+        return put ? performPut(url, cth, payload, ach, putDescr, upload) : performPost(url, cth, payload, ach, postDescr, upload);
+    }
+    QueryResult performPutOrPost(bool put, const std::string &url, const ContentTypeHeader &cth, const std::string &payload, const AcceptHeader &ach, const std::string &putDescr, const std::string &postDescr, bool upload) { /*vptr[22]*/
+        return put ? performPut(url, cth, payload, ach, putDescr, upload) : performPost(url, cth, payload, ach, postDescr, upload);
+    }
+    std::string escapeUrl(const std::string &src) { /*vptr[23]*/ return curl_easy_escape(m_curl, src.c_str(), src.size()); }
+
+    static int progressCallback(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow) {
+        return *((bool *)clientp);
+    }
+    static size_t writeCallback(char *ptr, size_t size, size_t nmemb, std::vector<char> *userdata) {
+        userdata->insert(userdata->end(), ptr, ptr + size * nmemb);
+    }
+    void reset(bool upload, int uplTimeout, bool useAuth) {
+        curl_easy_reset(m_curl);
+        curl_slist_free_all(m_headers);
+        m_headersSize = 0;
+        m_headers = nullptr;
+        curl_easy_setopt(m_curl, CURLOPT_PROGRESSFUNCTION, progressCallback);
+        curl_easy_setopt(m_curl, CURLOPT_XFERINFODATA, m_cbData);
+        curl_easy_setopt(m_curl, CURLOPT_NOPROGRESS);
+        curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(m_curl, CURLOPT_CAINFO, m_cainfo.c_str());
+        curl_easy_setopt(m_curl, CURLOPT_NOSIGNAL, 1);
+        if (m_http2)
+            curl_easy_setopt(m_curl, CURLOPT_HTTP_VERSION, 2);
+        if (!uplTimeout) {
+            if (upload)
+                uplTimeout = m_uplTimeout;
+            else
+                uplTimeout = m_timeout;
+        }
+        curl_easy_setopt(m_curl, CURLOPT_TIMEOUT, uplTimeout);
+        if (m_sslNoVerify) {
+            curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYPEER, 0);
+            curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYHOST, 0);
+        }
+        appendHeader(m_someHeader);
+        const std::string_view srcHeader("SOURCE: Game Client");
+        appendHeader(srcHeader);
+        appendHeader(m_someHeader1);
+        appendHeader(m_someHeader2);
+        if (useAuth)
+            appendHeader(m_authHeader);
+    }
+    void appendHashHeader(const std::vector<char> &payload, const std::string &hash) {
+        int v32 = 0;
+        std::vector<char> v35;
+        v35.push_back(-61);
+        v35.push_back(-72);
+        v35.insert(v35.end(), payload.begin(), payload.end());
+        v35.push_back(-61);
+        v35.push_back(-122);
+        v35.insert(v35.end(), m_sessionState.begin(), m_sessionState.end());
+        v35.push_back(-61);
+        v35.push_back(-98);
+        v35.insert(v35.end(), m_subject.begin(), m_subject.end());
+        v35.push_back(-61);
+        v35.push_back(-105);
+        v35.insert(v35.end(), hash.begin(), hash.end());
+        uint8_t md5h[16];
+        MD5((const uint8_t *)v35.data(), v35.size(), md5h);
+        char xhash[33], *pxhash = xhash;
+        for (auto c : md5h) {
+            sprintf(pxhash, "%02x", c);
+            *pxhash += 2;
+        }
+        const std::string h("X-Zwift-Hash: ");
+        appendHeader(h + xhash);
+    }
+    QueryResult performRequest(const std::string_view &op, const std::string &url, const std::string &descr, int payloadSize) {
+        QueryResult ret;
+        appendHeader(m_sidHeader);
+        appendHeader(m_requestIdHdr);
+        curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, m_headers);
+#if 0 //TODO
+        v14 = operator new(0x28ui64);
+        v15 = v14;
+        if (v14)
+        {
+            *(_OWORD *)v14 = 0i64;
+            v14[2] = 1;
+            v14[3] = 1;
+            *(_QWORD *)v14 = &std::_Ref_count_obj2<std::vector<char>>::`vftable';
+                * ((_QWORD *)v14 + 2) = 0i64;
+            *((_QWORD *)v14 + 3) = 0i64;
+            *((_QWORD *)v14 + 4) = 0i64;
+        } else
+        {
+            v15 = 0i64;
+        }
+        v16 = (char **)(v15 + 4);
+        v64 = (char **)(v15 + 4);
+        v65 = v15;
+        curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, v15 + 4);
+        if (this->m_field_58 == 1)                  // CurlHttpConnection::performConcurrentRequest
+        {
+            p_m_field_138 = &this->m_field_138;
+            if (this->m_field_138._Mysize)
+            {
+                if (this->m_field_138._Myres >= 0x10ui64)
+                    p_m_field_138 = (std::string *)p_m_field_138->_Bx._Ptr;
+                this->m_headers = curl_slist_append((_QWORD *)this->m_headers, p_m_field_138->_Bx._Buf);
+                this->m_headersSize += this->m_field_138._Mysize;
+            }
+            Stopwatch::Stopwatch(v62);
+            v50 = url;
+            if (url->_Myres >= 0x10ui64)
+                v50 = (std::string *)url->_Bx._Ptr;
+            v46 = op;
+            if (op->_Myres >= 0x10ui64)
+                v46 = (std::string *)op->_Bx._Ptr;
+            Logger = Logger::getLogger();
+            NetworkingLog(
+                NL_DEBUG,
+                &Logger->m_debugPrefix,
+                "Performing concurrent request: %s %s (payload: %li bytes)",
+                v46->_Bx._Buf,
+                v50->_Bx._Buf,
+                payloadSize);
+            Stopwatch::start(v62);
+            v47 = sub_7FF6B4D6ED30((_QWORD *)this->m_curl);
+            Stopwatch::stop(v62);
+            v51 = Stopwatch::elapsedInMilliseconds(v62);
+            v19 = v62;
+        } else                                          // CurlHttpConnection::performSequentialRequest
+        {
+            Stopwatch::Stopwatch(v66);
+            Stopwatch::Stopwatch(v62);
+            Stopwatch::start(v66);
+            v55 = &CurlHttpConnection::libcryptoMutex;
+            v20 = Mtx_lock(&CurlHttpConnection::libcryptoMutex);
+            if (v20)
+                std::_Throw_C_error(v20);
+            Stopwatch::stop(v66);
+            v52 = url;
+            if (url->_Myres >= 0x10ui64)
+                v52 = (std::string *)url->_Bx._Ptr;
+            v48 = op;
+            if (op->_Myres >= 0x10ui64)
+                v48 = (std::string *)op->_Bx._Ptr;
+            v21 = Logger::getLogger();
+            NetworkingLog(
+                NL_DEBUG,
+                &v21->m_debugPrefix,
+                "Performing request: %s %s (payload: %li bytes)",
+                v48->_Bx._Buf,
+                v52->_Bx._Buf,
+                payloadSize);
+            Stopwatch::start(v62);
+            v47 = sub_7FF6B4D6ED30((_QWORD *)this->m_curl);
+            Stopwatch::stop(v62);
+            Mtx_unlock(&CurlHttpConnection::libcryptoMutex);
+            v22 = sub_7FF6B4978010(v66, &v56);
+            HttpStatistics::addRequestLockTime(m_stat->field_0, *v22);
+            v51 = Stopwatch::elapsedInMilliseconds(v62);
+            SteadyClock_getvtbl(v62);
+            v19 = v66;
+        }
+        SteadyClock_getvtbl(v19);
+        if (v47)
+        {
+            //OMIT HttpStatistics::enqueueEndpointEvent(m_stat, descr, this->m_requestId, 0, v47, v51);
+            if (v47 == 28)
+            {
+                if (url->_Myres >= 0x10ui64)
+                    url = (std::string *)url->_Bx._Ptr;
+                if (op->_Myres >= 0x10ui64)
+                    op = (std::string *)op->_Bx._Ptr;
+                v23 = Logger::getLogger();
+                NetworkingLog(NL_WARN, &v23->m_warnPrefix, "Request timed out for: %s %s", op->_Bx._Buf, url->_Bx._Buf);
+                v53._Bx._Ptr = 0i64;
+                v53._Mysize = 0i64;
+                v53._Myres = 15i64;
+                string_assign(&v53, "Request timed out", 0x11ui64);
+                v24 = (__int128 *)&v53;
+                v25 = 31;
+                goto LABEL_70;
+            }
+            v26 = (char *)sub_7FF6B4D6FDE0(v47);
+            v60._Bx._Ptr = 0i64;
+            v60._Mysize = 0i64;
+            v60._Myres = 15i64;
+            v27 = -1i64;
+            do
+                ++v27;
+            while (v26[v27]);
+            string_assign(&v60, v26, v27);
+            if (url->_Myres >= 0x10ui64)
+                url = (std::string *)url->_Bx._Ptr;
+            if (op->_Myres >= 0x10ui64)
+                op = (std::string *)op->_Bx._Ptr;
+            v28 = &v60;
+            if (v60._Myres >= 0x10ui64)
+                v28 = (std::string *)v60._Bx._Ptr;
+            v29 = Logger::getLogger();
+            NetworkingLog(
+                NL_ERROR,
+                &v29->m_errorPrefix,
+                "Curl error: [%d] '%s' for: %s %s",
+                v47,
+                v28->_Bx._Buf,
+                op->_Bx._Buf,
+                url->_Bx._Buf);
+            v57 = v60;
+            v60._Mysize = 0i64;
+            v60._Myres = 15i64;
+            v60._Bx._Buf[0] = 0;
+            sub_7FF6B48C36F0(ret, 30, (__int128 *)v57._Bx._Buf);
+            if (v15)
+                return ret;
+        } else
+        {
+            v63 = 0i64;
+            sub_7FF6B4D6EC40(m_curl, 0x20000Cu, &v63);
+            HttpStatistics::addRequestSize(m_stat->field_0, (__int64)v63);
+            HttpStatistics::addResponseSize(m_stat->field_0, *((_QWORD *)v15 + 3) - (_QWORD)*v16);
+            LODWORD(v59) = 0;
+            sub_7FF6B4D6EC40(m_curl, 0x200002u, &v59);
+            HttpStatistics::enqueueEndpointEvent(m_stat->field_0, descr, this->m_requestId, (int)v59, 0, v51);
+            v49 = (int)v59;
+            v31 = 503;
+            if ((unsigned __int16)v59 > 0x1F7u)
+            {
+                v31 = 509;
+                if ((unsigned __int16)v59 != 509)
+                {
+LABEL_87:
+                    v37 = (char *)*((_QWORD *)v15 + 3);
+                    v38 = *v16;
+                    v61._Bx._Ptr = 0i64;
+                    v61._Mysize = 0i64;
+                    Myres = 15i64;
+                    v61._Myres = 15i64;
+                    if (v38 == v37)
+                    {
+                        v40 = (unsigned int)v59;
+                    } else
+                    {
+                        string_assign(&v61, v38, v37 - v38);
+                        v40 = (unsigned int)v59;
+                        Myres = v61._Myres;
+                    }
+                    if (url->_Myres >= 0x10ui64)
+                        url = (std::string *)url->_Bx._Ptr;
+                    if (op->_Myres >= 0x10ui64)
+                        op = (std::string *)op->_Bx._Ptr;
+                    v41 = &v61;
+                    if (Myres >= 0x10)
+                        v41 = (std::string *)v61._Bx._Ptr;
+                    v42 = Logger::getLogger();
+                    NetworkingLog(
+                        NL_WARN,
+                        &v42->m_warnPrefix,
+                        "Unexpected HTTP response: [%d] '%s' for: %s %s",
+                        v40,
+                        v41->_Bx._Buf,
+                        op->_Bx._Buf,
+                        url->_Bx._Buf);
+                    v58 = v61;
+                    v61._Mysize = 0i64;
+                    v61._Myres = 15i64;
+                    v61._Bx._Buf[0] = 0;
+                    sub_7FF6B48C36F0(ret, 32, (__int128 *)v58._Bx._Buf);
+                    v61._Mysize = 0i64;
+                    v61._Myres = 15i64;
+                    v61._Bx._Buf[0] = 0;
+                    if (!v15)
+                        return v15;
+                    return ret;
+                }
+            } else if ((unsigned __int16)v59 != 503)
+            {
+                switch ((__int16)v59)
+                {
+                case 200:
+                case 201:
+                case 202:
+                case 203:
+                case 204:
+                case 205:
+                case 206:
+                    v31 = 0;
+                    break;
+                case 400:
+                    v31 = 400;
+                    break;
+                case 401:
+                    v31 = 401;
+                    break;
+                case 403:
+                    v31 = 403;
+                    break;
+                case 404:
+                    v31 = 404;
+                    break;
+                case 409:
+                    v31 = 409;
+                    break;
+                case 410:
+                    v31 = 410;
+                    break;
+                default:
+                    goto LABEL_87;
+                }
+            }
+            if (url->_Myres >= 0x10ui64)
+                url = (std::string *)url->_Bx._Ptr;
+            if (op->_Myres >= 0x10ui64)
+                op = (std::string *)op->_Bx._Ptr;
+            v32 = Logger::getLogger();
+            LODWORD(v45) = v49;
+            NetworkingLog(
+                NL_DEBUG,
+                &v32->m_debugPrefix,
+                "Completed request: %s %s (status: %d, elapsed: %lims)",
+                op->_Bx._Buf,
+                url->_Bx._Buf,
+                v45,
+                v51);
+            if (v31)
+            {
+                v33 = (char *)*((_QWORD *)v15 + 3);
+                v34 = *v16;
+                v54._Bx._Ptr = 0i64;
+                v54._Mysize = 0i64;
+                v54._Myres = 15i64;
+                if (v34 != v33)
+                    string_assign(&v54, v34, v33 - v34);
+                v24 = (__int128 *)&v54;
+                v25 = v31;
+LABEL_70:
+                sub_7FF6B48C36F0(ret, v25, v24);
+                if (!v15)
+                    return ret;
+                return v15;
+            }
+            if (v15)
+            {
+                _InterlockedIncrement(v15 + 2);
+                v16 = v64;
+            }
+            v35 = operator new(0x48ui64);
+            v36 = v35;
+            if (v35)
+            {
+                *(_OWORD *)v35 = 0i64;
+                v35[2] = 1;
+                v35[3] = 1;
+                *(_QWORD *)v35 = &std::_Ref_count_obj2<zwift_network::NetworkResponse<std::vector<char>> const>::`vftable';
+                    v35[4] = 0;
+                *((_QWORD *)v35 + 3) = 0i64;
+                *((_QWORD *)v35 + 5) = 0i64;
+                *((_QWORD *)v35 + 6) = 15i64;
+                *((_QWORD *)v35 + 7) = 0i64;
+                *((_QWORD *)v35 + 8) = 0i64;
+                if (v15)
+                {
+                    _InterlockedIncrement(v15 + 2);
+                    v16 = v64;
+                }
+                *((_QWORD *)v35 + 7) = v16;
+                *((_QWORD *)v35 + 8) = v15;
+            } else
+            {
+                v36 = 0i64;
+            }
+            *(_OWORD *)ret = 0i64;
+            *(_QWORD *)ret = v36 + 4;
+            *(_QWORD *)(ret + 8) = v36;
+        }
+#endif
+        return ret;
+    }
+};
+struct CurlHttpConnectionFactory { //0x90 - 16 bytes
+    //OMIT TELEMETRY HttpStatistics m_httpStat;
+    bool m_killed = false;
+    std::string m_curlVersion;
+    std::string m_zaVersion;
+    std::string m_machineId;
+    void initialize(const std::string &zaVersion, const std::string &machineId) {
+        auto v = curl_version_info(CURLVERSION_NOW);
+        m_curlVersion = v->version;
+        NetworkingLogDebug("curl/%s ssl/%s zlib/%s", v->version, v->ssl_version, v->libz_version);
+        m_zaVersion = zaVersion;
+        m_machineId = machineId;
+    }
+    ~CurlHttpConnectionFactory() {}
+    void shutdown() { m_killed = true; }
+    CurlHttpConnection *instance(const std::string &certs, bool ncoSkipCertCheck, bool a5, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode hrm) {
+        return new CurlHttpConnection(certs, ncoSkipCertCheck, a5, ncoTimeoutSec, ncoUploadTimeoutSec, m_curlVersion, m_zaVersion,
+            m_machineId, &m_killed, hrm);
+    }
+    //global downloader will init/deinit CURL CURLcode globalInitialize() { return curl_global_init(CURL_GLOBAL_DEFAULT); } globalCleanup(void)
+    //OMITE TELEMETRY getHttpStatistics()
+    CurlHttpConnectionFactory() {}
+};
+struct HttpConnectionManager {
+    CurlHttpConnectionFactory *m_curlf;
+    std::string m_certs;
+    std::mutex m_mutex;
+    std::condition_variable m_conditionVar;
+    std::vector<std::thread> m_pool;
+    int m_ncoTimeoutSec, m_ncoUploadTimeoutSec, m_nThreads;
+    HttpRequestMode m_hrm;
+    bool m_ncoSkipCertCheck;
+    HttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode hrm, int nThreads) :
+        m_curlf(curlf), m_certs(certs), m_ncoTimeoutSec(ncoTimeoutSec), m_ncoUploadTimeoutSec(ncoUploadTimeoutSec), m_hrm(hrm), m_nThreads(nThreads), m_ncoSkipCertCheck(ncoSkipCertCheck) {}
+    ~HttpConnectionManager() {}
+    virtual void worker(uint32_t nr) = 0;// { /*empty*/ }
+    void startWorkers() {
+        m_pool.reserve(m_nThreads);
+        for (auto i = 0; i < m_nThreads; ++i)
+            m_pool.emplace_back([&]() { worker(i); });
+    }
+    void shutdown() {
+        setThreadPoolSize(0);
+        /*TODOv2 = this[10];
+        for (i = this[11]; i != v2; v2 = (std::thread *)((char *)v2 + 8))
+        {
+            if (*(_QWORD *)v2)
+                std::thread::join(v2);
+        }*/
+    }
+    void setUploadTimeout(uint64_t to) { std::lock_guard l(m_mutex); m_ncoUploadTimeoutSec = to; }
+    void setTimeout(uint64_t to) { std::lock_guard l(m_mutex); m_ncoTimeoutSec = to; }
+    void setThreadPoolSize(uint64_t val) { 
+        //TODO
+        //not only m_nThreads = val; 
+    }
+};
+struct GenericHttpConnectionManager : public HttpConnectionManager { //0x128 bytes
+    using task_type = std::packaged_task<NetworkResponseBase(CurlHttpConnection &)>;
+    std::queue<task_type> m_ptq;
+    GenericHttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode hrm) :
+        HttpConnectionManager(curlf, certs, ncoSkipCertCheck, ncoTimeoutSec, ncoUploadTimeoutSec, hrm, 1) {}
+    ~GenericHttpConnectionManager() { shutdown(); }
+    void worker(uint32_t a2) override {
+        auto conn = m_curlf->instance(m_certs, m_ncoSkipCertCheck, true, m_ncoTimeoutSec, m_ncoUploadTimeoutSec, HRM_0);
+        while (a2 < m_nThreads) {
+            task_type task;
+            {
+                std::unique_lock<std::mutex> lock(m_mutex);
+                m_conditionVar.wait(lock, [this] { return !this->m_ptq.empty(); });
+                task = std::move(m_ptq.front());
+                m_ptq.pop();
+            }
+            task(*conn);
+        }
+    }
+    template<class RET>
+    std::future<NetworkResponseBase> pushRequestTask(const std::function<NetworkResponse<RET>(CurlHttpConnection &)> &f) {
+        if (m_nThreads == 0)
+            startWorkers();
+        task_type task(f);
+        auto res = task.get_future();
+        { std::lock_guard l(m_mutex); m_ptq.push(std::move(task)); }
+        m_conditionVar.notify_one();
+        return res;
+    }
+/* TODO:
+pushRequestTask<std::multiset<zwift_network::model::Workout>>(std::function<std::shared_ptr<zwift_network::NetworkResponse<std::multiset<zwift_network::model::Workout>> const> ()(HttpConnection &)> const&)
+pushComposableRequestTask<std::vector<zwift_network::model::WorkoutsFromPartner>,std::multiset<zwift_network::model::Workout>>(RequestTaskComposer<std::vector<zwift_network::model::WorkoutsFromPartner>,std::multiset<zwift_network::model::Workout>>::Composable,std::function<std::shared_ptr<zwift_network::NetworkResponse<std::multiset<zwift_network::model::Workout>> const> ()(HttpConnection &)> const&)*/
+};
+struct UdpClient;
+struct EventLoop;
+struct EncryptionInfo;
+struct GlobalState { //0x530 bytes
+    std::string m_sessionInfo;
+    bool m_shouldUseEncryption;
+    GlobalState(EventLoop *, const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &);
+    bool shouldUseEncryption() { return m_shouldUseEncryption; }
+    void registerUdpConfigListener(UdpClient *cli);
+    void registerEncryptionListener(UdpClient *cli);
+    std::string getSessionInfo() { return m_sessionInfo; }
+};
 static const int B64index[256] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62, 63, 62, 62, 63, 52, 53, 54, 55,
@@ -239,8 +753,15 @@ namespace HttpHelper {
         return ret;
     }
     static std::string sanitizeUrl(const std::string &url) {
-        //TODO
-        return std::string();
+        std::string ret;
+        if (url.size()) {
+            if (url.back() == '/') {
+                ret.assign(url, 0, url.size() - 1);
+            } else {
+                ret = url;
+            }
+        }
+        return ret;
     }
 };
 struct JsonWebToken : public NetworkResponseBase { //0x68 bytes
@@ -326,7 +847,7 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
     const std::string &getOauthClient() const { return m_oauthClient; } //vptr[7]
     void setLoggedIn(bool val) { m_loggedIn = val; } //vptr[8]
     bool getLoggedIn() const { return m_loggedIn; } //vptr[9]
-    void attendToAccessToken(HttpConnection *a2) { //vptr[10]
+    void attendToAccessToken(CurlHttpConnection *a2) { //vptr[10]
         //TODO
     }
     void setRequestId(uint64_t id) { m_reqId = id; } //vptr[11]
@@ -390,6 +911,64 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
         /* TODO (_DWORD *)&this->field_70 = 0;
         *(_QWORD *)&this->field_78 = 0i64;*/
     }
+};
+struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
+    struct RequestTaskContext {
+        //TODO
+        bool m_secured = false;
+    };
+    using task_type = std::packaged_task<NetworkResponseBase(CurlHttpConnection &, bool)>;
+    std::queue<task_type> m_ptq;
+    std::queue<RequestTaskContext> m_rtq;
+    GlobalState *m_gs;
+    ZwiftAuthenticationManager *m_authMgr = nullptr;
+    uint64_t m_field_158 = 1;
+    bool m_needNewAcToken = false, m_some0;
+    void setGlobalState(GlobalState *gs) { m_gs = gs; }
+    ZwiftHttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, ZwiftAuthenticationManager *am, bool some0, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode rm, int nThreads) :
+        HttpConnectionManager(curlf, certs, ncoSkipCertCheck, ncoTimeoutSec, ncoUploadTimeoutSec, rm, nThreads), m_authMgr(am), m_some0(some0) {
+        startWorkers();
+    }
+    void worker(uint32_t a2) override {
+        auto conn = m_curlf->instance(m_certs, m_ncoSkipCertCheck, false, m_ncoTimeoutSec, m_ncoUploadTimeoutSec, m_hrm);
+        while (a2 < m_nThreads) {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_conditionVar.wait(lock, [this] { return this->m_needNewAcToken && !this->m_rtq.empty(); });
+            conn->clearAuthorizationHeader();
+            conn->clearTokenInfo();
+            bool needNewAcToken = false;
+            RequestTaskContext task;
+            {
+                task = std::move(m_rtq.front());
+                if (task.m_secured) {
+                    if (m_authMgr->isAccessTokenInvalidOrExpired()) {
+                        m_needNewAcToken = true;
+                        needNewAcToken = true;
+                    } else {
+                        conn->setAuthorizationHeader(m_authMgr->getAccessTokenHeader());
+                        conn->setTokenInfo(m_authMgr->getSessionStateFromToken(), m_authMgr->getSubjectFromToken());
+                    }
+                }
+#if 0 //TODO
+                v17 = sub_7FF7BCCB8010(&m_rtq.front()->m_succ, &v49);
+                sub_7FF7BCC02900(v6, *v17);
+                std::numpunct<unsigned short>::_Init(p_Ptr);
+#endif
+                m_rtq.pop();
+                conn->setTimeout(m_ncoTimeoutSec);
+                conn->setUploadTimeout(m_ncoUploadTimeoutSec);
+                if (m_gs)
+                    conn->setSessionIdHeader(m_gs->getSessionInfo());
+                else
+                    conn->setSessionIdHeader("");
+            }
+#if 0 //TODO
+            //sub_7FF7BCC209B0(ptr, conn, needNewAcToken);
+            task(*conn, needNewAcToken);
+#endif
+        }
+    }
+    ~ZwiftHttpConnectionManager() { shutdown(); }
 };
 struct EncryptionInfo {};
 struct EncryptionOptions {

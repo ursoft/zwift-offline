@@ -25,6 +25,7 @@
 #include <cmath>
 #include <algorithm>
 #include <deque>
+#include <queue>
 #include <filesystem>
 #include <fstream>
 #include <random>

@@ -30,3 +30,5 @@ logs/
 /scripts/ZwiftApp/1.32.1_106405-Debug
 /scripts/ZwiftApp/res/RCa59584
 /protobuf/protoc.exe
+/scripts/ZwiftApp/cpp/concurrentqueue/benchmarks
+/scripts/ZwiftApp/cpp/concurrentqueue/tests
