@@ -25,8 +25,8 @@ void GoalsManager::AddPersonalGoal(const protobuf::Goal &g) {
 void GoalsManager::ConvertOldGoals() {
     //TODO - deprecated
 }
-void GoalsManager::FinishLoad(std::shared_ptr<zwift_network::NetworkResponse<protobuf::Goals> const> *resp) {
-    m_goals = *((*resp)->m_data);
+void GoalsManager::FinishLoad(const NetworkResponse<protobuf::Goals> &resp) {
+    m_goals = resp;
 }
 float GoalsManager::GetActiveGoalCompletion(protobuf::GoalType gt) {
     float ret = 0.0f;

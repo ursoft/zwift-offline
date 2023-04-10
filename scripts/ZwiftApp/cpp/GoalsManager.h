@@ -13,7 +13,7 @@ public:
     void HandleEvent(EVENT_ID, va_list) override;
     void AddPersonalGoal(const protobuf::Goal &);
     void ConvertOldGoals();
-    void FinishLoad(std::shared_ptr<zwift_network::NetworkResponse<protobuf::Goals> const> *);
+    void FinishLoad(const NetworkResponse<protobuf::Goals> &);
     float GetActiveGoalCompletion(protobuf::GoalType);
     const protobuf::Goal *GetActivePersonalGoalOfType(protobuf::GoalType);
     std::vector<const protobuf::Goal *> GetActivePersonalGoals();

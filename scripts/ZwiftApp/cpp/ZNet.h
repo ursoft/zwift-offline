@@ -1,18 +1,35 @@
 #pragma once
 inline void str_tolower(std::string &s) { std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); }); }
+enum NetworkRequestOutcome { NRO_NULL, NRO_CNT };
+void shutdown_zwift_network();
 namespace zwift_network {
-    enum NetworkRequestOutcome { NRO_NULL, NRO_CNT };
-    void shutdown_zwift_network();
     void get_goals(int64_t playerId);
     void save_goal(const protobuf::Goal &);
-
-    template<class PB>
-    class NetworkResponse {
-    public:
-        PB *m_data;
-    };
 }
 struct NetworkClientImpl;
+struct NetworkResponseBase {
+    std::string m_msg;
+    int m_errCode = 0;
+    void storeError(int code, const char *errMsg) { 
+        if (errMsg)
+            m_msg = errMsg;
+        else
+            m_msg.clear();
+        m_errCode = code; }
+    const NetworkResponseBase &storeError(const NetworkResponseBase &src) { m_msg = src.m_msg; m_errCode = src.m_errCode; return *this; }
+    const NetworkResponseBase &storeError(int code, std::string &&errMsg) { m_msg = std::move(errMsg); m_errCode = code; return *this; }
+    const NetworkResponseBase &storeError(int code, const std::string &errMsg) { m_msg = errMsg; m_errCode = code; return *this; }
+    bool ok(NetworkResponseBase *errDest = nullptr) const {
+        if (errDest)
+            errDest->storeError(*this);
+        return m_errCode == 0;
+    }
+};
+template<class T> struct NetworkResponse : public NetworkResponseBase { 
+    T m_T; 
+    operator T &() { return m_T; }
+    operator const T &() const { return m_T; }
+};
 struct NetworkClient {
     NetworkClientImpl *m_pImpl;
     NetworkClient();
@@ -20,14 +37,15 @@ struct NetworkClient {
     static void globalInitialize();
     static void globalCleanup();
     void initialize(const std::string &server, const std::string &certs, const std::string &version);
+    NetworkResponseBase logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &a4, const std::string &oauthClient);
 };
 namespace ZNet {
     struct Error {
-        Error(std::string_view msg, zwift_network::NetworkRequestOutcome netReqOutcome) : m_msg(msg), m_netReqOutcome(netReqOutcome), m_hasNetReqOutcome(true) {}
+        Error(std::string_view msg, NetworkRequestOutcome netReqOutcome) : m_msg(msg), m_netReqOutcome(netReqOutcome), m_hasNetReqOutcome(true) {}
         Error(std::string_view msg) : m_msg(msg) {}
 
         std::string_view m_msg;
-        zwift_network::NetworkRequestOutcome m_netReqOutcome = zwift_network::NRO_NULL;
+        NetworkRequestOutcome m_netReqOutcome = NRO_NULL;
         bool m_hasNetReqOutcome = false;
     };
     struct Params {};
@@ -81,23 +99,6 @@ namespace uuid {
         return ss.str();
     }
 }
-struct SteadyClock {
-    inline static double g_perfPeriod;
-    SteadyClock() {
-        assert(g_perfPeriod == 0.0); // second object???
-        LARGE_INTEGER v1;
-        BOOL result = QueryPerformanceFrequency(&v1);
-        assert(result);
-        g_perfPeriod = 1000000000.0 / v1.LowPart;
-    }
-    uint64_t now() {
-        LARGE_INTEGER PerformanceCount;
-        QueryPerformanceCounter(&PerformanceCount);
-        uint64_t ret = (uint32_t)(int32_t)(PerformanceCount.LowPart * g_perfPeriod); //QUEST: why 32 bit
-        return ret;
-    }
-};
-inline SteadyClock g_steadyClock; //one per app is OK, no need for shared ptr
 void ZNETWORK_Shutdown();
 uint64_t ZNETWORK_GetNetworkSyncedTimeGMT();
 bool ZNETWORK_IsLoggedIn();

@@ -51,3 +51,5 @@ extern "C" {
 
 #include <json/json.h>
 #include <gtest/gtest.h>
+
+using namespace std::string_literals;

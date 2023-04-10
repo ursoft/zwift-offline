@@ -1,0 +1,39 @@
+syntax = "proto3";
+package protobuf;
+import "PerSessionInfo.proto";
+
+message LoginResponse {
+    string session_state = 1;
+    PerSessionInfo info = 2;
+    optional uint32 relay_session_id = 3;
+    uint32 expiration = 4; // minutes
+}
+
+message LoginRequest {
+    AnalyticsEventProperties properties = 1;
+    bytes key = 2;
+}
+
+message AnalyticsEventProperty {
+    string name = 1;
+    string value = 2;
+}
+
+message AnalyticsEventProperties {
+    repeated AnalyticsEventProperty property = 2;
+}
+
+message RelaySessionRefreshResponse {
+    uint32 relay_session_id = 1;
+    uint32 expiration = 2; // minutes
+}
+
+message ZErrorMessageParamProtobuf {
+    string name = 1;
+    string value = 2;
+}
+
+message ZErrorMessageProtobuf {
+    string message = 1;
+    repeated ZErrorMessageParamProtobuf params = 2;
+}
