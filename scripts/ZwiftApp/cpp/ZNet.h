@@ -39,6 +39,7 @@ struct NetworkClient {
     static void globalCleanup();
     void initialize(const std::string &server, const std::string &certs, const std::string &version);
     NetworkResponseBase logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &a4, const std::string &oauthClient);
+    NetworkResponseBase logInWithEmailAndPassword(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient);
 };
 namespace ZNet {
     struct Error {
