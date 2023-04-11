@@ -15,7 +15,8 @@ struct NetworkResponseBase {
             m_msg = errMsg;
         else
             m_msg.clear();
-        m_errCode = code; }
+        m_errCode = code; 
+    }
     const NetworkResponseBase &storeError(const NetworkResponseBase &src) { m_msg = src.m_msg; m_errCode = src.m_errCode; return *this; }
     const NetworkResponseBase &storeError(int code, std::string &&errMsg) { m_msg = std::move(errMsg); m_errCode = code; return *this; }
     const NetworkResponseBase &storeError(int code, const std::string &errMsg) { m_msg = errMsg; m_errCode = code; return *this; }

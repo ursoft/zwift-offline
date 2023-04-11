@@ -130,8 +130,8 @@ struct HttpStatistics { //0x320 - 16 bytes
         *(_OWORD *)((char *)this + 72) = 0u;*/
     }
 };
-const char *g_CNL_VER = "3.27.4";
-enum HttpRequestMode { HRM_0, HRM_1 };
+std::string g_CNL_VER = "3.27.4"s;
+enum HttpRequestMode { HRM_SEQUENTIAL, HRM_CONCURRENT };
 struct AcceptHeader { std::string m_hdr; };
 enum ContentType { CTH_UNK, CTH_JSON, CTH_PB, CTH_PBv2, CTH_URLENC, CTH_OCTET, CTH_CNT };
 struct ContentTypeHeader { 
@@ -159,20 +159,36 @@ struct ContentTypeHeader {
     }
     std::string m_hdr; 
 };
+std::string GetWinVer() { return "Windows"s; /* OMIT exact version */ }
 using QueryResult = NetworkResponse<std::vector<char>>;
 struct CurlHttpConnection {
     static inline std::mutex g_libcryptoMutex;
-    CURL *m_curl = nullptr;
+    CURL *m_curl;
     curl_slist *m_headers = nullptr;
     void *m_cbData;
-    std::string m_authHeader, m_sessionState, m_subject, m_sidHeader, m_requestIdHdr, m_cainfo, m_someHeader, m_someHeader1, m_someHeader2;
-    std::string m_field_138;
+    std::string m_authHeader, m_sessionState, m_subject, m_sidHeader, m_requestIdHdr, m_cainfo, m_platformHeader, m_uaHeader, m_machHeader;
+    std::string m_hrmHeader;
     uint64_t m_requestId = 0, m_headersSize = 0;
-    int m_timeout = 0, m_uplTimeout = 0, m_reqIsConcurrent = 0;
-    bool m_http2 = false, m_sslNoVerify = false;
-    CurlHttpConnection(const std::string &certs, bool ncoSkipCertCheck, bool a5, int ncoTimeoutSec, int ncoUploadTimeoutSec,
+    int m_timeout, m_uplTimeout;
+    HttpRequestMode m_hrm;
+    bool m_http2, m_sslNoVerify;
+    CurlHttpConnection(const std::string &certs, bool ncoSkipCertCheck, bool http2, int ncoTimeoutSec, int ncoUploadTimeoutSec,
         const std::string &curlVersion, const std::string &zaVersion, const std::string &machineId, bool *pKilled, HttpRequestMode hrm) {
-        //TODO
+        m_cainfo = certs;
+        m_sslNoVerify = ncoSkipCertCheck;
+        m_http2 = http2;
+        m_timeout = ncoTimeoutSec;
+        m_uplTimeout = ncoUploadTimeoutSec;
+        m_cbData = pKilled;
+        m_hrm = hrm;
+        m_curl = curl_easy_init();
+        if (!m_curl)
+            NetworkingLogError("Fail to acquire curl handle.");
+        m_platformHeader = "PLATFORM: PC"s;
+        m_uaHeader = "User-Agent: CNL/"s + g_CNL_VER + " ("s + GetWinVer() + ") zwift/"s + zaVersion + " curl/"s + curlVersion;
+        m_machHeader = "X-Machine-Id: "s + machineId;
+        if (hrm == HRM_CONCURRENT)
+            m_hrmHeader = "X-Requested-With: ConcurrentHttpRequest"s;
     }
     void appendHeader(const std::string &h) {
         if (h.size()) {
@@ -181,7 +197,9 @@ struct CurlHttpConnection {
         }
     }
     ~CurlHttpConnection() /*vptr[0]*/ {
-        //TODO
+        if (m_curl)
+            curl_easy_cleanup(m_curl);
+        curl_slist_free_all(m_headers);
     }
     void setAuthorizationHeader(const std::string &ah) /*vptr[1]*/ { m_authHeader = ah; }
     void clearAuthorizationHeader() /*vptr[2]*/ { m_authHeader.clear(); }
@@ -315,14 +333,15 @@ struct CurlHttpConnection {
                 uplTimeout = m_timeout;
         }
         curl_easy_setopt(m_curl, CURLOPT_TIMEOUT, uplTimeout);
+        curl_easy_setopt(m_curl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
         if (m_sslNoVerify) {
             curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYPEER, 0);
             curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYHOST, 0);
         }
-        appendHeader(m_someHeader);
+        appendHeader(m_platformHeader);
         appendHeader("SOURCE: Game Client"s);
-        appendHeader(m_someHeader1);
-        appendHeader(m_someHeader2);
+        appendHeader(m_uaHeader);
+        appendHeader(m_machHeader);
         if (useAuth)
             appendHeader(m_authHeader);
     }
@@ -357,12 +376,11 @@ struct CurlHttpConnection {
         appendHeader(m_requestIdHdr);
         curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, m_headers);
-        std::vector<char> v16;
-        curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &v16);
+        curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &ret.m_T);
         CURLcode v47;
         uint64_t v51;
-        if (m_reqIsConcurrent == 1) { // CurlHttpConnection::performConcurrentRequest
-            appendHeader(m_field_138);
+        if (m_hrm == HRM_CONCURRENT) { // CurlHttpConnection::performConcurrentRequest
+            appendHeader(m_hrmHeader);
             NetworkingLogDebug("Performing concurrent request: %s %s (payload: %li bytes)", op.c_str(), url.c_str(), payloadSize);
             Stopwatch v62;
             v47 = curl_easy_perform(m_curl);
@@ -415,8 +433,8 @@ struct CurlHttpConnection {
             default:
                 if (v59 > 503) {
                     std::string v61;
-                    if (v16.size())
-                        v61.assign(v16.data(), v16.size());
+                    if (ret.m_T.size())
+                        v61.assign(ret.m_T.data(), ret.m_T.size());
                     NetworkingLogWarn("Unexpected HTTP response: [%d] '%s' for: %s %s", v59, v61.c_str(), op.c_str(), url.c_str());
                     ret.storeError(32, v61);
                     //QUEST: why was empty ret here
@@ -426,8 +444,8 @@ struct CurlHttpConnection {
             NetworkingLogDebug("Completed request: %s %s (status: %d, elapsed: %lims)", op.c_str(), url.c_str(), v59, v51);
             if (v31) {
                 std::string v61;
-                if (v16.size())
-                    v61.assign(v16.data(), v16.size());
+                if (ret.m_T.size())
+                    v61.assign(ret.m_T.data(), ret.m_T.size());
                 ret.storeError(v31, v61);
                 //QUEST: why was empty ret here
             }
@@ -474,7 +492,7 @@ struct HttpConnectionManager {
     void startWorkers() {
         m_pool.reserve(m_nThreads);
         for (auto i = 0; i < m_nThreads; ++i)
-            m_pool.emplace_back([&]() { worker(i); });
+            m_pool.emplace_back([i, this]() { worker(i); });
     }
     void shutdown() {
         setThreadPoolSize(0);
@@ -491,7 +509,7 @@ struct HttpConnectionManager {
         if (oldVal) {
             m_conditionVar.notify_all();
         } else while (oldVal < m_nThreads) {
-            m_pool.emplace_back([&]() { worker(oldVal); });
+            m_pool.emplace_back([this, oldVal]() { worker(oldVal); });
             ++oldVal;
         }
     }
@@ -503,7 +521,7 @@ struct GenericHttpConnectionManager : public HttpConnectionManager { //0x128 byt
         HttpConnectionManager(curlf, certs, ncoSkipCertCheck, ncoTimeoutSec, ncoUploadTimeoutSec, hrm, 1) {}
     ~GenericHttpConnectionManager() { shutdown(); }
     void worker(uint32_t a2) override {
-        auto conn = m_curlf->instance(m_certs, m_ncoSkipCertCheck, true, m_ncoTimeoutSec, m_ncoUploadTimeoutSec, HRM_0);
+        auto conn = m_curlf->instance(m_certs, m_ncoSkipCertCheck, true, m_ncoTimeoutSec, m_ncoUploadTimeoutSec, HRM_SEQUENTIAL);
         while (a2 < m_nThreads) {
             task_type task;
             {
@@ -605,8 +623,8 @@ namespace HttpHelper {
     static NetworkResponse<Json::Value> parseJson(const std::vector<char> &src) {
         NetworkResponse<Json::Value> ret;
         Json::Reader r;
-        if (!r.parse(&src.front(), &src.back(), ret, false)) {
-            NetworkingLogError("Error parsing JSON: %s\nJSON: %s", r.getFormattedErrorMessages().c_str(), &src.front());
+        if (src.size() == 0 || !r.parse(&src.front(), &src.back(), ret, false)) {
+            NetworkingLogError("Error parsing JSON: %s\nJSON: %s", r.getFormattedErrorMessages().c_str(), src.size() ? &src.front() : "empty");
             ret.storeError(23, "Error parsing json"s);
         }
         return ret;
@@ -828,7 +846,7 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
     void setTokens(bool refresh) {
         m_accessToken = "Authorization: Bearer " + m_oauth2.m_acToken.asString();
         if (refresh) {
-            m_accessTokenDeathTime = g_steadyClock.now() + 1000000000ull * m_oauth2.m_exp - 30000000000ull;
+            m_accessTokenDeathTime = g_steadyClock.now() + 1'000'000'000ull * m_oauth2.m_exp - 30'000'000'000ull;
         } else {
             m_accessTokenDeathTime = 0;
         }
@@ -970,7 +988,7 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
         auto conn = m_curlf->instance(m_certs, m_ncoSkipCertCheck, false, m_ncoTimeoutSec, m_ncoUploadTimeoutSec, m_hrm);
         while (a2 < m_nThreads) {
             std::unique_lock<std::mutex> lock(m_mutex);
-            m_conditionVar.wait(lock, [this] { return this->m_needNewAcToken && !this->m_rtq.empty(); });
+            m_conditionVar.wait(lock, [this] { return !this->m_needNewAcToken && !this->m_rtq.empty(); });
             conn->clearAuthorizationHeader();
             conn->clearTokenInfo();
             bool needNewAcToken = false;
@@ -1174,7 +1192,7 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
             *(_BYTE *)(ret + 8) = 1;
 #endif
             //TODO
-            RequestTaskContext task([&](CurlHttpConnection *conn, bool needNewAcToken) { //pushRequestTask_lambda_0
+            RequestTaskContext task([this, f](CurlHttpConnection *conn, bool needNewAcToken) { //pushRequestTask_lambda_0
                 if (needNewAcToken) {
                     auto rett = this->attendToAccessToken(conn);
                     if (rett.m_errCode)
@@ -1183,13 +1201,14 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
                     conn->setTokenInfo(this->m_authMgr->getSessionStateFromToken(), this->m_authMgr->getSubjectFromToken());
                 }
                 conn->setRequestId(InterlockedExchangeAdd64(&this->m_requestId, 1));
-                auto ret = f(conn);
-                if (ret.m_errCode == 401) {
+                auto r = f(conn);
+                if (r.m_errCode == 401) {
                     NetworkingLogWarn("Request status unauthorized, token invalidated.");
                     this->m_authMgr->setAccessTokenAsExpired();
                 }
-                return ret;
+                return r;
             });
+            task.m_secured = b1; //TODO: check (not sure)
             auto res = task.get_future();
             { std::lock_guard l(m_mutex); m_rtq.push(std::move(task)); }
             m_conditionVar.notify_one();
@@ -1485,7 +1504,7 @@ struct AuthServerRestInvoker { //0x60 bytes
     ZwiftHttpConnectionManager *m_conn;
     NetworkResponseBase logIn(const EncryptionOptions &encr, const std::vector<std::string> &anEventProps, 
         const std::function<void(const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &)> &func) {
-        return m_conn->pushRequestTask([&](CurlHttpConnection *conn) {
+        return m_conn->pushRequestTask([this, encr, anEventProps, func](CurlHttpConnection *conn) {
             auto sk = this->getSecretKey(encr);
             auto sid = uuid::generate_uuid_v4();
             conn->setSessionIdHeader(sid);
@@ -1582,7 +1601,7 @@ struct EventLoop { //0x30 bytes
             m_thrd.join(); 
     }
     void enqueueShutdown() {
-        boost::asio::post(m_asioCtx, [&]() { 
+        boost::asio::post(m_asioCtx, [this]() { 
             m_asioCtx.stop(); });
         if (m_thrd.joinable()) 
             m_thrd.join();
@@ -1793,6 +1812,7 @@ struct LanExerciseDeviceService { //0x3B0 bytes
     //TODO
 };
 struct NetworkClientImpl { //0x400 bytes, calloc
+    std::string m_server;
     MachineIdProviderFactory m_machine;
     CurlHttpConnectionFactory m_curlf;
     NetworkClientOptions m_nco{ false, 20, 300, /*NL_INFO RTL*/ NL_DEBUG };
@@ -1921,10 +1941,11 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         //TODO
     }
     void LogStart() {
-        NetworkingLogInfo("CNL %s", g_CNL_VER);
+        NetworkingLogInfo("CNL %s", g_CNL_VER.c_str());
         NetworkingLogInfo("Machine Id: %s", m_machine.m_id.c_str());
     }
-    void initialize(const std::string &server, const std::string &certs, const std::string &zaVersion) {
+    void initialize(const std::string &serv, const std::string &certs, const std::string &zaVersion) {
+        m_server = serv;
         //SetNetworkMaxLogLevel(maxLogLevel); combined with g_MinLogLevel (why two???)
         m_curlf.initialize(zaVersion, m_machine.m_id);
         _time64(&m_netStartTime1);
@@ -1932,31 +1953,31 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         LogStart();
         bool skipCertCheck = m_nco.m_skipCertCheck;
         //smart shared pointers actively used here, but what for???
-        m_httpConnMgr0 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_0);
-        m_httpConnMgr1 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_1);
-        m_httpConnMgr2 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_0);
-        m_authMgr = new ZwiftAuthenticationManager(server);
-        m_httpConnMgr3 = new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr, m_someFunc0, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_0, 3);
-        m_httpConnMgr4 = new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr, m_someFunc0, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_1, 3);
-        m_expRi = new ExperimentsRestInvoker(m_httpConnMgr3, server);
-        m_arRi = new ActivityRecommendationRestInvoker(m_httpConnMgr4, server);
-        m_achRi = new AchievementsRestInvoker(m_httpConnMgr4, server);
-        m_authInvoker = new AuthServerRestInvoker(m_machine.m_id, m_authMgr, m_httpConnMgr3, m_expRi, server);
-        m_camRi = new CampaignRestInvoker(server);
-        m_clubsRi = new ClubsRestInvoker(m_httpConnMgr3, server);
-        m_ecRi = new EventCoreRestInvoker(m_httpConnMgr3, server);
-        m_efRi = new EventFeedRestInvoker(m_httpConnMgr4, server);
-        m_fuRi = new FirmwareUpdateRestInvoker(m_httpConnMgr3, server);
+        m_httpConnMgr0 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL);
+        m_httpConnMgr1 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_CONCURRENT);
+        m_httpConnMgr2 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL);
+        m_authMgr = new ZwiftAuthenticationManager(m_server);
+        m_httpConnMgr3 = new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr, m_someFunc0, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL, 3);
+        m_httpConnMgr4 = new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr, m_someFunc0, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_CONCURRENT, 3);
+        m_expRi = new ExperimentsRestInvoker(m_httpConnMgr3, m_server);
+        m_arRi = new ActivityRecommendationRestInvoker(m_httpConnMgr4, m_server);
+        m_achRi = new AchievementsRestInvoker(m_httpConnMgr4, m_server);
+        m_authInvoker = new AuthServerRestInvoker(m_machine.m_id, m_authMgr, m_httpConnMgr3, m_expRi, m_server);
+        m_camRi = new CampaignRestInvoker(m_server);
+        m_clubsRi = new ClubsRestInvoker(m_httpConnMgr3, m_server);
+        m_ecRi = new EventCoreRestInvoker(m_httpConnMgr3, m_server);
+        m_efRi = new EventFeedRestInvoker(m_httpConnMgr4, m_server);
+        m_fuRi = new FirmwareUpdateRestInvoker(m_httpConnMgr3, m_server);
         m_gRi = new GenericRestInvoker(m_httpConnMgr1);
-        m_peRi = new PrivateEventsRestInvoker(m_httpConnMgr3, server);
-        m_rarRi = new RaceResultRestInvoker(m_httpConnMgr3, server);
-        m_rorRi = new RouteResultsRestInvoker(m_httpConnMgr3, server);
-        m_ppbRi = new PlayerPlaybackRestInvoker(m_httpConnMgr4, server);
-        m_srRi = new SegmentResultsRestInvoker(m_httpConnMgr4, server);
-        m_pcRi = new PowerCurveRestInvoker(m_httpConnMgr4, server);
-        m_zfRi = new ZFileRestInvoker(m_httpConnMgr3, server);
-        m_zwRi = new ZwiftWorkoutsRestInvoker(m_httpConnMgr3, server);
-        m_wsRi = new WorkoutServiceRestInvoker(m_httpConnMgr4, server);
+        m_peRi = new PrivateEventsRestInvoker(m_httpConnMgr3, m_server);
+        m_rarRi = new RaceResultRestInvoker(m_httpConnMgr3, m_server);
+        m_rorRi = new RouteResultsRestInvoker(m_httpConnMgr3, m_server);
+        m_ppbRi = new PlayerPlaybackRestInvoker(m_httpConnMgr4, m_server);
+        m_srRi = new SegmentResultsRestInvoker(m_httpConnMgr4, m_server);
+        m_pcRi = new PowerCurveRestInvoker(m_httpConnMgr4, m_server);
+        m_zfRi = new ZFileRestInvoker(m_httpConnMgr3, m_server);
+        m_zwRi = new ZwiftWorkoutsRestInvoker(m_httpConnMgr3, m_server);
+        m_wsRi = new WorkoutServiceRestInvoker(m_httpConnMgr4, m_server);
         m_udpStat = new UdpStatistics();
         m_tcpStat = new TcpStatistics();
         m_wcStat = new WorldClockStatistics();
@@ -1964,7 +1985,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         m_auxStat = new AuxiliaryControllerStatistics();
         m_waStat = new WorldAttributeStatistics();
         //OMIT telemetry
-        m_restInvoker = new RestServerRestInvoker(m_machine.m_id, m_httpConnMgr3, server, zaVersion);
+        m_restInvoker = new RestServerRestInvoker(m_machine.m_id, m_httpConnMgr3, m_server, zaVersion);
         m_lanService = new LanExerciseDeviceService(zaVersion, 0x14E9, 1, 100, 5, 30);
         NetworkingLogInfo("CNL initialized");
         m_initOK = true;
@@ -2003,7 +2024,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
             return ret.m_errCode ? ret :
                 m_authInvoker->logIn({ m_nco.m_disableEncr, m_nco.m_disableEncryptionWithServer, m_nco.m_ignoreEncryptionFeatureFlag, m_nco.m_secretKeyBase64 },
                     anEventProps, 
-                    [&](const protobuf::PerSessionInfo &psi, const std::string &str, const EncryptionInfo &ei) { onLoggedIn(psi, str, ei); });
+                    [this](const protobuf::PerSessionInfo &psi, const std::string &str, const EncryptionInfo &ei) { onLoggedIn(psi, str, ei); });
         }
         return NetworkResponseBase{ "Initialize CNL first", 2 };
     }
@@ -2015,7 +2036,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
             else
                 return m_authInvoker->logIn(
                     { m_nco.m_disableEncr, m_nco.m_disableEncryptionWithServer, m_nco.m_ignoreEncryptionFeatureFlag, m_nco.m_secretKeyBase64},
-                    anEventProps, [&](const protobuf::PerSessionInfo &psi, const std::string &str, const EncryptionInfo &ei) { onLoggedIn(psi, str, ei); });
+                    anEventProps, [this](const protobuf::PerSessionInfo &psi, const std::string &str, const EncryptionInfo &ei) { onLoggedIn(psi, str, ei); });
         }
         return NetworkResponseBase{ "Initialize CNL first", 2 };
     }
@@ -2069,7 +2090,7 @@ uint64_t ZNETWORK_GetNetworkSyncedTimeGMT() {
 }
 bool ZNETWORK_IsLoggedIn() {
     if (g_networkClient->m_pImpl && g_networkClient->m_pImpl->m_authMgr) {
-        g_networkClient->m_pImpl->m_authMgr->getLoggedIn();
+        return g_networkClient->m_pImpl->m_authMgr->getLoggedIn();
     }
     return false;
 }
@@ -2163,9 +2184,14 @@ TEST(SmokeTest, DISABLED_LoginTest) {
     auto token = "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ._kPfXO8MdM7j0meG4MVzprSa-3pdQqKyzYMHm4d494w\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ.5e1X1imPlVfXfhDHE_OGmG9CNGvz7hpPYPXcNkPJ5lw\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}"s;
     g_MainThread = GetCurrentThreadId();
     ZNETWORK_Initialize();
+    ZMUTEX_SystemInitialize();
+    LogInitialize();
     EXPECT_FALSE(ZNETWORK_IsLoggedIn());
-    std::vector<std::string> v{"OS"s};
-    g_networkClient->logInWithOauth2Credentials(token, v, "Game_Launcher"s);
+    std::vector<std::string> v{"OS"s, "Windows"s};
+    auto ret = g_networkClient->logInWithOauth2Credentials(token, v, "Game_Launcher"s);
+    EXPECT_EQ(0, ret.m_errCode) << ret.m_msg;
+    while(!ZNETWORK_IsLoggedIn())
+        Sleep(100);
 }
 TEST(SmokeTest, B64) {
     base64 obj;

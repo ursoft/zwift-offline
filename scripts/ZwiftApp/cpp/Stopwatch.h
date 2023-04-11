@@ -6,7 +6,7 @@ struct SteadyClock {
         LARGE_INTEGER v1;
         BOOL result = QueryPerformanceFrequency(&v1);
         assert(result);
-        g_perfPeriod = 1000000000.0 / v1.LowPart;
+        g_perfPeriod = 1'000'000'000.0 / v1.LowPart;
     }
     uint64_t now() {
         LARGE_INTEGER PerformanceCount;

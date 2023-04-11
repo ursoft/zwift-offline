@@ -67,6 +67,7 @@ bool ShouldLog(LOG_LEVEL level) {
 LogWriteHandler g_logWriteHandler;
 void SetLogWriteHandler(LogWriteHandler h) { g_logWriteHandler = h; }
 
+#define LOG_DEBUG
 void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_len) {
     if (g_canUseLogging) {
         if (g_LogMutexIdx != -1 && g_LogTypes[ty].m_enabled && ZwiftEnterCriticalSection(g_LogMutexIdx)) {
@@ -78,6 +79,9 @@ void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_l
             if (g_logFile) {
                 if (cnt > 0) fwrite(buf, cnt, 1, g_logFile);
                 fwrite(msg, msg_len, 1, g_logFile);
+#ifdef LOG_DEBUG
+                OutputDebugStringA(msg); OutputDebugStringA("\n");
+#endif
                 fwrite("\r\n", 2, 1, g_logFile);
                 fflush(g_logFile);
             }
