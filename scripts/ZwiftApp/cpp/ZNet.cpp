@@ -1003,9 +1003,8 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
         }
     }
     ~ZwiftHttpConnectionManager() { shutdown(); }
-    template<class RET>
-    std::future<NetworkResponse<RET>> pushRequestTask(const std::function<NetworkResponse<RET>(CurlHttpConnection *)> &f, bool b1, bool b2) {
-        std::future<NetworkResponse<RET>> ret;
+    NetworkResponseBase pushRequestTask(const std::function<NetworkResponseBase(CurlHttpConnection *)> &f, bool b1, bool b2) {
+        NetworkResponseBase ret;
         if (b2 || !m_some0) {
 #if 0
             v48 = this;
@@ -1179,7 +1178,7 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
                 if (needNewAcToken) {
                     auto rett = this->attendToAccessToken(conn);
                     if (rett.m_errCode)
-                        return NetworkResponse<RET>(std::move(rett));
+                        return NetworkResponseBase(std::move(rett));
                     conn->setAuthorizationHeader(this->m_authMgr->getAccessTokenHeader());
                     conn->setTokenInfo(this->m_authMgr->getSessionStateFromToken(), this->m_authMgr->getSubjectFromToken());
                 }
@@ -1195,9 +1194,7 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
             { std::lock_guard l(m_mutex); m_rtq.push(std::move(task)); }
             m_conditionVar.notify_one();
         } else {
-            std::promise<NetworkResponse<RET>> p;
-            ret = p.get_future();
-            p.set_value(NetworkResponse<RET>{"Disconnected due to simultaneous log ins"s, 14});
+            ret.storeError(14, "Disconnected due to simultaneous log ins"s);
         }
         return ret;
     }
@@ -1488,7 +1485,7 @@ struct AuthServerRestInvoker { //0x60 bytes
     ZwiftHttpConnectionManager *m_conn;
     NetworkResponseBase logIn(const EncryptionOptions &encr, const std::vector<std::string> &anEventProps, 
         const std::function<void(const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &)> &func) {
-        m_conn->pushRequestTask<std::string>([&](CurlHttpConnection *conn) {
+        return m_conn->pushRequestTask([&](CurlHttpConnection *conn) {
             auto sk = this->getSecretKey(encr);
             auto sid = uuid::generate_uuid_v4();
             conn->setSessionIdHeader(sid);
@@ -1502,13 +1499,12 @@ struct AuthServerRestInvoker { //0x60 bytes
                 }
                 m_authMgr->setLoggedIn(true);
                 func(ret.m_T.info(), sid, {sk, ret.m_T.relay_session_id(), ret.m_T.expiration()});
-                return NetworkResponse<std::string>(m_authMgr->getRefreshToken());
+            } else {
+                this->m_authMgr->resetCredentials();
+                NetworkingLogError("Couldn't obtain a session id from the server.");
             }
-            this->m_authMgr->resetCredentials();
-            NetworkingLogError("Couldn't obtain a session id from the server.");
-            return NetworkResponse<std::string>(ret);
+            return NetworkResponseBase(ret);
         }, true, false);
-        return NetworkResponseBase{};
     }
     AuthServerRestInvoker(const std::string &machineId, ZwiftAuthenticationManager *authMgr, ZwiftHttpConnectionManager *httpConnMgr3, ExperimentsRestInvoker *expRi, const std::string &server) : m_machineId(machineId), m_server(server), m_authMgr(authMgr), m_expRi(expRi), m_conn(httpConnMgr3) {}
     NetworkResponse<protobuf::LoginResponse> doLogIn(const std::string &sk, const std::vector<std::string> &anEventProps, CurlHttpConnection *conn) {
