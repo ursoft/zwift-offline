@@ -1,7 +1,7 @@
 # escape=`
-
 # Use the latest Windows Server Core 2022 image.
-FROM mcr.microsoft.com/windows/servercore:ltsc2022
+ARG MYBASE=mcr.microsoft.com/windows/servercore:ltsc2022
+FROM $MYBASE
 
 # Restore the default Windows shell for correct batch processing.
 SHELL ["cmd", "/S", "/C"]

@@ -557,6 +557,20 @@ struct GlobalState { //0x530 bytes
     void registerUdpConfigListener(UdpClient *cli);
     void registerEncryptionListener(UdpClient *cli);
     std::string getSessionInfo() { return m_sessionInfo; }
+/*
+GlobalState::setWorldId(long)
+GlobalState::setUdpConfig(zwift::protobuf::UdpConfigVOD const&,ulong)
+GlobalState::setPlayerId(long)
+GlobalState::setEncryptionInfo(GlobalState::EncryptionInfo const&)
+GlobalState::registerWorldIdListener(std::weak_ptr<GlobalState::WorldIdListener> const&)
+GlobalState::registerUdpConfigListener(std::weak_ptr<GlobalState::UdpConfigListener> const&)
+GlobalState::registerEncryptionListener(std::weak_ptr<GlobalState::EncryptionListener> const&)
+GlobalState::isInWorld(void)
+GlobalState::getWorldId(void)
+GlobalState::getPlayerId(void)
+GlobalState::getPerSessionInfo(void)
+GlobalState::getEncryptionInfo(void)
+GlobalState::GlobalState(std::shared_ptr<EventLoop>,zwift::protobuf::PerSessionInfo const&,std::string const&)*/
 };
 static const int B64index[256] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -2118,7 +2132,7 @@ void GlobalState::registerUdpConfigListener(UdpClient *cli) {
 void GlobalState::registerEncryptionListener(UdpClient *cli) {
     //TODO
 }
-GlobalState::GlobalState(EventLoop *, const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &) {
+GlobalState::GlobalState(EventLoop *el, const protobuf::PerSessionInfo &psi, const std::string &sessionId, const EncryptionInfo &ei) {
     //TODO
 }
 NetworkResponseBase NetworkClient::logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &anEventProps, const std::string &oauthClient) { return m_pImpl->logInWithOauth2Credentials(sOauth, anEventProps, oauthClient); }

@@ -2,14 +2,14 @@ syntax = "proto3";
 package protobuf;
 
 message TcpAddress {
-	string ip = 1;
-	int32 port = 2;
-	int32 lb_realm = 3;  //load balancing cluster: server realm or 0 (generic)
-	int32 lb_course = 4; //load balancing cluster: course id (see also TcpAddressService::updateAddresses)
+    string ip = 1;
+    int32 port = 2;
+    int32 lb_realm = 3;  //load balancing cluster: server realm or 0 (generic)
+    int32 lb_course = 4; //load balancing cluster: course id (see also TcpAddressService::updateAddresses)
 }
 
 message TcpConfig {
-	//First server: the TCP telemetry server (34.218.60.145)
+    //First server: the TCP telemetry server (34.218.60.145)
     repeated TcpAddress nodes = 1;
 }
 

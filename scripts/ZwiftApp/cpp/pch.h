@@ -1,6 +1,9 @@
 #pragma once
 #define NOMINMAX
 //#define AK_USE_UWP_API
+#ifdef NDEBUG
+#define AK_OPTIMIZED
+#endif //NDEBUG
 #include "framework.h"
 #include <Winhttp.h>
 #include <ShellScalingApi.h>

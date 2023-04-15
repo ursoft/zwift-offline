@@ -41,7 +41,7 @@
                 { "WWISE_ID": "Wwise_v2021.1.11" },
                 { "NOESIS_DIR": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Noesis-3.0.12" },
                 { "WWISE_DIR": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Wwise_v2021.1.11" },
-                { "LIB_CFG": "Debug" }
+                { "LIB_CFG": "Release" }
             ],
             "intelliSenseMode": "windows-msvc-x64",
             "variables": [
