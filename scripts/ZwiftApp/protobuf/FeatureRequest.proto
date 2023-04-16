@@ -1,7 +1,5 @@
-syntax = "proto3";
-
+syntax = "proto2";
 package protobuf;
-
 message FeatureRequest {
-  int64 user_id = 1;
+    required int64 user_id = 1;
 }

@@ -887,7 +887,7 @@ void CONSOLE_Draw(float atY, float dt) {
         GFX_Draw2DQuad(1276.0f, scrollBarTop + 2.0, 2.0f, scrollBarHeight - 4.0, g_alwaysScrollToEnd ? 0xFF0000FF : 0xFFFF0000, false);
     }
     CONSOLE_DrawCmdline(g_Console, buf);
-    auto banner = "Zwift Debug Console (toggle with ` key and Ctrl+F12; tab for autocomplete)";
+    auto banner = "Zwift Debug Console (toggle with ` key and Ctrl+F12; <tab> to autocomplete)";
     if (!g_Console.m_logBanner.empty())
         banner = g_Console.m_logBanner.c_str();
     g_LargeFontW.RenderWString(15.0f, 0.0f, banner, 0xFFFFFF00, 0, 0.35f /*URSOFT FIX : was 0.4*/, true, false);

@@ -551,14 +551,18 @@ struct EventLoop;
 struct EncryptionInfo;
 struct GlobalState { //0x530 bytes
     std::string m_sessionInfo;
+    uint64_t m_worldId = 0;
     bool m_shouldUseEncryption;
     GlobalState(EventLoop *, const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &);
     bool shouldUseEncryption() { return m_shouldUseEncryption; }
     void registerUdpConfigListener(UdpClient *cli);
     void registerEncryptionListener(UdpClient *cli);
     std::string getSessionInfo() { return m_sessionInfo; }
+    uint64_t getWorldId() { return m_worldId; }
+    void setWorldId(uint64_t newVal) {
+        //TODO
+    }
 /*
-GlobalState::setWorldId(long)
 GlobalState::setUdpConfig(zwift::protobuf::UdpConfigVOD const&,ulong)
 GlobalState::setPlayerId(long)
 GlobalState::setEncryptionInfo(GlobalState::EncryptionInfo const&)
@@ -566,7 +570,6 @@ GlobalState::registerWorldIdListener(std::weak_ptr<GlobalState::WorldIdListener>
 GlobalState::registerUdpConfigListener(std::weak_ptr<GlobalState::UdpConfigListener> const&)
 GlobalState::registerEncryptionListener(std::weak_ptr<GlobalState::EncryptionListener> const&)
 GlobalState::isInWorld(void)
-GlobalState::getWorldId(void)
 GlobalState::getPlayerId(void)
 GlobalState::getPerSessionInfo(void)
 GlobalState::getEncryptionInfo(void)
@@ -982,10 +985,10 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
     GlobalState *m_gs = nullptr;
     ZwiftAuthenticationManager *m_authMgr = nullptr;
     volatile int64_t m_requestId = 1;
-    bool m_needNewAcToken = false, m_some0;
+    bool m_needNewAcToken = false, *m_tcpDisconnected;
     void setGlobalState(GlobalState *gs) { m_gs = gs; }
-    ZwiftHttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, ZwiftAuthenticationManager *am, bool some0, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode rm, int nThreads) :
-        HttpConnectionManager(curlf, certs, ncoSkipCertCheck, ncoTimeoutSec, ncoUploadTimeoutSec, rm, nThreads), m_authMgr(am), m_some0(some0) {
+    ZwiftHttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, ZwiftAuthenticationManager *am, bool *tcpDisconnected, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode rm, int nThreads) :
+        HttpConnectionManager(curlf, certs, ncoSkipCertCheck, ncoTimeoutSec, ncoUploadTimeoutSec, rm, nThreads), m_authMgr(am), m_tcpDisconnected(tcpDisconnected) {
         startWorkers();
     }
     const NetworkResponseBase &attendToAccessToken(CurlHttpConnection *conn) {
@@ -1037,7 +1040,7 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
     ~ZwiftHttpConnectionManager() { shutdown(); }
     NetworkResponseBase pushRequestTask(const std::function<NetworkResponseBase(CurlHttpConnection *)> &f, bool b1, bool b2) {
         NetworkResponseBase ret;
-        if (b2 || !m_some0) {
+        if (b2 || !*m_tcpDisconnected) {
 #if 0
             v48 = this;
             v50 = 0i64;
@@ -1587,8 +1590,27 @@ struct AuthServerRestInvoker { //0x60 bytes
         }
         return std::string();
     }
-    NetworkResponseBase logOut(const std::function<void()> &) {
-        //TODO
+    NetworkResponseBase logOut(const std::function<void()> &func) {
+        NetworkResponseBase ret;
+        if (m_authMgr->getLoggedIn()) {
+            return m_conn->pushRequestTask([this, func](CurlHttpConnection *conn) {
+                NetworkResponseBase ret;
+                QueryStringBuilder qsb;
+                std::string url(this->m_server + "/api/users/logout"s);
+                qsb.add("grant_type"s, "refresh_token"s);
+                qsb.add("refresh_token"s, conn->escapeUrl(this->m_authMgr->getRefreshTokenStr()));
+                qsb.add("client_id"s, conn->escapeUrl(this->m_authMgr->getOauthClient()));
+                ret = conn->performPost(url, ContentTypeHeader(CTH_URLENC), qsb.getString(false), AcceptHeader{""s}, "Log Out"s, false);
+                this->m_authMgr->resetCredentials();
+                func();
+                /* OMIT not found how this token is used by calling side if (0 == ret.m_errCode) {
+                    return NetworkResponse<string> this->m_authMgr->getRefreshToken()
+                }*/
+                return ret;
+                }, true, false);
+        } else
+            ret.storeError(3, "Not logged in"s);
+        return ret;
     }
     void resetPassword(const std::string &) {
         //TODO
@@ -1825,6 +1847,14 @@ struct LanExerciseDeviceService { //0x3B0 bytes
     }
     //TODO
 };
+struct TcpClient {
+    void shutdown() {
+        //TODO
+    }
+    void handleWorldAndMapRevisionChanged(int64_t a2, uint32_t a3) {
+        //TODO
+    }
+};
 struct NetworkClientImpl { //0x400 bytes, calloc
     std::string m_server;
     MachineIdProviderFactory m_machine;
@@ -1840,6 +1870,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
     WorldAttributeService *m_wat = nullptr;
     ProfileRequestDebouncer *m_profRqDebouncer = nullptr;
     UdpClient *m_udpClient = nullptr;
+    TcpClient *m_tcpClient = nullptr;
     WorldClockService *m_wclock = nullptr;
     RelayServerRestInvoker *m_relay = nullptr;
     EventLoop *m_evLoop = nullptr;
@@ -1873,11 +1904,11 @@ struct NetworkClientImpl { //0x400 bytes, calloc
     moodycamel::ReaderWriterQueue<const AuxiliaryControllerAddress> m_rwqAux;
     AuxiliaryControllerAddress m_curAux;
     uint32_t m_field_10 = 100;
-    bool m_someFunc0 = false, m_initOK = false, m_loginOK = false;
+    bool m_tcpDisconnected = false, m_initOK = false, m_loginOK = false;
     NetworkClientImpl() : m_rwqAux(1) { //QUEST: why two vtables
         google::protobuf::internal::VerifyVersion(3021000 /* URSOFT FIX: slightly up from 3020000*/, 3020000, __FILE__);
     }
-    void somefunc0_0() {
+    void startTcpClient() {
         //TODO
 #if 0
         if (!*(_QWORD *)&a1->field_98[656] && !(unsigned __int8)sub_7FF620845640(&a1->m_nco)) {
@@ -1913,45 +1944,30 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         }
 #endif
     }
-    void somefunc0_1() {
-        //TODO
-#if 0
-        v2 = *(_QWORD *)&a1->field_98[656];
-        if (!v2)
-            return result;
-        sub_7FF620AFED00(v2);
-        v3 = *(volatile signed __int32 **)&a1->field_98[664];
-        result = 0i64;
-        *(_QWORD *)&a1->field_98[656] = 0i64;
-        *(_QWORD *)&a1->field_98[664] = 0i64;
-        if (!v3)
-            return result;
-        result = (unsigned int)_InterlockedExchangeAdd(v3 + 2, 0xFFFFFFFF);
-        if ((_DWORD)result != 1)
-            return result;
-        result = (**(__int64(__fastcall ***)(volatile signed __int32 *))v3)(v3);
-        if (_InterlockedExchangeAdd(v3 + 3, 0xFFFFFFFF) == 1)
-            return (*(__int64(__fastcall **)(volatile signed __int32 *))(*(_QWORD *)v3 + 8i64))(v3);
-#endif
+    void shutdownTcpClient() {
+        if (m_tcpClient) {
+            m_tcpClient->shutdown();
+            m_tcpClient = nullptr;
+        }
     }
-    void somefunc0(bool mode) { //1st vfunc
+    void handleDisconnectRequested(bool mode) { //1st vfunc
         if (mode)
-            somefunc0_1();
+            shutdownTcpClient();
         else
-            somefunc0_0();
-        m_someFunc0 = mode;
+            startTcpClient();
+        m_tcpDisconnected = mode;
     }
-    void somefunc1(bool mode) { //2nd vfunc
-#if 0
-        v3 = *(_QWORD *)&a1->field_98[656];
-        if (v3)
-            sub_7FF620AFBAA0(v3, a2, a3);
-#endif
+    void handleWorldAndMapRevisionChanged(int64_t a2, uint32_t a3) { //2nd vfunc
+        if (m_tcpClient)
+            m_tcpClient->handleWorldAndMapRevisionChanged(a2, a3);
     }
     ~NetworkClientImpl() { //3rd vfunc
         //TODO IDA NetworkClientImpl_destroy
     }
     void shutdownUdpClient() {
+        //TODO
+    }
+    void shutdownAuxiliaryController() {
         //TODO
     }
     void LogStart() {
@@ -1971,8 +1987,8 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         m_httpConnMgr1 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_CONCURRENT);
         m_httpConnMgr2 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL);
         m_authMgr = new ZwiftAuthenticationManager(m_server);
-        m_httpConnMgr3 = new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr, m_someFunc0, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL, 3);
-        m_httpConnMgr4 = new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr, m_someFunc0, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_CONCURRENT, 3);
+        m_httpConnMgr3 = new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr, &m_tcpDisconnected, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL, 3);
+        m_httpConnMgr4 = new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr, &m_tcpDisconnected, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_CONCURRENT, 3);
         m_expRi = new ExperimentsRestInvoker(m_httpConnMgr3, m_server);
         m_arRi = new ActivityRecommendationRestInvoker(m_httpConnMgr4, m_server);
         m_achRi = new AchievementsRestInvoker(m_httpConnMgr4, m_server);
@@ -2054,6 +2070,43 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         }
         return NetworkResponseBase{ "Initialize CNL first"s, 2 };
     }
+    NetworkResponseBase logOut() {
+        if (m_initOK) {
+            shutdownTcpClient();
+            if (m_loginOK) {
+                auto WorldId = m_globalState->getWorldId();
+                if (WorldId > 0) {
+                    /*TODO auto v5 = m_relay->leaveWorld((__int64)&v14, WorldId);
+                    v6 = *(_BYTE **)v5;
+                    if (!*(_QWORD *)v5 || *(_BYTE *)(v5 + 8) && v6[200]) {
+                        error_code = (const struct std::error_code *)std::make_error_code(&v12, 4i64);
+                        std::_Throw_future_error(error_code);
+                    } //looks like wait on future v5
+                    (*(void(__fastcall **)(_BYTE *))(*(_QWORD *)v6 + 8i64))(v6);*/
+                }
+                m_globalState->setWorldId(0);
+            }
+            //OMIT if (m_ts->isEnabled())
+            //    m_ts->lastSampleMetrics();
+            m_loginOK = false;
+            return m_authInvoker->logOut([this]() {
+                shutdownUdpClient();
+                shutdownAuxiliaryController();
+                shutdownServiceEventLoop();
+                FreeAndNil(m_globalState);
+                //omit m_ts->clearUserState();
+                FreeAndNil(m_netClock);
+                FreeAndNil(m_wat);
+                FreeAndNil(m_wclock);
+                FreeAndNil(m_hashSeed1);
+                FreeAndNil(m_hashSeed2);
+                FreeAndNil(m_profRqDebouncer);
+                FreeAndNil(m_relay);
+                NetworkingLogInfo("Logged out");
+                });
+        }
+        return NetworkResponseBase{ "Initialize CNL first"s, 2 };
+    }
     void shutdownServiceEventLoop() {
         if (m_evLoop) {
             m_evLoop->shutdown();
@@ -2068,6 +2121,7 @@ void NetworkClient::globalCleanup() { curl_global_cleanup(); }
 void NetworkClient::initialize(const std::string &server, const std::string &certs, const std::string &version) {
     m_pImpl->initialize(server, certs, version);
 }
+NetworkResponseBase NetworkClient::logOut() { return m_pImpl->logOut(); }
 namespace zwift_network {
 void get_goals(int64_t playerId) { 
     //TODO
@@ -2075,6 +2129,7 @@ void get_goals(int64_t playerId) {
 void save_goal(const protobuf::Goal &g) {
     //TODO
 }
+NetworkResponseBase log_out() { return g_networkClient->logOut(); }
 }
 bool initialize_zwift_network(const std::string &server, const std::string &certs, const std::string &version) {
     NetworkClient::globalInitialize();
@@ -2133,6 +2188,7 @@ void GlobalState::registerEncryptionListener(UdpClient *cli) {
     //TODO
 }
 GlobalState::GlobalState(EventLoop *el, const protobuf::PerSessionInfo &psi, const std::string &sessionId, const EncryptionInfo &ei) {
+    m_shouldUseEncryption = true;
     //TODO
 }
 NetworkResponseBase NetworkClient::logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &anEventProps, const std::string &oauthClient) { return m_pImpl->logInWithOauth2Credentials(sOauth, anEventProps, oauthClient); }
@@ -2207,11 +2263,17 @@ TEST(SmokeTest, DISABLED_LoginTestPwd) {
     ZMUTEX_SystemInitialize();
     LogInitialize();
     EXPECT_FALSE(ZNETWORK_IsLoggedIn());
+    auto ret2 = zwift_network::log_out();
+    EXPECT_EQ(3, ret2.m_errCode) << ret2.m_msg;
     auto ret1 = g_networkClient->logInWithEmailAndPassword(""s, ""s, v, true, "Game_Launcher"s);
     EXPECT_EQ(4, ret1.m_errCode) << ret1.m_msg;
     auto ret = g_networkClient->logInWithEmailAndPassword("olyen2007@gmail.com"s, "123"s, v, false, "Game_Launcher"s);
     EXPECT_EQ(0, ret.m_errCode) << ret.m_msg;
     while (!ZNETWORK_IsLoggedIn())
+        Sleep(100);
+    ret = zwift_network::log_out();
+    EXPECT_EQ(0, ret.m_errCode) << ret.m_msg;
+    while (ZNETWORK_IsLoggedIn())
         Sleep(100);
 }
 TEST(SmokeTest, DISABLED_LoginTestToken) {

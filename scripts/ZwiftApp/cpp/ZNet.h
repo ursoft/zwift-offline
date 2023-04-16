@@ -2,10 +2,6 @@
 inline void str_tolower(std::string &s) { std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); }); }
 enum NetworkRequestOutcome { NRO_NULL, NRO_CNT };
 void shutdown_zwift_network();
-namespace zwift_network {
-    void get_goals(int64_t playerId);
-    void save_goal(const protobuf::Goal &);
-}
 struct NetworkClientImpl;
 struct NetworkResponseBase {
     std::string m_msg;
@@ -31,6 +27,11 @@ template<class T> struct NetworkResponse : public NetworkResponseBase {
     operator T &() { return m_T; }
     operator const T &() const { return m_T; }
 };
+namespace zwift_network {
+    void get_goals(int64_t playerId);
+    void save_goal(const protobuf::Goal &);
+    NetworkResponseBase log_out();
+}
 struct NetworkClient {
     NetworkClientImpl *m_pImpl;
     NetworkClient();
@@ -40,6 +41,7 @@ struct NetworkClient {
     void initialize(const std::string &server, const std::string &certs, const std::string &version);
     NetworkResponseBase logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &a4, const std::string &oauthClient);
     NetworkResponseBase logInWithEmailAndPassword(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient);
+    NetworkResponseBase logOut();
 };
 namespace ZNet {
     struct Error {

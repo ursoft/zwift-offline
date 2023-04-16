@@ -15,3 +15,8 @@ public:
     bool CanRun() { return m_locked; }
     ~GameCritical();
 };
+template<class T> void FreeAndNil(T &ptr) {
+    auto copy = ptr;
+    ptr = nullptr;
+    delete copy;
+}

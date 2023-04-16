@@ -1,4 +1,4 @@
-syntax = "proto3";
+syntax = "proto2";
 package protobuf;
 //TODO: answer ??? questions and saved_game format (zwift_profile.ksy)
 enum ActivityPrivacyType {
@@ -30,80 +30,80 @@ enum PowerType {
     PT_METER = 1;
 }
 message PlayerProfile {
-    int64 id = 1;
-    int64 server_realm = 2;
-    string email = 3;
-    string first_name = 4;
-    string last_name = 5;
-    bool is_male = 6;
-    string f7 = 7; //??? empty
+    optional int64 id = 1;
+    optional int64 server_realm = 2;
+    optional string email = 3;
+    optional string first_name = 4;
+    optional string last_name = 5;
+    optional bool is_male = 6;
+    optional string f7 = 7; //??? empty
     // no f8 exists
-    uint32 weight_in_grams = 9;
-    uint32 ftp = 10;
-    uint32 f11 = 11; //??? empty, 0
-    uint32 body_type = 12;
-    uint32 hair_type = 13;
-    uint32 facial_hair_type = 14;
-    uint32 ride_helmet_type = 15;
-    uint32 glasses_type = 16;
-    uint32 ride_shoes_type = 17;
-    uint32 ride_socks_type = 18;
-    uint32 ride_gloves = 19;
-    fixed32 ride_jersey = 20;
-    fixed32 f21 = 21; //??? empty
-    fixed32 bike_wheel_front = 22;
-    fixed32 bike_wheel_rear = 23;
-    fixed32 bike_frame = 24;
-    fixed32 f25 = 25; //??? empty, 0
-    fixed32 f26 = 26; //??? empty, 0
-    fixed64 bike_frame_colour = 27;
-    fixed64 f28 = 28; //??? empty, 0
-    fixed64 f29 = 29; //??? empty, 0
-    fixed64 f30 = 30; //??? empty, 0
-    fixed64 f31 = 31; //??? empty, 0
-    fixed64 f32 = 32; //??? empty, 0
-    bytes saved_game = 33; //for format look at zwift_profile.ksy
-    uint32 country_code = 34;
-    uint32 total_distance_in_meters = 35;
-    uint32 elevation_gain_in_meters = 36;
-    uint32 time_ridden_in_minutes = 37;
-    uint32 total_in_kom_jersey = 38;
-    uint32 total_in_sprinters_jersey = 39;
-    uint32 total_in_orange_jersey = 40;
-    uint32 total_watt_hours = 41; // = calories * 0.3256381927080305
-    uint32 height_in_millimeters = 42;
-    string dob = 43;
-    uint32 max_heart_rate = 44;
-    bool connected_to_strava = 45;
-    uint32 total_xp = 46;
-    uint32 total_gold_drops = 47;    
-    PlayerType player_type = 48;    
-    uint32 achievement_level = 49;
-    bool use_metric = 50;
-    bool strava_premium = 51;
-    PowerType power_source_model = 52;
-    uint32 f53 = 53; //??? empty, 0
-    uint32 f54 = 54; //??? empty, 0
-    uint32 age = 55;
-    fixed32 f56 = 56; //??? empty
-    uint32 f57 = 57; //??? empty, 0
-    string large_avatar_url = 58;
-    fixed64 privacy_bits = 59;
+    optional uint32 weight_in_grams = 9;
+    optional uint32 ftp = 10;
+    optional uint32 f11 = 11; //??? empty, 0
+    optional uint32 body_type = 12;
+    optional uint32 hair_type = 13;
+    optional uint32 facial_hair_type = 14;
+    optional uint32 ride_helmet_type = 15;
+    optional uint32 glasses_type = 16;
+    optional uint32 ride_shoes_type = 17;
+    optional uint32 ride_socks_type = 18;
+    optional uint32 ride_gloves = 19;
+    optional fixed32 ride_jersey = 20;
+    optional fixed32 f21 = 21; //??? empty
+    optional fixed32 bike_wheel_front = 22;
+    optional fixed32 bike_wheel_rear = 23;
+    optional fixed32 bike_frame = 24;
+    optional fixed32 f25 = 25; //??? empty, 0
+    optional fixed32 f26 = 26; //??? empty, 0
+    optional fixed64 bike_frame_colour = 27;
+    optional fixed64 f28 = 28; //??? empty, 0
+    optional fixed64 f29 = 29; //??? empty, 0
+    optional fixed64 f30 = 30; //??? empty, 0
+    optional fixed64 f31 = 31; //??? empty, 0
+    optional fixed64 f32 = 32; //??? empty, 0
+    optional bytes saved_game = 33; //for format look at zwift_profile.ksy
+    optional uint32 country_code = 34;
+    optional uint32 total_distance_in_meters = 35;
+    optional uint32 elevation_gain_in_meters = 36;
+    optional uint32 time_ridden_in_minutes = 37;
+    optional uint32 total_in_kom_jersey = 38;
+    optional uint32 total_in_sprinters_jersey = 39;
+    optional uint32 total_in_orange_jersey = 40;
+    optional uint32 total_watt_hours = 41; // = calories * 0.3256381927080305
+    optional uint32 height_in_millimeters = 42;
+    optional string dob = 43;
+    optional uint32 max_heart_rate = 44;
+    optional bool connected_to_strava = 45;
+    optional uint32 total_xp = 46;
+    optional uint32 total_gold_drops = 47;    
+    optional PlayerType player_type = 48;    
+    optional uint32 achievement_level = 49;
+    optional bool use_metric = 50;
+    optional bool strava_premium = 51;
+    optional PowerType power_source_model = 52;
+    optional uint32 f53 = 53; //??? empty, 0
+    optional uint32 f54 = 54; //??? empty, 0
+    optional uint32 age = 55;
+    optional fixed32 f56 = 56; //??? empty
+    optional uint32 f57 = 57; //??? empty, 0
+    optional string large_avatar_url = 58;
+    optional fixed64 privacy_bits = 59;
     repeated ProfileEntitlement entitlements = 60;    
-    SocialFacts social_facts = 61;
+    optional SocialFacts social_facts = 61;
     message SocialFacts {
-        int64 profile_id = 1;
-        int32 followers_count = 2;
-        int32 followees_count = 3;
-        int32 followees_in_common_with_logged_in_player = 4;
-        FollowStatus follower_status_of_logged_in_player = 5;
-        FollowStatus followee_status_of_logged_in_player = 6;
-        bool is_favorite_of_logged_in_player = 7;
+        optional int64 profile_id = 1;
+        optional int32 followers_count = 2;
+        optional int32 followees_count = 3;
+        optional int32 followees_in_common_with_logged_in_player = 4;
+        optional FollowStatus follower_status_of_logged_in_player = 5;
+        optional FollowStatus followee_status_of_logged_in_player = 6;
+        optional bool is_favorite_of_logged_in_player = 7;
     }    
-    FollowStatus follow_status = 62;
-    bool connected_to_training_peaks = 63;
-    bool connected_to_todays_plan = 64;    
-    EnrolledProgram enrolled_program = 65;
+    optional FollowStatus follow_status = 62;
+    optional bool connected_to_training_peaks = 63;
+    optional bool connected_to_todays_plan = 64;    
+    optional EnrolledProgram enrolled_program = 65;
     enum EnrolledProgram {
         ENROLLEDPROGRAM0 = 0;
         ZWIFT_ACADEMY = 1;
@@ -111,91 +111,91 @@ message PlayerProfile {
         ENROLLEDPROGRAM3 = 3;
         ENROLLEDPROGRAM4 = 4;
     }    
-    string todayplan_url = 66;
-    uint32 f67 = 67; //??? empty
-    fixed32 run_shirt_type = 68;
-    fixed32 run_shorts_type = 69;
-    fixed32 run_shoes_type = 70;
-    fixed32 run_socks_type = 71;
-    fixed32 run_helmet_type = 72;
-    fixed32 run_arm_accessory = 73;
-    uint32 total_run_distance = 74;
-    uint32 total_run_experience_points = 75;
-    fixed32 f76 = 76; //??? empty
-    fixed32 f77 = 77; //??? empty
-    fixed32 f78 = 78; //??? empty
-    fixed32 f79 = 79; //??? empty, 0
-    uint32 f80 = 80; //??? empty, 0
-    uint32 f81 = 81; //??? empty, 0
-    Subscription subscription = 82;
-    string mix_panel_distinct_id = 83;
-    uint32 run_achievement_level = 84;
-    uint32 total_run_time_in_minutes = 85;
-    Sport sport = 86;
-    uint32 utc_offset_in_minutes = 87;
-    bool connected_to_under_armour = 88;
-    string preferred_language = 89;
-    uint32 hair_colour = 90;
-    uint32 facial_hair_colour = 91;
-    uint32 f92 = 92; //??? empty
-    uint32 f93 = 93; //??? empty
-    uint32 run_shorts_length = 94;
-    uint32 f95 = 95; //??? empty
-    uint32 run_socks_length = 96;
-    uint32 f97 = 97; //??? empty
-    uint32 ride_socks_length = 98;
-    uint32 f99 = 99; //??? empty
-    uint32 f100 = 100;  //??? empty
-    uint32 f101 = 101; //??? empty
-    uint32 f102 = 102; //??? empty
-    uint32 f103 = 103; //??? empty
-    uint32 f104 = 104; //??? empty, 1
-    bool connected_to_withings = 105;
-    bool connected_to_fitbit = 106;
+    optional string todayplan_url = 66;
+    optional uint32 f67 = 67; //??? empty
+    optional fixed32 run_shirt_type = 68;
+    optional fixed32 run_shorts_type = 69;
+    optional fixed32 run_shoes_type = 70;
+    optional fixed32 run_socks_type = 71;
+    optional fixed32 run_helmet_type = 72;
+    optional fixed32 run_arm_accessory = 73;
+    optional uint32 total_run_distance = 74;
+    optional uint32 total_run_experience_points = 75;
+    optional fixed32 f76 = 76; //??? empty
+    optional fixed32 f77 = 77; //??? empty
+    optional fixed32 f78 = 78; //??? empty
+    optional fixed32 f79 = 79; //??? empty, 0
+    optional uint32 f80 = 80; //??? empty, 0
+    optional uint32 f81 = 81; //??? empty, 0
+    optional Subscription subscription = 82;
+    optional string mix_panel_distinct_id = 83;
+    optional uint32 run_achievement_level = 84;
+    optional uint32 total_run_time_in_minutes = 85;
+    optional Sport sport = 86;
+    optional uint32 utc_offset_in_minutes = 87;
+    optional bool connected_to_under_armour = 88;
+    optional string preferred_language = 89;
+    optional uint32 hair_colour = 90;
+    optional uint32 facial_hair_colour = 91;
+    optional uint32 f92 = 92; //??? empty
+    optional uint32 f93 = 93; //??? empty
+    optional uint32 run_shorts_length = 94;
+    optional uint32 f95 = 95; //??? empty
+    optional uint32 run_socks_length = 96;
+    optional uint32 f97 = 97; //??? empty
+    optional uint32 ride_socks_length = 98;
+    optional uint32 f99 = 99; //??? empty
+    optional uint32 f100 = 100;  //??? empty
+    optional uint32 f101 = 101; //??? empty
+    optional uint32 f102 = 102; //??? empty
+    optional uint32 f103 = 103; //??? empty
+    optional uint32 f104 = 104; //??? empty, 1
+    optional bool connected_to_withings = 105;
+    optional bool connected_to_fitbit = 106;
     // no 107 repeated bytes
-    string launched_game_client = 108;
-    int64 current_activity_id = 109;
-    bool connected_to_garmin = 110;
+    optional string launched_game_client = 108;
+    optional int64 current_activity_id = 109;
+    optional bool connected_to_garmin = 110;
     message Reminder {
-        int64 f1 = 1;
-        string f2 = 2;
-        int64 f3 = 3;
+        optional int64 f1 = 1;
+        optional string f2 = 2;
+        optional int64 f3 = 3;
         message ReminderProperty {
-            int64 f1 = 1;
-            string f2 = 2;
-            string f3 = 3;
+            optional int64 f1 = 1;
+            optional string f2 = 2;
+            optional string f3 = 3;
         }
         repeated ReminderProperty f4 = 4;
     }
     repeated Reminder reminders = 111;
-    bool f112 = 112; //??? empty
+    optional bool f112 = 112; //??? empty
     repeated Attribute private_attributes = 113;
     repeated Attribute public_attributes = 114;
-    int32 total_run_calories = 115;
-    int64 f116 = 116; //??? empty
-    int32 run_time_1mi_in_seconds = 117;
-    int32 run_time_5km_in_seconds = 118;
-    int32 run_time_10km_in_seconds = 119;
-    int32 run_time_half_marathon_in_seconds = 120;
-    int32 run_time_full_marathon_in_seconds = 121;
-    int32 f122 = 122; //??? empty
+    optional int32 total_run_calories = 115;
+    optional int64 f116 = 116; //??? empty
+    optional int32 run_time_1mi_in_seconds = 117;
+    optional int32 run_time_5km_in_seconds = 118;
+    optional int32 run_time_10km_in_seconds = 119;
+    optional int32 run_time_half_marathon_in_seconds = 120;
+    optional int32 run_time_full_marathon_in_seconds = 121;
+    optional int32 f122 = 122; //??? empty
     enum CyclingOrganization {
         NO_CYCLING_LICENSE = 0;
         CYCLING_SOUTH_AFRICA = 1;
         CYCLING_AUSTRALIA = 2;
         CYCLING_NEW_ZEALAND = 3;
     }
-    CyclingOrganization cycling_organization = 123;
-    string f124 = 124; // LICENSE_NUMBER/E_NUMBER
-    ActivityPrivacyType default_activity_privacy = 125;
-    bool connected_to_runtastic = 126;
+    optional CyclingOrganization cycling_organization = 123;
+    optional string f124 = 124; // LICENSE_NUMBER/E_NUMBER
+    optional ActivityPrivacyType default_activity_privacy = 125;
+    optional bool connected_to_runtastic = 126;
     repeated PropertyChange property_changes = 127;
 }
 message PlayerProfiles {
      repeated PlayerProfile profiles = 1;
 }
 message ProfileEntitlement {
-    EntitlementType type = 1;
+    optional EntitlementType type = 1;
     enum EntitlementType {
         ENTITLEMENTTYPE0 = 0;
         RIDE = 1;
@@ -203,8 +203,8 @@ message ProfileEntitlement {
         ROW = 3;
         USE = 4;
     }    
-    int64 f2 = 2; // always -1 when "RIDE"; increasing small value when "USE" (437, 438, 911, ..., 1229)    
-    ProfileEntitlementStatus status = 3;
+    optional int64 f2 = 2; // always -1 when "RIDE"; increasing small value when "USE" (437, 438, 911, ..., 1229)    
+    optional ProfileEntitlementStatus status = 3;
     enum ProfileEntitlementStatus {
         ENTITLEMENTSTATUS0 = 0;
         EXPIRED = 1;
@@ -213,14 +213,14 @@ message ProfileEntitlement {
         INACTIVE = 4;
         APPLIED_AS_SUBSCRIPTION_TRIAL_PERIOD = 5;
     }    
-    string period = 4; // 'P7D' = period of 7 days (Y, M also supported for year and month)
-    uint32 begin_time_unix = 5; //when period started
-    uint32 end_time_unix = 6;   //when period ended
-    uint32 kilometers = 7;      //25 every month
-    uint32 begin_total_distance = 8; //where every-month gift started
-    uint32 end_total_distance = 9;   //where every-month gift should end
-    string source = 10; // for example, "strava.premium" ?    
-    Platform platform = 11; // legacy?
+    optional string period = 4; // 'P7D' = period of 7 days (Y, M also supported for year and month)
+    optional uint32 begin_time_unix = 5; //when period started
+    optional uint32 end_time_unix = 6;   //when period ended
+    optional uint32 kilometers = 7;      //25 every month
+    optional uint32 begin_total_distance = 8; //where every-month gift started
+    optional uint32 end_total_distance = 9;   //where every-month gift should end
+    optional string source = 10; // for example, "strava.premium" ?    
+    optional Platform platform = 11; // legacy?
     enum Platform {
         PLATFORM_OSX = 0;
         PLATFORM_PC = 1;
@@ -230,8 +230,8 @@ message ProfileEntitlement {
         PLATFORM5 = 5;
         PLATFORM6 = 6;
     }    
-    uint32 renewal_date_unix = 12; //when next 25km gift renewed
-    bool new_trial_system = 13; //do not interrupt current track if trial ended
+    optional uint32 renewal_date_unix = 12; //when next 25km gift renewed
+    optional bool new_trial_system = 13; //do not interrupt current track if trial ended
     repeated Platform platforms = 14;
 }
 enum FollowStatus {
@@ -245,12 +245,12 @@ enum FollowStatus {
     SELF = 6;
 }
 message Subscription {
-    Gateway gateway = 1;
+    optional Gateway gateway = 1;
     enum Gateway {
         BRAINTREE = 0;
         APPLE = 1;
     }    
-    SubscriptionStatus status = 2;
+    optional SubscriptionStatus status = 2;
     enum SubscriptionStatus {
         NEW = 0;
         EXPIRED = 1;
@@ -271,9 +271,9 @@ message PropertyChange {
         DATE_OF_BIRTH = 1;
         GENDER = 2;
     }
-    Id property_name = 1;
-    int32 change_count = 2;
-    int32 max_changes = 3;
+    optional Id property_name = 1;
+    optional int32 change_count = 2;
+    optional int32 max_changes = 3;
 }
 /*
 Attribute ID is crc32 of it's name. Examples:
@@ -300,8 +300,8 @@ private
 -1316403440="PACERBOTTUTORIAL" (1)
 */
 message Attribute {
-    int32 id = 1;
-    int64 number_value = 2;
-    float float_value = 3;
-    string string_value = 5;
+    optional int32 id = 1;
+    optional int64 number_value = 2;
+    optional float float_value = 3;
+    optional string string_value = 5;
 }
