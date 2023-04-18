@@ -548,32 +548,65 @@ pushComposableRequestTask<std::vector<zwift_network::model::WorkoutsFromPartner>
 };
 struct UdpClient;
 struct EventLoop;
-struct EncryptionInfo;
+struct EncryptionInfo {
+    std::string m_sk;
+    uint32_t m_relaySessionId = 0, m_expiration = 0;
+};
+template<class T>
+struct ServiceListeners {
+    moodycamel::ReaderWriterQueue<T *> m_rwqAdded, m_rwqRemoved;
+    ServiceListeners() : m_rwqAdded(1), m_rwqRemoved(1) {}
+    void flushPendingQueues() {
+        //не стал разгребать, что там у них - сделал по-своему
+        T *added = nullptr, *removed = nullptr;
+        while (m_rwqAdded.try_dequeue(added));
+        while (m_rwqRemoved.try_dequeue(removed))
+            if (removed == added)
+                added = nullptr;
+        if (added)
+            m_rwqAdded.enqueue(added);
+    }
+    void notify(std::function<void(T &)> func) {
+        flushPendingQueues();
+        T **lic = m_rwqAdded.peek();
+        if (lic && *lic)
+            func(**lic);
+    }
+    ServiceListeners &operator +=(T *obj) { m_rwqAdded.enqueue(obj); return *this; }
+    ServiceListeners &operator -=(T *obj) { m_rwqRemoved.enqueue(obj); return *this; }
+};
+struct UdpConfigListener {};
+struct EncryptionListener {};
+struct WorldIdListener {
+    virtual void handleWorldIdChange(uint64_t worldId) = 0;
+};
+struct WorldAttributeServiceListener {};
 struct GlobalState { //0x530 bytes
+    ServiceListeners<EncryptionListener> m_encLis;
+    ServiceListeners<WorldIdListener> m_widLis;
+    ServiceListeners<UdpConfigListener> m_ucLis;
+    EventLoop *m_evloop;
+    protobuf::PerSessionInfo m_psi;
     std::string m_sessionInfo;
-    uint64_t m_worldId = 0;
+    EncryptionInfo m_ei;
+    uint64_t m_worldId = 0, m_playerId = 0, m_time;
     bool m_shouldUseEncryption;
     GlobalState(EventLoop *, const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &);
     bool shouldUseEncryption() { return m_shouldUseEncryption; }
-    void registerUdpConfigListener(UdpClient *cli);
-    void registerEncryptionListener(UdpClient *cli);
+    void registerUdpConfigListener(UdpConfigListener *lis);
+    void registerEncryptionListener(EncryptionListener *lis);
+    void registerWorldIdListener(WorldIdListener *lis);
     std::string getSessionInfo() { return m_sessionInfo; }
     uint64_t getWorldId() { return m_worldId; }
-    void setWorldId(uint64_t newVal) {
-        //TODO
-    }
+    void setWorldId(uint64_t worldId);
+    bool isInWorld() { return m_worldId != 0; }
+    uint64_t getPlayerId() { return m_playerId; }
+    void setPlayerId(uint64_t newVal) { m_playerId = newVal; }
 /*
 GlobalState::setUdpConfig(zwift::protobuf::UdpConfigVOD const&,ulong)
-GlobalState::setPlayerId(long)
 GlobalState::setEncryptionInfo(GlobalState::EncryptionInfo const&)
-GlobalState::registerWorldIdListener(std::weak_ptr<GlobalState::WorldIdListener> const&)
-GlobalState::registerUdpConfigListener(std::weak_ptr<GlobalState::UdpConfigListener> const&)
-GlobalState::registerEncryptionListener(std::weak_ptr<GlobalState::EncryptionListener> const&)
-GlobalState::isInWorld(void)
-GlobalState::getPlayerId(void)
 GlobalState::getPerSessionInfo(void)
-GlobalState::getEncryptionInfo(void)
-GlobalState::GlobalState(std::shared_ptr<EventLoop>,zwift::protobuf::PerSessionInfo const&,std::string const&)*/
+GlobalState::getEncryptionInfo(void)*/
 };
 static const int B64index[256] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1235,10 +1268,6 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
         return ret;
     }
 };
-struct EncryptionInfo {
-    std::string m_sk;
-    uint32_t m_relaySessionId = 0, m_expiration = 0;
-};
 struct EncryptionOptions {
     bool m_disableEncr, m_disableEncrWithServer, m_ignoreEncrFeatureFlag;
     const std::string &m_secretKeyBase64;
@@ -1668,19 +1697,33 @@ struct RestServerRestInvoker { //0x70 bytes
         //TODO
     }
 };
-struct UdpClient { //0x1400-16 bytes
+struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, EncryptionListener { //0x1400-16 bytes
     //            UdpClient::UdpClient(GlobalState *, WorldClockService *, HashSeedService *, HashSeedService *, UdpStatistics *, RelayServerRestInvoker *, TelemetryService *, UdpClient::Listener &, std::chrono::duration<long long, std::ratio<1l, 1l>>, std::chrono::duration<long long, std::ratio<1l, 1000l>>)
     UdpClient(GlobalState *, WorldClockService *, HashSeedService *, HashSeedService *, UdpStatistics *, RelayServerRestInvoker *, void /*netImpl*/ *) {
         //TODO
     }
+    void shutdown() {
+        //TODO
+    }
 };
 struct WorldAttributeService { //0x270 bytes
-    WorldAttributeService(HashSeedService *hs) {
-        //TODO
+    moodycamel::ReaderWriterQueue<void *> m_rwq;
+    ServiceListeners<WorldAttributeServiceListener> m_lis;
+    WorldAttributeService() : m_rwq(100) {
+        /*TODO   *(_QWORD *)this->field_80 = 0i64;
+          *(_QWORD *)&this->field_80[64] = 0i64;
+          *(_QWORD *)&this->field_80[72] = 0i64;
+          v4 = operator new(0x20ui64);
+          *v4 = v4;
+          v4[1] = v4;
+          *(_QWORD *)&this->field_80[64] = v4;*/
     }
-    void registerListener(UdpClient *cli) {
-        //TODO
-    }
+    void registerListener(WorldAttributeServiceListener *lis) { m_lis += lis; }
+    void removeListener(WorldAttributeServiceListener *lis) { m_lis -= lis; }
+/*WorldAttributeService::getLargestWorldAttributeTimestamp()
+WorldAttributeService::handleServerToClient(zwift::protobuf::ServerToClient const&)
+WorldAttributeService::logWorldAttribute(zwift::protobuf::WorldAttribute const&,bool)
+WorldAttributeService::popWorldAttribute(std::shared_ptr<zwift::protobuf::WorldAttribute const> &)*/
 };
 struct ProfileRequestDebouncer { //0x1E0 bytes
     ProfileRequestDebouncer(EventLoop *, RestServerRestInvoker *, uint32_t) {
@@ -1848,12 +1891,22 @@ struct LanExerciseDeviceService { //0x3B0 bytes
     //TODO
 };
 struct TcpClient {
+    moodycamel::ReaderWriterQueue<void * /*TODO*/> m_rwq;
     void shutdown() {
         //TODO
     }
     void handleWorldAndMapRevisionChanged(int64_t a2, uint32_t a3) {
         //TODO
     }
+    TcpClient(GlobalState *gs, WorldClockService *wcs, HashSeedService *hss, WorldAttributeService *wat, RelayServerRestInvoker *relay, SegmentResultsRestInvoker *segRes, NetworkClientImpl *ncli) : m_rwq(100) {
+        //TODO
+    }
+};
+struct AuxiliaryController : public WorldIdListener {
+    void handleWorldIdChange(uint64_t worldId) {
+        //TODO
+    }
+    //TODO
 };
 struct NetworkClientImpl { //0x400 bytes, calloc
     std::string m_server;
@@ -1901,6 +1954,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
     AuxiliaryControllerStatistics *m_auxStat = nullptr;
     WorldAttributeStatistics *m_waStat = nullptr;
     LanExerciseDeviceService *m_lanService = nullptr;
+    AuxiliaryController *m_aux = nullptr;
     moodycamel::ReaderWriterQueue<const AuxiliaryControllerAddress> m_rwqAux;
     AuxiliaryControllerAddress m_curAux;
     uint32_t m_field_10 = 100;
@@ -1909,40 +1963,8 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         google::protobuf::internal::VerifyVersion(3021000 /* URSOFT FIX: slightly up from 3020000*/, 3020000, __FILE__);
     }
     void startTcpClient() {
-        //TODO
-#if 0
-        if (!*(_QWORD *)&a1->field_98[656] && !(unsigned __int8)sub_7FF620845640(&a1->m_nco)) {
-            v2 = (volatile signed __int32 *)operator new(0x10C80ui64);
-            v3 = v2;
-            if (v2) {
-                *(_OWORD *)v2 = 0i64;
-                *((_DWORD *)v2 + 2) = 1;
-                *((_DWORD *)v2 + 3) = 1;
-                *(_QWORD *)v2 = &std::_Ref_count_obj2<TcpClient>::`vftable';
-                    sub_7FF620A3A4F0(
-                        (v2 + 16),
-                        &a1->field_50,
-                        (__int64 *)&a1->field_98[424],
-                        (__int64 *)&a1->field_98[440],
-                        (__int64 *)&a1->field_98[488],
-                        &a1->field_98[640],
-                        &a1->field_98[248],
-                        &a1->field_98[280],
-                        a1);
-            } else {
-                v3 = 0i64;
-            }
-            v5 = v3 + 16;
-            v6 = v3;
-            sub_7FF620A45FF0(&a1->field_98[656], (__int64 *)&v5);
-            if (v6 && _InterlockedExchangeAdd(v6 + 2, 0xFFFFFFFF) == 1) {
-                v4 = v6;
-                (**(void(__fastcall ***)(volatile signed __int32 *))v6)(v6);
-                if (_InterlockedExchangeAdd(v4 + 3, 0xFFFFFFFF) == 1)
-                    (*(void(__fastcall **)(volatile signed __int32 *))(*(_QWORD *)v6 + 8i64))(v6);
-            }
-        }
-#endif
+        if (!m_tcpClient && !m_nco.m_bHttpOnly)
+            m_tcpClient = new TcpClient(m_globalState, m_wclock, m_hashSeed1, m_wat, m_relay, m_srRi, this);
     }
     void shutdownTcpClient() {
         if (m_tcpClient) {
@@ -1965,7 +1987,11 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         //TODO IDA NetworkClientImpl_destroy
     }
     void shutdownUdpClient() {
-        //TODO
+        if (m_udpClient) {
+            m_wat->removeListener(m_udpClient);
+            m_udpClient->shutdown();
+            FreeAndNil(m_udpClient);
+        }
     }
     void shutdownAuxiliaryController() {
         //TODO
@@ -2030,7 +2056,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         m_httpConnMgr3->setGlobalState(m_globalState);
         //OMIT TelemetryService::setGlobalState(this->m_ts, &v88);
         m_relay = new RelayServerRestInvoker(m_httpConnMgr3, HttpHelper::sanitizeUrl(psi.relay_url()));
-        m_wat = new WorldAttributeService(m_hashSeed2);
+        m_wat = new WorldAttributeService();
         m_wclock = new WorldClockService(m_evLoop, m_netClock);
         m_hashSeed1 = new HashSeedService(m_evLoop, m_globalState, m_relay, m_wclock, false);
         m_hashSeed1->start();
@@ -2181,18 +2207,55 @@ void ZNETWORK_Initialize() {
     LogDebug("End ZNETWORK_Initilize() - serverURL = %s", server); //URSOFT: should be ZNETWORK_Initialize, but...
     PopulateBotInfo(server);
 }
-void GlobalState::registerUdpConfigListener(UdpClient *cli) {
-    //TODO
-}
-void GlobalState::registerEncryptionListener(UdpClient *cli) {
-    //TODO
-}
-GlobalState::GlobalState(EventLoop *el, const protobuf::PerSessionInfo &psi, const std::string &sessionId, const EncryptionInfo &ei) {
-    m_shouldUseEncryption = true;
-    //TODO
+GlobalState::GlobalState(EventLoop *el, const protobuf::PerSessionInfo &psi, const std::string &sessionId, const EncryptionInfo &ei) :
+    m_evloop(el), m_psi(psi), m_sessionInfo(sessionId), m_ei(ei) {
+    m_shouldUseEncryption = ei.m_sk.length() != 0;
+    m_time = g_steadyClock.now();
+    /*TODO (_QWORD *)&this->field_108 = 0i64;
+    v9 = operator new(0x20ui64);
+    *v9 = v9;
+    v9[1] = v9;
+    this->field_100 = v9;
+    this->m_playerId = 0i64;
+    this->m_worldId = 0i64;
+    *(_QWORD *)&this->field_280 = 0i64;
+    *(_QWORD *)&this->field_288 = 0i64;
+    v10 = operator new(0x20ui64);
+    *v10 = v10;
+    v10[1] = v10;
+    *(_QWORD *)&this->field_280 = v10;
+    this->field_3C0 = 0i64;
+    *(_QWORD *)&this->field_3C8 = 0i64;
+    v11 = operator new(0x20ui64);
+    *v11 = v11;
+    v11[1] = v11;
+    this->field_3C0 = v11;*/
 }
 NetworkResponseBase NetworkClient::logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &anEventProps, const std::string &oauthClient) { return m_pImpl->logInWithOauth2Credentials(sOauth, anEventProps, oauthClient); }
 NetworkResponseBase NetworkClient::logInWithEmailAndPassword(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient) { return m_pImpl->logInWithEmailAndPassword(email, pwd, anEventProps, reserved, oauthClient); }
+void GlobalState::registerUdpConfigListener(UdpConfigListener *lis) {
+    m_evloop->post([this, lis]() {
+        this->m_ucLis += lis;
+        });
+}
+void GlobalState::registerEncryptionListener(EncryptionListener *lis) {
+    m_evloop->post([this, lis]() {
+        this->m_encLis += lis;
+        });
+}
+void GlobalState::registerWorldIdListener(WorldIdListener *lis) {
+    m_evloop->post([this, lis]() {
+        this->m_widLis += lis;
+        });
+}
+void GlobalState::setWorldId(uint64_t worldId) {
+    m_worldId = worldId;
+    m_evloop->post([this]() {
+        this->m_widLis.notify([this](WorldIdListener &wil) {
+            wil.handleWorldIdChange(this->m_worldId);
+            });
+        });
+}
 
 //Units
 TEST(SmokeTest, JsonWebToken) {
