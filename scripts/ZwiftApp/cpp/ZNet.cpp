@@ -1890,17 +1890,165 @@ struct LanExerciseDeviceService { //0x3B0 bytes
     }
     //TODO
 };
+struct TcpAddressService {
+    std::map<LONG, std::vector<protobuf::TcpAddress>> m_addrMap;
+    const protobuf::TcpAddress *getAddress(int64_t worldId, uint32_t mapRevision) {
+        auto f = m_addrMap.find(MAKELONG(worldId, mapRevision));
+        if (f != m_addrMap.end())
+            return f->second.data();
+        if (worldId || mapRevision)
+            return getAddress(0, 0);
+        NetworkingLogError("No generic TCP cluster available!");
+        return nullptr;
+    }
+    bool isValidAddress(int64_t worldId, uint32_t mapRevision, const std::string &ip, uint16_t port) {
+        LONG key = MAKELONG(worldId, mapRevision);
+        auto f = m_addrMap.find(key);
+        if (f == m_addrMap.end()) {
+            if (!worldId || !mapRevision)
+                return false;
+            return isValidAddress(0, 0, ip, port);
+        }
+        for (const auto &i : f->second)
+            if (i.port() == port && i.ip() == ip)
+                return true;
+        return false;
+    }
+    bool updateAddresses(const protobuf::TcpConfig &cfg, int64_t worldId, uint32_t mapRevision, const std::string &ip, uint16_t port) {
+        if (cfg.nodes_size() == 0) {
+            NetworkingLogDebug("TcpConfig empty");
+            return false;
+        }
+        m_addrMap.clear();
+        bool argSpecificServer = worldId && mapRevision, v57 = false, v58 = false;
+        bool hasSpecificCluster = false, foundCurrentNodeInSpecificCluster = false, foundCurrentNodeInGenericCluster = false,
+            foundAnyNodeInGenericCluster = false, foundAnyNodeInSpecificCluster = false, foundCurrentNodeAsFirstNode = false;
+        for (const auto &n : cfg.nodes()) {
+            auto worldId_n = n.lb_realm();
+            auto mapRevision_n = n.lb_course();
+            LONG key_n = MAKELONG(worldId_n, n.lb_course());
+            bool genericServer_n = !worldId_n && !mapRevision_n;
+            bool n_eqArg = (worldId_n == worldId) && (mapRevision_n == mapRevision);
+            m_addrMap[key_n].push_back(n);
+            if (argSpecificServer && n_eqArg)
+                hasSpecificCluster = true;
+            const auto &ip_n = n.ip();
+            if ((n.cport() != port && n.port() != port) || ip_n != ip) {
+                if (genericServer_n) {
+                    foundAnyNodeInGenericCluster = true;
+                    v58 = true;
+                } else if (!n_eqArg) {
+                    foundAnyNodeInGenericCluster = v58;
+                }
+            } else if (genericServer_n) {
+                foundCurrentNodeInGenericCluster = true;
+                foundAnyNodeInGenericCluster = true;
+                if (!v58)
+                    foundCurrentNodeAsFirstNode = true;
+                v58 = true;
+            } else {
+                foundAnyNodeInGenericCluster = v58;
+                if (n_eqArg) {
+                    foundCurrentNodeInSpecificCluster = true;
+                    if (!v57)
+                        foundCurrentNodeAsFirstNode = true;
+                    v57 = true;
+                }
+            }
+            foundAnyNodeInSpecificCluster = v57;
+            NetworkingLogDebug(
+                "TCP (%d,%d) %s:%d - (%d,%d) %s:%d,%d - hasSpecificCluster: %d foundCurrentNodeInSpecificCluster: %d "
+                "foundCurrentNodeInGenericCluster: %d foundAnyNodeInGenericCluster: %d foundAnyNodeInSpecificCluster: %d foundCurrentNodeAsFirstNode: %d",
+                worldId, mapRevision, ip.c_str(), port, worldId_n, mapRevision_n,
+                ip_n.c_str(), n.port(), n.cport(),
+                hasSpecificCluster, foundCurrentNodeInSpecificCluster, foundCurrentNodeInGenericCluster,
+                foundAnyNodeInGenericCluster, foundAnyNodeInSpecificCluster, foundCurrentNodeAsFirstNode);
+        }
+        auto currentHostIsStillGood = foundCurrentNodeInSpecificCluster || (!hasSpecificCluster && foundCurrentNodeInGenericCluster);
+        NetworkingLogDebug("TCP currentHostIsStillGood: %d ", currentHostIsStillGood);
+        return (cfg.nodes_size() && !foundCurrentNodeAsFirstNode) || !currentHostIsStillGood;
+    }
+};
 struct TcpClient {
     moodycamel::ReaderWriterQueue<void * /*TODO*/> m_rwq;
+    std::string m_ip;
+    EventLoop m_eventLoop;
+    int64_t m_worldId = 0, m_port = 0;
+    uint32_t m_mapRevision = 0;
+    TcpAddressService m_tcpAddressService;
     void shutdown() {
         //TODO
     }
-    void handleWorldAndMapRevisionChanged(int64_t a2, uint32_t a3) {
+    void handleWorldAndMapRevisionChanged(int64_t worldId, uint32_t mapRevision) {
+        m_eventLoop.post([this, worldId, mapRevision]() {
+            this->m_worldId = worldId;
+            this->m_mapRevision = mapRevision;
+            NetworkingLogDebug("TCP handleWorldAndMapRevisionChanged (%d,%d) ", worldId, mapRevision);
+            if (m_tcpAddressService.isValidAddress(worldId, mapRevision, this->m_ip, this->m_port)) {
+                NetworkingLogDebug("TCP handleWorldAndMapRevisionChanged isValidAddress() true");
+            } else {
+                NetworkingLogDebug("TCP handleWorldAndMapRevisionChanged isValidAddress() false");
+                NetworkingLogDebug("TCP reconnect refreshTcpConfigIfNeeded: 0 ");
+                this->disconnect();
+                this->waitDisconnection(false);
+            }
+        });
+    }
+    void waitDisconnection(bool) {
         //TODO
     }
-    TcpClient(GlobalState *gs, WorldClockService *wcs, HashSeedService *hss, WorldAttributeService *wat, RelayServerRestInvoker *relay, SegmentResultsRestInvoker *segRes, NetworkClientImpl *ncli) : m_rwq(100) {
+    void disconnect() {
         //TODO
     }
+    void handleTcpConfig(const protobuf::TcpConfig &cfg) {
+        bool updated = m_tcpAddressService.updateAddresses(cfg, m_worldId, m_mapRevision, m_ip, m_port);
+        if (updated) {
+            NetworkingLogDebug("TCP hostAndPortUpdated: 1 ");
+            NetworkingLogDebug("TCP reconnect refreshTcpConfigIfNeeded: 0 ");
+            disconnect();
+            waitDisconnection(false);
+        }
+    }
+
+    TcpClient(GlobalState *gs, WorldClockService *wcs, HashSeedService *hss, WorldAttributeService *wat, RelayServerRestInvoker *relay, SegmentResultsRestInvoker *segRes, NetworkClientImpl *ncli, int t1 = 35000, int t2 = 5000) : m_rwq(100) {
+        //TODO
+    }
+    /*
+TcpClient::Listener::~Listener()
+TcpClient::SegmentSubscription::SegmentSubscription(asio::io_context &,std::shared_ptr<std::promise<std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::SegmentResults> const>>>)
+TcpClient::SegmentSubscription::setPromiseValue(long,std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::SegmentResults> const> const&)
+TcpClient::clearEndpoint(void)
+TcpClient::connect(void)
+TcpClient::decodeMessage(char *,ulong &)
+TcpClient::encodeMessage(char *,ulong,uint &)
+TcpClient::getClientToServerForHelloMessage(ulong,long)
+TcpClient::getMaximumHelloMessageSize(void)
+TcpClient::getTcpMessageSize(uint)
+TcpClient::handleCommunicationError(std::error_code,std::string const&)
+TcpClient::handleTcpConfigChanged(zwift::protobuf::TcpConfig const&)
+TcpClient::onDisconnected(bool)
+TcpClient::onInactivityTimeout(std::error_code)
+TcpClient::onTcpConfigReceived(std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::TcpConfig> const> const&)
+TcpClient::popServerToClient(std::shared_ptr<zwift::protobuf::ServerToClient const> &)
+TcpClient::processPayload(ulong)
+TcpClient::processSegmentSubscription(long,std::shared_ptr<std::promise<std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::SegmentResults> const>>>)
+TcpClient::processSegmentUnsubscription(long)
+TcpClient::processSubscribedSegment(zwift::protobuf::ServerToClient const&)
+TcpClient::readHeader(void)
+TcpClient::readPayload(uint)
+TcpClient::reconnect(bool)
+TcpClient::refreshTcpConfig(void)
+TcpClient::resetTimeoutTimer(void)
+TcpClient::resolveEndpointAndConnect(void)
+TcpClient::sayHello(void)
+TcpClient::segmentSubscriptionsShutdown(void)
+TcpClient::sendClientToServer(TcpCommand,zwift::protobuf::ClientToServer &,std::function<void ()(void)> const&,std::function<void ()(void)> const&)
+TcpClient::sendSubscribeToSegment(long,std::shared_ptr<TcpClient::SegmentSubscription> const&)
+TcpClient::serializeToTcpMessage(TcpCommand,zwift::protobuf::ClientToServer const&,std::array<char,1492ul> &,uint &)
+TcpClient::shutdown(void)
+TcpClient::subscribeToSegmentAndGetLeaderboard(long)
+TcpClient::unsubscribeFromSegment(long)
+TcpClient::~TcpClient()    */
 };
 struct AuxiliaryController : public WorldIdListener {
     void handleWorldIdChange(uint64_t worldId) {
@@ -1979,9 +2127,9 @@ struct NetworkClientImpl { //0x400 bytes, calloc
             startTcpClient();
         m_tcpDisconnected = mode;
     }
-    void handleWorldAndMapRevisionChanged(int64_t a2, uint32_t a3) { //2nd vfunc
+    void handleWorldAndMapRevisionChanged(int64_t worldId, uint32_t mapRevision) { //2nd vfunc
         if (m_tcpClient)
-            m_tcpClient->handleWorldAndMapRevisionChanged(a2, a3);
+            m_tcpClient->handleWorldAndMapRevisionChanged(worldId, mapRevision);
     }
     ~NetworkClientImpl() { //3rd vfunc
         //TODO IDA NetworkClientImpl_destroy
