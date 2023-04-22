@@ -132,8 +132,24 @@ struct HttpStatistics { //0x320 - 16 bytes
 };
 std::string g_CNL_VER = "3.27.4"s;
 enum HttpRequestMode { HRM_SEQUENTIAL, HRM_CONCURRENT };
-struct AcceptHeader { std::string m_hdr; };
-enum ContentType { CTH_UNK, CTH_JSON, CTH_PB, CTH_PBv2, CTH_URLENC, CTH_OCTET, CTH_CNT };
+enum AcceptType { ATH_PB, ATH_JSON };
+struct AcceptHeader {
+    AcceptHeader() {}
+    AcceptHeader(AcceptType src) {
+        switch (src) {
+        case ATH_PB:
+            m_hdr = "Accept: application/x-protobuf-lite"s;
+            break;
+        case ATH_JSON:
+            m_hdr = "Accept: application/json"s;
+            break;
+        default:
+            break;
+        }
+    }
+    std::string m_hdr; 
+};
+enum ContentType { CTH_UNK, CTH_JSON, CTH_PB, CTH_PBv2, CTH_URLENC, CTH_OCTET };
 struct ContentTypeHeader { 
     ContentTypeHeader() {}
     ContentTypeHeader(ContentType src) {
@@ -533,17 +549,22 @@ struct GenericHttpConnectionManager : public HttpConnectionManager { //0x128 byt
             task(conn);
         }
     }
-    std::future<NetworkResponseBase> pushRequestTask(const std::function<NetworkResponseBase(CurlHttpConnection *)> &f) {
+    template<class T>
+    std::future<NetworkResponse<T>> pushRequestTask(const std::function<NetworkResponse<T>(CurlHttpConnection *)> &f) {
         if (m_nThreads == 0)
             startWorkers();
-        task_type task(f);
-        auto res = task.get_future();
-        { std::lock_guard l(m_mutex); m_ptq.push(std::move(task)); }
+        auto specific_task = std::make_shared<std::promise<NetworkResponse<T>(CurlHttpConnection *)>>();
+        auto res = specific_task->get_future();
+        task_type stored_task([specific_task, f](CurlHttpConnection *conn) {
+            auto ret = f(conn);
+            specific_task->set_value(ret);
+            return NetworkResponseBase(ret);
+        });
+        { std::lock_guard l(m_mutex); m_ptq.push(std::move(stored_task)); }
         m_conditionVar.notify_one();
         return res;
     }
 /* TODO:
-pushRequestTask<std::multiset<zwift_network::model::Workout>>(std::function<std::shared_ptr<zwift_network::NetworkResponse<std::multiset<zwift_network::model::Workout>> const> ()(HttpConnection &)> const&)
 pushComposableRequestTask<std::vector<zwift_network::model::WorkoutsFromPartner>,std::multiset<zwift_network::model::Workout>>(RequestTaskComposer<std::vector<zwift_network::model::WorkoutsFromPartner>,std::multiset<zwift_network::model::Workout>>::Composable,std::function<std::shared_ptr<zwift_network::NetworkResponse<std::multiset<zwift_network::model::Workout>> const> ()(HttpConnection &)> const&)*/
 };
 struct UdpClient;
@@ -914,12 +935,8 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
             qsb.add("username"s, conn->escapeUrl(m_mail));
             qsb.add("password"s, conn->escapeUrl(m_password));
             conn->setRequestId(++m_reqId);
-            auto resp = conn->performPost(m_authUrl,
-                ContentTypeHeader(CTH_URLENC),
-                qsb.getString(false),
-                AcceptHeader{ "Accept: application/json"s },
-                "Acquire Access Token"s,
-                false);
+            auto resp = conn->performPost(m_authUrl, ContentTypeHeader(CTH_URLENC), qsb.getString(false), AcceptHeader(ATH_JSON),
+                "Acquire Access Token"s, false);
             parseOauth2Credentials(HttpHelper::convertToStringResponse(resp));
             if (resp.m_errCode != 401 && resp.m_errCode != 403) {
                 if (!m_oauth2.m_errCode)
@@ -952,12 +969,8 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
         qsb.add("refresh_token"s, conn->escapeUrl(getRefreshToken().asString()));
         qsb.add("client_id"s, conn->escapeUrl(m_oauthClient));
         conn->setRequestId(++m_reqId);
-        auto resp = conn->performPost(m_authUrl,
-            ContentTypeHeader(CTH_URLENC),
-            qsb.getString(false),
-            AcceptHeader{ "Accept: application/json"s },
-            "Refresh Access Token"s,
-            false);
+        auto resp = conn->performPost(m_authUrl, ContentTypeHeader(CTH_URLENC), qsb.getString(false), AcceptHeader(ATH_JSON),
+            "Refresh Access Token"s, false);
         parseOauth2Credentials(HttpHelper::convertToStringResponse(resp));
         if (resp.m_errCode == 400 || resp.m_errCode == 401 || resp.m_errCode == 403) {
             NetworkingLogError("Error refreshing access token: [%d] %s", m_oauth2.m_errCode, m_oauth2.m_msg.c_str());
@@ -983,7 +996,7 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
     bool findAuthenticationServer(CurlHttpConnection *conn) {
         conn->setRequestId(++m_reqId);
         m_oauth2.storeError(0, nullptr);
-        auto v6 = conn->performGet(m_apiUrl, AcceptHeader{ "Accept: application/json"s }, "Find Authentication Server"s);
+        auto v6 = conn->performGet(m_apiUrl, AcceptHeader(ATH_JSON), "Find Authentication Server"s);
         auto json = HttpHelper::convertToJsonResponse(v6);
         if (json.m_errCode) {
             NetworkingLogError("Error finding authorization server: [%d] %s", json.m_errCode, json.m_msg.c_str());
@@ -1071,178 +1084,12 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
         }
     }
     ~ZwiftHttpConnectionManager() { shutdown(); }
-    NetworkResponseBase pushRequestTask(const std::function<NetworkResponseBase(CurlHttpConnection *)> &f, bool b1, bool b2) {
-        NetworkResponseBase ret;
+    template<class T>
+    std::future<NetworkResponse<T>> pushRequestTask(const std::function<NetworkResponse<T>(CurlHttpConnection *)> &f, bool b1, bool b2) {
         if (b2 || !*m_tcpDisconnected) {
-#if 0
-            v48 = this;
-            v50 = 0i64;
-            v15 = *(__int64(__fastcall ****)(_QWORD, char *))(func + 56);
-            if (v15)
-                v50 = (char *)(**v15)(v15, v49);
-            v59 = 0i64;
-            v16 = (char *)operator new(0x50ui64);
-            v55[3] = v16;
-            *(_QWORD *)v16 = &std::_Func_impl_no_alloc<_lambda_dea4d45f1c93d919d606ab83b6fd9293_, std::shared_ptr<zwift_network::NetworkResponse<std::string> const>, HttpConnection &, bool>::`vftable';
-                * ((_QWORD *)v16 + 1) = v48;
-            *((_QWORD *)v16 + 9) = 0i64;
-            v17 = v50;
-            if (v50)
-            {
-                *((_QWORD *)v16 + 9) = (**(__int64(__fastcall ***)(char *, __int64))v50)(v50, (__int64)(v16 + 16));
-                v17 = v50;
-            }
-            v59 = v16;
-            if (v17)
-            {
-                v18 = v49;
-                LOBYTE(v18) = v17 != v49;
-                (*(void(__fastcall **)(char *, char *))(*(_QWORD *)v17 + 32i64))(v17, v18);
-                v50 = 0i64;
-            }
-            v19 = operator new(0x28ui64);
-            v21 = v19;
-            if (v19)
-            {
-                *(_OWORD *)v19 = 0i64;
-                v19[2] = 1;
-                v19[3] = 1;
-                *(_QWORD *)v19 = &std::_Ref_count_obj2<std::packaged_task<std::shared_ptr<zwift_network::NetworkResponse<std::string> const>(HttpConnection &, bool)>>::`vftable';
-                    v22 = operator new(0x120ui64);
-                v23 = v22;
-                if (v22)
-                {
-                    memset(v22, 0, 0x120ui64);
-                    sub_7FF703263A00((__int64)v23, 0i64);
-                    *v23 = &std::_Packaged_state<std::shared_ptr<zwift_network::NetworkResponse<std::string> const>(HttpConnection &, bool)>::`vftable';
-                        v23[35] = 0i64;
-                    if (v16 == v58)
-                    {
-                        v23[35] = (*(__int64(__fastcall **)(char *, _QWORD *))(*(_QWORD *)v16 + 8i64))(v16, v23 + 28);
-                        (*(void(__fastcall **)(char *, _QWORD))(*(_QWORD *)v16 + 32i64))(v16, 0i64);
-                    } else
-                    {
-                        v23[35] = v16;
-                    }
-                    v16 = 0i64;
-                    v59 = 0i64;
-                    *((_QWORD *)v21 + 2) = v23;
-                    *((_BYTE *)v21 + 24) = 0;
-                    *((_BYTE *)v21 + 32) = 0;
-                } else
-                {
-                    *((_QWORD *)v21 + 2) = 0i64;
-                    *((_BYTE *)v21 + 24) = 0;
-                    *((_BYTE *)v21 + 32) = 0;
-                }
-            } else
-            {
-                v21 = 0i64;
-            }
-            v24 = (__int128 *)(v21 + 4);
-            v63 = (__int128 *)(v21 + 4);
-            v64 = v21;
-            if (v16)
-            {
-                LOBYTE(v20) = v16 != v58;
-                (*(void(__fastcall **)(char *, __int64))(*(_QWORD *)v16 + 32i64))(v16, v20);
-            }
-            v38 = 0i64;
-            if (!*(_QWORD *)v24 || *((_BYTE *)v21 + 24) && *(_BYTE *)(*(_QWORD *)v24 + 200i64))
-            {
-                error_code = (const struct std::error_code *)std::make_error_code(v62, 4i64);
-                std::_Throw_future_error(error_code);
-            }
-            if (*((_BYTE *)v21 + 32))
-            {
-                v35 = (const struct std::error_code *)std::make_error_code(v61, 2i64);
-                std::_Throw_future_error(v35);
-            }
-            *((_BYTE *)v21 + 32) = 1;
-            v25 = 0i64;
-            *(_QWORD *)&v38 = 0i64;
-            if (&v38 != v24)
-            {
-                if (*(_QWORD *)v24)
-                {
-                    _InterlockedIncrement((volatile signed __int32 *)(*(_QWORD *)v24 + 8i64));
-                    v25 = *(_QWORD *)v24;
-                    v24 = v63;
-                } else
-                {
-                    v25 = 0i64;
-                }
-                *(_QWORD *)&v38 = v25;
-            }
-            BYTE8(v38) = 1;
-            p_m_mutex = (_Mtx_internal_imp_t *)&this->m_base.m_mutex;
-            v26 = Mtx_lock((_Mtx_t)&this->m_base.m_mutex);
-            if (v26)
-                std::_Throw_C_error(v26);
-            if (v21)
-            {
-                _InterlockedIncrement(v21 + 2);
-                v24 = v63;
-                v25 = v38;
-            }
-            *(_QWORD *)&v41 = v24;
-            v27 = v21;
-            *((_QWORD *)&v41 + 1) = v21;
-            v28 = operator new(0x118ui64);
-            v29 = v28;
-            if (v28)
-            {
-                memset(v28, 0, 0x118ui64);
-                sub_7FF70359C430((__int64)v29, 0i64);
-                *v29 = &std::_Packaged_state<std::nullptr_t>::`vftable';
-                    v41 = 0i64;
-                v29[27] = &std::_Func_impl_no_alloc<_lambda_08f659b348b191e2e4e18e80202026f3_, std::nullptr_t, HttpConnection &, bool>::`vftable';
-                    v29[28] = v24;
-                v29[29] = v21;
-                v29[34] = v29 + 27;
-                v27 = (_DWORD *)*((_QWORD *)&v41 + 1);
-            } else
-            {
-                v29 = 0i64;
-            }
-            v46 = 0;
-            v47 = 0;
-            v51 = v29;
-            v45 = 0i64;
-            v52 = 0;
-            v53 = 0;
-            v54 = b1;
-            Stopwatch::Stopwatch(v55);
-            v30 = (__int64)this;
-            sub_7FF7035D3970(&this->m_rtq.Myproxy, (__int64)&v51);
-            SteadyClock_dtr_0(v55);
-            future_stuff_0((__int64 *)&v51);
-            future_stuff_0(&v45);
-            if (v27)
-            {
-                if (_InterlockedExchangeAdd(v27 + 2, 0xFFFFFFFF) == 1)
-                {
-                    v31 = *((_QWORD *)&v41 + 1);
-                    (***((void(__fastcall ****)(_QWORD)) & v41 + 1))(*((_QWORD *)&v41 + 1));
-                    if (_InterlockedExchangeAdd((volatile signed __int32 *)(v31 + 12), 0xFFFFFFFF) == 1)
-                        (*(void(__fastcall **)(_QWORD))(**((_QWORD **)&v41 + 1) + 8i64))(*((_QWORD *)&v41 + 1));
-                }
-                v25 = v38;
-            }
-            Mtx_unlock(p_m_mutex);
-            Cnd_signal((_Cnd_t)(v30 + 184));
-            *(_QWORD *)ret = 0i64;
-            if ((__int128 *)ret != &v38)
-            {
-                *(_QWORD *)ret = v25;
-                v25 = 0i64;
-                *(_QWORD *)&v38 = 0i64;
-                *(_BYTE *)(ret + 8) = 1;
-            }
-            *(_BYTE *)(ret + 8) = 1;
-#endif
-            //TODO
-            RequestTaskContext task([this, f](CurlHttpConnection *conn, bool needNewAcToken) { //pushRequestTask_lambda_0
+            auto specific_task = std::make_shared<std::promise<NetworkResponse<T>>>();
+            auto res = specific_task->get_future();
+            RequestTaskContext stored_task([specific_task, this, f](CurlHttpConnection *conn, bool needNewAcToken) {
                 if (needNewAcToken) {
                     auto rett = this->attendToAccessToken(conn);
                     if (rett.m_errCode)
@@ -1251,21 +1098,24 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
                     conn->setTokenInfo(this->m_authMgr->getSessionStateFromToken(), this->m_authMgr->getSubjectFromToken());
                 }
                 conn->setRequestId(InterlockedExchangeAdd64(&this->m_requestId, 1));
-                auto r = f(conn);
-                if (r.m_errCode == 401) {
+                auto res = f(conn);
+                specific_task->set_value(res);
+                if (res.m_errCode == 401) {
                     NetworkingLogWarn("Request status unauthorized, token invalidated.");
                     this->m_authMgr->setAccessTokenAsExpired();
                 }
-                return r;
+                return NetworkResponseBase(res);
             });
-            task.m_secured = b1; //TODO: check (not sure)
-            auto res = task.get_future();
-            { std::lock_guard l(m_mutex); m_rtq.push(std::move(task)); }
+            stored_task.m_secured = b1; //TODO: check (not sure)
+            { std::lock_guard l(m_mutex); m_rtq.push(std::move(stored_task)); }
             m_conditionVar.notify_one();
+            return res;
         } else {
-            ret.storeError(14, "Disconnected due to simultaneous log ins"s);
+            std::promise<NetworkResponse<T>> imm_executed_task;
+            auto res = imm_executed_task.get_future();
+            imm_executed_task.set_value({ "Disconnected due to simultaneous log ins"s, 14 });
+            return res;
         }
-        return ret;
     }
 };
 struct EncryptionOptions {
@@ -1548,9 +1398,9 @@ struct AuthServerRestInvoker { //0x60 bytes
     ZwiftAuthenticationManager *m_authMgr;
     ExperimentsRestInvoker *m_expRi;
     ZwiftHttpConnectionManager *m_conn;
-    NetworkResponseBase logIn(const EncryptionOptions &encr, const std::vector<std::string> &anEventProps, 
+    NetworkResponseBase logIn(const EncryptionOptions &encr, const std::vector<std::string> &anEventProps,
         const std::function<void(const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &)> &func) {
-        return m_conn->pushRequestTask([this, encr, anEventProps, func](CurlHttpConnection *conn) {
+        auto ret = m_conn->pushRequestTask(std::function<NetworkResponse<protobuf::LoginResponse>(CurlHttpConnection *)>([this, encr, anEventProps, func](CurlHttpConnection *conn) {
             auto sk = this->getSecretKey(encr);
             auto sid = uuid::generate_uuid_v4();
             conn->setSessionIdHeader(sid);
@@ -1568,8 +1418,11 @@ struct AuthServerRestInvoker { //0x60 bytes
                 this->m_authMgr->resetCredentials();
                 NetworkingLogError("Couldn't obtain a session id from the server.");
             }
-            return NetworkResponseBase(ret);
-        }, true, false);
+            return ret;
+        }), true, false);
+        if (ret.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+            return ret.get();
+        return NetworkResponseBase();
     }
     AuthServerRestInvoker(const std::string &machineId, ZwiftAuthenticationManager *authMgr, ZwiftHttpConnectionManager *httpConnMgr3, ExperimentsRestInvoker *expRi, const std::string &server) : m_machineId(machineId), m_server(server), m_authMgr(authMgr), m_expRi(expRi), m_conn(httpConnMgr3) {}
     NetworkResponse<protobuf::LoginResponse> doLogIn(const std::string &sk, const std::vector<std::string> &anEventProps, CurlHttpConnection *conn) {
@@ -1598,7 +1451,7 @@ struct AuthServerRestInvoker { //0x60 bytes
         std::vector<char> payload;
         HttpHelper::protobufToCharVector(&payload, lr);
         auto v42 = conn->performPost(url, ContentTypeHeader(ct), payload, 
-            AcceptHeader{ "Accept: application/x-protobuf-lite"s }, LogInV2, false);
+            AcceptHeader(ATH_PB), LogInV2, false);
         HttpHelper::convertToResultResponse(&ret, v42);
         return ret;
     }
@@ -1622,23 +1475,25 @@ struct AuthServerRestInvoker { //0x60 bytes
     NetworkResponseBase logOut(const std::function<void()> &func) {
         NetworkResponseBase ret;
         if (m_authMgr->getLoggedIn()) {
-            return m_conn->pushRequestTask([this, func](CurlHttpConnection *conn) {
-                NetworkResponseBase ret;
+            auto f = m_conn->pushRequestTask(std::function<NetworkResponse<std::string>(CurlHttpConnection *)>([this, func](CurlHttpConnection *conn) {
                 QueryStringBuilder qsb;
                 std::string url(this->m_server + "/api/users/logout"s);
                 qsb.add("grant_type"s, "refresh_token"s);
                 qsb.add("refresh_token"s, conn->escapeUrl(this->m_authMgr->getRefreshTokenStr()));
                 qsb.add("client_id"s, conn->escapeUrl(this->m_authMgr->getOauthClient()));
-                ret = conn->performPost(url, ContentTypeHeader(CTH_URLENC), qsb.getString(false), AcceptHeader{""s}, "Log Out"s, false);
+                auto ret = HttpHelper::convertToStringResponse(conn->performPost(url, ContentTypeHeader(CTH_URLENC), qsb.getString(false), AcceptHeader(), "Log Out"s, false));
                 this->m_authMgr->resetCredentials();
                 func();
                 /* OMIT not found how this token is used by calling side if (0 == ret.m_errCode) {
                     return NetworkResponse<string> this->m_authMgr->getRefreshToken()
                 }*/
                 return ret;
-                }, true, false);
-        } else
+                }), true, false);
+            if (f.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+                return f.get();
+        } else {
             ret.storeError(3, "Not logged in"s);
+        }
         return ret;
     }
     void resetPassword(const std::string &) {
@@ -1680,8 +1535,16 @@ struct WorldClockService { //0x2120 bytes
     }
 };
 struct RelayServerRestInvoker { //0x30 bytes
-    RelayServerRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_relayUrl;
+    RelayServerRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &relayUrl) : m_mgr(mgr), m_relayUrl(relayUrl) {}
+    std::future<NetworkResponse<protobuf::TcpConfig>> fetchTcpConfig() {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::TcpConfig>(CurlHttpConnection *)>([this](CurlHttpConnection *conn) {
+            NetworkResponse<protobuf::TcpConfig> ret;
+            auto v9 = conn->performGet(this->m_relayUrl + "/tcp-config"s, AcceptHeader(ATH_PB), "TCP Config"s);
+            HttpHelper::convertToResultResponse(&ret, v9);
+            return ret;
+        }), true, false);
     }
 };
 struct HashSeedService { //0x370 bytes
@@ -1891,11 +1754,23 @@ struct LanExerciseDeviceService { //0x3B0 bytes
     //TODO
 };
 struct TcpAddressService {
-    std::map<LONG, std::vector<protobuf::TcpAddress>> m_addrMap;
+    struct TcpAddressCur {
+        std::vector<protobuf::TcpAddress> m_vec;
+        int m_cur = 0;
+    };
+    std::map<LONG, TcpAddressCur> m_addrMap;
+    bool m_isLastAddress = false;
     const protobuf::TcpAddress *getAddress(int64_t worldId, uint32_t mapRevision) {
+        m_isLastAddress = false;
         auto f = m_addrMap.find(MAKELONG(worldId, mapRevision));
-        if (f != m_addrMap.end())
-            return f->second.data();
+        if (f != m_addrMap.end()) {
+            auto v10 = f->second.m_cur++;
+            if (f->second.m_cur >= f->second.m_vec.size()) {
+                m_isLastAddress = true;
+                f->second.m_cur = 0;
+            }
+            return &f->second.m_vec[v10];
+        }
         if (worldId || mapRevision)
             return getAddress(0, 0);
         NetworkingLogError("No generic TCP cluster available!");
@@ -1909,7 +1784,7 @@ struct TcpAddressService {
                 return false;
             return isValidAddress(0, 0, ip, port);
         }
-        for (const auto &i : f->second)
+        for (const auto &i : f->second.m_vec)
             if (i.port() == port && i.ip() == ip)
                 return true;
         return false;
@@ -1929,7 +1804,7 @@ struct TcpAddressService {
             LONG key_n = MAKELONG(worldId_n, n.lb_course());
             bool genericServer_n = !worldId_n && !mapRevision_n;
             bool n_eqArg = (worldId_n == worldId) && (mapRevision_n == mapRevision);
-            m_addrMap[key_n].push_back(n);
+            m_addrMap[key_n].m_vec.push_back(n);
             if (argSpecificServer && n_eqArg)
                 hasSpecificCluster = true;
             const auto &ip_n = n.ip();
@@ -1969,15 +1844,139 @@ struct TcpAddressService {
         return (cfg.nodes_size() && !foundCurrentNodeAsFirstNode) || !currentHostIsStillGood;
     }
 };
+template<class T>
+struct FutureWaiter : public boost::asio::steady_timer {
+    using boost::asio::steady_timer::steady_timer;
+    uint64_t m_timeout = 0;
+    std::future<T> m_obj;
+    std::function<void(const T &)> m_func;
+    bool m_inWait = false;
+    void poll(const boost::system::error_code &ec) {
+        if (!ec) {
+            if (m_obj.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+                return waitAgain();
+            m_inWait = false;
+            m_func(m_obj.get());
+        }
+    }
+    void waitAsync(std::future<T> &&obj, uint64_t toMs, const std::function<void(const T &)> &f) {
+        m_inWait = true;
+        m_obj = std::move(obj);
+        m_timeout = toMs;
+        m_func = f;
+        waitAgain();
+    }
+    void waitAgain() {
+        expires_after(std::chrono::milliseconds(m_timeout));
+        async_wait([this](const boost::system::error_code &ec) { this->poll(ec); });
+    }
+};
 struct TcpClient {
+    struct SegmentSubscription {
+        std::promise<NetworkResponse<protobuf::SegmentResults> *> *m_promise = nullptr;
+        bool m_hasValue = false;
+        SegmentSubscription(boost::asio::io_context *ctx, std::promise<NetworkResponse<protobuf::SegmentResults> *> *promise) : m_promise(promise) {
+            //TODO Android:
+            /*  this_ = this;
+            *this = *(_OWORD *)promise;
+            *(_QWORD *)promise = 0LL;
+            *(_QWORD *)(promise + 8) = 0LL;
+            v5 = *ctx;
+            v9 = &`typeinfo for'asio::detail::typeid_wrapper<asio::detail::deadline_timer_service<asio::detail::chrono_time_traits<std::chrono::steady_clock,asio::wait_traits<std::chrono::steady_clock>>>>;
+                v10 = 0LL;
+            v6 = asio::detail::service_registry::do_use_service(
+                v5,
+                (__int64 *)&v9,
+                (__int64(__fastcall *)(__int64))asio::detail::service_registry::create<asio::detail::deadline_timer_service<asio::detail::chrono_time_traits<std::chrono::steady_clock, asio::wait_traits<std::chrono::steady_clock>>>, asio::io_context>,
+                (__int64)ctx);
+            *((_QWORD *)this_ + 10) = ctx;
+            *((_QWORD *)this_ + 5) = 0LL;
+            *((_QWORD *)this_ + 6) = 0LL;
+            *((_QWORD *)this_ + 8) = 0LL;
+            *((_QWORD *)this_ + 9) = 0LL;
+            *((_QWORD *)this_ + 7) = -1LL;
+            *((_DWORD *)this_ + 23) = 0;
+            *((_QWORD *)this_ + 12) = ZZN4asio9execution6detail17any_executor_base16object_fns_tableINS_10io_context19basic_executor_typeINSt6__ndk19allocatorIvEELj0EEEEEPKNS2_10object_fnsEPNS6_9enable_ifIXaantsr7is_sameIT_vEE5valuentsr7is_sameISE_NS6_10shared_ptrIvEEEE5valueEvE4typeEE3fns;
+            *((_QWORD *)this_ + 13) = this_ + 5;
+            *((_QWORD *)this_ + 14) = ZZN4asio9execution6detail17any_executor_base16target_fns_tableINS_10io_context19basic_executor_typeINSt6__ndk19allocatorIvEELj0EEEEEPKNS2_10target_fnsEbPNS6_9enable_ifIXntsr7is_sameIT_vEE5valueEvE4typeEE16fns_with_execute;
+            *((_QWORD *)this_ + 15) = asio::execution::any_executor<asio::execution::context_as_t<asio::execution_context &>, asio::execution::detail::blocking::never_t<0>, asio::execution::prefer_only<asio::execution::detail::blocking::possibly_t<0>>, asio::execution::prefer_only<asio::execution::detail::outstanding_work::tracked_t<0>>, asio::execution::prefer_only<asio::execution::detail::outstanding_work::untracked_t<0>>, asio::execution::prefer_only<asio::execution::detail::relationship::fork_t<0>>, asio::execution::prefer_only<asio::execution::detail::relationship::continuation_t<0>>>::prop_fns_table<asio::io_context::basic_executor_type<std::allocator<void>, 0u>>(void)::fns;
+            *((_QWORD *)this_ + 2) = v6;
+            *((_QWORD *)this_ + 3) = 0LL;
+            *((_BYTE *)this_ + 32) = 0;
+            v7 = *ctx;
+            v9 = &`typeinfo for'asio::detail::typeid_wrapper<asio::detail::deadline_timer_service<asio::detail::chrono_time_traits<std::chrono::steady_clock,asio::wait_traits<std::chrono::steady_clock>>>>;
+                v10 = 0LL;
+            result = asio::detail::service_registry::do_use_service(
+                v7,
+                (__int64 *)&v9,
+                (__int64(__fastcall *)(__int64))asio::detail::service_registry::create<asio::detail::deadline_timer_service<asio::detail::chrono_time_traits<std::chrono::steady_clock, asio::wait_traits<std::chrono::steady_clock>>>, asio::io_context>,
+                (__int64)ctx);
+            *((_QWORD *)this_ + 24) = ctx;
+            this_ += 12;
+            *((_QWORD *)this_ - 5) = 0LL;
+            *((_QWORD *)this_ - 4) = 0LL;
+            *((_QWORD *)this_ - 2) = 0LL;
+            *((_QWORD *)this_ - 1) = 0LL;
+            *((_QWORD *)this_ - 3) = -1LL;
+            *((_DWORD *)this_ + 3) = 0;
+            *((_QWORD *)this_ + 2) = ZZN4asio9execution6detail17any_executor_base16object_fns_tableINS_10io_context19basic_executor_typeINSt6__ndk19allocatorIvEELj0EEEEEPKNS2_10object_fnsEPNS6_9enable_ifIXaantsr7is_sameIT_vEE5valuentsr7is_sameISE_NS6_10shared_ptrIvEEEE5valueEvE4typeEE3fns;
+            *((_QWORD *)this_ + 3) = this_;
+            *((_QWORD *)this_ + 4) = ZZN4asio9execution6detail17any_executor_base16target_fns_tableINS_10io_context19basic_executor_typeINSt6__ndk19allocatorIvEELj0EEEEEPKNS2_10target_fnsEbPNS6_9enable_ifIXntsr7is_sameIT_vEE5valueEvE4typeEE16fns_with_execute;
+            *((_QWORD *)this_ + 5) = asio::execution::any_executor<asio::execution::context_as_t<asio::execution_context &>, asio::execution::detail::blocking::never_t<0>, asio::execution::prefer_only<asio::execution::detail::blocking::possibly_t<0>>, asio::execution::prefer_only<asio::execution::detail::outstanding_work::tracked_t<0>>, asio::execution::prefer_only<asio::execution::detail::outstanding_work::untracked_t<0>>, asio::execution::prefer_only<asio::execution::detail::relationship::fork_t<0>>, asio::execution::prefer_only<asio::execution::detail::relationship::continuation_t<0>>>::prop_fns_table<asio::io_context::basic_executor_type<std::allocator<void>, 0u>>(void)::fns;
+            *((_QWORD *)this_ - 8) = result;
+            *((_QWORD *)this_ - 7) = 0LL;
+            *((_BYTE *)this_ - 48) = 0;
+            *((_QWORD *)this_ + 6) = 0LL;
+            *((_QWORD *)this_ + 12) = 0LL;
+            *((_BYTE *)this_ + 112) = 0;
+            *((_WORD *)this_ + 64) = 0;
+            *((_BYTE *)this_ + 130) = 0;
+            *((_DWORD *)this_ + 33) = 0;
+            *((_BYTE *)this_ + 136) = 0;*/
+        }
+        void setPromiseValue(uint64_t segment, NetworkResponse<protobuf::SegmentResults> *val) {
+            if (m_promise) {
+                if (m_hasValue) {
+                    NetworkingLogDebug("SEGMENT RESULTS: Attempted to set value on a promise that already had a value for segment %ld", segment);
+                } else {
+                    NetworkingLogDebug("SEGMENT RESULTS: Set value on a promise for segment %ld", segment);
+                    m_promise->set_value(val);
+                    m_hasValue = true;
+                }
+            } else {
+                NetworkingLogDebug("SEGMENT RESULTS: Attempted to set value on an invalid promise to segment %ld", segment);
+            }
+        }
+    };
     moodycamel::ReaderWriterQueue<void * /*TODO*/> m_rwq;
     std::string m_ip;
     EventLoop m_eventLoop;
     int64_t m_worldId = 0, m_port = 0;
+    RelayServerRestInvoker *m_relay;
+    boost::asio::ip::tcp::socket m_tcpSocket;
     uint32_t m_mapRevision = 0;
     TcpAddressService m_tcpAddressService;
-    void shutdown() {
+    FutureWaiter<NetworkResponse<protobuf::TcpConfig>> m_tcpConfigWaiter;
+    boost::asio::steady_timer m_asioTimer2, m_asioTimer3, m_asioTimer4;
+    void segmentSubscriptionsShutdown() {
         //TODO
+    }
+    void clearEndpoint() {
+        m_ip.clear();
+        m_port = 0;
+        //TODO shared_release((__int64 *)&this->field_262[6], (__int64 *)&v3);
+    }
+    void shutdown() {
+        m_eventLoop.post([this]() {
+            m_tcpConfigWaiter.cancel();
+            m_asioTimer2.cancel();
+            m_asioTimer3.cancel();
+            m_asioTimer4.cancel();
+            this->segmentSubscriptionsShutdown();
+            this->disconnect();
+            this->clearEndpoint();
+        });
+        m_eventLoop.enqueueShutdown();
     }
     void handleWorldAndMapRevisionChanged(int64_t worldId, uint32_t mapRevision) {
         m_eventLoop.post([this, worldId, mapRevision]() {
@@ -1988,36 +1987,88 @@ struct TcpClient {
                 NetworkingLogDebug("TCP handleWorldAndMapRevisionChanged isValidAddress() true");
             } else {
                 NetworkingLogDebug("TCP handleWorldAndMapRevisionChanged isValidAddress() false");
-                NetworkingLogDebug("TCP reconnect refreshTcpConfigIfNeeded: 0 ");
-                this->disconnect();
-                this->waitDisconnection(false);
+                this->reconnect(false);
             }
         });
     }
-    void waitDisconnection(bool) {
+    void waitDisconnection(bool refreshTcpConfigIfNeeded) {
+        m_asioTimer4.expires_after(std::chrono::milliseconds(100));
+        m_asioTimer4.async_wait([this, refreshTcpConfigIfNeeded](const boost::system::error_code &ec) {
+            if (ec) {
+                NetworkingLogError("Error waiting disconnection [%d] %s", ec.value(), ec.to_string().c_str());
+            } else {
+                NetworkingLogDebug("TCP waitDisconnection refreshTcpConfigIfNeeded: %d", refreshTcpConfigIfNeeded);
+                if (!this->m_tcpSocket.is_open()) {
+                    NetworkingLogInfo("TCP disconnected");
+                    this->onDisconnected(refreshTcpConfigIfNeeded);
+                } else {
+                    this->waitDisconnection(refreshTcpConfigIfNeeded);
+                }
+            }
+        });
+    }
+    void onDisconnected(bool refreshTcpConfigIfNeeded) {
+        clearEndpoint();
+        resolveEndpointAndConnect();
+        NetworkingLogDebug("TCP onDisconnected refreshTcpConfigIfNeeded: %d isLastAddress: %d", refreshTcpConfigIfNeeded, m_tcpAddressService.m_isLastAddress);
+        if (refreshTcpConfigIfNeeded && m_tcpAddressService.m_isLastAddress)
+            refreshTcpConfig();
+    }
+    void refreshTcpConfig() {
+        m_tcpConfigWaiter.waitAsync(m_relay->fetchTcpConfig(), 100, [this](const NetworkResponse<protobuf::TcpConfig> &resp) {
+            if (resp.m_errCode) {
+                NetworkingLogError("Failed to fetch tcp config: [%d] %s", resp.m_errCode, resp.m_msg.c_str());
+            } else {
+                NetworkingLogDebug("TCP TcpConfig from endpoint");
+                this->handleTcpConfig(resp.m_T);
+            }
+        });
+    }
+    void resolveEndpointAndConnect() {
         //TODO
     }
     void disconnect() {
-        //TODO
+        if (!m_tcpSocket.is_open()) {
+            NetworkingLogDebug("TCP disconnect socket is not open");
+        } else {
+            NetworkingLogDebug("TCP disconnect socket is open");
+            NetworkingLogDebug("TCP disconnect socket shutdown");
+            boost::system::error_code ec;
+            m_tcpSocket.shutdown(m_tcpSocket.shutdown_both, ec);
+            if (ec /*shutdown(m_tcpSocket, SD_BOTH)*/)
+                NetworkingLogWarn("Error shutting down TCP socket [%d] %s", ec.value(), ec.to_string().c_str());
+            NetworkingLogDebug("TCP disconnect socket close"); 
+            m_tcpSocket.close(ec);
+            if (ec)
+                NetworkingLogWarn("Error closing TCP socket [%d] %s", ec.value(), ec.to_string().c_str());
+        }
     }
     void handleTcpConfig(const protobuf::TcpConfig &cfg) {
         bool updated = m_tcpAddressService.updateAddresses(cfg, m_worldId, m_mapRevision, m_ip, m_port);
         if (updated) {
             NetworkingLogDebug("TCP hostAndPortUpdated: 1 ");
-            NetworkingLogDebug("TCP reconnect refreshTcpConfigIfNeeded: 0 ");
-            disconnect();
-            waitDisconnection(false);
+            reconnect(false);
         }
     }
-
-    TcpClient(GlobalState *gs, WorldClockService *wcs, HashSeedService *hss, WorldAttributeService *wat, RelayServerRestInvoker *relay, SegmentResultsRestInvoker *segRes, NetworkClientImpl *ncli, int t1 = 35000, int t2 = 5000) : m_rwq(100) {
+    TcpClient(GlobalState *gs, WorldClockService *wcs, HashSeedService *hss, WorldAttributeService *wat, RelayServerRestInvoker *relay, SegmentResultsRestInvoker *segRes, NetworkClientImpl *ncli, int t1 = 35000, int t2 = 5000) : 
+        m_rwq(100), m_relay(relay),
+        m_tcpSocket(m_eventLoop.m_asioCtx, boost::asio::ip::tcp::v4()), 
+        m_tcpConfigWaiter(m_eventLoop.m_asioCtx), m_asioTimer2(m_eventLoop.m_asioCtx),
+        m_asioTimer3(m_eventLoop.m_asioCtx), m_asioTimer4(m_eventLoop.m_asioCtx) {
         //TODO
     }
-    /*
+    void onInactivityTimeout(/*std::error_code*/) {
+        NetworkingLogWarn("TCP connection timed out owing to inactivity");
+        //OMIT m_stat->TcpStatistics::increaseConnectionTimeoutCount();
+        reconnect(true);
+    }
+    void reconnect(bool refreshTcpConfigIfNeeded) {
+        NetworkingLogDebug("TCP reconnect refreshTcpConfigIfNeeded: %d ", refreshTcpConfigIfNeeded);
+        disconnect();
+        waitDisconnection(refreshTcpConfigIfNeeded);
+    }
+        /*
 TcpClient::Listener::~Listener()
-TcpClient::SegmentSubscription::SegmentSubscription(asio::io_context &,std::shared_ptr<std::promise<std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::SegmentResults> const>>>)
-TcpClient::SegmentSubscription::setPromiseValue(long,std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::SegmentResults> const> const&)
-TcpClient::clearEndpoint(void)
 TcpClient::connect(void)
 TcpClient::decodeMessage(char *,ulong &)
 TcpClient::encodeMessage(char *,ulong,uint &)
@@ -2026,8 +2077,6 @@ TcpClient::getMaximumHelloMessageSize(void)
 TcpClient::getTcpMessageSize(uint)
 TcpClient::handleCommunicationError(std::error_code,std::string const&)
 TcpClient::handleTcpConfigChanged(zwift::protobuf::TcpConfig const&)
-TcpClient::onDisconnected(bool)
-TcpClient::onInactivityTimeout(std::error_code)
 TcpClient::onTcpConfigReceived(std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::TcpConfig> const> const&)
 TcpClient::popServerToClient(std::shared_ptr<zwift::protobuf::ServerToClient const> &)
 TcpClient::processPayload(ulong)
@@ -2036,16 +2085,11 @@ TcpClient::processSegmentUnsubscription(long)
 TcpClient::processSubscribedSegment(zwift::protobuf::ServerToClient const&)
 TcpClient::readHeader(void)
 TcpClient::readPayload(uint)
-TcpClient::reconnect(bool)
-TcpClient::refreshTcpConfig(void)
 TcpClient::resetTimeoutTimer(void)
-TcpClient::resolveEndpointAndConnect(void)
 TcpClient::sayHello(void)
-TcpClient::segmentSubscriptionsShutdown(void)
 TcpClient::sendClientToServer(TcpCommand,zwift::protobuf::ClientToServer &,std::function<void ()(void)> const&,std::function<void ()(void)> const&)
 TcpClient::sendSubscribeToSegment(long,std::shared_ptr<TcpClient::SegmentSubscription> const&)
 TcpClient::serializeToTcpMessage(TcpCommand,zwift::protobuf::ClientToServer const&,std::array<char,1492ul> &,uint &)
-TcpClient::shutdown(void)
 TcpClient::subscribeToSegmentAndGetLeaderboard(long)
 TcpClient::unsubscribeFromSegment(long)
 TcpClient::~TcpClient()    */
@@ -2510,3 +2554,15 @@ TEST(SmokeTest, B64) {
     EXPECT_EQ(obj.size(), _countof(rawData));
     EXPECT_EQ(0, memcmp(rawData, obj.c_str(), _countof(rawData)));
 }
+/*TEST(SmokeTest, Timer) {
+    boost::asio::io_context asioCtx;
+    boost::asio::steady_timer asioTimer(asioCtx);
+    boost::asio::deadline_timer dt(asioCtx);
+    int so = sizeof(asioTimer), dtso = sizeof(dt);
+    asioTimer.expires_after(std::chrono::milliseconds(100));
+    asioTimer.async_wait([](boost::system::error_code const &ec) {
+        ;
+        });
+    boost::asio::ip::tcp::socket tcpSocket(asioCtx, boost::asio::ip::tcp::v4());
+    int so2 = sizeof(tcpSocket);
+}*/

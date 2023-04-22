@@ -1,0 +1,27 @@
+﻿message RouteResult {                       // RouteResultSaveRequest
+    optional string f1 = 1;                 // ? absent
+    optional uint32 server_realm = 2;       // ? 1
+    optional uint32 map_id = 3;             // 9 = makuri
+    required uint64 route_hash = 4;
+    optional uint32 f5 = 5;                 // ? 0
+    optional uint64 world_time = 6;
+    optional uint32 f7 = 7;                 // ? 685865 (10:51=651), 642389, 461114 (8:24=504)
+    optional uint32 f8 = 8;                 // PowerType: 1 = PowerMeter
+    optional uint32 weight_in_grams = 9;
+    optional uint32 height_in_cm = 10;
+    optional uint32 ftp = 11;
+    optional uint32 avg_power = 12;
+    optional uint32 max_power = 13;
+    optional uint32 avg_hr = 14;
+    optional uint32 max_hr = 15;
+    optional uint32 f16 = 16;               // inaccurate calories (less than in GUI, 1-2 cal) ? 94, 123, 221, 123
+    optional uint64 f18 = 18;               // enum Gender: 1=male, 2=female
+    optional PlayerType f19 = 19;
+    optional Sport sport = 20;
+    optional uint64 activity_id = 21;
+    optional uint32 f22 = 22;               // ? varint64 on wire, 0, stored as bool - ZCA ?
+    optional string hr_monitor = 23;
+    optional string power_meter = 24;
+    optional string controllable = 25;
+    optional string cadence_sensor = 26;
+}
