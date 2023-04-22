@@ -10,9 +10,8 @@
     "",
     "\\cmake",
     "\\cpp",
-    "\\docker",
+    "\\protobuf",
     "\\res"
   ],
-  "SelectedNode": "\\cpp\\Logging.cpp",
   "PreviewInSolutionExplorer": false
 }

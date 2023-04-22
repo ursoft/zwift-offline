@@ -418,13 +418,13 @@ struct CurlHttpConnection {
             //OMIT HttpStatistics::enqueueEndpointEvent(m_stat, descr, this->m_requestId, 0, v47, v51);
             if (v47 == CURLE_OPERATION_TIMEDOUT) {
                 NetworkingLogWarn("Request timed out for: %s %s", op.c_str(), url.c_str());
-                ret.storeError(31, "Request timed out"s);
+                ret.storeError(NRO_REQUEST_TIMED_OUT, "Request timed out"s);
                 //QUEST: why was empty ret here
                 return ret;
             }
             auto v60 = curl_easy_strerror(v47);
             NetworkingLogError("Curl error: [%d] '%s' for: %s %s", v47, v60, op.c_str(), url.c_str());
-            ret.storeError(30, v60);
+            ret.storeError(NRO_CURL_ERROR, v60);
             //QUEST: why was empty ret here
             return ret;
         } else {
@@ -437,14 +437,16 @@ struct CurlHttpConnection {
             //OMIT HttpStatistics::enqueueEndpointEvent(m_stat->field_0, descr, this->m_requestId, (int)v59, 0, v51);
             //v65 = v14 = v15 = operator new(0x28ui64), std::_Ref_count_obj2<std::vector<char>>::`vftable'
             //v64 = v16 = v15.vec
-            int v31 = 503;
+            NetworkRequestOutcome v31 = NRO_HTTP_STATUS_SERVICE_UNAVAILABLE;
             switch (v59) {
             case 200: case 201: case 202: case 203: case 204: case 205: case 206:
-                v31 = 0;
+                v31 = NRO_OK;
                 break;
-            case 400: case 401: case 403: case 404: case 409: case 410:
-            case 503: case 509:
-                v31 = v59;
+            case NRO_HTTP_STATUS_BAD_REQUEST: case NRO_HTTP_STATUS_UNAUTHORIZED: case NRO_HTTP_STATUS_FORBIDDEN:
+            case NRO_HTTP_STATUS_NOT_FOUND: case NRO_HTTP_STATUS_CONFLICT: case NRO_HTTP_STATUS_GONE:
+            case NRO_HTTP_STATUS_TOO_MANY_REQUESTS /*added by URSOFT */ :
+            case NRO_HTTP_STATUS_SERVICE_UNAVAILABLE: case NRO_HTTP_STATUS_BANDWIDTH_LIMIT_EXCEEDED:
+                v31 = (NetworkRequestOutcome)v59;
                 break;
             default:
                 if (v59 > 503) {
@@ -452,13 +454,13 @@ struct CurlHttpConnection {
                     if (ret.m_T.size())
                         v61.assign(ret.m_T.data(), ret.m_T.size());
                     NetworkingLogWarn("Unexpected HTTP response: [%d] '%s' for: %s %s", v59, v61.c_str(), op.c_str(), url.c_str());
-                    ret.storeError(32, v61);
+                    ret.storeError(NRO_UNEXPECTED_HTTP_RESPONSE, v61);
                     //QUEST: why was empty ret here
                     return ret;
                 }
             }
             NetworkingLogDebug("Completed request: %s %s (status: %d, elapsed: %lims)", op.c_str(), url.c_str(), v59, v51);
-            if (v31) {
+            if (v31 != NRO_OK) {
                 std::string v61;
                 if (ret.m_T.size())
                     v61.assign(ret.m_T.data(), ret.m_T.size());
@@ -687,7 +689,7 @@ namespace HttpHelper {
         Json::Reader r;
         if (!r.parse(src, ret, false)) {
             NetworkingLogError("Error parsing JSON: %s\nJSON: %s", r.getFormattedErrorMessages().c_str(), src.c_str());
-            ret.storeError(23, "Error parsing json"s);
+            ret.storeError(NRO_JSON_PARSING_ERROR, "Error parsing json"s);
         }
         return ret;
     }
@@ -696,7 +698,7 @@ namespace HttpHelper {
         Json::Reader r;
         if (src.size() == 0 || !r.parse(&src.front(), &src.back(), ret, false)) {
             NetworkingLogError("Error parsing JSON: %s\nJSON: %s", r.getFormattedErrorMessages().c_str(), src.size() ? &src.front() : "empty");
-            ret.storeError(23, "Error parsing json"s);
+            ret.storeError(NRO_JSON_PARSING_ERROR, "Error parsing json"s);
         }
         return ret;
     }
@@ -728,22 +730,22 @@ namespace HttpHelper {
                 ret->m_msg = queryResult.m_msg;
         } else {
             if (!ret->m_T.ParseFromArray(queryResult.m_T.data(), queryResult.m_T.size()))
-                ret->storeError(26, "Failed to decode protobuf"s);
+                ret->storeError(NRO_PROTOBUF_FAILURE_TO_DECODE, "Failed to decode protobuf"s);
         }
     }
     static NetworkResponse<Json::Value> convertToJsonResponse(const QueryResult &src) {
-        if(src.m_errCode)
-            return NetworkResponse<Json::Value>(src);
-        return parseJson(src);
+        NetworkResponse<Json::Value> ret;
+        return src.ok(&ret) ? parseJson(src) : ret;
     }
     static NetworkResponse<std::string> convertToStringResponse(const NetworkResponse<std::vector<char>> &src) {
-        NetworkResponse<std::string> ret(src);
-        if (src.m_errCode == 0)
+        NetworkResponse<std::string> ret;
+        if (src.ok(&ret))
             ret.m_T.assign(src.m_T.begin(), src.m_T.end());
         return ret;
     }
-    static NetworkResponseBase convertToVoidResponse(const NetworkResponse<std::vector<char>> &src) {
-        return NetworkResponseBase(src);
+    template<class T>
+    static NetworkResponse<void> convertToVoidResponse(const NetworkResponse<T> &src) {
+        return NetworkResponse<void>{src.m_msg, src.m_errCode};
     }
     static std::string jsonToString(const Json::Value &json) {
         return Json::FastWriter().write(json);
@@ -768,12 +770,12 @@ struct JsonWebToken : public NetworkResponseBase { //0x68 bytes
     bool parse(const std::string &jwt) {
         auto firstSep = jwt.find('.');
         if (firstSep == -1) {
-            storeError(24, "First separator not found"s);
+            storeError(NRO_JSON_WEB_TOKEN_PARSING_ERROR, "First separator not found"s);
             return false;
         }
         auto secondSep = jwt.find('.', firstSep + 1);
         if (secondSep == -1) {
-            storeError(24, "Second separator not found"s);
+            storeError(NRO_JSON_WEB_TOKEN_PARSING_ERROR, "Second separator not found"s);
             return false;
         }
         base64 payload;
@@ -848,7 +850,7 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
             m_throttlingLevel++;
             if (!m_accessToken.empty()) {
                 if (n < m_accessTokenDeathTime) {
-                    m_errCode = 0;
+                    m_errCode = NRO_OK;
                     m_msg.clear();
                 } else {
                     refreshAccessToken(conn);
@@ -858,7 +860,7 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
                 return acquireAccessToken(conn);
             }
         } else {
-            m_errCode = 429;
+            m_errCode = NRO_HTTP_STATUS_TOO_MANY_REQUESTS;
             m_msg = "Could not acquire access token due to throttling"s;
         }
         return *this;
@@ -877,7 +879,7 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
         m_oauthClient.clear();
         bool ret = m_loggedIn;
         m_loggedIn = false;
-        m_errCode = 0;
+        m_errCode = NRO_OK;
         return ret;
     }
     const NetworkResponseBase &setCredentials(const std::string &sOauth, const std::string &mail, const std::string &pwd, const std::string &oauthClient) { //vptr[15]
@@ -953,15 +955,16 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
                 m_mail.clear();
                 m_password.clear();
                 m_loggedIn = false;
-                m_oauth2.m_errCode = 401;
+                m_oauth2.m_errCode = NRO_HTTP_STATUS_UNAUTHORIZED;
             }
             return m_oauth2;
         }
-        return m_oauth2.storeError(27, "Could not acquire access token because credentials are missing"s);
+        return m_oauth2.storeError(NRO_NO_CREDENTIALS_TO_REQUEST_ACCESS_TOKEN_WITH, 
+            "Could not acquire access token because credentials are missing"s);
     }
     const NetworkResponseBase &refreshAccessToken(CurlHttpConnection *conn) {
         if (m_accessTokenInvalid || _Xtime_get_ticks() >= getRefreshToken().m_exp)
-            return m_oauth2.storeError(28, "Refresh token expired"s);
+            return m_oauth2.storeError(NRO_REFRESH_TOKEN_EXPIRED, "Refresh token expired"s);
         if (m_authUrl.empty() && !findAuthenticationServer(conn))
             return m_oauth2;
         QueryStringBuilder qsb;
@@ -972,14 +975,14 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
         auto resp = conn->performPost(m_authUrl, ContentTypeHeader(CTH_URLENC), qsb.getString(false), AcceptHeader(ATH_JSON),
             "Refresh Access Token"s, false);
         parseOauth2Credentials(HttpHelper::convertToStringResponse(resp));
-        if (resp.m_errCode == 400 || resp.m_errCode == 401 || resp.m_errCode == 403) {
+        if (resp.m_errCode == NRO_HTTP_STATUS_BAD_REQUEST || resp.m_errCode == NRO_HTTP_STATUS_UNAUTHORIZED || resp.m_errCode == NRO_HTTP_STATUS_FORBIDDEN) {
             NetworkingLogError("Error refreshing access token: [%d] %s", m_oauth2.m_errCode, m_oauth2.m_msg.c_str());
             m_accessToken.clear();
             m_accessTokenDeathTime = 0;
             m_accessTokenInvalid = true;
             m_throttlingLevel = 0;
             m_ratNextTime = 0;
-            m_oauth2.m_errCode = 401;
+            m_oauth2.m_errCode = NRO_HTTP_STATUS_UNAUTHORIZED;
         } else if (resp.m_errCode) {
             NetworkingLogError("Error refreshing access token: [%d] %s", m_oauth2.m_errCode, m_oauth2.m_msg.c_str());
         } else {
@@ -995,7 +998,7 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
     }
     bool findAuthenticationServer(CurlHttpConnection *conn) {
         conn->setRequestId(++m_reqId);
-        m_oauth2.storeError(0, nullptr);
+        m_oauth2.storeError(NRO_OK, nullptr);
         auto v6 = conn->performGet(m_apiUrl, AcceptHeader(ATH_JSON), "Find Authentication Server"s);
         auto json = HttpHelper::convertToJsonResponse(v6);
         if (json.m_errCode) {
@@ -1111,10 +1114,7 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
             m_conditionVar.notify_one();
             return res;
         } else {
-            std::promise<NetworkResponse<T>> imm_executed_task;
-            auto res = imm_executed_task.get_future();
-            imm_executed_task.set_value({ "Disconnected due to simultaneous log ins"s, 14 });
-            return res;
+            return makeNetworkResponseFuture<T>(NRO_DISCONNECTED_DUE_TO_SIMULTANEOUS_LOGINS, "Disconnected due to simultaneous log ins"s);
         }
     }
 };
@@ -1398,9 +1398,9 @@ struct AuthServerRestInvoker { //0x60 bytes
     ZwiftAuthenticationManager *m_authMgr;
     ExperimentsRestInvoker *m_expRi;
     ZwiftHttpConnectionManager *m_conn;
-    NetworkResponseBase logIn(const EncryptionOptions &encr, const std::vector<std::string> &anEventProps,
+    std::future<NetworkResponse<std::string>> logIn(const EncryptionOptions &encr, const std::vector<std::string> &anEventProps,
         const std::function<void(const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &)> &func) {
-        auto ret = m_conn->pushRequestTask(std::function<NetworkResponse<protobuf::LoginResponse>(CurlHttpConnection *)>([this, encr, anEventProps, func](CurlHttpConnection *conn) {
+        return m_conn->pushRequestTask(std::function<NetworkResponse<std::string>(CurlHttpConnection *)>([this, encr, anEventProps, func](CurlHttpConnection *conn) {
             auto sk = this->getSecretKey(encr);
             auto sid = uuid::generate_uuid_v4();
             conn->setSessionIdHeader(sid);
@@ -1414,15 +1414,13 @@ struct AuthServerRestInvoker { //0x60 bytes
                 }
                 m_authMgr->setLoggedIn(true);
                 func(ret.m_T.info(), sid, {sk, ret.m_T.relay_session_id(), ret.m_T.expiration()});
+                ret.m_msg = m_authMgr->getRefreshTokenStr();
             } else {
                 this->m_authMgr->resetCredentials();
                 NetworkingLogError("Couldn't obtain a session id from the server.");
             }
-            return ret;
+            return NetworkResponse<std::string>(ret);
         }), true, false);
-        if (ret.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
-            return ret.get();
-        return NetworkResponseBase();
     }
     AuthServerRestInvoker(const std::string &machineId, ZwiftAuthenticationManager *authMgr, ZwiftHttpConnectionManager *httpConnMgr3, ExperimentsRestInvoker *expRi, const std::string &server) : m_machineId(machineId), m_server(server), m_authMgr(authMgr), m_expRi(expRi), m_conn(httpConnMgr3) {}
     NetworkResponse<protobuf::LoginResponse> doLogIn(const std::string &sk, const std::vector<std::string> &anEventProps, CurlHttpConnection *conn) {
@@ -1472,10 +1470,9 @@ struct AuthServerRestInvoker { //0x60 bytes
         }
         return std::string();
     }
-    NetworkResponseBase logOut(const std::function<void()> &func) {
-        NetworkResponseBase ret;
-        if (m_authMgr->getLoggedIn()) {
-            auto f = m_conn->pushRequestTask(std::function<NetworkResponse<std::string>(CurlHttpConnection *)>([this, func](CurlHttpConnection *conn) {
+    std::future<NetworkResponse<std::string>> logOut(const std::function<void()> &func) {
+        return m_authMgr->getLoggedIn() ?
+            m_conn->pushRequestTask(std::function<NetworkResponse<std::string>(CurlHttpConnection *)>([this, func](CurlHttpConnection *conn) {
                 QueryStringBuilder qsb;
                 std::string url(this->m_server + "/api/users/logout"s);
                 qsb.add("grant_type"s, "refresh_token"s);
@@ -1484,17 +1481,9 @@ struct AuthServerRestInvoker { //0x60 bytes
                 auto ret = HttpHelper::convertToStringResponse(conn->performPost(url, ContentTypeHeader(CTH_URLENC), qsb.getString(false), AcceptHeader(), "Log Out"s, false));
                 this->m_authMgr->resetCredentials();
                 func();
-                /* OMIT not found how this token is used by calling side if (0 == ret.m_errCode) {
-                    return NetworkResponse<string> this->m_authMgr->getRefreshToken()
-                }*/
                 return ret;
-                }), true, false);
-            if (f.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
-                return f.get();
-        } else {
-            ret.storeError(3, "Not logged in"s);
-        }
-        return ret;
+            }), true, false) :
+            makeNetworkResponseFuture<std::string>(NRO_NOT_LOGGED_IN, "Not logged in"s);
     }
     void resetPassword(const std::string &) {
         //TODO
@@ -1507,8 +1496,6 @@ struct AuthServerRestInvoker { //0x60 bytes
         //TODO
     }
 };
-//template<class RET> <bool>()
-//sometype NetworkResponseHelper_makeNetworkResponseFuture(zwift_network::NetworkRequestOutcome, std::string)
 struct EventLoop { //0x30 bytes
     boost::asio::io_context m_asioCtx;
     std::thread m_thrd;
@@ -1546,6 +1533,24 @@ struct RelayServerRestInvoker { //0x30 bytes
             return ret;
         }), true, false);
     }
+    std::future<NetworkResponse<void>> leaveWorld(uint64_t worldId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([this](CurlHttpConnection *conn) {
+            NetworkResponse<void> ret;
+            //auto v9 = conn->performGet(this->m_relayUrl + "/tcp-config"s, AcceptHeader(ATH_PB), "TCP Config"s);
+            //HttpHelper::convertToResultResponse(&ret, v9);
+            return ret;
+        }), true, false);
+    }
+        /*
+RelayServerRestInvoker::setPhoneAddress(std::string const&,int,zwift::protobuf::IPProtocol,int,std::string const&)
+RelayServerRestInvoker::saveWorldAttribute(long,zwift::protobuf::WorldAttribute &)
+RelayServerRestInvoker::saveTimeCrossingStartLine(long,zwift::protobuf::CrossingStartingLineProto const&)
+RelayServerRestInvoker::requestHashSeeds(bool)
+RelayServerRestInvoker::refreshRelaySession(uint)
+RelayServerRestInvoker::latestPlayerState(long,long)
+RelayServerRestInvoker::getLateJoinInformation(long)
+RelayServerRestInvoker::fetchDropInWorldList(bool)
+RelayServerRestInvoker::RelayServerRestInvoker(std::shared_ptr<ZwiftHttpConnectionManager>,std::string)*/
 };
 struct HashSeedService { //0x370 bytes
     void start() {
@@ -2266,41 +2271,38 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         m_loginOK = true;
         //OMIT TelemetryService::remoteLogF(*(_DWORD **)v49, 0, 3u, "session", "Session ID %s", v58->_Bx._Buf);
     }
-    NetworkResponseBase logInWithOauth2Credentials(/*ret a2,*/ const std::string &sOauth, const std::vector<std::string> &anEventProps, const std::string &oauthClient) {
+    std::future<NetworkResponse<std::string>> logInWithOauth2Credentials(/*ret a2,*/ const std::string &sOauth, const std::vector<std::string> &anEventProps, const std::string &oauthClient) {
         if (m_authMgr && m_authInvoker) {
             auto ret = m_authMgr->setCredentialsMid(sOauth, oauthClient);
-            return ret.m_errCode ? ret :
+            return ret.m_errCode ? makeNetworkResponseFuture<std::string>(ret.m_errCode, std::move(ret.m_msg)) :
                 m_authInvoker->logIn({ m_nco.m_disableEncr, m_nco.m_disableEncryptionWithServer, m_nco.m_ignoreEncryptionFeatureFlag, m_nco.m_secretKeyBase64 },
                     anEventProps, 
                     [this](const protobuf::PerSessionInfo &psi, const std::string &str, const EncryptionInfo &ei) { onLoggedIn(psi, str, ei); });
         }
-        return NetworkResponseBase{ "Initialize CNL first"s, 2 };
+        return makeNetworkResponseFuture<std::string>(NRO_NOT_INITIALIZED, "Initialize CNL first"s);
     }
-    NetworkResponseBase logInWithEmailAndPassword(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient) {
+    std::future<NetworkResponse<std::string>> logInWithEmailAndPassword(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient) {
         if (m_authMgr && m_authInvoker) {
             m_authMgr->setCredentialsOld(email, pwd, oauthClient);
             if (reserved)
-                return NetworkResponseBase{ "Good luck, soldier"s, 4 };
+                return makeNetworkResponseFuture<std::string>(NRO_NO_LOG_IN_ATTEMPTED, "Good luck, soldier"s);
             else
                 return m_authInvoker->logIn(
                     { m_nco.m_disableEncr, m_nco.m_disableEncryptionWithServer, m_nco.m_ignoreEncryptionFeatureFlag, m_nco.m_secretKeyBase64},
-                    anEventProps, [this](const protobuf::PerSessionInfo &psi, const std::string &str, const EncryptionInfo &ei) { onLoggedIn(psi, str, ei); });
+                    anEventProps, [this](const protobuf::PerSessionInfo &psi, const std::string &str, const EncryptionInfo &ei) { 
+                        onLoggedIn(psi, str, ei); 
+                    });
         }
-        return NetworkResponseBase{ "Initialize CNL first"s, 2 };
+        return makeNetworkResponseFuture<std::string>(NRO_NOT_INITIALIZED, "Initialize CNL first"s);
     }
-    NetworkResponseBase logOut() {
+    std::future<NetworkResponse<std::string>> logOut() {
         if (m_initOK) {
             shutdownTcpClient();
             if (m_loginOK) {
                 auto WorldId = m_globalState->getWorldId();
                 if (WorldId > 0) {
-                    /*TODO auto v5 = m_relay->leaveWorld((__int64)&v14, WorldId);
-                    v6 = *(_BYTE **)v5;
-                    if (!*(_QWORD *)v5 || *(_BYTE *)(v5 + 8) && v6[200]) {
-                        error_code = (const struct std::error_code *)std::make_error_code(&v12, 4i64);
-                        std::_Throw_future_error(error_code);
-                    } //looks like wait on future v5
-                    (*(void(__fastcall **)(_BYTE *))(*(_QWORD *)v6 + 8i64))(v6);*/
+                    auto v5 = m_relay->leaveWorld(WorldId);
+                    v5.wait();
                 }
                 m_globalState->setWorldId(0);
             }
@@ -2323,7 +2325,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
                 NetworkingLogInfo("Logged out");
                 });
         }
-        return NetworkResponseBase{ "Initialize CNL first"s, 2 };
+        return makeNetworkResponseFuture<std::string>(NRO_NOT_INITIALIZED, "Initialize CNL first"s);
     }
     void shutdownServiceEventLoop() {
         if (m_evLoop) {
@@ -2339,7 +2341,7 @@ void NetworkClient::globalCleanup() { curl_global_cleanup(); }
 void NetworkClient::initialize(const std::string &server, const std::string &certs, const std::string &version) {
     m_pImpl->initialize(server, certs, version);
 }
-NetworkResponseBase NetworkClient::logOut() { return m_pImpl->logOut(); }
+std::future<NetworkResponse<std::string>> NetworkClient::logOut() { return m_pImpl->logOut(); }
 namespace zwift_network {
 void get_goals(int64_t playerId) { 
     //TODO
@@ -2347,7 +2349,7 @@ void get_goals(int64_t playerId) {
 void save_goal(const protobuf::Goal &g) {
     //TODO
 }
-NetworkResponseBase log_out() { return g_networkClient->logOut(); }
+std::future<NetworkResponse<std::string>> log_out() { return g_networkClient->logOut(); }
 }
 bool initialize_zwift_network(const std::string &server, const std::string &certs, const std::string &version) {
     NetworkClient::globalInitialize();
@@ -2423,8 +2425,8 @@ GlobalState::GlobalState(EventLoop *el, const protobuf::PerSessionInfo &psi, con
     v11[1] = v11;
     this->field_3C0 = v11;*/
 }
-NetworkResponseBase NetworkClient::logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &anEventProps, const std::string &oauthClient) { return m_pImpl->logInWithOauth2Credentials(sOauth, anEventProps, oauthClient); }
-NetworkResponseBase NetworkClient::logInWithEmailAndPassword(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient) { return m_pImpl->logInWithEmailAndPassword(email, pwd, anEventProps, reserved, oauthClient); }
+std::future<NetworkResponse<std::string>> NetworkClient::logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &anEventProps, const std::string &oauthClient) { return m_pImpl->logInWithOauth2Credentials(sOauth, anEventProps, oauthClient); }
+std::future<NetworkResponse<std::string>> NetworkClient::logInWithEmailAndPassword(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient) { return m_pImpl->logInWithEmailAndPassword(email, pwd, anEventProps, reserved, oauthClient); }
 void GlobalState::registerUdpConfigListener(UdpConfigListener *lis) {
     m_evloop->post([this, lis]() {
         this->m_ucLis += lis;
@@ -2512,27 +2514,51 @@ TEST(SmokeTest, DISABLED_LoginTestPwd) {
     {
         NetworkClient tmp;
         auto ret0 = tmp.logInWithEmailAndPassword(""s, ""s, v, false, "Game_Launcher"s);
-        EXPECT_EQ(2, ret0.m_errCode) << ret0.m_msg;
+        EXPECT_TRUE(ret0.valid());
+        EXPECT_EQ(std::future_status::ready, ret0.wait_for(std::chrono::seconds(0)));
+        auto r0 = ret0.get();
+        EXPECT_EQ(2, r0.m_errCode) << r0.m_msg;
+        EXPECT_EQ("Initialize CNL first"s, r0.m_msg);
     }
     ZNETWORK_Initialize();
     ZMUTEX_SystemInitialize();
     LogInitialize();
     EXPECT_FALSE(ZNETWORK_IsLoggedIn());
     auto ret2 = zwift_network::log_out();
-    EXPECT_EQ(3, ret2.m_errCode) << ret2.m_msg;
+    EXPECT_TRUE(ret2.valid());
+    EXPECT_EQ(std::future_status::ready, ret2.wait_for(std::chrono::seconds(0)));
+    auto r2 = ret2.get();
+    EXPECT_EQ(3, (int)r2.m_errCode) << r2.m_msg;
+    EXPECT_EQ("Not logged in"s, r2.m_msg);
     auto ret1 = g_networkClient->logInWithEmailAndPassword(""s, ""s, v, true, "Game_Launcher"s);
-    EXPECT_EQ(4, ret1.m_errCode) << ret1.m_msg;
+    EXPECT_TRUE(ret1.valid());
+    EXPECT_EQ(std::future_status::ready, ret1.wait_for(std::chrono::seconds(0)));
+    auto r1 = ret1.get();
+    EXPECT_EQ(4, (int)r1.m_errCode) << r1.m_msg;
+    EXPECT_EQ("Good luck, soldier"s, r1.m_msg);
     auto ret = g_networkClient->logInWithEmailAndPassword("olyen2007@gmail.com"s, "123"s, v, false, "Game_Launcher"s);
-    EXPECT_EQ(0, ret.m_errCode) << ret.m_msg;
+    EXPECT_TRUE(ret.valid());
     while (!ZNETWORK_IsLoggedIn())
         Sleep(100);
+    EXPECT_TRUE(ret.valid());
+    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::seconds(0)));
+    auto r = ret.get();
+    EXPECT_EQ(0, (int)r.m_errCode) << r.m_msg;
+    //zoffline has no fantasy
+    EXPECT_EQ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjV8ODU0Mjc1MjBmOTQ5MjQxMThkZjc1YjhhNDc5ZmIzN2ZlY2I3MjEwODU1YzFkYTgxOWE1Yzk4Y2U1Yjk1OTVjZTVmNzgyOGYwNzMwMzQ4YmM4MmRhY2U0ZjM3NWU4OGUxNTUxZjg1ZWEzY2FkMjM3M2RmMDRhYzNlMGJjOTg4YzYifQ.ZB87s5lo7jde09q9IKsFCWc22U65kroBYz0aVb46Lmk"s, r.m_msg);
     ret = zwift_network::log_out();
-    EXPECT_EQ(0, ret.m_errCode) << ret.m_msg;
+    EXPECT_TRUE(ret.valid());
     while (ZNETWORK_IsLoggedIn())
         Sleep(100);
+    EXPECT_TRUE(ret.valid());
+    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::seconds(0)));
+    r = ret.get();
+    EXPECT_EQ(0, r.m_errCode) << r.m_msg;
+    EXPECT_EQ(""s, r.m_msg);
 }
 TEST(SmokeTest, DISABLED_LoginTestToken) {
-    auto token = "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ._kPfXO8MdM7j0meG4MVzprSa-3pdQqKyzYMHm4d494w\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ.5e1X1imPlVfXfhDHE_OGmG9CNGvz7hpPYPXcNkPJ5lw\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}"s;
+    auto rt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ.5e1X1imPlVfXfhDHE_OGmG9CNGvz7hpPYPXcNkPJ5lw"s;
+    auto token = "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ._kPfXO8MdM7j0meG4MVzprSa-3pdQqKyzYMHm4d494w\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\""s + rt + "\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}"s;
     g_MainThread = GetCurrentThreadId();
     ZNETWORK_Initialize();
     ZMUTEX_SystemInitialize();
@@ -2540,9 +2566,14 @@ TEST(SmokeTest, DISABLED_LoginTestToken) {
     EXPECT_FALSE(ZNETWORK_IsLoggedIn());
     std::vector<std::string> v{"OS"s, "Windows"s};
     auto ret = g_networkClient->logInWithOauth2Credentials(token, v, "Game_Launcher"s);
-    EXPECT_EQ(0, ret.m_errCode) << ret.m_msg;
+    EXPECT_TRUE(ret.valid());
     while(!ZNETWORK_IsLoggedIn())
         Sleep(100);
+    EXPECT_TRUE(ret.valid());
+    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::seconds(0)));
+    auto r = ret.get();
+    EXPECT_EQ(0, r.m_errCode) << r.m_msg;
+    EXPECT_EQ(rt, r.m_msg);
 }
 TEST(SmokeTest, B64) {
     base64 obj;
