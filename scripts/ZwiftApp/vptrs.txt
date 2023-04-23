@@ -1,0 +1,52 @@
+﻿ZwiftAuthenticationManager vptrs:
+dtr: vptr[0]
+isAccessTokenInvalidOrExpired: vptr[1] (+8)
+getAccessTokenHeader: vptr[2] (+16)
+getRefreshTokenStr: vptr[3]
+getRefreshToken: vptr[4]
+getSessionStateFromToken: vptr[5]
+getSubjectFromToken: vptr[6]
+getOauthClient: vptr[7]
+setLoggedIn: vptr[8]
+getLoggedIn: vptr[9]
+attendToAccessToken: vptr[10]
+setRequestId: vptr[11]
+getRequestId: vptr[12]
+setAccessTokenAsExpired: vptr[13]
+resetCredentials: vptr[14]
+setCredentials: 15
+setCredentialsOld 16
+setCredentialsMid 17
+
+CurlHttpConnection vptrs:
+dtr: vptr[0]
+setAuthorizationHeader 1
+clearAuthorizationHeader 2
+setTokenInfo 3
+clearTokenInfo 4
+setSessionIdHeader 5
+setRequestId 6
+setTimeout 7
+getTimeout 8
+setUploadTimeout 9
+performGet 10
+performDelete 11
+performPost(vec) 12,13
+performPost(str) 14
+performPost 15
+performPostWithTimeout 16
+performPostWithHash 17
+performPut ct,at 18
+performPut ct 19
+performPut ac 20
+performPutOrPost 21
+performPutOrPost 22
+escapeUrl 23
+
+std::_Associated_state (=std::future)
+dtr: 0
+_Wait(void): 1
+Get_value(bool): 2
+Has_deferred_function(void): 3
+Run_deferred_function(class std::unique_lock<class std::mutex> &): 4
+Do_notify(class std::unique_lock<class std::mutex> *,bool): 5

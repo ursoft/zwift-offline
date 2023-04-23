@@ -8,6 +8,8 @@
 #include "PerSessionInfo.pb.h"
 #include "Login.pb.h"
 #include "SegmentResults.pb.h"
+#include "UdpConfig.pb.h"
+#include "PlayerState.pb.h"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL

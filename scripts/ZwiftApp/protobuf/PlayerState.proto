@@ -1,0 +1,54 @@
+syntax = "proto2";
+package protobuf;
+import "Profile.proto";
+message PlayerState {
+    optional int64 id = 1;
+    optional int64 world_time = 2; // milliseconds
+    optional int32 distance = 3;  // meters
+    optional int32 road_time = 4;  // 1/100 sec
+    optional int32 laps = 5;
+    optional uint32 speed = 6;    // millimeters per hour
+    optional uint32 ps_f7 = 7;
+    optional int32 road_position = 8;
+    optional int32 cadence_uhz = 9; // =(cad / 60) * 1000000
+    optional int32 ps_f10 = 10; // BikeEntity.field_B58; 0 - ETA related (something around speed)
+    optional int32 heartrate = 11;
+    optional int32 power = 12;
+    optional int64 heading = 13;
+    optional int64 lean = 14;
+    optional int32 climbing = 15; // meters
+    optional int32 time = 16;     // seconds
+    optional int32 ps_f17 = 17;
+    optional uint32 frameHue = 18; // BikeEntity::DrawBike m_frameHue * 255.0
+    //field 19:
+    //byte[0].bits[0,1]: HasPowerMeter, HasPhoneConnected
+    //byte[0].bits[2,3]: RoadDirectionForward, ??? !BikeEntity.field_DCC || BikeEntity.disSteer
+    //byte[0].bits[4]: read in BikeEntity::ProcessNewPacket, steering-related
+    //byte[1]: =0 ???
+    //byte[2]: fallback course/getMapRevisionId
+    //byte[3]: realRideons (not counted yet in BikeEntity::m_rideons) @ BikeEntity::UpdateRideOns, see also BikeEntity::Update
+    optional uint32 f19 = 19;
+    //ZNETWORK_SerializeAux3: low 4 bits=POWERUP_TYPE; next 4 bits: BikeEntity.field_2B14+1; next 8 bits: road_id
+    // BikeEntity.field_2b16: true-> |= 0x2000000, false-> |= 0x1000000 (bits 24-25)
+    // bit 28: EbikeBoost::GetActiveBoostOption
+    optional uint32 aux3 = 20;
+    optional uint32 progress = 21; // WorkoutMode = progress & 0xF, up to 7 including (workoutPhaseType+1 or 0)
+    optional int64 customization_id = 22;
+    optional bool just_watching = 23;
+    optional int32 calories = 24;
+    optional float x = 25;
+    optional float y_altitude = 26;
+    optional float z = 27;
+    optional int64 watching_rider_id = 28;
+    optional int64 group_id = 29;
+    // 30 absent at least in Android Game
+    optional Sport sport = 31;
+    optional float ps_f32 = 32;
+    optional uint32 ps_f33 = 33;
+    optional float dist_lat = 34; //= BikeEntity.field_F00 (=219.56387 and incr if moving: actual distance moved included lateral movement)
+    optional int32 world = 35;
+    optional uint32 ps_f36 = 36; // = f(BikeEntity.field_2a28) BikeEntity::CreateNewPacket
+    optional uint32 ps_f37 = 37; // = f(BikeEntity.field_2a28) BikeEntity::CreateNewPacket
+    optional bool can_steer = 38; // = BikeEntity.m_canSteer
+    optional int32 route = 39;
+}

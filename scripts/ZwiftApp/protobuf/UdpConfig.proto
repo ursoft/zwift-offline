@@ -1,0 +1,30 @@
+syntax = "proto2";
+package protobuf;
+message RelayAddress {
+    optional int32 lb_realm = 1;  // load balancing cluster: server realm or 0 (generic)
+    optional int32 lb_course = 2; // load balancing cluster: course id
+    optional string ip = 3;
+    optional int32 port = 4;
+    optional float ra_f5 = 5; //used when appropriate server selection occurs (RelayAddressService::getAddress)
+    optional float ra_f6 = 6; //used when appropriate server selection occurs (RelayAddressService::getAddress)
+}
+message UdpConfig {
+    repeated RelayAddress relay_addresses = 1;
+    optional int32 uc_f2 = 2; //=10?
+    optional int32 uc_f3 = 3; //=30?
+    optional int32 uc_f4 = 4; //=3?
+}
+message RelayAddressesVOD {
+    optional int32 lb_realm = 1;  // load balancing cluster: server realm or 0 (generic)
+    optional int32 lb_course = 2; // load balancing cluster: course id
+    repeated RelayAddress relay_addresses = 3;
+    optional bool rav_f4 = 4; //server selection method: true->higher (ra_f5, ra_f6), false->nearest (ra_f5, ra_f6)
+}
+message UdpConfigVOD {
+    repeated RelayAddressesVOD relay_addresses_vod = 1;
+    optional int32 port = 2;
+    optional int64 ucv_f3 = 3;
+    optional int64 ucv_f4 = 4;
+    optional float ucv_f5 = 5;
+    optional float ucv_f6 = 6;
+}

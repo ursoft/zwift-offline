@@ -52,6 +52,8 @@ namespace zwift_network {
     void get_goals(int64_t playerId);
     void save_goal(const protobuf::Goal &);
     std::future<NetworkResponse<std::string>> log_out();
+    std::future<NetworkResponse<void>> reset_password(const std::string &newPwd);
+    std::future<NetworkResponse<protobuf::PlayerState>> latest_player_state(int64_t worldId, int64_t playerId);
 }
 struct NetworkClient {
     NetworkClientImpl *m_pImpl;
@@ -63,6 +65,8 @@ struct NetworkClient {
     std::future<NetworkResponse<std::string>> logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &a4, const std::string &oauthClient);
     std::future<NetworkResponse<std::string>> logInWithEmailAndPassword(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient);
     std::future<NetworkResponse<std::string>> logOut();
+    std::future<NetworkResponse<void>> resetPassword(const std::string &newPwd);
+    std::future<NetworkResponse<protobuf::PlayerState>> latestPlayerState(int64_t worldId, int64_t playerId);
 };
 namespace ZNet {
     struct Error {

@@ -49,10 +49,11 @@ void doFrameWorldID(zwiftUpdateContext *ptr);
 //TODO: global variables ctrs/dtrs: _initterm, some_global_ctr
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd) {
     non_zwift::ConsoleHandler nz_ch(1024);
+    bool testsResult = true;
     if (auto ut = getenv("ZWIFT_UT"); ut && *ut == '1')
-        nz_ch.LaunchUnitTests(__argc, __argv);
+        testsResult = nz_ch.LaunchUnitTests(__argc, __argv);
     if (auto zg = getenv("ZWIFT_GAME"); zg != nullptr && *zg == '0')
-        return 0;
+        return testsResult ? 0 : 1;
     CheckEnvironment();
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_ZWIFTAPP, szWindowClass, MAX_LOADSTRING);
@@ -313,9 +314,9 @@ TEST(SmokeTest, Linkage) {                                        //testing if l
     EXPECT_TRUE(g_memSettings.pfAllocVM != nullptr) << "AK::MemoryMgr";
 
     protobuf::FeatureRequest fr; //Google protobuf
-    fr.set_user_id(123);
+    fr.set_f2("123");
     auto bs = fr.ByteSize();
-    EXPECT_EQ(2, bs) << "protobuf::ByteSize";
+    EXPECT_EQ(5, bs) << "protobuf::ByteSize";
 
     boost::asio::io_context        io_context; //boost ASIO, openssl
     boost::asio::ip::tcp::resolver resolver(io_context);

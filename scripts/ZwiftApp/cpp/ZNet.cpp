@@ -435,8 +435,6 @@ struct CurlHttpConnection {
             long v59 = 0;
             curl_easy_getinfo(m_curl, CURLINFO_RESPONSE_CODE, &v59);
             //OMIT HttpStatistics::enqueueEndpointEvent(m_stat->field_0, descr, this->m_requestId, (int)v59, 0, v51);
-            //v65 = v14 = v15 = operator new(0x28ui64), std::_Ref_count_obj2<std::vector<char>>::`vftable'
-            //v64 = v16 = v15.vec
             NetworkRequestOutcome v31 = NRO_HTTP_STATUS_SERVICE_UNAVAILABLE;
             switch (v59) {
             case 200: case 201: case 202: case 203: case 204: case 205: case 206:
@@ -598,10 +596,14 @@ struct ServiceListeners {
     ServiceListeners &operator +=(T *obj) { m_rwqAdded.enqueue(obj); return *this; }
     ServiceListeners &operator -=(T *obj) { m_rwqRemoved.enqueue(obj); return *this; }
 };
-struct UdpConfigListener {};
-struct EncryptionListener {};
+struct UdpConfigListener {
+    virtual void handleUdpConfigChange(const protobuf::UdpConfigVOD &uc, uint64_t a3) = 0;
+};
+struct EncryptionListener {
+    virtual void handleEncryptionChange(const EncryptionInfo &ei) = 0;
+};
 struct WorldIdListener {
-    virtual void handleWorldIdChange(uint64_t worldId) = 0;
+    virtual void handleWorldIdChange(int64_t worldId) = 0;
 };
 struct WorldAttributeServiceListener {};
 struct GlobalState { //0x530 bytes
@@ -613,6 +615,7 @@ struct GlobalState { //0x530 bytes
     std::string m_sessionInfo;
     EncryptionInfo m_ei;
     uint64_t m_worldId = 0, m_playerId = 0, m_time;
+    std::mutex m_mutex;
     bool m_shouldUseEncryption;
     GlobalState(EventLoop *, const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &);
     bool shouldUseEncryption() { return m_shouldUseEncryption; }
@@ -620,16 +623,15 @@ struct GlobalState { //0x530 bytes
     void registerEncryptionListener(EncryptionListener *lis);
     void registerWorldIdListener(WorldIdListener *lis);
     std::string getSessionInfo() { return m_sessionInfo; }
+    const protobuf::PerSessionInfo &getPerSessionInfo() { return m_psi; }
     uint64_t getWorldId() { return m_worldId; }
-    void setWorldId(uint64_t worldId);
+    void setWorldId(int64_t worldId);
     bool isInWorld() { return m_worldId != 0; }
     uint64_t getPlayerId() { return m_playerId; }
     void setPlayerId(uint64_t newVal) { m_playerId = newVal; }
-/*
-GlobalState::setUdpConfig(zwift::protobuf::UdpConfigVOD const&,ulong)
-GlobalState::setEncryptionInfo(GlobalState::EncryptionInfo const&)
-GlobalState::getPerSessionInfo(void)
-GlobalState::getEncryptionInfo(void)*/
+    EncryptionInfo getEncryptionInfo() { std::lock_guard l(m_mutex); return m_ei; }
+    void setEncryptionInfo(const EncryptionInfo &ei);
+    void setUdpConfig(const protobuf::UdpConfigVOD &a2, uint64_t a3);
 };
 static const int B64index[256] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -713,25 +715,27 @@ namespace HttpHelper {
         }
         return ret;
     }
-    void protobufToCharVector(std::vector<char> *dest, google::protobuf::MessageLite &src) {
+    void protobufToCharVector(std::vector<char> *dest, const google::protobuf::MessageLite &src) {
         auto size = src.ByteSize();
         dest->resize(size);
         if (!src.SerializeToArray(dest->data(), size))
             LogDebug("Failed to encode protobuf.");
     }
     template <class RET>
-    static void convertToResultResponse(NetworkResponse<RET> *ret, const QueryResult &queryResult) {
+    static NetworkResponse<RET> convertToResultResponse(const QueryResult &queryResult) {
+        NetworkResponse<RET> ret;
         if (queryResult.m_errCode) {
             protobuf::ZErrorMessageProtobuf v40;
-            ret->m_errCode = queryResult.m_errCode;
+            ret.m_errCode = queryResult.m_errCode;
             if (v40.ParseFromString(queryResult.m_msg) && v40.message().length())
-                ret->m_msg = v40.message();
+                ret.m_msg = v40.message();
             else
-                ret->m_msg = queryResult.m_msg;
+                ret.m_msg = queryResult.m_msg;
         } else {
-            if (!ret->m_T.ParseFromArray(queryResult.m_T.data(), queryResult.m_T.size()))
-                ret->storeError(NRO_PROTOBUF_FAILURE_TO_DECODE, "Failed to decode protobuf"s);
+            if (!ret.m_T.ParseFromArray(queryResult.m_T.data(), queryResult.m_T.size()))
+                ret.storeError(NRO_PROTOBUF_FAILURE_TO_DECODE, "Failed to decode protobuf"s);
         }
+        return ret;
     }
     static NetworkResponse<Json::Value> convertToJsonResponse(const QueryResult &src) {
         NetworkResponse<Json::Value> ret;
@@ -990,12 +994,6 @@ struct ZwiftAuthenticationManager : public NetworkResponseBase { //0x118 bytes, 
         }
         return m_oauth2;
     }
-    void clearEmailAndPassword() {
-        //TODO
-    }
-    void clearTokenHeaders() {
-        //TODO
-    }
     bool findAuthenticationServer(CurlHttpConnection *conn) {
         conn->setRequestId(++m_reqId);
         m_oauth2.storeError(NRO_OK, nullptr);
@@ -1027,7 +1025,6 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
     using task_t = std::packaged_task<NetworkResponseBase(CurlHttpConnection *, bool)>;
     struct RequestTaskContext : public task_t {
         using task_t::task_t;
-        //TODO
         bool m_secured = false;
     };
     std::queue<RequestTaskContext> m_rtq;
@@ -1053,36 +1050,36 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
     void worker(uint32_t a2) override {
         auto conn = m_curlf->instance(m_certs, m_ncoSkipCertCheck, false, m_ncoTimeoutSec, m_ncoUploadTimeoutSec, m_hrm);
         while (a2 < m_nThreads) {
-            std::unique_lock<std::mutex> lock(m_mutex);
-            m_conditionVar.wait(lock, [this] { return !this->m_needNewAcToken && !this->m_rtq.empty(); });
+            RequestTaskContext task;
+            {
+                std::unique_lock<std::mutex> lock(m_mutex);
+                m_conditionVar.wait(lock, [this] { return !this->m_needNewAcToken && !this->m_rtq.empty(); });
+                task = std::move(m_rtq.front());
+                m_rtq.pop();
+            }
             conn->clearAuthorizationHeader();
             conn->clearTokenInfo();
             bool needNewAcToken = false;
-            RequestTaskContext task;
-            {
-                task = std::move(m_rtq.front());
-                if (task.m_secured) {
-                    if (m_authMgr->isAccessTokenInvalidOrExpired()) {
-                        m_needNewAcToken = true;
-                        needNewAcToken = true;
-                    } else {
-                        conn->setAuthorizationHeader(m_authMgr->getAccessTokenHeader());
-                        conn->setTokenInfo(m_authMgr->getSessionStateFromToken(), m_authMgr->getSubjectFromToken());
-                    }
+            if (task.m_secured) {
+                if (m_authMgr->isAccessTokenInvalidOrExpired()) {
+                    m_needNewAcToken = true;
+                    needNewAcToken = true;
+                } else {
+                    conn->setAuthorizationHeader(m_authMgr->getAccessTokenHeader());
+                    conn->setTokenInfo(m_authMgr->getSessionStateFromToken(), m_authMgr->getSubjectFromToken());
                 }
-#if 0 //OMIT
-                v17 = Stopwatch::elapsed(&a1->m_rtq.Map[a1->m_rtq.Myoff & (a1->m_rtq.Mapsize - 1)][1].field_0[7], &v49);
-                HttpStatistics::addWaitingTime(v6, *v17);
-                std::numpunct<unsigned short>::_Init(p_Ptr);
-#endif
-                m_rtq.pop();
-                conn->setTimeout(m_ncoTimeoutSec);
-                conn->setUploadTimeout(m_ncoUploadTimeoutSec);
-                if (m_gs)
-                    conn->setSessionIdHeader(m_gs->getSessionInfo());
-                else
-                    conn->setSessionIdHeader("");
             }
+#if 0 //OMIT
+            v17 = Stopwatch::elapsed(&a1->m_rtq.Map[a1->m_rtq.Myoff & (a1->m_rtq.Mapsize - 1)][1].field_0[7], &v49);
+            HttpStatistics::addWaitingTime(v6, *v17);
+            std::numpunct<unsigned short>::_Init(p_Ptr);
+#endif
+            conn->setTimeout(m_ncoTimeoutSec);
+            conn->setUploadTimeout(m_ncoUploadTimeoutSec);
+            if (m_gs)
+                conn->setSessionIdHeader(m_gs->getSessionInfo());
+            else
+                conn->setSessionIdHeader("");
             task(conn, needNewAcToken);
         }
     }
@@ -1117,6 +1114,10 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
             return makeNetworkResponseFuture<T>(NRO_DISCONNECTED_DUE_TO_SIMULTANEOUS_LOGINS, "Disconnected due to simultaneous log ins"s);
         }
     }
+    //TODO or OMIT template<class T1, T2> //OMIT T1=model::WorkoutsFromPartner, T2=model::Workout
+    //std::future<?> pushComposableRequestTask<std::vector<T1>, std::multiset<T2>>(
+    //    RequestTaskComposer<std::vector<T1>, std::multiset<T2>>::Composable,
+    //    std::function<NetworkResponse<std::multiset<T1>>(HttpConnection &)> &, bool, bool)
 };
 struct EncryptionOptions {
     bool m_disableEncr, m_disableEncrWithServer, m_ignoreEncrFeatureFlag;
@@ -1393,6 +1394,31 @@ struct ZcClientCodec : public Codec {
     }
 };
 }
+struct ExperimentsRestInvoker { //0x30 bytes
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_expUrl;
+    ExperimentsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &expUrl) : m_mgr(mgr), m_expUrl(expUrl) {}
+    std::future<NetworkResponse<protobuf::FeatureResponse>> getFeatureResponse(const protobuf::FeatureRequest &rq) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::FeatureResponse>(CurlHttpConnection *)>([this, rq](CurlHttpConnection *conn) {
+            NetworkResponse<protobuf::FeatureResponse> ret;
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, rq);
+            auto v9 = conn->performPost(this->m_expUrl + "/experimentation/v1/variant"s, ContentTypeHeader(CTH_PB), payload,
+                AcceptHeader(ATH_PB), "Get Feature Response"s, false);
+            return HttpHelper::convertToResultResponse<protobuf::FeatureResponse>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::FeatureResponse>> getFeatureResponseByMachineId(const protobuf::FeatureRequest &rq) { /*QUEST: notused*/
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::FeatureResponse>(CurlHttpConnection *)>([this, rq](CurlHttpConnection *conn) {
+            NetworkResponse<protobuf::FeatureResponse> ret;
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, rq);
+            auto v9 = conn->performPost(this->m_expUrl + "/experimentation/v1/machine-id-variant"s, ContentTypeHeader(CTH_PB), payload,
+                AcceptHeader(ATH_PB), "Get Feature Response By Machine ID"s, false);
+            return HttpHelper::convertToResultResponse<protobuf::FeatureResponse>(v9);
+        }), true, false);
+    }
+};
 struct AuthServerRestInvoker { //0x60 bytes
     const std::string &m_machineId, &m_server;
     ZwiftAuthenticationManager *m_authMgr;
@@ -1424,7 +1450,6 @@ struct AuthServerRestInvoker { //0x60 bytes
     }
     AuthServerRestInvoker(const std::string &machineId, ZwiftAuthenticationManager *authMgr, ZwiftHttpConnectionManager *httpConnMgr3, ExperimentsRestInvoker *expRi, const std::string &server) : m_machineId(machineId), m_server(server), m_authMgr(authMgr), m_expRi(expRi), m_conn(httpConnMgr3) {}
     NetworkResponse<protobuf::LoginResponse> doLogIn(const std::string &sk, const std::vector<std::string> &anEventProps, CurlHttpConnection *conn) {
-        NetworkResponse<protobuf::LoginResponse> ret;
         std::string LogInV2;
         auto url = m_server + "/api/users/login"s;
         protobuf::LoginRequest lr;
@@ -1450,8 +1475,7 @@ struct AuthServerRestInvoker { //0x60 bytes
         HttpHelper::protobufToCharVector(&payload, lr);
         auto v42 = conn->performPost(url, ContentTypeHeader(ct), payload, 
             AcceptHeader(ATH_PB), LogInV2, false);
-        HttpHelper::convertToResultResponse(&ret, v42);
-        return ret;
+        return HttpHelper::convertToResultResponse<protobuf::LoginResponse>(v42);
     }
     std::string getSecretKey(const EncryptionOptions &eo) {
         if (!eo.m_disableEncrWithServer && shouldEnableEncryptionBasedOnFeatureFlag(eo)) {
@@ -1485,16 +1509,49 @@ struct AuthServerRestInvoker { //0x60 bytes
             }), true, false) :
             makeNetworkResponseFuture<std::string>(NRO_NOT_LOGGED_IN, "Not logged in"s);
     }
-    void resetPassword(const std::string &) {
-        //TODO
+    std::future<NetworkResponse<void>> resetPassword(const std::string &newPwd) { //not implemented in ZA for Windows, but we can try to implement
+        return m_conn->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([this](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            std::string url(this->m_server + "/api/users/reset-password-email"s);
+            qsb.add("client_id"s, conn->escapeUrl(this->m_authMgr->getOauthClient()));
+            auto ret = HttpHelper::convertToVoidResponse(conn->performPost(url, ContentTypeHeader(CTH_URLENC), qsb.getString(false), AcceptHeader(), "Reset Password"s, false));
+            this->m_authMgr->resetCredentials();
+            return ret;
+        }), false, true);
     }
-    bool shouldEnableEncryptionBasedOnFeatureFlag(const EncryptionOptions &) {
-        //TODO
-        return true;
+    bool shouldEnableEncryptionBasedOnFeatureFlag(const EncryptionOptions &eo) {
+        if (!m_expRi)
+            return false;
+        if (eo.m_ignoreEncrFeatureFlag) {
+            NetworkingLogDebug("Ignore Encryption feature flag and enable encryption");
+            return true;
+        }
+        bool ret = false, disable_encryption_bypass = true;
+        protobuf::FeatureRequest v49;
+        *v49.mutable_params()->add_param() = "game_1_26_2_data_encryption"s;
+        *v49.mutable_params()->add_param() = "game_1_27_0_disable_encryption_bypass"s;
+        auto respFuture = m_expRi->getFeatureResponse(v49);
+        auto resp = respFuture.get();
+        if (resp.m_errCode != NRO_OK) {
+            NetworkingLogDebug("Failed to check encryption feature flags: %d [%s]", resp.m_errCode, resp.m_msg.c_str());
+        } else {
+            for (auto &i : resp.m_T.variants()) {
+                if (i.name() == "game_1_26_2_data_encryption"s) {
+                    ret = i.value();
+                    NetworkingLogDebug("game_1_26_2_data_encryption: %s", ret ? "true" : "false");
+                } else if (i.name() == "game_1_27_0_disable_encryption_bypass"s) {
+                    disable_encryption_bypass = i.value();
+                    NetworkingLogDebug("game_1_27_0_disable_encryption_bypass: %s", disable_encryption_bypass ? "true" : "false");
+                }
+            }
+        }
+        if (eo.m_disableEncr && !disable_encryption_bypass) {
+            NetworkingLogDebug("Encryption disabled by option");
+            ret = false;
+        }
+        return ret;
     }
-    ~AuthServerRestInvoker() {
-        //TODO
-    }
+    ~AuthServerRestInvoker() {}
 };
 struct EventLoop { //0x30 bytes
     boost::asio::io_context m_asioCtx;
@@ -1520,6 +1577,15 @@ struct WorldClockService { //0x2120 bytes
     WorldClockService(EventLoop *el, NetworkClockService *ncs) {
         //TODO
     }
+    /* TODO
+    void adjustClock(long,long)
+    void calculateOneLegLatency(zwift::protobuf::ServerToClient const&,long &,long &)
+    void getRoundTripLatencyInMilliseconds(void)
+    void getWorldTime(void)
+    void handleServerToClient(zwift::protobuf::ServerToClient const&)
+    void isInitialized(void)
+    void shouldSetClock(ulong)
+    void storeSequenceNumberSendTime(uint)    */
 };
 struct RelayServerRestInvoker { //0x30 bytes
     ZwiftHttpConnectionManager *m_mgr;
@@ -1529,25 +1595,34 @@ struct RelayServerRestInvoker { //0x30 bytes
         return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::TcpConfig>(CurlHttpConnection *)>([this](CurlHttpConnection *conn) {
             NetworkResponse<protobuf::TcpConfig> ret;
             auto v9 = conn->performGet(this->m_relayUrl + "/tcp-config"s, AcceptHeader(ATH_PB), "TCP Config"s);
-            HttpHelper::convertToResultResponse(&ret, v9);
-            return ret;
+            return HttpHelper::convertToResultResponse<protobuf::TcpConfig>(v9);
+            }), true, false);
+    }
+    std::future<NetworkResponse<void>> leaveWorld(int64_t worldId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([this, worldId](CurlHttpConnection *conn) {
+            std::string url(m_relayUrl);
+            url += "/worlds/"s + std::to_string(worldId) + "/leave"s;
+            auto v9 = conn->performPost(this->m_relayUrl + "/tcp-config"s, ContentTypeHeader(CTH_JSON), ""s,
+                AcceptHeader(ATH_JSON), "Leave World"s, false);
+            return HttpHelper::convertToVoidResponse(v9);
         }), true, false);
     }
-    std::future<NetworkResponse<void>> leaveWorld(uint64_t worldId) {
-        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([this](CurlHttpConnection *conn) {
-            NetworkResponse<void> ret;
-            //auto v9 = conn->performGet(this->m_relayUrl + "/tcp-config"s, AcceptHeader(ATH_PB), "TCP Config"s);
-            //HttpHelper::convertToResultResponse(&ret, v9);
-            return ret;
+    std::future<NetworkResponse<protobuf::PlayerState>> latestPlayerState(int64_t worldId, int64_t playerId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlayerState>(CurlHttpConnection *)>([this, worldId, playerId](CurlHttpConnection *conn) {
+            NetworkResponse<protobuf::PlayerState> ret;
+            std::string url(m_relayUrl);
+            url += "/worlds/"s + std::to_string(worldId) + "/players/"s + std::to_string(playerId);
+            auto v9 = conn->performGet(this->m_relayUrl + "/tcp-config"s, AcceptHeader(ATH_PB), "Get Latest Player State"s);
+            return HttpHelper::convertToResultResponse<protobuf::PlayerState>(v9);
         }), true, false);
     }
-        /*
+    /*
 RelayServerRestInvoker::setPhoneAddress(std::string const&,int,zwift::protobuf::IPProtocol,int,std::string const&)
 RelayServerRestInvoker::saveWorldAttribute(long,zwift::protobuf::WorldAttribute &)
 RelayServerRestInvoker::saveTimeCrossingStartLine(long,zwift::protobuf::CrossingStartingLineProto const&)
 RelayServerRestInvoker::requestHashSeeds(bool)
 RelayServerRestInvoker::refreshRelaySession(uint)
-RelayServerRestInvoker::latestPlayerState(long,long)
+RelayServerRestInvoker::(long,long)
 RelayServerRestInvoker::getLateJoinInformation(long)
 RelayServerRestInvoker::fetchDropInWorldList(bool)
 RelayServerRestInvoker::RelayServerRestInvoker(std::shared_ptr<ZwiftHttpConnectionManager>,std::string)*/
@@ -1568,6 +1643,12 @@ struct RestServerRestInvoker { //0x70 bytes
 struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, EncryptionListener { //0x1400-16 bytes
     //            UdpClient::UdpClient(GlobalState *, WorldClockService *, HashSeedService *, HashSeedService *, UdpStatistics *, RelayServerRestInvoker *, TelemetryService *, UdpClient::Listener &, std::chrono::duration<long long, std::ratio<1l, 1l>>, std::chrono::duration<long long, std::ratio<1l, 1000l>>)
     UdpClient(GlobalState *, WorldClockService *, HashSeedService *, HashSeedService *, UdpStatistics *, RelayServerRestInvoker *, void /*netImpl*/ *) {
+        //TODO
+    }
+    void handleEncryptionChange(const EncryptionInfo &ei) override {
+        //TODO
+    }
+    void handleUdpConfigChange(const protobuf::UdpConfigVOD &uc, uint64_t a3) override {
         //TODO
     }
     void shutdown() {
@@ -1606,12 +1687,6 @@ struct NetworkClockService { //0x18 bytes
     }
 };
 struct AuxiliaryControllerAddress { //80 bytes
-    //TODO
-};
-struct ExperimentsRestInvoker { //0x30 bytes
-    ExperimentsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
-    }
     //TODO
 };
 struct ActivityRecommendationRestInvoker { //0x30 bytes
@@ -2100,7 +2175,7 @@ TcpClient::unsubscribeFromSegment(long)
 TcpClient::~TcpClient()    */
 };
 struct AuxiliaryController : public WorldIdListener {
-    void handleWorldIdChange(uint64_t worldId) {
+    void handleWorldIdChange(int64_t worldId) override {
         //TODO
     }
     //TODO
@@ -2333,6 +2408,20 @@ struct NetworkClientImpl { //0x400 bytes, calloc
             m_evLoop = nullptr;
         }
     }
+    std::future<NetworkResponse<void>> resetPassword(const std::string &newPwd) {
+        if (m_initOK)
+            return m_authInvoker->resetPassword(newPwd);
+        return makeNetworkResponseFuture<void>(NRO_NOT_INITIALIZED, "Initialize CNL first"s);
+    }
+    std::future<NetworkResponse<protobuf::PlayerState>> latestPlayerState(int64_t worldId, int64_t playerId) {
+        if (!m_loginOK)
+            return makeNetworkResponseFuture<protobuf::PlayerState>(NRO_NOT_LOGGED_IN, "Log in first"s);
+        if (worldId <= 0)
+            return makeNetworkResponseFuture<protobuf::PlayerState>(NRO_INVALID_ARGUMENT, "Invalid world id"s);
+        if (playerId <= 0)
+            return makeNetworkResponseFuture<protobuf::PlayerState>(NRO_INVALID_ARGUMENT, "Invalid player id"s);
+        return m_relay->latestPlayerState(worldId, playerId);
+    }
 };
 NetworkClient::NetworkClient() { m_pImpl = new(calloc(sizeof(NetworkClientImpl), 1)) NetworkClientImpl; }
 NetworkClient::~NetworkClient() { m_pImpl->~NetworkClientImpl(); free(m_pImpl); }
@@ -2342,6 +2431,7 @@ void NetworkClient::initialize(const std::string &server, const std::string &cer
     m_pImpl->initialize(server, certs, version);
 }
 std::future<NetworkResponse<std::string>> NetworkClient::logOut() { return m_pImpl->logOut(); }
+std::future<NetworkResponse<void>> NetworkClient::resetPassword(const std::string &newPwd) { return m_pImpl->resetPassword(newPwd); }
 namespace zwift_network {
 void get_goals(int64_t playerId) { 
     //TODO
@@ -2350,6 +2440,10 @@ void save_goal(const protobuf::Goal &g) {
     //TODO
 }
 std::future<NetworkResponse<std::string>> log_out() { return g_networkClient->logOut(); }
+std::future<NetworkResponse<void>> reset_password(const std::string &newPwd) { return g_networkClient->resetPassword(newPwd); }
+std::future<NetworkResponse<protobuf::PlayerState>> latest_player_state(int64_t worldId, int64_t playerId) {
+    return g_networkClient->latestPlayerState(worldId, playerId); 
+}
 }
 bool initialize_zwift_network(const std::string &server, const std::string &certs, const std::string &version) {
     NetworkClient::globalInitialize();
@@ -2410,15 +2504,11 @@ GlobalState::GlobalState(EventLoop *el, const protobuf::PerSessionInfo &psi, con
     *v9 = v9;
     v9[1] = v9;
     this->field_100 = v9;
-    this->m_playerId = 0i64;
-    this->m_worldId = 0i64;
-    *(_QWORD *)&this->field_280 = 0i64;
     *(_QWORD *)&this->field_288 = 0i64;
     v10 = operator new(0x20ui64);
     *v10 = v10;
     v10[1] = v10;
     *(_QWORD *)&this->field_280 = v10;
-    this->field_3C0 = 0i64;
     *(_QWORD *)&this->field_3C8 = 0i64;
     v11 = operator new(0x20ui64);
     *v11 = v11;
@@ -2427,28 +2517,48 @@ GlobalState::GlobalState(EventLoop *el, const protobuf::PerSessionInfo &psi, con
 }
 std::future<NetworkResponse<std::string>> NetworkClient::logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &anEventProps, const std::string &oauthClient) { return m_pImpl->logInWithOauth2Credentials(sOauth, anEventProps, oauthClient); }
 std::future<NetworkResponse<std::string>> NetworkClient::logInWithEmailAndPassword(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient) { return m_pImpl->logInWithEmailAndPassword(email, pwd, anEventProps, reserved, oauthClient); }
+std::future<NetworkResponse<protobuf::PlayerState>> NetworkClient::latestPlayerState(int64_t worldId, int64_t playerId) {
+    return m_pImpl->latestPlayerState(worldId, playerId);
+}
 void GlobalState::registerUdpConfigListener(UdpConfigListener *lis) {
     m_evloop->post([this, lis]() {
         this->m_ucLis += lis;
-        });
+    });
 }
 void GlobalState::registerEncryptionListener(EncryptionListener *lis) {
     m_evloop->post([this, lis]() {
         this->m_encLis += lis;
-        });
+    });
 }
 void GlobalState::registerWorldIdListener(WorldIdListener *lis) {
     m_evloop->post([this, lis]() {
         this->m_widLis += lis;
-        });
+    });
 }
-void GlobalState::setWorldId(uint64_t worldId) {
+void GlobalState::setWorldId(int64_t worldId) {
     m_worldId = worldId;
-    m_evloop->post([this]() {
-        this->m_widLis.notify([this](WorldIdListener &wil) {
-            wil.handleWorldIdChange(this->m_worldId);
-            });
+    m_evloop->post([this, worldId]() {
+        this->m_widLis.notify([this, worldId](WorldIdListener &wil) {
+            wil.handleWorldIdChange(m_worldId);
         });
+    });
+}
+void GlobalState::setEncryptionInfo(const EncryptionInfo &ei) { 
+    std::lock_guard l(m_mutex);
+    m_shouldUseEncryption = !ei.m_sk.empty();
+    m_ei = ei;
+    m_evloop->post([this, ei]() {
+        this->m_encLis.notify([this, ei](EncryptionListener &el) {
+            el.handleEncryptionChange(ei);
+        });
+    });
+}
+void GlobalState::setUdpConfig(const protobuf::UdpConfigVOD &uc, uint64_t a3) {
+    m_evloop->post([this, uc, a3]() {
+        this->m_ucLis.notify([this, uc, a3](UdpConfigListener &ul) {
+            ul.handleUdpConfigChange(uc, a3);
+        });
+    });
 }
 
 //Units
