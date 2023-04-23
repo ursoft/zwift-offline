@@ -1408,7 +1408,8 @@ struct ExperimentsRestInvoker { //0x30 bytes
             return HttpHelper::convertToResultResponse<protobuf::FeatureResponse>(v9);
         }), true, false);
     }
-    std::future<NetworkResponse<protobuf::FeatureResponse>> getFeatureResponseByMachineId(const protobuf::FeatureRequest &rq) { /*QUEST: notused*/
+    std::future<NetworkResponse<protobuf::FeatureResponse>> getFeatureResponseByMachineId(const protobuf::FeatureRequest &rq) { 
+        /*TODO: used in PC>106405 and Android>=106405, need to fill one-byter FeatureRequest.f2 with some data */
         return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::FeatureResponse>(CurlHttpConnection *)>([this, rq](CurlHttpConnection *conn) {
             NetworkResponse<protobuf::FeatureResponse> ret;
             std::vector<char> payload;
@@ -1528,8 +1529,8 @@ struct AuthServerRestInvoker { //0x60 bytes
         }
         bool ret = false, disable_encryption_bypass = true;
         protobuf::FeatureRequest v49;
-        *v49.mutable_params()->add_param() = "game_1_26_2_data_encryption"s;
-        *v49.mutable_params()->add_param() = "game_1_27_0_disable_encryption_bypass"s;
+        *v49.add_params()->add_param() = "game_1_26_2_data_encryption"s;
+        *v49.add_params()->add_param() = "game_1_27_0_disable_encryption_bypass"s;
         auto respFuture = m_expRi->getFeatureResponse(v49);
         auto resp = respFuture.get();
         if (resp.m_errCode != NRO_OK) {
@@ -1602,7 +1603,7 @@ struct RelayServerRestInvoker { //0x30 bytes
         return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([this, worldId](CurlHttpConnection *conn) {
             std::string url(m_relayUrl);
             url += "/worlds/"s + std::to_string(worldId) + "/leave"s;
-            auto v9 = conn->performPost(this->m_relayUrl + "/tcp-config"s, ContentTypeHeader(CTH_JSON), ""s,
+            auto v9 = conn->performPost(url, ContentTypeHeader(CTH_JSON), ""s,
                 AcceptHeader(ATH_JSON), "Leave World"s, false);
             return HttpHelper::convertToVoidResponse(v9);
         }), true, false);
@@ -1612,7 +1613,7 @@ struct RelayServerRestInvoker { //0x30 bytes
             NetworkResponse<protobuf::PlayerState> ret;
             std::string url(m_relayUrl);
             url += "/worlds/"s + std::to_string(worldId) + "/players/"s + std::to_string(playerId);
-            auto v9 = conn->performGet(this->m_relayUrl + "/tcp-config"s, AcceptHeader(ATH_PB), "Get Latest Player State"s);
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Get Latest Player State"s);
             return HttpHelper::convertToResultResponse<protobuf::PlayerState>(v9);
         }), true, false);
     }

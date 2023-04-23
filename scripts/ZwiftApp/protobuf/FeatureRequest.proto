@@ -64,7 +64,7 @@ message FeatureRequest_Params {
     repeated string param = 1;
 }
 message FeatureRequest {
-    optional FeatureRequest_Params params = 1;
-    optional string f2 = 2;
+    repeated FeatureRequest_Params params = 1;
+    optional bytes f2 = 2; // length=1 (value=0x01) - looks like server realm, used only at https://us-or-rly101.zwift.com/experimentation/v1/machine-id-variant request
     //repeated FeatureRequest_UserAttributesEntry f3 = 3; 
 }
