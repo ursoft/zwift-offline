@@ -1575,18 +1575,123 @@ struct EventLoop { //0x30 bytes
 };
 struct NetworkClockService;
 struct WorldClockService { //0x2120 bytes
-    WorldClockService(EventLoop *el, NetworkClockService *ncs) {
-        //TODO
+    NetworkClockService *m_ncs;
+    int64_t m_twoLegsLatency = 0, m_field_40 = 0, m_calcWorldClockOffset[1024] = {};
+    uint64_t m_idx = 0, m_stab = 2;
+    volatile LONG64 m_worldTime = 0, m_worldClockOffset = 0;
+    std::map<uint32_t, uint64_t> m_map38; //seq to send time
+    bool m_stc_useF5 = true, m_bInit = false;
+    WorldClockService(EventLoop *, NetworkClockService *ncs) : m_ncs(ncs) {
+        //OMIT NumericStatisticsPeriodicLogger<long> ctr
     }
-    /* TODO
-    void adjustClock(long,long)
-    void calculateOneLegLatency(zwift::protobuf::ServerToClient const&,long &,long &)
-    void getRoundTripLatencyInMilliseconds(void)
-    void getWorldTime(void)
-    void handleServerToClient(zwift::protobuf::ServerToClient const&)
-    void isInitialized(void)
-    void shouldSetClock(ulong)
-    void storeSequenceNumberSendTime(uint)    */
+    bool isInitialized() /*vptr[1]*/ { return m_bInit; }
+    uint64_t getWorldTime() /*vptr[2]*/ {
+        if (!this->m_bInit)
+            return 0;
+        auto steadyDelta = g_steadyClock.nowInMilliseconds() - this->m_worldClockOffset;
+        auto worldTime = this->m_worldTime;
+        auto stable = (steadyDelta == worldTime);
+        if (steadyDelta > worldTime) {
+            while (true) {
+                auto exch = _InterlockedCompareExchange64(&m_worldTime, steadyDelta, worldTime);
+                stable = worldTime == exch;
+                worldTime = exch;
+                if (stable)
+                    return steadyDelta;
+                if (steadyDelta <= worldTime) {
+                    stable = (steadyDelta == worldTime);
+                    break;
+                }
+            }
+        }
+        if (!stable)
+            NetworkingLogDebug("Time tried to go back from %ldms to %ldms", worldTime, steadyDelta);
+        return m_worldTime;
+    }
+    bool shouldSetClock() {
+        if ((1 << m_stab) & m_idx) {
+            if (m_stab <= 9)
+                m_stab++;
+            return true;
+        }
+        return false;
+    }
+    void adjustClock(int64_t offset, int64_t oll) {
+        m_twoLegsLatency = 2 * oll;
+        if (m_bInit && oll >= 500) {
+            /* OMIT stat *((_QWORD *)&arg + 1) = oll;
+            m_stat = this->m_stat;
+            *(_QWORD *)&arg = &this->m_stat;
+            ret0();
+            v6 = asio_mem(80i64);
+            *((_QWORD *)v6 + 5) = sub_7FF76A532D00;
+            *((_QWORD *)v6 + 4) = 0i64;
+            *(_QWORD *)v6 = 0i64;
+            *((_QWORD *)v6 + 1) = 0i64;
+            *((_QWORD *)v6 + 2) = 0i64;
+            *((_QWORD *)v6 + 3) = 0i64;
+            *((_DWORD *)v6 + 12) = 0;
+            *(_OWORD *)(v6 + 56) = arg;
+            asio::detail::scheduler::post_immediate_completion(m_stat[2], (struct _OVERLAPPED *)v6);*/
+        } else {
+            if (m_idx >= _countof(m_calcWorldClockOffset))
+                m_idx = 0;
+            m_calcWorldClockOffset[m_idx++] = offset;
+            if (shouldSetClock()) {
+                auto v10 = m_idx >> 1;
+                //QUEST: not sure this method is fastest
+                std::nth_element(m_calcWorldClockOffset, m_calcWorldClockOffset + v10, m_calcWorldClockOffset + m_idx);
+                auto worldClockOffsetNew = m_calcWorldClockOffset[v10];
+                if (worldClockOffsetNew) {
+                    auto worldClockOffsetOld = this->m_worldClockOffset;
+                    _InterlockedExchange64(&m_worldClockOffset, worldClockOffsetNew);
+                    m_bInit = true;
+                    if (worldClockOffsetOld) {
+                        NetworkingLogInfo("World clock offset updated from %+ldms to %+ldms (%+ldms)", worldClockOffsetOld, worldClockOffsetNew,
+                            worldClockOffsetNew - worldClockOffsetOld);
+                        //OMIT WorldClockStatistics::registerClockDrift((_Mtx_t)this->m_ncs, worldClockOffsetNew - worldClockOffsetOld);
+                    }
+                }
+            }
+        }
+    }
+    bool calculateOneLegLatency(const protobuf::ServerToClient &stc, int64_t *pOffset, int64_t *pOll) {
+        bool ret = false;
+        *pOll = *pOffset = 0;
+        auto serverTime = stc.world_time();
+        if (stc.has_cts_latency()) {
+            m_stc_useF5 = false;
+            *pOll = (stc.cts_latency() + getWorldTime() - serverTime) / 2;
+            *pOffset = g_steadyClock.nowInMilliseconds() - serverTime - *pOll;
+            ret = true;
+        } else if (m_stc_useF5 && stc.has_stc_f5()) {
+            auto mySendTimeIterator = m_map38.find(stc.seqno());
+            if (mySendTimeIterator != m_map38.end()) {
+                auto mySendTime = mySendTimeIterator->second;
+                *pOll = (g_steadyClock.nowInMilliseconds() - mySendTime) / 2;
+                *pOffset = *pOll + mySendTimeIterator->second - serverTime;
+                ret = true;
+            }
+        }
+        NetworkingLogDebug("shouldSetClock: %s, oneLegLatency: %ldms, worldClockOffset: %+ldms", ret ? "true" : false, *pOll, *pOffset);
+        return ret;
+    }
+    void handleServerToClient(const protobuf::ServerToClient &stc) {
+        int64_t offset, oll;
+        if (calculateOneLegLatency(stc, &offset, &oll)) {
+            //TODO or OMIT m_ncs->WorldClockStatistics::registerOneLegLatency(oll);
+            adjustClock(offset, oll);
+        }
+    }
+    uint64_t getRoundTripLatencyInMilliseconds() { return m_twoLegsLatency; }
+    void storeSequenceNumberSendTime(uint32_t seq) { //сам написал, требуется проверка
+        if (m_map38.size() > 100) {
+            std::erase_if(m_map38, [seq](const auto &item) {
+               return int(seq - item.first) >= 100;
+            });
+        }
+        m_map38[seq] = g_steadyClock.nowInMilliseconds();
+    }
 };
 struct RelayServerRestInvoker { //0x30 bytes
     ZwiftHttpConnectionManager *m_mgr;

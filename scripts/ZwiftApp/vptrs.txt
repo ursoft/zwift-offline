@@ -50,3 +50,8 @@ Get_value(bool): 2
 Has_deferred_function(void): 3
 Run_deferred_function(class std::unique_lock<class std::mutex> &): 4
 Do_notify(class std::unique_lock<class std::mutex> *,bool): 5
+
+WorldClockService
+[0,  0] dtr
+[1,  8] isInitialized()
+[2, 16] getWorldTime()

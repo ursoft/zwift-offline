@@ -1,16 +1,6 @@
 syntax = "proto2";
 package protobuf;
-message TcpAddress {
-    required string ip = 1;
-    optional int32 port = 2 [default=3023];      //looks like unciphered port
-    optional int32 lb_realm = 3 [default=0];     //load balancing cluster: server realm or 0 (generic)
-    optional int32 lb_course = 4 [default=0];    //load balancing cluster: course id (see also TcpAddressService::updateAddresses)
-    optional int32 cport = 5 [default=3025];     //looks like ciphered port
-}
-message TcpConfig {
-    //First server: the TCP telemetry server (34.218.60.145)
-    repeated TcpAddress nodes = 1;
-}
+import "TcpConfig.proto";
 message PartnersUrls {
     optional string todaysplan_url = 1;
     optional string trainingpeaks_url = 2;

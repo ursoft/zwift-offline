@@ -1,0 +1,49 @@
+syntax = "proto2";
+package protobuf;
+enum WA_TYPE {
+    WAT_LEAVE = 2;   //proto::PlayerLeftWorld
+    WAT_RELOGIN = 3; //proto::PlayerLeftWorld
+    WAT_RIDE_ON = 4; //proto::RideOn
+    WAT_SPA = 5;     //proto::SocialPlayerAction (chat message)
+    WAT_EVENT = 6;   //proto::Event
+    WAT_JOIN_E = 7;  //proto::PlayerJoinedEvent
+    WAT_LEFT_E = 8;  //proto::PlayerLeftEvent
+    WAT_RQ_PROF = 9; //proto::RequestProfileFromServer
+    WAT_INV_W = 10;  //proto::ReceiveInvitationWorldAttribute
+    WAT_KICKED = 11; //no payload
+    WAT_WTIME = 100; //g_WorldTime := payload (GOD message, may be ignored if ZWIFT\CONFIG\IGNOREGODMESSAGES=1)
+    WAT_RTIME = 101; //BlimpEntity::SetRoadTime(payload), also GOD message
+    WAT_B_ACT = 102; //BikeEntity::PerformAction(payload)
+    WAT_GRP_M = 103; //GroupMessage (may be ignored if ZWIFT\CONFIG\SHOWGROUPMSGS=1)
+    WAT_PRI_M = 104; //PrivateMessage
+    WAT_SR    = 105; //proto::SegmentResult
+    WAT_FLAG = 106;  //Leaderboards::FlagSandbagger / Leaderboards::FlagCheater
+    WAT_NONE = 107;  //does nothing
+    WAT_RLA = 108;   //ZNETWORK_BroadcastRideLeaderAction
+    WAT_GE = 109;    //GroupEvents::UserSignedup / GroupEvents::UserRegistered
+    WAT_NM = 110;    //notable moment + Play_Magic_Whoosh_Deep_Sparkle
+    WAT_LATE = 111;  //ZNETWORK_INTERNAL_HandleLateJoinRequest
+    WAT_RH = 112;    //ZNETWORK_INTERNAL_HandleRouteHashRequest
+    WAT_STATS = 113; //GLOBAL_MESSAGE_TYPE_RIDER_FENCE_STATS
+    WAT_FENCE = 114; //GLOBAL_MESSAGE_TYPE_GRFENCE_CONFIG
+    WAT_BN_GE = 115; //ZNETWORK_BroadcastBibNumberForGroupEvent
+    WAT_PPI = 116;   //ZNETWORK_INTERNAL_HandlePacePartnerInfo
+}
+message WorldAttribute {
+    optional int64 wa_f1 = 1;          //not r/w by game? 587645624533328784, later 5876456 85771834256
+    optional int64 server_realm = 2;
+    optional WA_TYPE wa_type = 3;
+    optional bytes payload = 4;        //not only protobuf
+    optional int64 world_time_born = 5;
+    optional int64 x = 6;              //stored as int32
+    optional int64 y_altitude = 7;     //stored as int32
+    optional int64 z = 8;              //stored as int32
+    optional int64 world_time_expire = 9;
+    optional int64 rel_id = 10;        //WAT_PPI: pace partner smth; WAT_SPA: to_player_id; WAT_RH: route_id? ...
+    optional int32 importance = 11;    //not read by game??? WAT_B_ACT:1000; WAT_NM:50000; WAT_RH:5000000; ... 75000 ?
+    optional int64 wa_f12 = 12;        //not r/w by game? Not in package when testing
+    optional int32 wa_f13 = 13;        //not r/w by game? 
+    optional int64 timestamp = 14;     //not written by game? (from server) looks like "The Current Epoch Unix Timestamp" in Microseconds
+    optional int32 wa_f15 = 15;        //6, not r/w by game?
+    optional int64 wa_f16 = 16;        //not r/w by game? stored as bool
+}

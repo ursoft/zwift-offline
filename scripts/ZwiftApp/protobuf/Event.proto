@@ -1,0 +1,18 @@
+syntax = "proto2";
+package protobuf;
+message PlayerRouteDistance {
+    optional int32 player_id = 1;        //BikeManager::FindBikeWithNetworkID
+    optional float distance_covered = 2; //not sure
+    optional int32 millisec_to_leader = 3; // ZNETWORK_INTERNAL_ProcessPlayerPackets
+}
+message EventSubgroupPlacements {
+    optional int32 position = 1; //UdpStatistics::registerFanViewLatestPlayerStateInfo
+    repeated PlayerRouteDistance player_rd1 = 2;
+    repeated PlayerRouteDistance player_rd2 = 3;
+    repeated PlayerRouteDistance eventRiderPosition = 4;
+    repeated PlayerRouteDistance player_rd4 = 5;
+    optional int32 eventTotalRiders = 6;
+    optional int32 bikeNetworkId = 7;
+    optional int32 millisec_to_leader = 8; //ZNETWORK_INTERNAL_ProcessPlayerPackets
+    optional float esp_f9 = 9; //or fixed
+}

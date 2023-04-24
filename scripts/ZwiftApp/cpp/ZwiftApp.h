@@ -10,6 +10,11 @@
 #include "SegmentResults.pb.h"
 #include "UdpConfig.pb.h"
 #include "PlayerState.pb.h"
+#include "TcpConfig.pb.h"
+#include "Event.pb.h"
+#include "ServerToClient.pb.h"
+#include "PlayerSummary.pb.h"
+#include "WorldAttribute.pb.h"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL

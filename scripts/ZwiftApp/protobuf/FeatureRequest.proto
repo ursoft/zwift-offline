@@ -65,6 +65,6 @@ message FeatureRequest_Params {
 }
 message FeatureRequest {
     repeated FeatureRequest_Params params = 1;
-    optional bytes f2 = 2; // length=1 (value=0x01) - looks like server realm, used only at https://us-or-rly101.zwift.com/experimentation/v1/machine-id-variant request
-    //repeated FeatureRequest_UserAttributesEntry f3 = 3; 
+    optional string str_player_id = 2; // userId as string (if logged in and vital) or absent or "0"
+    map<string, string> user_attrs = 3;
 }

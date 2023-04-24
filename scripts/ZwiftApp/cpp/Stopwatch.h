@@ -14,6 +14,9 @@ struct SteadyClock {
         uint64_t ret = PerformanceCount.LowPart * g_perfPeriod; //QUEST: why 32 bit
         return ret;
     }
+    uint64_t nowInMilliseconds() {
+        return now() / 1'000'000;
+    }
 };
 extern SteadyClock g_steadyClock; //one per app is OK, no need for shared ptr
 struct Stopwatch {
