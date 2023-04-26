@@ -15,6 +15,8 @@
 #include "ServerToClient.pb.h"
 #include "PlayerSummary.pb.h"
 #include "WorldAttribute.pb.h"
+#include "HashSeed.pb.h"
+#include "World.pb.h"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL

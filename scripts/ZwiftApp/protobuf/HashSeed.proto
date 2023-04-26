@@ -1,0 +1,10 @@
+syntax = "proto2";
+package protobuf;
+message HashSeed {
+    required uint32 seed1 = 1;
+    required uint32 seed2 = 2;
+    required uint64 expiryDate = 3;
+}
+message HashSeeds {
+    repeated HashSeed seeds = 1;
+}

@@ -18,6 +18,9 @@ message AnalyticsEventProperty {
 message AnalyticsEventProperties {
     repeated AnalyticsEventProperty property = 2;
 }
+message RelaySessionRefreshRequest {
+    optional uint32 id = 1; //relay_session_id?
+}
 message RelaySessionRefreshResponse {
     optional uint32 relay_session_id = 1;
     optional uint32 expiration = 2; // minutes

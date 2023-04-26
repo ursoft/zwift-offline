@@ -19,7 +19,7 @@ message PlayerState {
     optional int32 climbing = 15; // meters
     optional int32 time = 16;     // seconds
     optional int32 ps_f17 = 17;
-    optional uint32 frameHue = 18; // BikeEntity::DrawBike m_frameHue * 255.0
+    optional uint32 frame_hue = 18; // BikeEntity::DrawBike m_frameHue * 255.0
     //field 19:
     //byte[0].bits[0,1]: HasPowerMeter, HasPhoneConnected
     //byte[0].bits[2,3]: RoadDirectionForward, ??? !BikeEntity.field_DCC || BikeEntity.disSteer

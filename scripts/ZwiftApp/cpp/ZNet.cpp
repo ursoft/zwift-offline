@@ -747,6 +747,12 @@ namespace HttpHelper {
             ret.m_T.assign(src.m_T.begin(), src.m_T.end());
         return ret;
     }
+    static NetworkResponse<int64_t> convertToLongResponse(const QueryResult &queryResult, int64_t lng) {
+        NetworkResponse<int64_t> ret;
+        if (queryResult.ok(&ret))
+            ret.m_T = lng;
+        return ret;
+    }
     template<class T>
     static NetworkResponse<void> convertToVoidResponse(const NetworkResponse<T> &src) {
         return NetworkResponse<void>{src.m_msg, src.m_errCode};
@@ -1665,7 +1671,7 @@ struct WorldClockService { //0x2120 bytes
             *pOffset = g_steadyClock.nowInMilliseconds() - serverTime - *pOll;
             ret = true;
         } else if (m_stc_useF5 && stc.has_stc_f5()) {
-            auto mySendTimeIterator = m_map38.find(stc.seqno());
+            auto mySendTimeIterator = m_map38.find(stc.stc_f5());
             if (mySendTimeIterator != m_map38.end()) {
                 auto mySendTime = mySendTimeIterator->second;
                 *pOll = (g_steadyClock.nowInMilliseconds() - mySendTime) / 2;
@@ -1673,7 +1679,7 @@ struct WorldClockService { //0x2120 bytes
                 ret = true;
             }
         }
-        NetworkingLogDebug("shouldSetClock: %s, oneLegLatency: %ldms, worldClockOffset: %+ldms", ret ? "true" : false, *pOll, *pOffset);
+        NetworkingLogDebug("shouldSetClock: %s, oneLegLatency: %ldms, worldClockOffset: %+ldms", ret ? "true" : "false", *pOll, *pOffset);
         return ret;
     }
     void handleServerToClient(const protobuf::ServerToClient &stc) {
@@ -1722,16 +1728,84 @@ struct RelayServerRestInvoker { //0x30 bytes
             return HttpHelper::convertToResultResponse<protobuf::PlayerState>(v9);
         }), true, false);
     }
-    /*
-RelayServerRestInvoker::setPhoneAddress(std::string const&,int,zwift::protobuf::IPProtocol,int,std::string const&)
-RelayServerRestInvoker::saveWorldAttribute(long,zwift::protobuf::WorldAttribute &)
-RelayServerRestInvoker::saveTimeCrossingStartLine(long,zwift::protobuf::CrossingStartingLineProto const&)
-RelayServerRestInvoker::requestHashSeeds(bool)
-RelayServerRestInvoker::refreshRelaySession(uint)
-RelayServerRestInvoker::(long,long)
-RelayServerRestInvoker::getLateJoinInformation(long)
-RelayServerRestInvoker::fetchDropInWorldList(bool)
-RelayServerRestInvoker::RelayServerRestInvoker(std::shared_ptr<ZwiftHttpConnectionManager>,std::string)*/
+    std::future<NetworkResponse<void>> setPhoneAddress(const std::string &phoneAddress, int port, protobuf::IPProtocol ipp, int securePort, const std::string &sk) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.add("phone-address"s, phoneAddress);
+            qsb.add("port"s, port);
+            qsb.add("protocol"s, (int32_t)ipp);
+            qsb.add("secure-port"s, (int32_t)securePort);
+            qsb.add("secret"s, sk);
+            std::string url(m_relayUrl + "/profiles/me/set-phone-address"s);
+            auto v9 = conn->performPut(url, ContentTypeHeader(CTH_URLENC), qsb.getString(false),
+                AcceptHeader(), "Set Phone Address"s, false);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::HashSeeds>> requestHashSeeds(bool isAi) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::HashSeeds>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            NetworkingLogInfo("Requesting seeds...");
+            std::string url(m_relayUrl + "/worlds/hash-seeds"s);
+            if (isAi)
+                url += "?isAi=true"s;
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Get Hash Seeds"s);
+            return HttpHelper::convertToResultResponse<protobuf::HashSeeds>(v9);
+        }), true, true);
+    }
+    std::future<NetworkResponse<protobuf::DropInWorldList>> fetchDropInWorldList(bool unlim) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::DropInWorldList>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_relayUrl + "/dropin"s);
+            if (unlim)
+                url += "?maxPlayersPerWorld=0"s;
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Fetch Drop-in World List"s);
+            return HttpHelper::convertToResultResponse<protobuf::DropInWorldList>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::LateJoinInformation>> getLateJoinInformation(int64_t meetup_id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::LateJoinInformation>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_relayUrl + "/events/subgroups/"s);
+            url += std::to_string(meetup_id);
+            url += "/late-join"s;
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Get Late Join Information"s);
+            return HttpHelper::convertToResultResponse<protobuf::LateJoinInformation>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::RelaySessionRefreshResponse>> refreshRelaySession(int64_t id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::RelaySessionRefreshResponse>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_relayUrl + "/session/refresh"s);
+            std::vector<char> payload;
+            protobuf::RelaySessionRefreshRequest rq;
+            rq.set_id(id);
+            HttpHelper::protobufToCharVector(&payload, rq);
+            auto v9 = conn->performPost(url, ContentTypeHeader(CTH_PB), payload, AcceptHeader(ATH_PB),
+                "Refresh Relay Session"s, false);
+            return HttpHelper::convertToResultResponse<protobuf::RelaySessionRefreshResponse>(v9);
+        }), true, true);
+    }
+    std::future<NetworkResponse<int64_t>> saveWorldAttribute(int64_t id, const protobuf::WorldAttribute &wa) {
+        protobuf::WorldAttribute waCopy(wa);
+        waCopy.set_server_realm(id); //not sure
+        std::vector<char> payload;
+        HttpHelper::protobufToCharVector(&payload, waCopy);
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<int64_t>(CurlHttpConnection *)>([this, payload](CurlHttpConnection *conn) {
+            std::string url(m_relayUrl + "/worlds/attributes"s);
+            auto v9 = conn->performPost(url, ContentTypeHeader(CTH_PB), payload, AcceptHeader(),
+                "Save World Attribute"s, false);
+            return HttpHelper::convertToLongResponse(v9, 0);
+        }), true, false);
+    }
+    std::future<NetworkResponse<void>> saveTimeCrossingStartLine(int64_t event_id, const protobuf::CrossingStartingLineProto &csl) {
+        protobuf::CrossingStartingLineProto cslCopy(csl);
+        std::vector<char> payload;
+        HttpHelper::protobufToCharVector(&payload, cslCopy);
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([this, payload, event_id](CurlHttpConnection *conn) {
+            std::string url(m_relayUrl);
+            url += "/race/event_starting_line/"s + std::to_string(event_id);
+            auto v9 = conn->performPost(url, ContentTypeHeader(CTH_PB), payload, AcceptHeader(ATH_JSON),
+                "Save Time Crossing Start Line"s, false);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
+    }
 };
 struct HashSeedService { //0x370 bytes
     void start() {
