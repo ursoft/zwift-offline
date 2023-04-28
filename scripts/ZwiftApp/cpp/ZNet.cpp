@@ -606,7 +606,9 @@ struct EncryptionListener {
 struct WorldIdListener {
     virtual void handleWorldIdChange(int64_t worldId) = 0;
 };
-struct WorldAttributeServiceListener {};
+struct WorldAttributeServiceListener {
+    virtual void handleWorldAttribute(const protobuf::WorldAttribute &wa) = 0;
+};
 struct GlobalState { //0x530 bytes
     ServiceListeners<EncryptionListener> m_encLis;
     ServiceListeners<WorldIdListener> m_widLis;
@@ -2035,6 +2037,9 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
     void handleUdpConfigChange(const protobuf::UdpConfigVOD &uc, uint64_t a3) override {
         //TODO
     }
+    void handleWorldAttribute(const protobuf::WorldAttribute &wa) override {
+        //TODO
+    }
     void shutdown() {
         //TODO
     }
@@ -2079,11 +2084,11 @@ UdpClient::shouldPrependVoronoiOrDieByte(protobuf::ClientToServer const&)
 UdpClient::~UdpClient()    */
 };
 struct WorldAttributeService { //0x270 bytes
-    moodycamel::ReaderWriterQueue<void *> m_rwq;
+    moodycamel::ReaderWriterQueue<protobuf::WorldAttribute> m_rwq;
     ServiceListeners<WorldAttributeServiceListener> m_lis;
-    WorldAttributeService() : m_rwq(100) {
-        /*TODO   *(_QWORD *)this->field_80 = 0i64;
-          *(_QWORD *)&this->field_80[64] = 0i64;
+    uint64_t m_largestTime;
+    WorldAttributeService() : m_rwq(100), m_largestTime(0) {
+        /*TODO
           *(_QWORD *)&this->field_80[72] = 0i64;
           v4 = operator new(0x20ui64);
           *v4 = v4;
@@ -2092,10 +2097,30 @@ struct WorldAttributeService { //0x270 bytes
     }
     void registerListener(WorldAttributeServiceListener *lis) { m_lis += lis; }
     void removeListener(WorldAttributeServiceListener *lis) { m_lis -= lis; }
-/*WorldAttributeService::getLargestWorldAttributeTimestamp()
-WorldAttributeService::handleServerToClient(protobuf::ServerToClient const&)
-WorldAttributeService::logWorldAttribute(protobuf::WorldAttribute const&,bool)
-WorldAttributeService::popWorldAttribute(std::shared_ptr<protobuf::WorldAttribute const> &)*/
+    uint64_t getLargestWorldAttributeTimestamp() { return m_largestTime; }
+    void logWorldAttribute(const protobuf::WorldAttribute &wa, bool bDiscarded) {
+        NetworkingLogDebug("%s [type=%d, ts=%llu, world=%lld, mapRev=%u, player=%lld xyz=(%d,%d,%d)]", 
+            bDiscarded ? "Discarded world attribute" : "Received world attribute",
+            (int)wa.wa_type(), wa.timestamp(), wa.server_realm(), wa.map_rev(),
+            wa.rel_id(), wa.x(), wa.y_altitude(), wa.z());
+        //OMIT if (bDiscarded)
+        //    WorldAttributeStatistics::increaseDiscardedWa(m_stat, *((_DWORD *)wa + 12));
+    }
+    void handleServerToClient(const protobuf::ServerToClient &stc) {
+        for (auto &wat : stc.updates()) {
+            if (wat.has_timestamp() && wat.timestamp() > m_largestTime) {
+                logWorldAttribute(wat, false);
+                m_rwq.enqueue(wat);
+                m_largestTime = wat.timestamp();
+                m_lis.notify([this, wat](WorldAttributeServiceListener &wasl) {
+                    wasl.handleWorldAttribute(wat);
+                });
+            } else {
+                logWorldAttribute(wat, true);
+            }
+        }
+    }
+    bool popWorldAttribute(protobuf::WorldAttribute &dest) { return m_rwq.try_dequeue(dest); }
 };
 struct ProfileRequestDebouncer { //0x1E0 bytes
     ProfileRequestDebouncer(EventLoop *, RestServerRestInvoker *, uint32_t) {

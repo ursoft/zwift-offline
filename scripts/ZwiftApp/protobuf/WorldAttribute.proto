@@ -39,11 +39,11 @@ message WorldAttribute {
     optional int64 y_altitude = 7;     //stored as int32
     optional int64 z = 8;              //stored as int32
     optional int64 world_time_expire = 9;
-    optional int64 rel_id = 10;        //WAT_PPI: pace partner smth; WAT_SPA: to_player_id; WAT_RH: route_id? ...
+    optional int64 rel_id = 10;        //WAT_PPI: pace partner smth; WAT_SPA: to_player_id; WAT_RH: route_id? ...; logWorldAttribute: always player_id
     optional int32 importance = 11;    //not read by game??? WAT_B_ACT:1000; WAT_NM:50000; WAT_RH:5000000; ... 75000 ?
     optional int64 wa_f12 = 12;        //not r/w by game? Not in package when testing
     optional int32 wa_f13 = 13;        //not r/w by game? 
     optional int64 timestamp = 14;     //not written by game? (from server) looks like "The Current Epoch Unix Timestamp" in Microseconds
-    optional int32 wa_f15 = 15;        //6, not r/w by game?
+    optional int32 map_rev = 15;       //aka world_id
     optional int64 wa_f16 = 16;        //not r/w by game? stored as bool
 }

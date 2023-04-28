@@ -7,13 +7,13 @@ import "Event.proto";
 import "UdpConfig.proto";
 import "TcpConfig.proto";
 enum IPProtocol {
-	UDP = 1;
-	TCP = 2;
+    UDP = 1;
+    TCP = 2;
 }
 enum ExpungeReason {
-	NOT_EXPUNGED = 0;
-	WORLD_FULL = 1;
-	ROADS_CLOSED = 2;
+    NOT_EXPUNGED = 0;
+    WORLD_FULL = 1;
+    ROADS_CLOSED = 2;
 }
 message ServerToClient {
     optional int64 server_realm = 1;
