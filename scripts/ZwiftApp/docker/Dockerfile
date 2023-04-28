@@ -67,4 +67,7 @@ RUN C:\vcpkg\vcpkg install glew:x64-windows-static
 #libsquish (texture compress)
 RUN C:\vcpkg\vcpkg install libsquish:x64-windows-static
 
+#xxHash (XXH32)
+RUN C:\vcpkg\vcpkg install xxhash:x64-windows-static
+
 ENTRYPOINT [ "cmd.exe", "/k", "C:\\ZwiftApp\\docker\\bootstrap.cmd" ]

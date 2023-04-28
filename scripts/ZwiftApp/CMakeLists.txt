@@ -62,6 +62,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   jsoncpp_object jsoncpp_static JsonCpp::JsonCpp
   GTest::gtest
   unofficial::libsquish::squish
+  xxHash::xxhash
 )
 target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:RELWITHDEBINFO>:/PROFILE>)
 
