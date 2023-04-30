@@ -47,3 +47,7 @@ message WorldAttribute {
     optional int32 map_rev = 15;       //aka world_id
     optional int64 wa_f16 = 16;        //not r/w by game? stored as bool
 }
+message WorldAttributes {
+    repeated WorldAttribute world_attributes = 1;
+    required int64 world_time = 2;
+}

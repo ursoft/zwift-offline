@@ -1,0 +1,12 @@
+syntax = "proto2";
+package protobuf;
+message ZFileProto {
+    optional uint64 id = 1;
+    required string folder = 2;
+    required string filename = 3;
+    optional bytes file = 4;
+    optional uint64 timestamp = 5;
+}
+message ZFilesProto {
+    repeated ZFileProto zfiles = 1;
+}

@@ -1,6 +1,38 @@
 syntax = "proto2";
 package protobuf;
 import "Profile.proto";
+enum POWERUP_TYPE {
+    LIGHTNESS      = 0;
+    DRAFTBOOST     = 1;
+    BONUS_XP_LIGHT = 2;
+    BONUS_XP       = 3;
+    UNDRAFTABLE    = 4;
+    AERO           = 5;
+    NINJA          = 6;
+    STEAMROLLER    = 7;
+    ANVIL          = 8;
+    POWERUP_CNT    = 9;
+    POWERUP_NONE   = 15;
+}
+enum UserBikeAction {
+    UBA_ELBOW = 0;
+    UBA_WAVE = 1;
+    UBA_02 = 2; //BikeEntity::UpdateAnimation
+    UBA_RIDEON = 3;
+    UBA_HAMMER = 4;
+    UBA_NICE = 5;
+    UBA_BRING_IT = 6;
+    UBA_TOAST = 7;
+    UBA_BELL = 8;
+    UBA_HOLIDAY_WAVE = 9; //not sure
+}
+message RideOn {
+    required int64 player_id = 1;
+    required int64 to_player_id = 2;
+    required string first_name = 3;
+    required string last_name = 4;
+    required int32 country_code = 5;
+}
 message PlayerState {
     optional int64 id = 1;
     optional int64 world_time = 2; // milliseconds

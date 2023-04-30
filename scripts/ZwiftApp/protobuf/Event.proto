@@ -150,7 +150,7 @@ enum EventCulling {
     CULLING_EVENT_ONLY = 2;
     CULLING_SUBGROUP_ONLY = 3;
 }
-message Event { //real name: EventProtobuf; where is shortName, shortDescription, rulesSet, routeUrl, bikeHash, 
+message EventProtobuf { //where is shortName, shortDescription, rulesSet, routeUrl, bikeHash, 
 //privateEvent, followeeEntrantCount, totalEntrantCount, followeeSignedUpCount, totalSignedUpCount, followeeJoinedCount,
 //totalJoinedCount, auxiliaryUrl, imageS3Name, imageS3Bucket, cullingType, recurring, recurringOffset, publishRecurring, parentId, type, workoutHash,
 //customUrl, restricted, unlisted, eventSecret, accessExpression, qualificationRuleIds, minGameVersion, recordable, imported, eventTemplateId
@@ -196,8 +196,8 @@ message Event { //real name: EventProtobuf; where is shortName, shortDescription
     optional MicroserviceEventData msed = 40;
     repeated uint32 e_f41 = 41;
 }
-message Events { //real name: EventsProtobuf
-    repeated Event events = 1;
+message EventsProtobuf {
+    repeated EventProtobuf events = 1;
 }
 message PrivateEventProto {
     required uint64 id = 1;

@@ -1,6 +1,19 @@
 syntax = "proto2";
 package protobuf;
 //TODO: answer ??? questions and saved_game format (zwift_profile.ksy)
+enum Gender {
+    MALE = 1;
+    FEMALE = 2;
+}
+enum ProfileFollowStatus {
+    PFS_UNKNOWN = 1;
+    PFS_REQUESTS_TO_FOLLOW = 2;
+    PFS_IS_FOLLOWING = 3;
+    PFS_IS_BLOCKED = 4;
+    PFS_NO_RELATIONSHIP = 5;
+    PFS_SELF = 6;
+    PFS_HAS_BEEN_DECLINED = 7;
+}
 enum ActivityPrivacyType {
     PUBLIC = 0;
     PRIVATE = 1;
@@ -156,21 +169,21 @@ message PlayerProfile {
     optional string launched_game_client = 108;
     optional int64 current_activity_id = 109;
     optional bool connected_to_garmin = 110;
-    message Reminder {
+    message ReminderProto {
         optional int64 f1 = 1;
         optional string f2 = 2;
         optional int64 f3 = 3;
-        message ReminderProperty {
+        message ReminderPropertyProto {
             optional int64 f1 = 1;
             optional string f2 = 2;
             optional string f3 = 3;
         }
-        repeated ReminderProperty f4 = 4;
+        repeated ReminderPropertyProto f4 = 4;
     }
-    repeated Reminder reminders = 111;
+    repeated ReminderProto reminders = 111;
     optional bool f112 = 112; //??? empty
-    repeated Attribute private_attributes = 113;
-    repeated Attribute public_attributes = 114;
+    repeated ProfileAttribute private_attributes = 113;
+    repeated ProfileAttribute public_attributes = 114;
     optional int32 total_run_calories = 115;
     optional int64 f116 = 116; //??? empty
     optional int32 run_time_1mi_in_seconds = 117;
@@ -189,7 +202,7 @@ message PlayerProfile {
     optional string f124 = 124; // LICENSE_NUMBER/E_NUMBER
     optional ActivityPrivacyType default_activity_privacy = 125;
     optional bool connected_to_runtastic = 126;
-    repeated PropertyChange property_changes = 127;
+    repeated ProfilePropertyChange property_changes = 127;
 }
 message PlayerProfiles {
      repeated PlayerProfile profiles = 1;
@@ -265,7 +278,7 @@ message Subscription {
         ABANDONED = 10;
     }
 }
-message PropertyChange {
+message ProfilePropertyChange {
     enum Id {
         TYPE0 = 0;
         DATE_OF_BIRTH = 1;
@@ -276,7 +289,7 @@ message PropertyChange {
     optional int32 max_changes = 3;
 }
 /*
-Attribute ID is crc32 of it's name. Examples:
+ProfileAttribute ID is crc32 of it's name. Examples:
 public
 324889996=0x135D6D8C <MAGIC> (0)
 private
@@ -299,9 +312,23 @@ private
 -34579778="ONROAD_SURVEY_COMPLETED" (5)
 -1316403440="PACERBOTTUTORIAL" (1)
 */
-message Attribute {
+message ProfileAttribute {
     optional int32 id = 1;
     optional int64 number_value = 2;
     optional float float_value = 3;
     optional string string_value = 5;
 }
+message SocialNetworkStatus {
+    optional int64 sns_f1 = 1;
+    optional bool sns_f2 = 2;
+    optional ProfileFollowStatus pfs = 3;
+}
+message BestEffortPointMsg {
+    required double power = 1;
+    optional uint64 timestamp = 2;
+}
+message PowerCurveAggregationMsg {
+    map<string, BestEffortPointMsg> watts = 1;
+    map<string, BestEffortPointMsg> watts_per_kg = 2;
+}
+

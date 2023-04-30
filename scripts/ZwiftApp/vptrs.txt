@@ -30,9 +30,9 @@ setTimeout 7
 getTimeout 8
 setUploadTimeout 9
 performGet 10
-performDelete 11
+[11, 88] performDelete
 performPost(vec) 12,13
-performPost(str) 14
+[14, 112] performPost(str)
 performPost 15
 performPostWithTimeout 16
 performPostWithHash 17

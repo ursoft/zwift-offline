@@ -1,0 +1,33 @@
+syntax = "proto2";
+enum SocialPlayerActionType {
+    SOCIAL_ACTION_UNKNOWN_TYPE = 0;
+    SOCIAL_TEXT_MESSAGE = 1;
+    SOCIAL_RIDE_ON = 2;
+    SOCIAL_FLAG = 3;
+}
+enum FlagType {
+    FLAG_TYPE_UNKNOWN = 0;
+    FLAG_TYPE_HARASSMENT = 1;
+    FLAG_TYPE_FLIER = 2;
+    FLAG_TYPE_BAD_LANGUAGE = 3;
+}
+enum MessageGroupType {
+    MGT_UNKNOWN = 0;
+    MGT_GLOBAL = 1;
+    MGT_DIRECT = 2;
+    MGT_EVENT = 3;
+    MGT_CLUB = 4;
+}
+message SocialPlayerAction {
+    optional int64 player_id = 1;
+    optional int64 to_player_id = 2; // 0 if public message
+    optional SocialPlayerActionType spa_type = 3;
+    optional string first_name = 4;
+    optional string last_name = 5;
+    optional string message = 6;
+    optional string avatar = 7;
+    optional int32 country_code = 8;
+    optional FlagType flag_type = 9;
+    optional MessageGroupType mg_type = 10;
+    optional int64 event_subgroup = 11;
+}

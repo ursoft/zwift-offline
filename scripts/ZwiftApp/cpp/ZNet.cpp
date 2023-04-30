@@ -740,6 +740,23 @@ namespace HttpHelper {
         }
         return ret;
     }
+    template <class RET>
+    static NetworkResponse<RET> convertToResultResponse(const QueryResult &queryResult, const std::function<RET(const Json::Value &)> &f) {
+        NetworkResponse<RET> ret;
+        if (queryResult.m_errCode) {
+            protobuf::ZErrorMessageProtobuf v40;
+            ret.m_errCode = queryResult.m_errCode;
+            if (v40.ParseFromString(queryResult.m_msg) && v40.message().length())
+                ret.m_msg = v40.message();
+            else
+                ret.m_msg = queryResult.m_msg;
+        } else {
+            auto rx_json = parseJson(queryResult.m_T);
+            if (rx_json.ok(&ret))
+                ret.m_T = f(rx_json.m_T);
+        }
+        return ret;
+    }
     static NetworkResponse<Json::Value> convertToJsonResponse(const QueryResult &src) {
         NetworkResponse<Json::Value> ret;
         return src.ok(&ret) ? parseJson(src) : ret;
@@ -1094,8 +1111,8 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
     }
     ~ZwiftHttpConnectionManager() { shutdown(); }
     template<class T>
-    std::future<NetworkResponse<T>> pushRequestTask(const std::function<NetworkResponse<T>(CurlHttpConnection *)> &f, bool b1, bool b2) {
-        if (b2 || !*m_tcpDisconnected) {
+    std::future<NetworkResponse<T>> pushRequestTask(const std::function<NetworkResponse<T>(CurlHttpConnection *)> &f, bool secured, bool simultOk) {
+        if (simultOk || !*m_tcpDisconnected) {
             auto specific_task = std::make_shared<std::promise<NetworkResponse<T>>>();
             auto res = specific_task->get_future();
             RequestTaskContext stored_task([specific_task, this, f](CurlHttpConnection *conn, bool needNewAcToken) {
@@ -1115,7 +1132,7 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
                 }
                 return NetworkResponseBase(res);
             });
-            stored_task.m_secured = b1; //TODO: check (not sure)
+            stored_task.m_secured = secured; //TODO: check (not sure)
             { std::lock_guard l(m_mutex); m_rtq.push(std::move(stored_task)); }
             m_conditionVar.notify_one();
             return res;
@@ -1886,7 +1903,7 @@ struct HashSeedService { //0x370 bytes
             auto v9 = m_worldClock->getWorldTime();
             auto v11 = 3000000i64;
             if (v9)
-                v11 = v7.expirydate() - v9 - 1000 * m_a7;
+                v11 = v7.expiry_date() - v9 - 1000 * m_a7;
             NetworkingLogInfo("Next seeds fetch will happen in %d minutes", v11 / 60000);
             scheduleFetchHashSeeds(v11);
             std::lock_guard l(m_mutex); //not sure, but looks like:
@@ -1968,23 +1985,78 @@ struct HashSeedService { //0x370 bytes
 };
 struct UdpStatistics;
 struct RestServerRestInvoker { //0x70 bytes
-    RestServerRestInvoker(const std::string &machId, ZwiftHttpConnectionManager *mgr, const std::string &server, const std::string &version) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url, m_machId, m_version;
+    RestServerRestInvoker(const std::string &machId, ZwiftHttpConnectionManager *mgr, const std::string &server, const std::string &version) 
+        : m_mgr(mgr), m_url(server), m_machId(machId), m_version(version) {}
+    std::future<NetworkResponse<protobuf::SocialNetworkStatus>> addFollowee(int64_t playerId, int64_t followeeId, bool a5, protobuf::ProfileFollowStatus pfs) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::SocialNetworkStatus>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url);
+            url += "/api/profiles/"s + std::to_string(playerId) + "/following/"s + std::to_string(followeeId);
+            protobuf::SocialNetworkStatus pb;
+            pb.set_sns_f2(a5);
+            pb.set_pfs(pfs);
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, pb);
+            auto v9 = conn->performPost(url, ContentTypeHeader(CTH_PB), payload, AcceptHeader(ATH_PB),
+                "Follow Player"s, false);
+            return HttpHelper::convertToResultResponse<protobuf::SocialNetworkStatus>(v9);
+        }), true, false);
     }
+    std::future<NetworkResponse<void>> removeFollowee(int64_t playerId, int64_t followeeId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url);
+            url += "/api/profiles/"s + std::to_string(playerId) + "/following/"s + std::to_string(followeeId);
+            auto v9 = conn->performDelete(url, AcceptHeader(), "Stop Following Player"s);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<int64_t>> createActivityRideOn(int64_t profileId, int64_t playerId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<int64_t>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url);
+            url += "/api/profiles/"s + std::to_string(playerId) + "/activities/0/rideon"s;
+            Json::Value json;
+            json["profileId"] = profileId;
+            std::string payload = HttpHelper::jsonToString(json);
+            auto v9 = conn->performPost(url, ContentTypeHeader(CTH_JSON), payload, AcceptHeader(ATH_JSON), "Create Activity Ride On"s, false);
+            return HttpHelper::convertToResultResponse(v9, std::function<int64_t(const Json::Value &)>([](const Json::Value &rx_json) {
+                return rx_json["id"].asInt64();
+            }));
+        }), true, false);
+    }
+    std::future<NetworkResponse<void>> createUser(const std::string &email, const std::string &pwd, const std::string &firstN, const std::string &lastN) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(this->m_url);
+            url += "/api/users?"s + conn->escapeUrl("Machine Id"s) + "="s + conn->escapeUrl(this->m_machId);
+            Json::Value json, p;
+            json["email"] = email;
+            json["password"] = pwd;
+            p["firstName"] = firstN;
+            p["lastName"] = lastN;
+            json["profile"] = p;
+            std::string payload = HttpHelper::jsonToString(json);
+            auto v9 = conn->performPost(url, ContentTypeHeader(CTH_JSON), payload, AcceptHeader(), "Create User"s, false);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), false, false);
+    }
+    std::future<NetworkResponse<void>> deleteActivity(int64_t playerId, int64_t actId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(this->m_url);
+            url += "/api/profiles/"s + std::to_string(playerId) + "/activities/"s + std::to_string(actId);
+            auto v9 = conn->performDelete(url, AcceptHeader(), "Delete Activity"s);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
+    }
+    //std::future<NetworkResponse<protobuf::ActivityList>> getActivities(int64_t,zwift_network::Optional<int64_t>,zwift_network::Optional<int64_t>,bool)
 /*
-RestServerRestInvoker::addFollowee(int64_t,int64_t,bool,protobuf::ProfileFollowStatus)
-RestServerRestInvoker::createActivityRideOn(int64_t,int64_t)
-RestServerRestInvoker::createUser(const std::string &,const std::string &,const std::string &,const std::string &)
-RestServerRestInvoker::deleteActivity(int64_t,int64_t)
-RestServerRestInvoker::deleteActivityImage(int64_t,int64_t,int64_t)
-RestServerRestInvoker::getActivities(int64_t,zwift_network::Optional<int64_t>,zwift_network::Optional<int64_t>,bool)
+RestServerRestInvoker::deleteActivityImage(int64_t,int64_t,int64_t) "Delete Activity Image" "/api/profiles/" "/activities/" "/images/" pushRequestTask<void>(true, false) 
 RestServerRestInvoker::getActivity(int64_t,int64_t,bool)
 RestServerRestInvoker::getActivityImage(int64_t,int64_t,int64_t)
 RestServerRestInvoker::getEvent(int64_t)
 RestServerRestInvoker::getEventSubgroupEntrants(protobuf::EventParticipation,int64_t,uint32_t)
 RestServerRestInvoker::getEventsInInterval(const std::string &,const std::string &,int)
 RestServerRestInvoker::getFollowees(int64_t,bool)
-RestServerRestInvoker::getFollowees(int64_t,int64_t,bool)
+RestServerRestInvoker::getFollowees(int64_t,int64_t,bool) //of other player
 RestServerRestInvoker::getFollowers(int64_t,bool)
 RestServerRestInvoker::getFollowers(int64_t,int64_t,bool)
 RestServerRestInvoker::getGoals(int64_t)
@@ -2005,7 +2077,6 @@ RestServerRestInvoker::querySegmentResults(int64_t,int64_t,const std::string &,c
 RestServerRestInvoker::querySegmentResults(int64_t,std::unordered_set<int64_t> const&,int64_t,bool,int64_t)
 RestServerRestInvoker::redeemCoupon(const std::string &)
 RestServerRestInvoker::registerForEventSubgroup(int64_t)
-RestServerRestInvoker::removeFollowee(int64_t,int64_t)
 RestServerRestInvoker::removeFollower(int64_t,int64_t)
 RestServerRestInvoker::removeGoal(int64_t,int64_t)
 RestServerRestInvoker::removeRegistrationForEvent(int64_t)
@@ -2144,11 +2215,12 @@ struct NetworkClockService { //0x18 bytes
     }
 };
 struct AuxiliaryControllerAddress { //80 bytes
-    //TODO
-/*
-zwift_network::AuxiliaryControllerAddress::AuxiliaryControllerAddress(std::string,uint32_t,protobuf::IPProtocol,uint32_t,std::string)
-zwift_network::AuxiliaryControllerAddress::AuxiliaryControllerAddress()
-zwift_network::AuxiliaryControllerAddress::~AuxiliaryControllerAddress()*/
+    std::string m_localIp, m_key;
+    int m_localPort = 0, m_stc_f31 = 0;
+    protobuf::IPProtocol m_proto = protobuf::TCP;
+    AuxiliaryControllerAddress(const std::string &localIp, uint32_t localPort, protobuf::IPProtocol protocol, uint32_t stc_f31, const std::string &key) :
+        m_localIp(localIp), m_key(key), m_localPort(localPort), m_stc_f31(stc_f31), m_proto(protocol) {}
+    AuxiliaryControllerAddress() {}
 };
 struct ActivityRecommendationRestInvoker { //0x30 bytes
     ActivityRecommendationRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
@@ -2215,9 +2287,9 @@ EventFeedRestInvoker::getMyEvents(zwift_network::model::BaseEventsSearch const&)
 };
 struct FirmwareUpdateRestInvoker { //0x30 bytes
     FirmwareUpdateRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+        //OMIT
     }
-    /*TODO
+    /*OMIT
 FirmwareUpdateRestInvoker::getAllFirmwareReleases(const std::string &)
 FirmwareUpdateRestInvoker::getFirmwareRelease(const std::string &,const std::string &)
 FirmwareUpdateRestInvoker::getFirmwareUpdates(std::vector<zwift_network::model::FirmwareRequest> const&)
@@ -2322,39 +2394,39 @@ WorkoutServiceRestInvoker::fetchCustomWorkouts(zwift_network::Optional<std::stri
 };
 struct UdpStatistics { //0x450 bytes
     UdpStatistics() {
-        //TODO
+        //OMIT
     }
-    //TODO
+    //OMIT
 };
 struct TcpStatistics { //0xC8 bytes
     TcpStatistics() {
-        //TODO
+        //OMIT
     }
-    //TODO
+    //OMIT
 };
 struct WorldClockStatistics { //0xB0 bytes
     WorldClockStatistics() {
-        //TODO
+        //OMIT
     }
-    //TODO
+    //OMIT
 };
 struct LanExerciseDeviceStatistics { //0x110 bytes
     LanExerciseDeviceStatistics() {
-        //TODO
+        //OMIT
     }
-    //TODO
+    //OMIT
 };
 struct AuxiliaryControllerStatistics { //0xB8 bytes
     AuxiliaryControllerStatistics() {
-        //TODO
+        //OMIT
     }
-    //TODO
+    //OMIT
 };
 struct WorldAttributeStatistics { //0x90 bytes
     WorldAttributeStatistics() {
-        //TODO
+        //OMIT
     }
-    //TODO
+    //OMIT
 };
 struct LanExerciseDeviceService { //0x3B0 bytes
     LanExerciseDeviceService(const std::string &zaVersion, uint16_t, int, int, int, int) {
@@ -3003,9 +3075,26 @@ struct NetworkClientImpl { //0x400 bytes, calloc
             return makeNetworkResponseFuture<protobuf::PlayerState>(NRO_INVALID_ARGUMENT, "Invalid player id"s);
         return m_relay->latestPlayerState(worldId, playerId);
     }
+    std::future<NetworkResponse<void>> removeFollowee(int64_t playerId, int64_t followeeId) {
+        if (!m_restInvoker)
+            return makeNetworkResponseFuture<void>(NRO_NOT_INITIALIZED, "Initialize CNL first"s);
+        if (playerId <= 0)
+            return makeNetworkResponseFuture<void>(NRO_INVALID_ARGUMENT, "Invalid player id"s);
+        if (followeeId <= 0)
+            return makeNetworkResponseFuture<void>(NRO_INVALID_ARGUMENT, "Invalid followee player id"s);
+        return m_restInvoker->removeFollowee(playerId, followeeId);
+    }
+    std::future<NetworkResponse<protobuf::SocialNetworkStatus>> addFollowee(int64_t playerId, int64_t followeeId, bool a5, protobuf::ProfileFollowStatus pfs) {
+        if (!m_restInvoker)
+            return makeNetworkResponseFuture<protobuf::SocialNetworkStatus>(NRO_NOT_INITIALIZED, "Initialize CNL first"s);
+        if (playerId <= 0)
+            return makeNetworkResponseFuture<protobuf::SocialNetworkStatus>(NRO_INVALID_ARGUMENT, "Invalid player id"s);
+        if (followeeId <= 0)
+            return makeNetworkResponseFuture<protobuf::SocialNetworkStatus>(NRO_INVALID_ARGUMENT, "Invalid followee player id"s);
+        return m_restInvoker->addFollowee(playerId, followeeId, a5, pfs);
+    }
     /*NetworkClientImpl::NetworkClientImpl(std::shared_ptr<MachineIdProvider>,std::shared_ptr<HttpConnectionFactory>)
 NetworkClientImpl::acceptPrivateEventInvitation(int64_t)
-NetworkClientImpl::addFollowee(int64_t,int64_t,bool,protobuf::ProfileFollowStatus)
 NetworkClientImpl::campaignSummary(const std::string &)
 NetworkClientImpl::connectLanExerciseDevice(uint32_t,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)
 NetworkClientImpl::createActivityRideOn(int64_t,int64_t)
@@ -3141,7 +3230,6 @@ NetworkClientImpl::registerTelemetryJson(const std::string &,std::function<Json:
 NetworkClientImpl::rejectPrivateEventInvitation(int64_t)
 NetworkClientImpl::remoteLog(zwift_network::LogLevel,char const*,char const*)
 NetworkClientImpl::remoteLogAndFlush(zwift_network::LogLevel,char const*,char const*)
-NetworkClientImpl::removeFollowee(int64_t,int64_t)
 NetworkClientImpl::removeFollower(int64_t,int64_t)
 NetworkClientImpl::removeGoal(int64_t,int64_t)
 NetworkClientImpl::removeRegistrationForEvent(int64_t)
@@ -3208,7 +3296,6 @@ NetworkClientImpl::~NetworkClientImpl()*/
 };
 /*zwift_network::NetworkClient::NetworkClient(const std::string &)
 zwift_network::NetworkClient::acceptPrivateEventInvitation(int64_t)
-zwift_network::NetworkClient::addFollowee(int64_t,int64_t,bool,protobuf::ProfileFollowStatus)
 zwift_network::NetworkClient::campaignSummary(const std::string &)
 zwift_network::NetworkClient::connectLanExerciseDevice(uint32_t,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)
 zwift_network::NetworkClient::createActivityRideOn(int64_t,int64_t)
@@ -3331,7 +3418,6 @@ zwift_network::NetworkClient::registerTelemetryJson(const std::string &,std::fun
 zwift_network::NetworkClient::rejectPrivateEventInvitation(int64_t)
 zwift_network::NetworkClient::remoteLog(zwift_network::LogLevel,char const*,char const*)
 zwift_network::NetworkClient::remoteLogAndFlush(zwift_network::LogLevel,char const*,char const*)
-zwift_network::NetworkClient::removeFollowee(int64_t,int64_t)
 zwift_network::NetworkClient::removeFollower(int64_t,int64_t)
 zwift_network::NetworkClient::removeGoal(int64_t,int64_t)
 zwift_network::NetworkClient::removeRegistrationForEvent(int64_t)
@@ -3391,6 +3477,8 @@ zwift_network::NetworkClient::worldTime()
 zwift_network::NetworkClient::~NetworkClient()*/
 NetworkClient::NetworkClient() { m_pImpl = new(calloc(sizeof(NetworkClientImpl), 1)) NetworkClientImpl; }
 NetworkClient::~NetworkClient() { m_pImpl->~NetworkClientImpl(); free(m_pImpl); }
+std::future<NetworkResponse<void>> NetworkClient::removeFollowee(int64_t playerId, int64_t followeeId) { return m_pImpl->removeFollowee(playerId, followeeId); }
+std::future<NetworkResponse<protobuf::SocialNetworkStatus>> NetworkClient::addFollowee(int64_t playerId, int64_t followeeId, bool a5, protobuf::ProfileFollowStatus pfs) { return m_pImpl->addFollowee(playerId, followeeId, a5, pfs); }
 void NetworkClient::globalInitialize() { curl_global_init(CURL_GLOBAL_ALL); }
 void NetworkClient::globalCleanup() { curl_global_cleanup(); }
 void NetworkClient::initialize(const std::string &server, const std::string &certs, const std::string &version) {

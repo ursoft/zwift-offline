@@ -67,6 +67,8 @@ struct NetworkClient {
     std::future<NetworkResponse<std::string>> logOut();
     std::future<NetworkResponse<void>> resetPassword(const std::string &newPwd);
     std::future<NetworkResponse<protobuf::PlayerState>> latestPlayerState(int64_t worldId, int64_t playerId);
+    std::future<NetworkResponse<void>> removeFollowee(int64_t playerId, int64_t followeeId);
+    std::future<NetworkResponse<protobuf::SocialNetworkStatus>> addFollowee(int64_t playerId, int64_t followeeId, bool a5, protobuf::ProfileFollowStatus pfs);
 };
 namespace ZNet {
     struct Error {

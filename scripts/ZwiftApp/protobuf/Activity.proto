@@ -1,0 +1,100 @@
+syntax = "proto2";
+package protobuf;
+import "Profile.proto"; //enum ActivityPrivacyType, Sport
+//All decompiled. TODO: uncomment all new fields and use in algo
+enum NotableMomentType {
+    NMT_NEW_PR = 0;
+    NMT_GAINED_LEVEL = 5;
+    NMT_TRAINING_PLAN_COMPLETE = 19;
+    NMT_UNLOCKED_ITEM = 4;
+    NMT_ACHIEVEMENT_UNLOCKED = 2;
+    NMT_MISSION_COMPLETED = 3;
+    NMT_COMPLETED_GOAL = 10;
+    NMT_MET_DAILY_TARGET = 1;
+    NMT_TOOK_ARCH_JERSEY = 8;
+    NMT_FINISHED_CHALLENGE = 17;
+    NMT_FINISHED_EVENT = 13;
+    NMT_FINISHED_WORKOUT = 15;
+    NMT_ACTIVITY_BESTS = 20;
+    NMT_RIDEON = 18;
+    NMT_RIDEON_INT = 22; //international
+    NMT_QUIT_EVENT = 12;
+    NMT_USED_POWERUP = 6;
+    NMT_PASSED_TIMING_ARCH = 7;
+    NMT_CREATED_GOAL = 9;
+    NMT_JOINED_EVENT = 11;
+    NMT_STARTED_WORKOUT = 14;
+    NMT_STARTED_MISSION = 16;
+    NMT_HOLIDAY_EVENT_COMPLETE = 21;
+}
+message NotableMoment { //.2,.3,.4 meanings inside last_activity.bin - not type, priority, incidentTime (i.e. 1595, 8, 9)
+    optional uint64 activity_id = 1;
+    optional NotableMomentType type = 2;
+    optional uint32 priority = 3;
+    optional uint64 incident_time = 4;
+    optional string aux1 = 5; // examples: {"achievementId":35,"name":"PAIRED","description":"Paired a phone through Zwift Companion"}
+                              //           {"segmentName":"Marina Sprint","jerseyHash":"0x997d9df7","durationInMS":30524} (from last_activity.bin)
+    optional string aux2 = 6; // empty string
+    optional string large_image_url = 7;
+}
+message SocialInteraction {
+    optional uint64 player_id = 1;
+    optional uint32 time_duration = 2;
+    optional float proximity_time_score = 3;
+    optional string si_f4 = 4;
+}
+message ClubAttribution {
+    optional string name = 1;
+    optional float value = 2;
+}
+enum FitnessPrivacy {
+    UNSET = 0;
+    HIDE_SENSITIVE_DATA = 1;
+    SAME_AS_ACTIVITY = 2;
+}
+message Activity {  //where is primaryImageUrl, feedImageThumbnailUrl, activityRideOnCount, activityCommentCount, eventId, rideOnGiven
+    optional uint64 id = 1;
+    required uint64 player_id = 2;
+    required uint64 course_id = 3;
+    required string name = 4;
+    optional string f5 = 5;
+    optional bool private_activity = 6;
+    required string start_date = 7;
+    optional string end_date = 8;
+    optional float distance_in_meters = 9;
+    optional float avg_heart_rate = 10;
+    optional float max_heart_rate = 11;
+    optional float avg_watts = 12;
+    optional float max_watts = 13;
+    optional float avg_cadence = 14;
+    optional float max_cadence = 15;
+    optional float avg_speed = 16; // in m/s
+    optional float max_speed = 17; // in m/s
+    optional float calories = 18;
+    optional float total_elevation = 19;
+    optional uint32 strava_upload_id = 20; //uint64 stored as int32
+    optional uint32 strava_activity_id = 21; //uint64 stored as int32
+    optional string f22 = 22;
+    optional uint32 f23 = 23; //empty; stored as int32; enum up to 5 - ProfileFollowStatus?
+    optional bytes fit = 24;
+    optional string fit_filename = 25;
+    optional uint64 subgroup_id = 26;
+    optional uint64 workout_hash = 27;
+    optional float progress_percentage = 28;
+    optional Sport sport = 29;
+    //repeated string act_f30 = 30;
+    optional string date = 31;
+    optional float act_f32 = 32;
+    optional string act_f33 = 33;
+    optional string act_f34 = 34;
+    //repeated NotableMoment notables = 35;
+    //repeated SocialInteraction socials = 36;
+    optional ActivityPrivacyType privacy = 37;
+    optional FitnessPrivacy fitness_privacy = 38;
+    optional string club_name = 39;
+    optional int64 moving_time_ms = 40;
+    //repeated ClubAttribution cas = 41;
+}
+message ActivityList {
+    repeated Activity activities = 1;
+}
