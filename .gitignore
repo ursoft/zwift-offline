@@ -32,3 +32,4 @@ logs/
 /protobuf/protoc.exe
 /scripts/ZwiftApp/cpp/concurrentqueue/benchmarks
 /scripts/ZwiftApp/cpp/concurrentqueue/tests
+/scripts/ConsoleApp1

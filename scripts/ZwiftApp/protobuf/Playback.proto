@@ -10,6 +10,9 @@ message PlaybackData {
     required uint64 world_time = 4;
     optional PlaybackType type = 11;
 }
+message PlaybackMetadataList {
+    repeated PlaybackMetadata list = 1;
+}
 message PlaybackMetadata {
     required string uuid = 1;
     required int64 segment_id = 2;
@@ -17,4 +20,16 @@ message PlaybackMetadata {
     required uint64 world_time = 5;
     required string url = 6;
     optional PlaybackType type = 8;
+}
+message PlaybackAnimationState {
+    optional float f1 = 1;
+    optional int32 f2 = 2;
+}
+message PlaybackPowerupState {
+    optional float f1 = 1;
+    optional int32 f2 = 2;
+}
+message PlaybackRoadIdState {
+    optional float f1 = 1;
+    optional int32 f2 = 2;
 }

@@ -6,3 +6,9 @@ message AchievementEntry {
 message Achievements {
     repeated AchievementEntry achievements = 1;
 }
+message AchievementUnlockEntry {
+    required int32 id = 1;
+}
+message AchievementUnlockRequest {
+    repeated AchievementUnlockEntry unlocks = 1;
+}

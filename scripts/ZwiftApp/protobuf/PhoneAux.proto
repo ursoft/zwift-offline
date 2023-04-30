@@ -1,6 +1,225 @@
 syntax = "proto2";
 package protobuf;
 import "Social.proto";
+enum NotificationType {
+    ACTIVITY_COMMENT = 5;
+    PRIVATE_EVENT_INVITE = 4;
+    CLUB_CHAT = 8;
+    CLUB_CHAT_CREATED = 10;
+    CLUB_EVENT = 7;
+    CLUB_EVENT_CREATED = 9;
+    CLUB_INVITE = 6;
+    FOLLOW_REQUEST = 0;
+    FOLLOW_REQUEST_APPROVED = 2;
+    NEW_FOLLOWER = 1;
+    POST_ACTIVITY_RIDE_ONS = 3;
+}
+enum MessageGroupType {
+    CLUB = 4;
+    DIRECT = 2;
+    EVENT = 3;
+    GLOBAL = 1;
+}
+enum BLEPeripheralRequestType {
+    BEGIN_PERIPHERAL_DISCOVERY = 1;
+    CONNECT_PERIPHERAL = 3;
+    DISCONNECT_PERIPHERAL = 4;
+    ENABLE_BLE = 6;
+    END_PERIPHERAL_DISCOVERY = 2;
+    READ_CHARACTERISTIC_VALUE = 7;
+    UNKNOWN_REQUEST_TYPE = 0;
+    WRITE_CHARACTERISTIC_VALUE = 5;
+}
+enum PeripheralResponseType {
+    CHARACTERISTIC_VALUE = 2;
+    PERIPHERAL_CONNECTED = 3;
+    PERIPHERAL_DISCONNECTED = 4;
+    PERIPHERAL_DISCOVERED = 5;
+    PERIPHERAL_ERROR = 1;
+    UNKNOWN_RESPONSE_TYPE = 0;
+}
+enum PeripheralErrorType {
+    BLE_POWERED_OFF = 3;
+    BLE_UNSUPPORTED = 2;
+    PERMISSION_DENIED = 1;
+    UNKNOWN_ERROR = 0;
+}
+enum BLEAdvertisement_Type {
+    CONNECTABLE_DIRECTED = 1;
+    CONNECTABLE_UNDIRECTED = 0;
+    EXTENDED = 5;
+    NON_CONNECTABLE_UNDIRECTED = 3;
+    SCANNABLE_UNDIRECTED = 2;
+    SCAN_RESPONSE = 4;
+}
+enum BLEAdvertisement_Flags {
+    ClassicNotSupported = 4;
+    DualModeControllerCapable = 8;
+    DualModeHostCapable = 16;
+    GeneralDiscoverableMode = 2;
+    LimitedDiscoverableMode = 1;
+    None = 0;
+}
+enum PreferencesBitmaskFields {
+    APPROVAL_REQUIRED = 1;
+    DEFAULT_FITNESS_DATA_PRIVACY = 16;
+    DISPLAY_AGE = 64;
+    DISPLAY_WEIGHT = 4;
+    MINOR = 2;
+    PRIVATE_MESSAGING = 8;
+    SUPPRESS_FOLLOWER_NOTIFICATION = 32;
+}
+enum LanExerciseDeviceType {
+    LAN_EXERCISE_DEVICE_TYPE_UNKNOWN = -1;
+    LAN_EXERCISE_DEVICE_TYPE_ZWIFT = 0;
+    LAN_EXERCISE_DEVICE_TYPE_WAHOO = 1;
+}
+enum BLEAdvertisementDataSection_Type {
+    ADVERTISING_INTERVAL = 26;
+    DEVICE_ID = 16;
+    FLAGS = 1;
+    INCOMPLETE_UUIDS_128_BIT = 6;
+    INCOMPLETE_UUIDS_16_BIT = 2;
+    INCOMPLETE_UUIDS_32_BIT = 4;
+    INDOOR_POSITIONING = 37;
+    INFORMATION_DATA_3D = 61;
+    LE_BLUETOOTH_DEVICE_ADDRESS = 27;
+    LE_ROLE = 28;
+    LE_SECURE_CONFIRMATION_VALUE = 34;
+    APPEARANCE = 25;
+    LE_SECURE_RANDOM_VALUE = 35;
+    LE_SUPPORTED_FEATURES = 39;
+    MANUFACTURER_DATA = 255;
+    MESH_BEACON = 43;
+    MESH_MESSAGE = 42;
+    PB_ADV = 41;
+    PUBLIC_TARGET_ADDRESS = 23;
+    RANDOM_TARGET_ADDRESS = 24;
+    SECURITY_MANAGER_OOB_FLAGS = 17;
+    SERVICE_DATA_128_BIT = 33;
+    BIG_INFO = 44;
+    SERVICE_DATA_16_BIT = 22;
+    SERVICE_DATA_32_BIT = 32;
+    SHORTENED_LOCAL_NAME = 8;
+    SIMPLE_PAIRING_HASH = 14;
+    SIMPLE_PAIRING_HASH_C256 = 29;
+    SIMPLE_PAIRING_RANDOMIZER = 15;
+    SIMPLE_PAIRING_RANDOMIZER_R256 = 30;
+    SLAVE_CONNECTION_INTERVAL = 18;
+    SOLICITATION_UUIDS_128_BIT = 21;
+    SOLICITATION_UUIDS_16_BIT = 20;
+    BROADCAST_CODE = 45;
+    SOLICITATION_UUIDS_32_BIT = 31;
+    TRANSPORT_DISCOVERY_DATA = 38;
+    TX_POWER_LEVEL = 10;
+    DST_UNKNOWN = 0;
+    URI = 36;
+    CHANNEL_MAP_UPDATE_INDICATION = 40;
+    CLASS_OF_DEVICE = 13;
+    COMPLETE_LOCAL_NAME = 9;
+    COMPLETE_UUIDS_128_BIT = 7;
+    COMPLETE_UUIDS_16_BIT = 3;
+    COMPLETE_UUIDS_32_BIT = 5;
+}
+enum ButtonIcon {
+    ICON_BELL = 4;
+    ICON_ELBOW_FLICK = 1;
+    ICON_HAMMER_TIME = 5;
+    ICON_NICE = 7;
+    ICON_RIDE_ON = 3;
+    ICON_SNAPSHOT = 9;
+    ICON_SWITCH_VIEW = 8;
+    ICON_TOAST = 6;
+    ICON_WAVE = 2;
+}
+enum SportsDataRequest_Type {
+    END_SELECTION = 6;
+    SELECT_SAMPLE_TYPE = 3;
+    SET_SPORT = 2;
+    START_SELECTION = 1;
+    UNSELECT_ALL_SAMPLE_TYPES = 5;
+    UNSELECT_SAMPLE_TYPE = 4;
+}
+enum SportsDataResponse_ConnectionStatus {
+    CONNECTED = 1;
+    DISCONNECTED = 2;
+    NOT_AVAILABLE = 3;
+}
+enum SportsDataResponse_DeviceModel {
+    APPLE_WATCH = 2;
+    DM_UNKNOWN = 1;
+}
+enum SportsDataResponse_Type {
+    ACTIVE_SAMPLE_TYPES = 4;
+    AVAILABLE_SAMPLE_TYPES = 2;
+    CURRENT_SPORT = 6;
+    DEVICE_MODEL = 1;
+    SAMPLE = 5;
+    SELECTED_SAMPLE_TYPES = 3;
+}
+enum SportsDataResponse_WorkoutStatus {
+    IN_WORKOUT = 1;
+    NOT_IN_WORKOUT = 2;
+}
+enum SportsDataSample_Type {
+    HEART_RATE = 1;
+    WALK_RUN_SPEED = 2;
+}
+enum PhoneToGameCommandType {
+    ACTIVATE_POWER_UP = 21;
+    ELBOW_FLICK = 4;
+    FAN_VIEW = 24;
+    HAMMER_TIME = 8;
+    JOIN_ANOTHER_PLAYER = 2;
+    MOBILE_ALERT_RESPONSE = 26;
+    MOBILE_API_VERSION = 20;
+    NICE = 10;
+    OBSOLETE_GROUP_TEXT_MESSAGE = 18;
+    OBSOLETE_SINGLE_PLAYER_TEXT_MESSAGE = 19;
+    PAIRING_AS = 28;
+    BELL = 7;
+    PHONE_TO_GAME_PACKET = 29;
+    PHONE_TO_GAME_UNKNOWN_COMMAND = 0;
+    REQUEST_FOR_PROFILE = 16;
+    RIDE_ON = 6;
+    SAVE_ACTIVITY = 13;
+    SOCIAL_PLAYER_ACTION = 25;
+    TAKE_SCREENSHOT = 17;
+    TELEPORT_TO_START = 3;
+    TOAST = 9;
+    U_TURN = 23;
+    BLEPERIPHERAL_DISCOVERY = 30;
+    WAVE = 5;
+    BLEPERIPHERAL_RESPONSE = 27;
+    BRING_IT = 11;
+    CANCEL_DONE_RIDING = 15;
+    CHANGE_CAMERA_ANGLE = 1;
+    CUSTOM_ACTION = 22;
+    DISCARD_ACTIVITY = 12;
+    DONE_RIDING = 14;
+}
+enum GameToPhoneCommandType {
+    GAME_TO_PHONE_ACTIVATE_POWER_UP = 3;
+    GAME_TO_PHONE_SEND_IMAGE = 5;
+    GAME_TO_PHONE_SET_POWER_UP = 2;
+    GAME_TO_PHONE_SOCIAL_PLAYER_ACTION = 6;
+    GAME_TO_PHONE_UNKNOWN_COMMAND = 0;
+    GAME_TO_PHONE_BLEPERIPHERAL_REQUEST = 8;
+    GAME_TO_PHONE_CLEAR_POWER_UP = 1;
+    GAME_TO_PHONE_CUSTOMIZE_ACTION_BUTTON = 4;
+    GAME_TO_PHONE_DEFAULT_ACTIVITY_NAME = 11;
+    GAME_TO_PHONE_DONT_USE_MOBILE_ALERT = 7;
+    GAME_TO_PHONE_MOBILE_ALERT = 12;
+    GAME_TO_PHONE_MOBILE_ALERT_CANCEL = 10;
+    GAME_TO_PHONE_PACKET = 13;
+    GAME_TO_PHONE_PAIRING_STATUS = 9;
+}
+enum LanExerciseDeviceStatus {
+    LAN_EXERCISE_DEVICE_STATUS_UNKNOWN = -1;
+    LAN_EXERCISE_DEVICE_STATUS_DISCOVERED = 0;
+    LAN_EXERCISE_DEVICE_STATUS_CONNECTED = 1;
+    LAN_EXERCISE_DEVICE_STATUS_DISCONNECTED = 2;
+}
 message MobileAlertResponse {
     optional int64 f1 = 1;
     optional int64 f2 = 2;
@@ -9,8 +228,6 @@ message BLEPeripheralCharacteristic {
     optional string f1 = 1;
     optional bytes f2 = 2;
 }
-//TODO: PeripheralResponseType UNKNOWN_RESPONSE_TYPE(0), PERIPHERAL_ERROR(1), CHARACTERISTIC_VALUE(2), PERIPHERAL_CONNECTED(3), PERIPHERAL_DISCONNECTED(4), PERIPHERAL_DISCOVERED(5);
-// PeripheralErrorType UNKNOWN_ERROR(0), PERMISSION_DENIED(1), BLE_UNSUPPORTED(2), BLE_POWERED_OFF(3);
 message BLEPeripheralResponse {
     optional uint32 f1 = 1;
     optional uint32 f2 = 2;
@@ -18,16 +235,6 @@ message BLEPeripheralResponse {
     optional BLEPeripheral f4 = 4;
     optional BLEPeripheralCharacteristic f5 = 5;
 }
-/*TODO: UNKNOWN(0), FLAGS(1), INCOMPLETE_UUIDS_16_BIT(2), COMPLETE_UUIDS_16_BIT(3), INCOMPLETE_UUIDS_32_BIT(4),
-        COMPLETE_UUIDS_32_BIT(5), INCOMPLETE_UUIDS_128_BIT(6), COMPLETE_UUIDS_128_BIT(7), SHORTENED_LOCAL_NAME(8),
-        COMPLETE_LOCAL_NAME(9), TX_POWER_LEVEL(10), CLASS_OF_DEVICE(13), SIMPLE_PAIRING_HASH(14), SIMPLE_PAIRING_RANDOMIZER(15),
-        DEVICE_ID(16), SECURITY_MANAGER_OOB_FLAGS(17), SLAVE_CONNECTION_INTERVAL(18), SOLICITATION_UUIDS_16_BIT(20),
-        SOLICITATION_UUIDS_128_BIT(21), SERVICE_DATA_16_BIT(22), PUBLIC_TARGET_ADDRESS(23), RANDOM_TARGET_ADDRESS(24),
-        APPEARANCE(25), ADVERTISING_INTERVAL(26), LE_BLUETOOTH_DEVICE_ADDRESS(27), LE_ROLE(28), SIMPLE_PAIRING_HASH_C256(29),
-        SIMPLE_PAIRING_RANDOMIZER_R256(30), SOLICITATION_UUIDS_32_BIT(31), SERVICE_DATA_32_BIT(32), SERVICE_DATA_128_BIT(33),
-        LE_SECURE_CONFIRMATION_VALUE(34), LE_SECURE_RANDOM_VALUE(35), URI(36), INDOOR_POSITIONING(37), TRANSPORT_DISCOVERY_DATA(38),
-        LE_SUPPORTED_FEATURES(39), CHANNEL_MAP_UPDATE_INDICATION(40), PB_ADV(41), MESH_MESSAGE(42), MESH_BEACON(43), BIG_INFO(44),
-        BROADCAST_CODE(45), INFORMATION_DATA_3D(61), MANUFACTURER_DATA(255); */
 message BLEAdvertisementDataSection {
     optional int32 f1 = 1;
     optional bytes f2 = 2;
@@ -37,8 +244,6 @@ message BLEPeripheral {
     optional string f2 = 2;
     optional int32 f3 = 3;
 }
-/*TODO: CONNECTABLE_UNDIRECTED(0), CONNECTABLE_DIRECTED(1), SCANNABLE_UNDIRECTED(2), NON_CONNECTABLE_UNDIRECTED(3),
-        SCAN_RESPONSE(4), EXTENDED(5); */
 message BLEAdvertisement {
     optional BLEPeripheral f1 = 1;
     repeated BLEAdvertisementDataSection f2 = 2;
@@ -77,3 +282,39 @@ message PhoneToGame {
     optional double f9 = 9;
     optional int32 f10 = 10;
 }
+message BoostModeState {
+    optional int32 f1 = 1;
+    optional int32 f2 = 2;
+    optional int32 f3 = 3;
+    optional float f4 = 4;
+    optional float f5 = 5;
+}
+/*message GamePacket {
+    enum Sport { //not 0-based!!!!
+        GP_CYCLING = 1;
+        GP_RUNNING = 2;
+        GP_ROWING = 3;
+    }
+    optional int32 f1 = 1;
+    optional SportsDataRequest sports_data_request = 2;
+    optional SportsDataResponse sports_data_response = 3;
+    optional GameSessionInfo game_session_info = 4;
+    optional ClientInfo client_info = 5;
+    optional MappingData mapping_data = 6;
+    optional IntersectionAhead intersection_ahead = 7;
+    repeated PlayerInfo player_info = 8;
+    optional RideOnBombRequest rideon_bomb_request = 9;
+    optional RideOnBombResponse rideon_bomb_response = 10;
+    optional EffectRequest effect_request = 11;
+    optional WorkoutInfo workout_info = 12;
+    optional WorkoutState workout_state = 13;
+    optional PlayerFitnessInfo player_fitness_info = 14;
+    optional WorkoutActionRequest workout_action_rq = 15;
+    optional ClientAction client_action = 16;
+    optional MeetupState meetup_state = 17;
+    optional SegmentLeaderboardResult segment_leaderboard_res = 18;
+    optional PlayerActiveSegments player_active_segments = 19;
+    optional PlayerSegmentInfo player_segment_info = 20;
+    optional BoostModeState boost_mode_state = 21;
+    optional GameAction game_action = 22;
+}*/

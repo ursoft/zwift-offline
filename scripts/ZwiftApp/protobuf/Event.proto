@@ -106,10 +106,13 @@ message EventSubgroupProtobuf { //where is fieldLimit, signedUp, signupStatus, r
     optional bool evs_f51 = 51; //tag920
 }
 enum EventVisibility {
-    EV_NULL = 0;
-    EV_PUB_SHARE = 1;   // event public shareable
-    EV_BY_RESOURCE = 2; // event defined by resource
+    EV_PUBLIC = 1;
+    EV_DEFINED_BY_RESOURCE_ID = 2;
     EV_SHAREABLE = 3;
+}
+enum MeetupState_Type {
+    INVITED = 0;
+    JOINED = 1;
 }
 message MicroserviceEventData {
     optional string name = 1;                // "clubs" everywhere (json: microserviceName)
@@ -128,27 +131,66 @@ message EventTimeTrialOptions { //{"timeGapBetweenRowsMs":15000,"maxRows":50,"ma
     optional uint32 evt_f4 = 4;
     optional uint64 evt_f5 = 5;
 }
-enum EventTypeV2 {
-    EVENT_TYPE_UNKNOWN = 0;
-    EVENT_TYPE_EFONDO = 1;
-    EVENT_TYPE_RACE = 2;
-    EVENT_TYPE_GROUP_RIDE = 3;
-    EVENT_TYPE_GROUP_WORKOUT = 4;
-    EVENT_TYPE_TIME_TRIAL = 5;
-}
 enum EventType {
-    ET_UNKNOWN = 0;
-    EFONDO = 1;
-    RACE = 2;
-    GROUP_RIDE = 3;
-    GROUP_WORKOUT = 4;
-    TIME_TRIAL = 5;
+    EFONDO = 0;
+    RACE = 1;
+    GROUP_RIDE = 2;
+    GROUP_WORKOUT = 3;
+    TIME_TRIAL = 4;
+    TEAM_TIME_TRIAL = 5;
 }
 enum EventCulling {
     CULLING_UNDEFINED = 0;
     CULLING_EVERYBODY = 1;
     CULLING_EVENT_ONLY = 2;
     CULLING_SUBGROUP_ONLY = 3;
+}
+enum EventPaceType {
+    EVENT_PACE_TYPE_POWER = 1;
+    EVENT_PACE_TYPE_SPEED = 2;
+}
+enum EventParticipation {
+    EVENT_PARTICIPATION_REGISTERED = 2;
+    EVENT_PARTICIPATION_SIGNED_UP = 1;
+}
+enum EventRegistrationStatus {
+    EVENT_REGISTRATION_ENDED = 4;
+    EVENT_REGISTRATION_FULL = 2;
+    EVENT_REGISTRATION_NOT_STARTED = 3;
+    EVENT_REGISTRATION_OPEN = 1;
+}
+enum EventSignupStatus {
+    EVENT_SIGNUP_ENDED = 4;
+    EVENT_SIGNUP_FULL = 2;
+    EVENT_SIGNUP_NOT_STARTED = 3;
+    EVENT_SIGNUP_OPEN = 1;
+}
+enum EventSubgroupLabel {
+    EVENT_SUBGROUP_A = 1;
+    EVENT_SUBGROUP_B = 2;
+    EVENT_SUBGROUP_C = 3;
+    EVENT_SUBGROUP_D = 4;
+    EVENT_SUBGROUP_E = 5;
+    EVENT_SUBGROUP_F = 6;
+    EVENT_SUBGROUP_G = 7;
+    EVENT_SUBGROUP_H = 8;
+    EVENT_SUBGROUP_I = 9;
+}
+enum GamePacket_EventRole {
+    LEADER = 1;
+    SWEEPER = 2;
+}
+enum GamePacket_EventScheme {
+    GP_CLUB = 2;
+    GP_PRIVATE = 1;
+    GP_PUBLIC = 0;
+}
+enum GamePacket_EventSubgroupLabel {
+    A = 1;
+    B = 2;
+    C = 3;
+    D = 4;
+    E = 5;
 }
 message EventProtobuf { //where is shortName, shortDescription, rulesSet, routeUrl, bikeHash, 
 //privateEvent, followeeEntrantCount, totalEntrantCount, followeeSignedUpCount, totalSignedUpCount, followeeJoinedCount,

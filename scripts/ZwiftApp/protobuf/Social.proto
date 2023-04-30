@@ -5,7 +5,7 @@ enum SocialPlayerActionType {
     SOCIAL_RIDE_ON = 2;
     SOCIAL_FLAG = 3;
 }
-enum FlagType {
+enum SocialFlagType {
     FLAG_TYPE_UNKNOWN = 0;
     FLAG_TYPE_HARASSMENT = 1;
     FLAG_TYPE_FLIER = 2;
@@ -27,7 +27,7 @@ message SocialPlayerAction {
     optional string message = 6;
     optional string avatar = 7;
     optional int32 country_code = 8;
-    optional FlagType flag_type = 9;
+    optional SocialFlagType flag_type = 9;
     optional MessageGroupType mg_type = 10;
     optional int64 event_subgroup = 11;
 }

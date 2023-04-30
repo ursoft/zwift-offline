@@ -82,18 +82,18 @@ message Activity {  //where is primaryImageUrl, feedImageThumbnailUrl, activityR
     optional uint64 workout_hash = 27;
     optional float progress_percentage = 28;
     optional Sport sport = 29;
-    //repeated string act_f30 = 30;
+    repeated string act_f30 = 30;
     optional string date = 31;
     optional float act_f32 = 32;
     optional string act_f33 = 33;
     optional string act_f34 = 34;
-    //repeated NotableMoment notables = 35;
-    //repeated SocialInteraction socials = 36;
+    repeated NotableMoment notables = 35;
+    repeated SocialInteraction socials = 36;
     optional ActivityPrivacyType privacy = 37;
     optional FitnessPrivacy fitness_privacy = 38;
     optional string club_name = 39;
     optional int64 moving_time_ms = 40;
-    //repeated ClubAttribution cas = 41;
+    repeated ClubAttribution cas = 41;
 }
 message ActivityList {
     repeated Activity activities = 1;

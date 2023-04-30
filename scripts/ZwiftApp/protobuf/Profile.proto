@@ -23,11 +23,8 @@ enum Sport {
     CYCLING = 0;
     RUNNING = 1;
     ROWING = 2;
-    SPORT3 = 3;
-    SPORT4 = 4;
 }
 enum PlayerType {
-    PLAYERTYPE0 = 0;
     NORMAL = 1;
     PRO_CYCLIST = 2;
     ZWIFT_STAFF = 3;
@@ -37,6 +34,8 @@ enum PlayerType {
     ZAC = 7; //Zomer Avond Competitie
     PRO_TRIATHLETE = 8;
     PRO_RUNNER = 9;
+    PACER_BOT = 10;
+    BROADCASTER = 11;
 }
 enum PowerType {
     PT_VIRTUAL = 0;
@@ -118,11 +117,7 @@ message PlayerProfile {
     optional bool connected_to_todays_plan = 64;    
     optional EnrolledProgram enrolled_program = 65;
     enum EnrolledProgram {
-        ENROLLEDPROGRAM0 = 0;
         ZWIFT_ACADEMY = 1;
-        ENROLLEDPROGRAM2 = 2;
-        ENROLLEDPROGRAM3 = 3;
-        ENROLLEDPROGRAM4 = 4;
     }    
     optional string todayplan_url = 66;
     optional uint32 f67 = 67; //??? empty
@@ -210,7 +205,6 @@ message PlayerProfiles {
 message ProfileEntitlement {
     optional EntitlementType type = 1;
     enum EntitlementType {
-        ENTITLEMENTTYPE0 = 0;
         RIDE = 1;
         RUN = 2;
         ROW = 3;
@@ -219,7 +213,6 @@ message ProfileEntitlement {
     optional int64 f2 = 2; // always -1 when "RIDE"; increasing small value when "USE" (437, 438, 911, ..., 1229)    
     optional ProfileEntitlementStatus status = 3;
     enum ProfileEntitlementStatus {
-        ENTITLEMENTSTATUS0 = 0;
         EXPIRED = 1;
         ACTIVE = 2;
         CANCELED = 3;
@@ -240,8 +233,6 @@ message ProfileEntitlement {
         PLATFORM_IOS = 2;
         PLATFORM_ANDROID = 3;
         PLATFORM_TVOS = 4;
-        PLATFORM5 = 5;
-        PLATFORM6 = 6;
     }    
     optional uint32 renewal_date_unix = 12; //when next 25km gift renewed
     optional bool new_trial_system = 13; //do not interrupt current track if trial ended
@@ -249,7 +240,7 @@ message ProfileEntitlement {
 }
 enum FollowStatus {
     FOLLOWSTATUS0 = 0;
-    UNKNOWN = 1;
+    FS_UNKNOWN = 1;
     REQUESTS_TO_FOLLOW = 2;
     IS_FOLLOWING = 3;
     HAS_BEEN_DECLINED = 7;
@@ -262,7 +253,8 @@ message Subscription {
     enum Gateway {
         BRAINTREE = 0;
         APPLE = 1;
-    }    
+        GOCARDLESS = 2;
+    }
     optional SubscriptionStatus status = 2;
     enum SubscriptionStatus {
         NEW = 0;
@@ -273,14 +265,14 @@ message Subscription {
         PENDING = 5;
         SUBERROR = 6;
         UNRECOGNIZED = 7;
-        UNKNOWN = 8;
+        SS_UNKNOWN = 8;
         ACTIVE_WITH_PAYMENT_FAILURE = 9;
         ABANDONED = 10;
+        PAUSED = 11;
     }
 }
 message ProfilePropertyChange {
     enum Id {
-        TYPE0 = 0;
         DATE_OF_BIRTH = 1;
         GENDER = 2;
     }
@@ -331,4 +323,6 @@ message PowerCurveAggregationMsg {
     map<string, BestEffortPointMsg> watts = 1;
     map<string, BestEffortPointMsg> watts_per_kg = 2;
 }
-
+message InAppPurchaseReceipt {
+    string f1 = 1;
+}
