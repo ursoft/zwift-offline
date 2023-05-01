@@ -25,7 +25,11 @@ struct QueryStringBuilder : std::multimap<std::string, std::string> {
     void addIfNotZero(const std::string &name, int64_t val) { if (val) emplace(name, std::to_string(val)); }
     void addIfNotZero(const std::string &name, uint64_t val) { if (val) emplace(name, std::to_string(val)); }
     void addIfNotZero(const std::string &name, uint32_t val) { if (val) emplace(name, std::to_string(val)); }
-    //void addOptional<std::string>(const std::string &val, zwift_network::Optional<std::string>);
+    template<class T>
+    void addOptional(const std::string &name, const Optional<T> &val) {
+        if (val.m_hasValue)
+            add(name, val.m_T);
+    }
     std::string getString(bool needQuest) {
         int total = 0;
         for (const auto &i : *this)
@@ -2047,53 +2051,314 @@ struct RestServerRestInvoker { //0x70 bytes
             return HttpHelper::convertToVoidResponse(v9);
         }), true, false);
     }
-    //std::future<NetworkResponse<protobuf::ActivityList>> getActivities(int64_t,zwift_network::Optional<int64_t>,zwift_network::Optional<int64_t>,bool)
-/*
+    std::future<NetworkResponse<protobuf::ActivityList>> getActivities(int64_t profileId, const Optional<int64_t> &startsAfter, const Optional<int64_t> &startsBefore, bool fetchSnapshots) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::ActivityList>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.addOptional("startsAfter"s, startsAfter);
+            qsb.addOptional("startsBefore"s, startsBefore);
+            qsb.addIfNotFalse("fetchSnapshots"s, fetchSnapshots);
+            auto url = this->m_url + "/api/profiles/"s + std::to_string(profileId) + "/activities"s + qsb.getString(true);
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "List Activities"s);
+            return HttpHelper::convertToResultResponse<protobuf::ActivityList>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::ProfileEntitlements>> myProfileEntitlements() {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::ProfileEntitlements>(CurlHttpConnection *)>([this](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(this->m_url + "/api/profiles/me/entitlements"s, AcceptHeader(ATH_PB), "Get My Profile Entitlements"s);
+            return HttpHelper::convertToResultResponse<protobuf::ProfileEntitlements>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::EventProtobuf>> getEvent(int64_t eventId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::EventProtobuf>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(this->m_url + "/api/events/"s + std::to_string(eventId), AcceptHeader(ATH_PB), "Get Group Ride"s);
+            return HttpHelper::convertToResultResponse<protobuf::EventProtobuf>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::Goals>> getGoals(int64_t profileId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::Goals>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(this->m_url + "/api/profiles/"s + std::to_string(profileId) + "/goals"s, AcceptHeader(ATH_PB), "List Goals"s);
+            return HttpHelper::convertToResultResponse<protobuf::Goals>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<bool>> registerForEventSubgroup(int64_t eventId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<bool>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performPost(this->m_url + "/api/events/subgroups/register/"s + std::to_string(eventId) + "/goals"s, 
+                ContentTypeHeader(CTH_JSON), "{}"s, AcceptHeader(ATH_JSON), "Register for Group Ride Subgroup"s, false);
+            return HttpHelper::convertToResultResponse<bool>(v9, std::function<bool(const Json::Value &)>([](const Json::Value &rx_json) {
+                return rx_json["registered"].asBool();
+            }));
+        }), true, false);
+    }
+    std::future<NetworkResponse<bool>> removeSignupForEvent(int64_t eventId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<bool>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performDelete(this->m_url + "/api/events/signup/"s + std::to_string(eventId), AcceptHeader(ATH_JSON), "Remove Sign Up for Group Ride"s);
+            return HttpHelper::convertToResultResponse<bool>(v9, std::function<bool(const Json::Value &)>([](const Json::Value &rx_json) {
+                return rx_json["signedUp"].asBool();
+            }));
+        }), true, false);
+    }
+    std::future<NetworkResponse<model::EventSignupResponse>> signupForEventSubgroup(int64_t eventId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<model::EventSignupResponse>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performPost(this->m_url + "/api/events/subgroups/signup/"s + std::to_string(eventId), 
+                ContentTypeHeader(CTH_JSON), "{}"s, AcceptHeader(ATH_JSON), "Sign Up for Group Ride Subgroup"s, false);
+            return HttpHelper::convertToResultResponse<model::EventSignupResponse>(v9, std::function<model::EventSignupResponse(const Json::Value &)>([](const Json::Value &rx_json) {
+                return model::EventSignupResponse{
+                    rx_json["riderStartTime"].asString(),
+                    rx_json["signUpStatus"].asInt(),
+                    rx_json["riderSlot"].asInt(),
+                    rx_json["signedUp"].asBool()
+                };
+            }));
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::PlayerSocialNetwork>> getFollowees(int64_t profileId, bool followRequests) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlayerSocialNetwork>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(this->m_url + "/api/profiles/"s + std::to_string(profileId) + "/followees?include-follow-requests="s +
+                (followRequests ? "true"s : "false"s), AcceptHeader(ATH_PB), "List Followees"s);
+            return HttpHelper::convertToResultResponse<protobuf::PlayerSocialNetwork>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::PlayerProfiles>> getEventSubgroupEntrants(protobuf::EventParticipation ep, int64_t eventId, uint32_t limit) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlayerProfiles>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.add("type"s, "all"s);
+            qsb.add("participation"s, (ep == protobuf::EVENT_PARTICIPATION_REGISTERED) ? "registered"s : "signed_up"s);
+            qsb.add("start"s, 0);
+            qsb.add("limit"s, limit);
+            auto url = this->m_url + "/api/events/subgroups/entrants/"s + std::to_string(eventId) + qsb.getString(true);
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "List Group Ride Subgroup Entrants"s);
+            return HttpHelper::convertToResultResponse<protobuf::PlayerProfiles>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::EventsProtobuf>> getEventsInInterval(const std::string &start, const std::string &end, int limit) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::EventsProtobuf>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            Json::Value json;
+            json["dateRangeStartISOString"] = start;
+            json["dateRangeEndISOString"] = end;
+            std::string payload = HttpHelper::jsonToString(json);
+            auto v9 = conn->performPost(this->m_url + "/api/events/search?limit="s + std::to_string(limit), ContentTypeHeader(CTH_JSON), payload, AcceptHeader(ATH_PB), "Query Group Rides"s, false);
+            return HttpHelper::convertToResultResponse<protobuf::EventsProtobuf>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::PlayerProfile>> myProfile(const std::function<void(const NetworkResponse<protobuf::PlayerProfile> &)> &f) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlayerProfile>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto url = this->m_url + "/api/profiles/me"s;
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Get My Profile"s);
+            auto ret = HttpHelper::convertToResultResponse<protobuf::PlayerProfile>(v9);
+            f(ret);
+            return ret;
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::PlayerProfile>> profileByPlayerId(int64_t playerId, bool bSocial) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlayerProfile>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto url = this->m_url + "/api/profiles/"s + std::to_string(playerId);
+            if (bSocial)
+                url += "?include-social-facts=true"s;
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Get Profile by Player Id"s);
+            return HttpHelper::convertToResultResponse<protobuf::PlayerProfile>(v9);
+        }), true, false);
+    }
+    NetworkResponse<protobuf::PlayerProfiles> requestProfilesByPlayerIds(CurlHttpConnection *conn, const std::unordered_set<int64_t> &ids) {
+        if (ids.size()) {
+            QueryStringBuilder qsb;
+            for (auto i : ids)
+                qsb.add("id"s, i);
+            auto url = this->m_url + "/api/profiles"s + qsb.getString(true);
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Get Profiles by Player Ids"s);
+            return HttpHelper::convertToResultResponse<protobuf::PlayerProfiles>(v9);
+        } else {
+            return NetworkResponse<protobuf::PlayerProfiles>();
+        }
+    }
+    std::future<NetworkResponse<protobuf::PlayerProfiles>> profilesByPlayerIds(const std::unordered_set<int64_t> &ids) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlayerProfiles>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            return requestProfilesByPlayerIds(conn, ids);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::PlayerProfiles>> profilesByPlayerIds(const ProfileRequestLazyContext &ctx) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlayerProfiles>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            return requestProfilesByPlayerIds(conn, ctx.getPlayerIds());
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::SegmentResults>> querySegmentResults(int64_t serverRealm, int64_t segmentId, const std::string &from, const std::string &to, bool full) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::SegmentResults>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.add("world_id"s, serverRealm);
+            qsb.add("full"s, full);
+            qsb.add("from"s, from);
+            qsb.add("to"s, to);
+            qsb.add("segmentId"s, segmentId);
+            auto url = this->m_url + "/api/personal-records/my-records"s + qsb.getString(true);
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Query Segment Results"s);
+            return HttpHelper::convertToResultResponse<protobuf::SegmentResults>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::SegmentResults>> querySegmentResults(int64_t serverRealm, const std::unordered_set<int64_t> &segmentIds, int64_t eventId, bool full, int64_t playerId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::SegmentResults>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.add("world_id"s, serverRealm);
+            qsb.add("event_subgroup_id"s, eventId);
+            qsb.add("full"s, full);
+            qsb.add("player_id"s, playerId);
+            for (auto i : segmentIds)
+                qsb.add("segment_id"s, i);
+            auto url = this->m_url + "/api/segment-results"s + qsb.getString(true);
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Query Segment Results"s);
+            return HttpHelper::convertToResultResponse<protobuf::SegmentResults>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<void>> removeGoal(int64_t playerId, int64_t goalId) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(this->m_url);
+            url += "/api/profiles/"s + std::to_string(playerId) + "/goals/"s + std::to_string(goalId);
+            auto v9 = conn->performDelete(url, AcceptHeader(), "Delete Goal"s);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<int64_t>> saveActivity(const protobuf::Activity &act, bool uploadToStrava, const std::string &fitPath, const std::function<void(const NetworkResponse<int64_t> &)> &func) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<int64_t>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(this->m_url);
+            url += "/api/profiles/"s + std::to_string(act.player_id()) + "/activities"s;
+            auto pAct = &act;
+            std::unique_ptr<protobuf::Activity> actMutable;
+            if (act.has_id())
+                url += "/"s + std::to_string(act.id());
+            if (uploadToStrava)
+                url += "?upload-to-strava=true"s;
+            if (!act.has_fit() && fitPath.size()) {
+                NetworkingLogInfo("Activity Upload: load fit file from path %s", fitPath.c_str());
+                std::ifstream fit(fitPath, std::ios::binary | std::ios::ate);
+                auto fitLen = fit.tellg();
+                if (fit.fail() || fitLen == 0) {
+                    NetworkingLogError("Activity Upload: failed to open fit file");
+                    return NetworkResponse<int64_t>{"Failed to open fit file"s, NRO_ERROR_READING_FILE};
+                }
+                actMutable.reset(new protobuf::Activity(act));
+                auto mfit = actMutable->mutable_fit();
+                mfit->resize(fitLen);
+                fit.seekg(0);
+                fit.read(mfit->data(), fitLen);
+                if (fit.fail()) {
+                    NetworkingLogError("Activity Upload: failed to read fit file");
+                    return NetworkResponse<int64_t>{"Failed to read fit file"s, NRO_ERROR_READING_FILE};
+                }
+                pAct = actMutable.get();
+            }
+            if (pAct->has_fit())
+                NetworkingLogInfo("Activity Upload: fit file is length %d", pAct->fit().length());
+            else
+                NetworkingLogInfo("Activity Upload: no fit file");
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, *pAct);
+            auto v9 = conn->performPutOrPost(act.has_id(), url, ContentTypeHeader(CTH_PB),
+                payload, AcceptHeader(ATH_JSON), "Update Activity"s, "Save Activity"s, true);
+            auto ret = HttpHelper::convertToResultResponse<int64_t>(v9, [](const Json::Value &json) {
+                return json["id"].asInt64();
+            });
+            func(ret);
+            return ret;
+        }), true, true);
+    }
+    std::future<NetworkResponse<int64_t>> saveActivityImage(int64_t profileId, const protobuf::ActivityImage &img, const std::string &imgPath) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<int64_t>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(this->m_url);
+            url += "/api/profiles/"s + std::to_string(profileId) + "/activities/"s + std::to_string(img.act_id()) + "/images"s;
+            auto pImg = &img;
+            std::unique_ptr<protobuf::ActivityImage> imgMutable;
+            if (img.has_img_id()) {
+                url += "/"s + std::to_string(img.img_id());
+            } else if (!img.has_bits() && imgPath.size()) {
+                NetworkingLogInfo("Activity Image Upload: load image file from path %s", imgPath.c_str());
+                std::ifstream stream(imgPath, std::ios::binary | std::ios::ate);
+                auto imgLen = stream.tellg();
+                if (stream.fail() || imgLen == 0) {
+                    NetworkingLogError("Activity Image Upload: failed to open image file");
+                    return NetworkResponse<int64_t>{"Failed to open image file"s, NRO_ERROR_READING_FILE};
+                }
+                imgMutable.reset(new protobuf::ActivityImage(img));
+                auto mimg = imgMutable->mutable_bits();
+                mimg->resize(imgLen);
+                stream.seekg(0);
+                stream.read(mimg->data(), imgLen);
+                if (stream.fail()) {
+                    NetworkingLogError("Activity Image Upload: failed to read image file");
+                    return NetworkResponse<int64_t>{"Failed to read image file"s, NRO_ERROR_READING_FILE};
+                }
+                pImg = imgMutable.get();
+            }
+            if (pImg->has_bits())
+                NetworkingLogInfo("Activity Upload: image file is length %d", pImg->bits().length());
+            else
+                NetworkingLogInfo("Activity Upload: no image file");
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, *pImg);
+            auto v9 = conn->performPutOrPost(img.has_img_id(), url, ContentTypeHeader(CTH_PB),
+                payload, AcceptHeader(ATH_JSON), "Update Activity Image"s, "Save Activity Image"s, true);
+            return HttpHelper::convertToResultResponse<int64_t>(v9, [](const Json::Value &json) {
+                return json["id"].asInt64();
+            });
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::Goal>> saveGoal(const protobuf::Goal &goal) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::Goal>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(this->m_url);
+            url += "/api/profiles/"s + std::to_string(goal.player_id()) + "/goals"s;
+            if (goal.has_id())
+                url += "/"s + std::to_string(goal.id());
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, goal);
+            auto v9 = conn->performPutOrPost(goal.has_id(), url, ContentTypeHeader(CTH_PB),
+                payload, AcceptHeader(ATH_PB), "Update Goal"s, "Save Goal"s, false);
+            return HttpHelper::convertToResultResponse<protobuf::Goal>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<int64_t>> saveSegmentResult(const protobuf::SegmentResult &sr) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<int64_t>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, sr);
+            auto v9 = conn->performPost(this->m_url + "/api/segment-results"s, ContentTypeHeader(CTH_PB), payload, AcceptHeader(ATH_JSON), "Save Segment Result"s, false);
+            return HttpHelper::convertToResultResponse<int64_t>(v9, [](const Json::Value &json) {
+                return json["id"].asInt64();
+            });
+        }), true, false);
+    }
+    std::future<NetworkResponse<void>> updateProfile(const protobuf::PlayerProfile &prof, bool inGameFields, const std::function<void()> &f) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url = m_url + "/api/profiles/"s + std::to_string(prof.id());
+            if (inGameFields)
+                url += "/in-game-fields"s;
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, prof);
+            auto v9 = conn->performPut(url, ContentTypeHeader(CTH_PB), payload, AcceptHeader(), inGameFields ? "Update Profile Game Fields"s : "Update Profile"s, false);
+            auto ret = HttpHelper::convertToVoidResponse(v9);
+            f();
+            return ret;
+        }), true, false);
+    }
+    /* OMIT:
 RestServerRestInvoker::deleteActivityImage(int64_t,int64_t,int64_t) "Delete Activity Image" "/api/profiles/" "/activities/" "/images/" pushRequestTask<void>(true, false) 
 RestServerRestInvoker::getActivity(int64_t,int64_t,bool)
 RestServerRestInvoker::getActivityImage(int64_t,int64_t,int64_t)
-RestServerRestInvoker::getEvent(int64_t)
-RestServerRestInvoker::getEventSubgroupEntrants(protobuf::EventParticipation,int64_t,uint32_t)
-RestServerRestInvoker::getEventsInInterval(const std::string &,const std::string &,int)
-RestServerRestInvoker::getFollowees(int64_t,bool)
-RestServerRestInvoker::getFollowees(int64_t,int64_t,bool) //of other player
+RestServerRestInvoker::getEventsInInterval
 RestServerRestInvoker::getFollowers(int64_t,bool)
 RestServerRestInvoker::getFollowers(int64_t,int64_t,bool)
-RestServerRestInvoker::getGoals(int64_t)
 RestServerRestInvoker::getNotifications()
 RestServerRestInvoker::getSegmentResult(int64_t)
 RestServerRestInvoker::getTimeSeries(int64_t,protobuf::TimeSeriesType)
 RestServerRestInvoker::getTimeSeries(int64_t,protobuf::TimeSeriesType,const std::string &)
 RestServerRestInvoker::getTimeSeries(int64_t,protobuf::TimeSeriesType,const std::string &,const std::string &)
 RestServerRestInvoker::listPlayerTypes()
-RestServerRestInvoker::myProfile(std::function<void ()(std::shared_ptr<zwift_network::NetworkResponse<protobuf::PlayerProfile> const> const&)>)
-RestServerRestInvoker::myProfileEntitlements()
-RestServerRestInvoker::partnerAccessToken(const std::string &)
+RestServerRestInvoker::partnerAccessToken(const std::string &) //OMIT
 RestServerRestInvoker::profileByEmail(const std::string &)
-RestServerRestInvoker::profileByPlayerId(int64_t,bool)
-RestServerRestInvoker::profilesByPlayerIds(ProfileRequestLazyContext)
-RestServerRestInvoker::profilesByPlayerIds(std::unordered_set<int64_t> const&)
-RestServerRestInvoker::querySegmentResults(int64_t,int64_t,const std::string &,const std::string &,bool)
-RestServerRestInvoker::querySegmentResults(int64_t,std::unordered_set<int64_t> const&,int64_t,bool,int64_t)
 RestServerRestInvoker::redeemCoupon(const std::string &)
-RestServerRestInvoker::registerForEventSubgroup(int64_t)
 RestServerRestInvoker::removeFollower(int64_t,int64_t)
-RestServerRestInvoker::removeGoal(int64_t,int64_t)
 RestServerRestInvoker::removeRegistrationForEvent(int64_t)
-RestServerRestInvoker::removeSignupForEvent(int64_t)
-RestServerRestInvoker::requestProfilesByPlayerIds(HttpConnection &,std::unordered_set<int64_t> const&)
 RestServerRestInvoker::resumeSubscription()
-RestServerRestInvoker::saveActivity(protobuf::Activity const&,bool,const std::string &,std::function<void ()(std::shared_ptr<zwift_network::NetworkResponse<int64_t> const> const&)> const&)
-RestServerRestInvoker::saveActivityImage(int64_t,protobuf::ActivityImage const&,const std::string &)
-RestServerRestInvoker::saveGoal(protobuf::Goal const&)
 RestServerRestInvoker::saveProfileReminders(protobuf::PlayerProfile const&)
-RestServerRestInvoker::saveSegmentResult(protobuf::SegmentResult const&)
-RestServerRestInvoker::sendMixpanelEvent(const std::string &,std::vector<std::string> const&)
+RestServerRestInvoker::sendMixpanelEvent(const std::string &,std::vector<std::string> const&) //OMIT
 RestServerRestInvoker::signUrls(const std::string &,std::vector<std::string> const&)
-RestServerRestInvoker::signupForEventSubgroup(int64_t)
 RestServerRestInvoker::updateFollower(int64_t,int64_t,bool,protobuf::ProfileFollowStatus)
 RestServerRestInvoker::updateNotificationReadStatus(int64_t,int64_t,bool)
-RestServerRestInvoker::updateProfile(protobuf::PlayerProfile const&,bool,std::function<void ()()>)
 RestServerRestInvoker::uploadReceipt(int64_t,protobuf::InAppPurchaseReceipt &)
 RestServerRestInvoker::~RestServerRestInvoker()*/
 };

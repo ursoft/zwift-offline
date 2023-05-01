@@ -17,6 +17,12 @@
 #include "WorldAttribute.pb.h"
 #include "HashSeed.pb.h"
 #include "World.pb.h"
+#include "Activity.pb.h"
+#include "ClientToServer.pb.h"
+#include "PhoneAux.pb.h"
+#include "Playback.pb.h"
+#include "RouteResult.pb.h"
+#include "Social.pb.h"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL

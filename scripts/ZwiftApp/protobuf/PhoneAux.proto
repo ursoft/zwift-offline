@@ -14,12 +14,6 @@ enum NotificationType {
     NEW_FOLLOWER = 1;
     POST_ACTIVITY_RIDE_ONS = 3;
 }
-enum MessageGroupType {
-    CLUB = 4;
-    DIRECT = 2;
-    EVENT = 3;
-    GLOBAL = 1;
-}
 enum BLEPeripheralRequestType {
     BEGIN_PERIPHERAL_DISCOVERY = 1;
     CONNECT_PERIPHERAL = 3;

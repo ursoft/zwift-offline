@@ -324,5 +324,8 @@ message PowerCurveAggregationMsg {
     map<string, BestEffortPointMsg> watts_per_kg = 2;
 }
 message InAppPurchaseReceipt {
-    string f1 = 1;
+    required string f1 = 1;
+}
+message ProfileEntitlements {
+    repeated ProfileEntitlement entitlements = 1;
 }

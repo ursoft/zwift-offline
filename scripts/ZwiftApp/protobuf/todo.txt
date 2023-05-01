@@ -1,5 +1,4 @@
-﻿zwift::protobuf::ActivityImage (ZA for Android only)
-zwift::protobuf::BLEPeripheralRequest
+﻿zwift::protobuf::BLEPeripheralRequest
 zwift::protobuf::BLEPeripheralService
 zwift::protobuf::CampaignProtobuf
 zwift::protobuf::CampaignRegistrationProtobuf
@@ -41,9 +40,6 @@ zwift::protobuf::PlayerFitnessInfo
 zwift::protobuf::PlayerInfo
 zwift::protobuf::PlayerJoinedWorld
 zwift::protobuf::PlayerSegmentInfo
-zwift::protobuf::PlayerSocialNetwork
-zwift::protobuf::PlayerSocialProfile
-zwift::protobuf::ProfileEntitlements
 zwift::protobuf::Query
 zwift::protobuf::RaceResult
 zwift::protobuf::RaceResultDeviceInfo

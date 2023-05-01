@@ -15,6 +15,27 @@ enum NetworkRequestOutcome {
     NRO_HTTP_STATUS_CONFLICT = 409, NRO_HTTP_STATUS_GONE = 410, NRO_HTTP_STATUS_TOO_MANY_REQUESTS = 429, NRO_HTTP_STATUS_SERVICE_UNAVAILABLE = 503,
     NRO_HTTP_STATUS_BANDWIDTH_LIMIT_EXCEEDED = 509 };
 void shutdown_zwift_network();
+template<class T>
+struct Optional {
+    T m_T = default();
+    bool m_hasValue = false;
+    void setJson(Json::Value *dest, const std::string &index, const std::function<std::string(const T&)> &f = std::function<std::string(const T &)>()) const {
+        if (!m_hasValue) return;
+        if (f)
+            (*dest)[index] = f(m_T);
+        else
+            (*dest)[index] = m_T;
+    }
+    void setOrClear(bool set = false, const T &val = T()) {
+        if (set) {
+            m_T = val;
+        } else {
+            if (m_hasValue)
+                m_T = T();
+        }
+        m_hasValue = set;
+    }
+};
 struct NetworkClientImpl;
 struct NetworkResponseBase {
     std::string m_msg;
@@ -54,6 +75,68 @@ namespace zwift_network {
     std::future<NetworkResponse<std::string>> log_out();
     std::future<NetworkResponse<void>> reset_password(const std::string &newPwd);
     std::future<NetworkResponse<protobuf::PlayerState>> latest_player_state(int64_t worldId, int64_t playerId);
+}
+struct ProfileRequestLazyContext {
+    struct PlayerIdProvider {
+        //TODO
+    };
+    ProfileRequestLazyContext(uint32_t, const PlayerIdProvider &prov) {
+        //TODO
+    }
+    std::unordered_set<int64_t> getPlayerIds() const {
+        std::unordered_set<int64_t> ret;
+        //TODO
+        return ret;
+    }
+};
+namespace model {
+    struct EventSignupResponse {
+        std::string m_riderStartTime;
+        int m_signUpStatus = 0, m_riderSlot = 0;
+        bool m_signedUp = false;
+    };
+    /*
+zwift_network::model::FirmwareRelease::FirmwareRelease(std::string const&,std::string const&,std::string const&,bool,std::string const&)
+zwift_network::model::FirmwareRelease::FirmwareRelease(zwift_network::model::FirmwareRelease const&)
+zwift_network::model::FirmwareRelease::getDeviceType(void)
+zwift_network::model::FirmwareRelease::getMustPassThrough(void)
+zwift_network::model::FirmwareRelease::getNotes(void)
+zwift_network::model::FirmwareRelease::getUrl(void)
+zwift_network::model::FirmwareRelease::getVersion(void)
+zwift_network::model::FirmwareReleaseInfo::FirmwareReleaseInfo(long,std::string const&,std::string const&,std::string const&,bool,bool,std::string const&,std::string const&,std::string const&,std::string const&,std::string const&)
+zwift_network::model::FirmwareReleaseInfo::FirmwareReleaseInfo(zwift_network::model::FirmwareReleaseInfo const&)
+zwift_network::model::FirmwareReleaseInfo::getCountDevices(void)
+zwift_network::model::FirmwareReleaseInfo::getCreatedDate(void)
+zwift_network::model::FirmwareReleaseInfo::getDisplayName(void)
+zwift_network::model::FirmwareReleaseInfo::getId(void)
+zwift_network::model::FirmwareReleaseInfo::getIsForced(void)
+zwift_network::model::FirmwareReleaseInfo::getMinVersion(void)
+zwift_network::model::FirmwareReleaseInfo::getMustPassThrough(void)
+zwift_network::model::FirmwareReleaseInfo::getNotes(void)
+zwift_network::model::FirmwareReleaseInfo::getUpdatedDate(void)
+zwift_network::model::FirmwareReleaseInfo::getVersion(void)
+zwift_network::model::FirmwareReleaseInfo::~FirmwareReleaseInfo()
+zwift_network::model::FirmwareRequest::FirmwareRequest(std::string const&,std::string const&,std::string const&,std::string const&)
+zwift_network::model::FirmwareRequest::getDeviceSerial(void)
+zwift_network::model::FirmwareRequest::getFirmwareVersion(void)
+zwift_network::model::FirmwareRequest::getHardwareVersion(void)
+zwift_network::model::FirmwareRequest::getType(void)
+zwift_network::model::PlayerType::PlayerType(long,std::string const&)
+zwift_network::model::PlayerType::getId(void)
+zwift_network::model::PlayerType::getName(void)
+zwift_network::model::Workout::Workout(std::string const&,std::string const&,std::chrono::time_point<std::chrono::system_clock,std::chrono::duration<long long,std::ratio<1l,1000000l>>>,zwift::protobuf::Sport)
+zwift_network::model::Workout::Workout(zwift_network::model::Workout const&)
+zwift_network::model::Workout::getId(void)
+zwift_network::model::Workout::getName(void)
+zwift_network::model::Workout::getScheduledDate(void)
+zwift_network::model::Workout::getSport(void)
+zwift_network::model::Workout::operator<(zwift_network::model::Workout const&)
+zwift_network::model::Workout::operator==(zwift_network::model::Workout const&)
+zwift_network::model::WorkoutsFromPartner::WorkoutsFromPartner(zwift_network::model::WorkoutPartnerEnum,std::multiset<zwift_network::model::Workout>)
+zwift_network::model::WorkoutsFromPartner::WorkoutsFromPartner(zwift_network::model::WorkoutPartnerEnum,zwift_network::NetworkRequestOutcome)
+zwift_network::model::WorkoutsFromPartner::getOutcome(void)
+zwift_network::model::WorkoutsFromPartner::getPartner(void)
+zwift_network::model::WorkoutsFromPartner::getWorkouts(void)*/
 }
 struct NetworkClient {
     NetworkClientImpl *m_pImpl;

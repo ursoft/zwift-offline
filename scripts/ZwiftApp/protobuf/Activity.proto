@@ -98,3 +98,15 @@ message Activity {  //where is primaryImageUrl, feedImageThumbnailUrl, activityR
 message ActivityList {
     repeated Activity activities = 1;
 }
+message ActivityImage {
+    optional int64 img_id = 1;
+    optional int64 act_id = 2;
+    optional bytes bits = 3;
+    optional bool f4 = 4;
+    optional float f5 = 5;
+    optional float f6 = 6;
+    optional string f7 = 7;
+    optional string f8 = 8;
+    optional string f9 = 9;
+    optional string f10 = 10;
+}

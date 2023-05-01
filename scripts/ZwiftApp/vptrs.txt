@@ -29,17 +29,18 @@ setRequestId 6
 setTimeout 7
 getTimeout 8
 setUploadTimeout 9
-performGet 10
+[10, 80] performGet
 [11, 88] performDelete
-performPost(vec) 12,13
+[12, 96] performPostStr
+[13, 104] performPostVec
 [14, 112] performPost(str)
 performPost 15
 performPostWithTimeout 16
 performPostWithHash 17
-performPut ct,at 18
+[18, 144] performPut ct,at
 performPut ct 19
 performPut ac 20
-performPutOrPost 21
+[21, 168] performPutOrPost
 performPutOrPost 22
 escapeUrl 23
 
