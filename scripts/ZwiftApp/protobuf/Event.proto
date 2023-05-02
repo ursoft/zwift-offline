@@ -110,10 +110,6 @@ enum EventVisibility {
     EV_DEFINED_BY_RESOURCE_ID = 2;
     EV_SHAREABLE = 3;
 }
-enum MeetupState_Type {
-    INVITED = 0;
-    JOINED = 1;
-}
 message MicroserviceEventData {
     optional string name = 1;                // "clubs" everywhere (json: microserviceName)
     optional bytes external_resource_id = 2;   // different 16-byte bb4538bfd13346c99a4df2b3cc3b5d95 (json: microserviceExternalResourceId)
@@ -175,22 +171,6 @@ enum EventSubgroupLabel {
     EVENT_SUBGROUP_G = 7;
     EVENT_SUBGROUP_H = 8;
     EVENT_SUBGROUP_I = 9;
-}
-enum GamePacket_EventRole {
-    LEADER = 1;
-    SWEEPER = 2;
-}
-enum GamePacket_EventScheme {
-    GP_CLUB = 2;
-    GP_PRIVATE = 1;
-    GP_PUBLIC = 0;
-}
-enum GamePacket_EventSubgroupLabel {
-    A = 1;
-    B = 2;
-    C = 3;
-    D = 4;
-    E = 5;
 }
 message EventProtobuf { //where is shortName, shortDescription, rulesSet, routeUrl, bikeHash, 
 //privateEvent, followeeEntrantCount, totalEntrantCount, followeeSignedUpCount, totalSignedUpCount, followeeJoinedCount,
@@ -284,4 +264,45 @@ message EventSubgroupPlacements {
 }
 message CrossingStartingLineProto {
     required uint64 f1 = 1; //time???
+}
+enum MeetupState_Type {
+    INVITED = 0;
+    JOINED = 1;
+}
+message MeetupState {
+    optional MeetupState_Type type = 1;
+    optional uint64 f2 = 2;
+}
+enum LeaderboardType {
+    LIVE = 0;
+    THIRTY_DAY = 1;
+}
+message SegmentLeaderboardResult {
+    optional uint64 f1 = 1;
+    optional uint64 f2 = 2; //enum <= 1
+    optional uint64 f3 = 3;
+    optional uint64 f4 = 4;
+    optional uint64 f5 = 5;
+    optional uint64 f6 = 6;
+    optional string f7 = 7;
+    optional string f8 = 8;
+    optional uint64 f9 = 9;
+    optional string f10 = 10;
+    optional uint64 f11 = 11;
+    optional uint64 f12 = 12; //enum <= 1
+    optional uint32 f13 = 13;
+    optional bool f14 = 14;
+    optional uint32 f15 = 15;
+    optional uint32 f16 = 16;
+    optional uint64 f17 = 17; //enum <= 3
+    optional uint64 f18 = 18;
+    optional string f19 = 19;
+}
+message RiderListEntry {
+    optional string f1 = 1;
+    optional uint32 f2 = 2;
+    optional uint32 f3 = 3;
+    optional string f4 = 4;
+    optional string f5 = 5;
+    optional string f6 = 6;
 }

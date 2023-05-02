@@ -1,19 +1,11 @@
 syntax = "proto2";
 package protobuf;
 import "Social.proto";
-enum NotificationType {
-    ACTIVITY_COMMENT = 5;
-    PRIVATE_EVENT_INVITE = 4;
-    CLUB_CHAT = 8;
-    CLUB_CHAT_CREATED = 10;
-    CLUB_EVENT = 7;
-    CLUB_EVENT_CREATED = 9;
-    CLUB_INVITE = 6;
-    FOLLOW_REQUEST = 0;
-    FOLLOW_REQUEST_APPROVED = 2;
-    NEW_FOLLOWER = 1;
-    POST_ACTIVITY_RIDE_ONS = 3;
-}
+import "Mapping.proto";
+import "Workout.proto";
+import "Event.proto";
+import "Profile.proto";
+import "PlayerState.proto";
 enum BLEPeripheralRequestType {
     BEGIN_PERIPHERAL_DISCOVERY = 1;
     CONNECT_PERIPHERAL = 3;
@@ -126,6 +118,50 @@ enum ButtonIcon {
     ICON_TOAST = 6;
     ICON_WAVE = 2;
 }
+enum GameAction_Type {
+    DISMISS_EXIT_GAME = 3;
+    DISMISS_SAVE_ACTIVITY = 1;
+    PROMPT_EXIT_GAME = 4;
+    PROMPT_SAVE_ACTIVITY = 2;
+}
+enum GamePacket_Type {
+    BOOST_MODE_STATE = 22;
+    PLAYER_FITNESS_INFO = 13;
+    PLAYER_INFO = 7;
+    PLAYER_STOPWATCH_SEGMENT = 21;
+    RIDE_ON_BOMB_REQUEST = 8;
+    RIDE_ON_BOMB_RESPONSE = 9;
+    SEGMENT_RESULT_ADD = 17;
+    SEGMENT_RESULT_NEW_LEADER = 19;
+    SEGMENT_RESULT_REMOVE = 18;
+    SPORTS_DATA_REQUEST = 1;
+    SPORTS_DATA_RESPONSE = 2;
+    CLIENT_ACTION = 15;
+    WORKOUT_ACTION_REQUEST = 14;
+    WORKOUT_INFO = 11;
+    WORKOUT_STATE = 12;
+    CLIENT_INFO = 4;
+    EFFECT_REQUEST = 10;
+    GAME_ACTION = 23;
+    GAME_SESSION_INFO = 3;
+    INTERSECTION_AHEAD = 6;
+    MAPPING_DATA = 5;
+    MEETUP_STATE = 16;
+    PLAYER_ACTIVE_SEGMENTS = 20;
+}
+enum GameSessionInfo_GameMode {
+    GM_EVENT = 3;
+    GM_MEETUP = 4;
+    GM_NORMAL = 1;
+    GM_WORKOUT = 2;
+}
+enum GameSessionInfo_GameScreenInFocus {
+    BUSY = 5;
+    DROP_IN = 2;
+    IN_GAME = 3;
+    OTHER = 4;
+    PAIRING = 1;
+}
 enum SportsDataRequest_Type {
     END_SELECTION = 6;
     SELECT_SAMPLE_TYPE = 3;
@@ -223,14 +259,14 @@ message BLEPeripheralCharacteristic {
     optional bytes f2 = 2;
 }
 message BLEPeripheralResponse {
-    optional uint32 f1 = 1;
-    optional uint32 f2 = 2;
+    optional uint32 f1 = 1; //enum <= 5
+    optional uint32 f2 = 2; //enum <= 3
     optional string f3 = 3;
     optional BLEPeripheral f4 = 4;
     optional BLEPeripheralCharacteristic f5 = 5;
 }
 message BLEAdvertisementDataSection {
-    optional int32 f1 = 1;
+    optional BLEAdvertisementDataSection_Type type = 1;
     optional bytes f2 = 2;
 }
 message BLEPeripheral {
@@ -241,7 +277,7 @@ message BLEPeripheral {
 message BLEAdvertisement {
     optional BLEPeripheral f1 = 1;
     repeated BLEAdvertisementDataSection f2 = 2;
-    optional int32 f3 = 3;
+    optional int32 f3 = 3; //enum <= 5
 }
 message PhoneToGameCommand {
     required int32 seqno = 1;
@@ -276,6 +312,11 @@ message PhoneToGame {
     optional double f9 = 9;
     optional int32 f10 = 10;
 }
+enum BoostModeState_Type {
+    BOOST1 = 1;
+    BOOST2 = 2;
+    BOOST3 = 3;
+}
 message BoostModeState {
     optional int32 f1 = 1;
     optional int32 f2 = 2;
@@ -283,12 +324,225 @@ message BoostModeState {
     optional float f4 = 4;
     optional float f5 = 5;
 }
-/*message GamePacket {
-    enum Sport { //not 0-based!!!!
-        GP_CYCLING = 1;
-        GP_RUNNING = 2;
-        GP_ROWING = 3;
-    }
+message GameAction {
+    optional GameAction_Type f1 = 1;
+}
+message GameSessionInfo {
+    optional uint64 f1 = 1; //enum <= 2
+    optional uint64 f2 = 2;
+    optional uint64 f3 = 3;
+    optional uint64 f4 = 4;
+    optional string f5 = 5;
+    optional string f6 = 6;
+    optional uint64 f7 = 7; //enum <= 3
+    optional uint32 f8 = 8;
+    optional uint64 f9 = 9;
+    optional bool f10 = 10;
+    optional uint64 f11 = 11; //enum <= 5
+    optional uint64 f12 = 12;
+    optional bool f13 = 13;
+}
+message GameToPhone {
+    optional uint32 f1 = 1;
+    optional uint32 f2 = 2;
+    optional uint64 f3 = 3;
+    optional uint64 f4 = 4;
+    optional PlayerState player_state = 5;
+    optional bool f6 = 6;
+    optional bool f7 = 7;
+    optional PlayerProfile player_profile = 8;
+    repeated RiderListEntry riders = 9;
+    optional float f10 = 10;
+    repeated GameToPhoneCommand game_to_phone_cmd = 11;
+    optional uint64 f12 = 12;
+}
+message GameToPhoneCommand {
+    optional uint32 f1 = 1;
+    optional GameToPhoneCommandType type = 2;
+    optional uint32 f3 = 3;
+    optional string f4 = 4;
+    optional string f6 = 6;
+    optional uint32 f7 = 7;
+    optional uint32 f8 = 8;
+    optional uint32 f9 = 9;
+    optional string f10 = 10;
+    optional string f11 = 11;
+    optional string f12 = 12;
+    optional bool f13 = 13;
+    optional string f14 = 14;
+    optional string f15 = 15;
+    optional SocialPlayerAction spa = 16;
+    optional MobileAlert mobile_alert = 17;
+    optional BLEPeripheralRequest ble_rq = 18;
+    optional bool f19 = 19;
+    optional string f20 = 20;
+    optional string f21 = 21;
+    optional uint32 f22 = 22;
+}
+message SportsDataRequest {
+    optional SportsDataRequest_Type type = 1;
+    optional uint64 f2 = 2; // enum <= 2
+    optional uint64 f3 = 3; // enum <= 3
+}
+message SportsDataResponse {
+    optional SportsDataResponse_Type type = 1;
+    optional SportsDataResponse_DeviceModel device = 2; //or SportsDataResponse_WorkoutStatus ???
+    optional SportsDataResponse_ConnectionStatus status = 3;
+}
+message SportsDataSample {
+    optional SportsDataSample_Type f1 = 1;
+    optional float f2 = 2;
+}
+enum ClientAction_Type {
+    CA_DISCARD_ACTIVITY = 4;
+    CA_DISMISS_EXIT_GAME = 8;
+    CA_EXIT_GAME = 6;
+    CA_PROMPT_EXIT_GAME = 9;
+    CA_RIDE_ON_GIVEN = 1;
+    CA_SAVE_ACTIVITY_FINAL = 3;
+    CA_SAVE_ACTIVITY_PREVIEW = 2;
+    CA_START_CONNECTED_SESSION = 5;
+    CA_START_ZWIFTING = 7;
+}
+message ClientAction {
+    optional ClientAction_Type type = 1;
+    optional uint64 f2 = 2;
+    optional string f3 = 3;
+    optional uint32 f4 = 4;
+}
+message ClientCapabilities {
+    optional bool f1 = 1;
+    optional bool f2 = 2;
+}
+message ClientInfo {
+    optional string f1 = 1;
+    optional string f2 = 2;
+    optional string f3 = 3;
+    optional string f4 = 4;
+    optional ClientCapabilities caps = 5;
+}
+enum FitnessAttribute_Type {
+    FA_HEART_RATE = 2;
+    FA_PACE_RUNNING_10KM = 5;
+    FA_PACE_RUNNING_1MI = 3;
+    FA_PACE_RUNNING_5KM = 4;
+    FA_PACE_RUNNING_FULL_MARATHON = 7;
+    FA_PACE_RUNNING_HALF_MARATHON = 6;
+    FA_POWER = 1;
+}
+message BLEPeripheralRequest {
+    optional BLEPeripheralRequestType type = 1;
+    repeated BLEPeripheralService serv = 2;
+    optional BLEPeripheral per = 3;
+}
+message BLEPeripheralService {
+    optional string f1 = 1;
+    repeated BLEPeripheralCharacteristic chars = 2;
+}
+message FitnessAttribute {
+    optional FitnessAttribute_Type type = 1;
+    optional float f2 = 2;
+    repeated FitnessAttribute_Zone zones = 3;
+}
+message FitnessAttribute_Zone {
+    optional float f1 = 1;
+    optional float f2 = 2;
+    optional uint32 f3 = 3;
+    optional uint32 f4 = 4;
+}
+message PlayerFitnessInfo {
+    repeated FitnessAttribute attrs = 1;
+}
+message PlayerInfo {
+    optional uint64 f1 = 1;
+    optional bool f2 = 2;
+}
+message PlayerJoinedWorld {
+    optional uint64 f1 = 1;
+    optional uint64 f2 = 2;
+}
+enum PlayerSegmentInfo_Status {
+    ABORTED = 2;
+    FINISHED = 3;
+    ONGOING = 1;
+    STARTED = 0;
+    STOPPED = 4;
+}
+message PlayerSegmentInfo {
+    optional uint64 f1 = 1;
+    optional PlayerSegmentInfo_Status status = 2;
+    optional uint64 f3 = 3;
+    optional uint64 f4 = 4;
+    optional uint64 f5 = 5;
+}
+message RideOnBombRequest {
+    optional bool f1 = 1;
+}
+message RideOnBombResponse {
+    optional bool f1 = 1;
+}
+message PlayerActiveSegments {
+    repeated PlayerSegmentInfo segments = 1;
+}
+message MobileAlert {
+    optional uint64 f1 = 1;
+    optional string f2 = 2;
+    optional string f3 = 3;
+    optional uint32 f5 = 5;
+    repeated MobileAlertOption alert_options = 6;
+}
+message MobileAlertOption {
+    optional string f1 = 1;
+    optional uint32 f2 = 2;
+    optional uint32 f3 = 3;
+}
+enum NotificationType {
+    ACTIVITY_COMMENT = 5;
+    PRIVATE_EVENT_INVITE = 4;
+    CLUB_CHAT = 8;
+    CLUB_CHAT_CREATED = 10;
+    CLUB_EVENT = 7;
+    CLUB_EVENT_CREATED = 9;
+    CLUB_INVITE = 6;
+    FOLLOW_REQUEST = 0;
+    FOLLOW_REQUEST_APPROVED = 2;
+    NEW_FOLLOWER = 1;
+    POST_ACTIVITY_RIDE_ONS = 3;
+}
+message Notification {
+    optional uint64 f1 = 1;
+    optional PlayerSocialProfile social1 = 2;
+    optional PlayerSocialProfile social2 = 3;
+    optional NotificationType type = 4;
+    optional bool f5 = 5;
+    optional uint64 f6 = 6;
+    optional uint64 f7 = 7;
+}
+message Notifications {
+    repeated Notification items = 1;
+}
+enum GamePacket_Sport { //not 0-based!!!!
+    GP_CYCLING = 1;
+    GP_RUNNING = 2;
+    GP_ROWING = 3;
+}
+enum GamePacket_EventRole {
+    LEADER = 1;
+    SWEEPER = 2;
+}
+enum GamePacket_EventScheme {
+    GP_CLUB = 2;
+    GP_PRIVATE = 1;
+    GP_PUBLIC = 0;
+}
+enum GamePacket_EventSubgroupLabel {
+    A = 1;
+    B = 2;
+    C = 3;
+    D = 4;
+    E = 5;
+}
+message GamePacket {
     optional int32 f1 = 1;
     optional SportsDataRequest sports_data_request = 2;
     optional SportsDataResponse sports_data_response = 3;
@@ -311,4 +565,4 @@ message BoostModeState {
     optional PlayerSegmentInfo player_segment_info = 20;
     optional BoostModeState boost_mode_state = 21;
     optional GameAction game_action = 22;
-}*/
+}

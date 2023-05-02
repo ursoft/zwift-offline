@@ -1,0 +1,58 @@
+syntax = "proto2";
+package protobuf;
+import "UUID.proto";
+enum ClubImage_Type {
+    CLUB_LARGE = 3;
+    EVENT = 4;
+    ICON = 2;
+    LOGO = 1;
+    THUMBNAIL = 5;
+}
+enum Membership_SecurityLevel {
+    BASIC = 1;
+    MODERATOR = 3;
+    OWNER = 2;
+}
+enum Membership_Status {
+    ADMIN_REJECTED = 4;
+    BANNED = 6;
+    BLOCKED = 8;
+    INVITED = 2;
+    LEFT = 7;
+    MEMBER = 1;
+    REQUESTED = 3;
+    USER_REJECTED = 5;
+}
+message ClubImage {
+    optional ClubImage_Type type = 1;
+    optional bytes bits = 2;
+}
+message ClubWithMembership {
+    optional UUID id = 1;
+    optional string f2 = 2;
+    optional string f3 = 3;
+    optional string f4 = 4;
+    optional string f5 = 5;
+    optional int64 f6 = 6;
+    optional int64 f7 = 7;
+    optional string f8 = 8;
+    optional string f9 = 9;
+    optional string f10 = 10;
+    optional string f11 = 11;
+    optional bool f12 = 12;
+    optional Membership memb = 13;
+    repeated int32 f14 = 14;
+    repeated ClubImage images = 15;
+}
+message Clubs {
+    repeated ClubWithMembership items = 1;
+}
+message Membership {
+    optional string f1 = 1;
+    optional UUID id = 2;
+    optional int64 f3 = 3;
+    optional int64 f4 = 4;
+    optional int64 f5 = 5;
+    optional Membership_Status status = 6;
+    optional Membership_SecurityLevel security = 7;
+}

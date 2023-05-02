@@ -1,0 +1,69 @@
+syntax = "proto2";
+package protobuf;
+import "Profile.proto";
+enum WorkoutActionRequest_Type {
+    EASIER = 7;
+    FTP_BIAS_DECREASE = 5;
+    FTP_BIAS_INCREASE = 4;
+    HARDER = 6;
+    PAUSE = 1;
+    RESUME = 2;
+    SKIP = 3;
+    TOGGLE_ERG_MODE = 8;
+}
+enum WorkoutDurationType {
+    WDT_DISTANCE = 1;
+    WDT_TIME = 0;
+}
+message WorkoutActionRequest {
+    optional WorkoutActionRequest_Type type = 1;
+}
+message WorkoutBlockState {
+    optional uint32 f1 = 1;
+    optional float f2 = 2;
+}
+message WorkoutInfo {
+    optional uint32 f1 = 1;
+    optional string f2 = 2;
+    optional bool f3 = 3;
+    optional float f4 = 4;
+    optional float f5 = 5;
+    optional WorkoutDurationType dur = 6;
+}
+message WorkoutState {
+    optional float f1 = 1;
+    repeated WorkoutBlockState states = 2;
+    optional bool f3 = 3;
+    optional bool f4 = 4;
+    optional bool f5 = 5;
+    optional float f6 = 6;
+    optional bool f7 = 7;
+    optional float f8 = 8;
+    optional float f9 = 9;
+    optional float f10 = 10;
+}
+message WorkoutSummaries {
+    repeated WorkoutSummary items = 1;
+}
+message WorkoutSummary {
+    optional string f1 = 1;
+    optional uint32 f2 = 2;
+    optional string f3 = 3;
+    optional string f4 = 4;
+    repeated string f5 = 5;
+    optional Sport sport = 6;        
+    repeated string f7 = 7;
+    optional string f8 = 8;
+    optional bool f9 = 9;
+    optional string f10 = 10;
+}
+enum EffectRequest_Effect {
+    RECEIVED_RIDE_ON = 1;
+    RESISTANCE_DECREASE = 3;
+    RESISTANCE_INCREASE = 2;
+}
+message EffectRequest {
+    optional EffectRequest_Effect eff = 1;
+    optional bool f2 = 2;
+    optional bool f3 = 3;
+}

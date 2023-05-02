@@ -1,7 +1,7 @@
 syntax = "proto2";
+package protobuf;
 import "Profile.proto"; //enums PlayerType and Sport
 import "PlayerState.proto";
-package protobuf;
 message DropInWorld {
     required uint64 id = 1;
     optional string name = 2;
@@ -53,6 +53,12 @@ message World {
     required uint64 world_time = 6;
     required uint64 real_time = 7;
     repeated Player w_f8 = 8;
+}
+message List {
+    repeated World worlds = 1;
+}
+message Query {
+    required string query = 1;
 }
 message PlayerLeftWorld {
     required int64 player_id = 1;

@@ -1,0 +1,268 @@
+syntax = "proto2";
+package protobuf;
+import "UUID.proto";
+import "Profile.proto";
+enum CampaignRegistrationStatus {
+    CAMPAIGN_DISQUALIFIED = 7;
+    CAMPAIGN_FINALIST = 4;
+    CAMPAIGN_GRADUATED = 2;
+    CAMPAIGN_INCOMPLETE = 8;
+    CAMPAIGN_REGISTERED = 1;
+    CAMPAIGN_SEMI_FINALIST = 3;
+    CAMPAIGN_WINNER = 5;
+    CAMPAIGN_WITHDRAWN = 6;
+}
+enum CampaignReqsConditionalType {
+    AND = 1;
+    OR = 2;
+}
+message CampaignProtobuf {
+    optional uint64 f1 = 1;
+    optional string f2 = 2;
+    optional string f3 = 3;
+    optional uint64 f4 = 4;
+    optional uint64 f5 = 5;
+    optional uint64 f6 = 6;
+    optional uint64 f7 = 7;
+    optional uint64 f8 = 8;
+    optional uint64 f9 = 9;
+    optional uint64 f10 = 10;
+    optional CampaignRegistrationStatus status = 11;
+    optional string f12 = 12;
+    optional uint32 f13 = 13;
+    optional uint32 f14 = 14;
+    optional uint32 f15 = 15;
+    optional uint32 f16 = 16;
+    optional uint32 f17 = 17;
+    optional uint32 f18 = 18;
+    optional bool f19 = 19;
+    optional uint32 f20 = 20;
+    optional string f21 = 21;
+    optional bool f22 = 22;
+    optional bool f23 = 23;
+    optional CampaignStageProtobuf stage = 24;
+}
+message CampaignRegistrationProtobuf {
+    optional uint64 f1 = 1;
+    optional uint64 f2 = 2;
+    optional string f3 = 3;
+    optional uint64 f4 = 4;
+    optional uint64 f5 = 5;
+    optional uint64 f6 = 6;
+    optional CampaignRegistrationStatus status = 7;
+    optional bool f8 = 8;
+    optional uint32 f9 = 9;
+    optional uint32 f10 = 10;
+    optional uint32 f11 = 11;
+    optional uint32 f12 = 12;
+    optional uint32 f13 = 13;
+    optional uint32 f14 = 14;
+    optional uint32 f15 = 15;
+    repeated CampaignStageRegistrationProtobuf stages = 16;
+}
+message CampaignStageProtobuf {
+    optional uint64 f1 = 1;
+    optional string f2 = 2;
+    optional uint64 f3 = 3;
+    optional uint64 f4 = 4;
+    optional uint64 f5 = 5;
+    optional uint64 f6 = 6;
+    optional uint32 f7 = 7;
+    optional uint32 f8 = 8;
+    optional uint32 f9 = 9;
+    optional uint32 f10 = 10;
+    optional uint32 f11 = 11;
+    optional uint32 f12 = 12;
+    optional bool f13 = 13;
+    optional uint64 f14 = 14;
+    optional string f15 = 15;
+}
+message CampaignStageRegistrationProtobuf {
+    optional uint64 f1 = 1;
+    optional uint64 f2 = 2;
+    optional uint64 f3 = 3;
+    optional uint64 f4 = 4;
+    optional uint64 f5 = 5;
+    optional uint32 f6 = 6;
+    optional uint32 f7 = 7;
+    optional uint32 f8 = 8;
+    optional uint32 f9 = 9;
+    optional uint32 f10 = 10;
+    optional uint32 f11 = 11;
+    optional uint32 f12 = 12;
+}
+message CampaignSummaryProtobuf {
+    optional CampaignProtobuf obj = 1;
+    optional uint64 f2 = 2;
+    optional bool f3 = 3;
+    optional bool f4 = 4;
+    optional bool f5 = 5;
+    optional bool f6 = 6;
+    optional bool f7 = 7;
+    optional bool f8 = 8;
+    optional uint64 f9 = 9; //enum <= 8
+    optional uint64 f10 = 10;
+    optional uint64 f11 = 11;
+    optional uint64 f13 = 13; //enum <= 8
+    optional bool f14 = 14;
+    optional string f15 = 15;
+    optional uint32 f16 = 16;
+    optional uint32 f17 = 17;
+    optional uint32 f18 = 18;
+    optional uint32 f19 = 19;
+    optional uint32 f20 = 20;
+    optional uint32 f21 = 21;
+    optional uint32 f22 = 22;
+    optional CampaignRegistrationProtobuf reg = 23;
+}
+message CampaignDetailResponse {
+    optional UUID f1 = 1;
+    optional string f2 = 2;;
+    optional string f3 = 3;
+    optional uint64 f5 = 5;
+    optional uint64 f6 = 6;
+    optional uint64 f8 = 8;
+    optional uint64 f9 = 9;
+    optional bool f10 = 10;
+    optional Gender f11 = 11;
+    optional string f12 = 12;
+    optional string f13 = 13;
+    optional string f14 = 14;
+    optional bool f15 = 15;
+    optional bool f16 = 16;
+    repeated CampaignStageResponse stages = 17;
+    repeated UnlockResponse unlocks = 18;
+    optional CampaignUITemplateResponse uit = 19;
+    optional Sport sport = 20;
+}
+message CampaignRegistrationDetailResponse {
+    optional UUID f1 = 1;
+    optional UUID f2 = 2;
+    optional string f3 = 3;
+    optional uint64 f4 = 4;
+    optional uint32 f5 = 5;
+    optional CampaignRegistrationStatus status = 6;
+    repeated CampaignStageProgressResponse progress = 7;
+    optional bool f8 = 8;
+    repeated CampaignRegistrationUnlockResponse unlocks = 9;
+}
+message CampaignRegistrationResponse {
+    optional UUID f1 = 1;
+    optional UUID f2 = 2;
+    optional string f3 = 3;
+    optional uint64 f4 = 4;
+    optional uint32 f5 = 5;
+    optional CampaignRegistrationStatus f6 = 6;
+    repeated CampaignStageProgressResponse progress = 7;
+    optional bool f8 = 8;
+}
+message CampaignRegistrationSummaryResponse {
+    optional uint64 f1 = 1;
+    optional bool f2 = 2;
+    optional CampaignDetailResponse detail = 3;
+    optional CampaignRegistrationDetailResponse reg_detail = 4;
+}
+message CampaignRegistrationUnlockResponse {
+    optional uint64 f1 = 1;
+    optional UnlockResponse unlock = 2;
+}
+message CampaignStageProgressResponse {
+    optional UUID f1 = 1;
+    optional UUID f2 = 2;
+    optional uint32 f3 = 3;
+    optional uint32 f4 = 4;
+    optional uint32 f5 = 5;
+    optional uint32 f6 = 6;
+    optional uint32 f7 = 7;
+    optional uint32 f8 = 8;
+    optional uint32 f9 = 9;
+    optional uint32 f10 = 10;
+    optional uint32 f11 = 11;
+    optional uint32 f12 = 12;
+    optional uint32 f13 = 13;
+    optional string f14 = 14;
+    optional uint32 f15 = 15;
+    repeated CampaignStageRouteFinishedResponse finishes = 16;
+}
+message CampaignStageResponse {
+    optional UUID f1 = 1;
+    optional string f2 = 2;
+    optional uint64 f3 = 3;
+    optional uint64 f4 = 4;
+    optional uint64 f5 = 5;
+    optional uint32 f6 = 6;
+    optional uint32 f7 = 7;
+    optional uint32 f8 = 8;
+    optional uint32 f9 = 9;
+    optional uint32 f10 = 10;
+    optional uint32 f11 = 11;
+    optional uint32 f12 = 12;
+    optional uint32 f13 = 13;
+    optional bool f14 = 14;
+    optional Sport sport = 15;
+    optional bool f16 = 16;
+    optional uint32 f17 = 17;
+    optional uint32 f18 = 18;
+    optional CampaignReqsConditionalType f19 = 19;
+    optional string f20 = 20;
+    optional uint32 f21 = 21;
+    repeated CampaignStageRouteResponse stages = 22;
+}
+message CampaignStageRouteFinishedResponse {
+    optional UUID f1 = 1;
+    optional uint64 f2 = 2;
+    optional Sport sport = 3;
+    optional uint64 f4 = 4;
+}
+message CampaignStageRouteResponse {
+    optional UUID f1 = 1;
+    optional uint64 f2 = 2;
+}
+message CampaignUITemplateResponse {
+    optional UUID f1 = 1;
+    optional string f2 = 2;
+    optional string f3 = 3;
+    optional string f4 = 4;
+    optional string f5 = 5;
+    optional string f6 = 6;
+    optional UUID f7 = 7;
+    optional uint32 f8 = 8;
+    optional string f9 = 9;
+    optional string f10 = 10;
+    optional string f11 = 11;
+    optional string f12 = 12;
+    optional string f13 = 13;
+    optional string f14 = 14;
+}
+message CompletedCampaignsSummaryResponse {
+    optional string f1 = 1;
+    optional Sport sport = 2;
+    optional uint32 f3 = 3;
+    optional string f4 = 4;
+}
+message ListCampaignRegistrationSummaryResponse {
+    repeated CampaignRegistrationSummaryResponse items = 1;
+}
+message ListCompletedCampaignsSummaryResponse {
+    repeated CompletedCampaignsSummaryResponse items = 1;
+}
+message ListPublicActiveCampaignResponse {
+    repeated PublicActiveCampaignResponse items = 1;
+}
+message PublicActiveCampaignResponse {
+    optional UUID f1 = 1;
+    optional string f2 = 2;
+    optional string f3 = 3;
+}
+message UnlockResponse {
+    optional UUID f1 = 1;
+    optional string f2 = 2;
+    optional string f3 = 3;
+    optional uint32 f4 = 4;
+    optional UUID f5 = 5;
+    optional UUID f6 = 6;
+    optional CampaignRegistrationStatus status = 7;
+    optional UUID f8 = 8;
+    optional UUID f9 = 9;
+    optional uint32 f10 = 10;
+}

@@ -1,0 +1,5 @@
+syntax = "proto2";
+package protobuf;
+message UUID {
+    required string id = 1;
+}

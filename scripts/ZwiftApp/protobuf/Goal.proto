@@ -32,3 +32,20 @@ enum GoalStatus {
     ACTIVE = 0;
     RETIRED = 1;
 }
+message GoalHistory {
+    repeated GoalHistoryPeriod items = 1;
+}
+message GoalHistoryPeriod {
+    optional uint64 f1 = 1;
+    optional uint64 f2 = 2;
+    optional uint64 f3 = 3;
+    optional Sport sport = 4;
+    optional string f5 = 5;
+    optional uint64 f6 = 6; //enum <=1
+    optional uint64 f7 = 7; //enum <=1
+    optional float f8 = 8;
+    optional float f9 = 9;
+    optional float f10 = 10;
+    optional float f11 = 11;
+    optional uint64 f12 = 12;
+}

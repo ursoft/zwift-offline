@@ -1,8 +1,8 @@
 syntax = "proto2";
 package protobuf;
 enum PlaybackType {
-    SEGMENT = 0;
-    ROUTE = 1;
+    PB_SEGMENT = 0;
+    PB_ROUTE = 1;
 }
 message PlaybackData {
     required int64 segment_id = 1;
@@ -32,4 +32,37 @@ message PlaybackPowerupState {
 message PlaybackRoadIdState {
     optional float f1 = 1;
     optional int32 f2 = 2;
+}
+message PlaybackEquipmentState {
+    optional float f1 = 1;
+    optional uint32 f2 = 2;
+    optional int64 f3 = 3;
+    optional int64 f4 = 4;
+    optional uint32 f5 = 5;
+    optional uint32 f6 = 6;
+    optional uint32 f7 = 7;
+    optional uint32 f8 = 8;
+    optional uint32 f9 = 9;
+    optional uint32 f10 = 10;
+    optional uint32 f11 = 11;
+}
+message PlaybackPlayerState {
+    optional float f1 = 1;
+    optional float f2 = 2;
+    optional float f3 = 3;
+    optional float f4 = 4;
+    optional float f5 = 5;
+}
+enum TimeSeriesType {
+    FTP = 1;
+    WEIGHT_IN_GRAMS = 2;
+}
+message TimeSeries {
+    optional uint64 f1 = 1;
+    optional TimeSeriesType type = 2;
+    repeated TimeSeriesRecord records = 3;
+}
+message TimeSeriesRecord {
+    optional uint32 f1 = 1;
+    optional uint32 f2 = 2;
 }

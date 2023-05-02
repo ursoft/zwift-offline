@@ -1,0 +1,82 @@
+syntax = "proto2";
+package protobuf;
+import "Profile.proto"; //enums
+message RaceResultEntry {
+    optional string f1 = 1;
+    optional string f2 = 2;
+    optional string f3 = 3;
+    optional string f4 = 4;
+}
+message RaceResult {
+    repeated RaceResultEntry entries = 1;
+}
+message RaceResultDeviceInfo {
+    optional string f1 = 1;
+    optional string f2 = 2;
+    optional string f3 = 3;
+    optional string f4 = 4;
+}
+message RaceResultEntryActivityData {
+    optional int64 f1 = 1;
+    optional int64 f2 = 2;
+    optional Sport sport = 3;
+    optional uint32 f4 = 4;
+    optional int64 f5 = 5;
+    optional int64 f6 = 6;
+    optional int64 f7 = 7;
+    optional int64 f8 = 8;
+    optional string f9 = 9;
+    optional string f10 = 10;
+}
+message RaceResultEntryCriticalPData {
+    optional uint32 f1 = 1;
+    optional uint32 f2 = 2;
+    optional uint32 f3 = 3;
+    optional uint32 f4 = 4;
+}
+message RaceResultEntryHeartRateData {
+    optional bool f1 = 1;
+    optional uint32 f2 = 2;
+    optional uint32 f3 = 3;
+}
+message RaceResultEntryProfileData {
+    optional int64 f1 = 1;
+    optional int64 f2 = 2;
+    optional Gender gender = 3;
+    optional string f4 = 4;
+    optional PlayerType player_type = 5;
+    optional string f6 = 6;
+    optional string f7 = 7;
+}
+message RaceResultEntrySaveRequest {
+    optional int64 f1 = 1;
+    optional RaceResultEntryActivityData data = 2;
+    optional RaceResultEntryCriticalPData crit = 3;
+    optional RaceResultEntrySensorData sensor = 4;
+    optional bool f5 = 5;
+    optional uint32 f6 = 6;
+    optional string f7 = 7;
+    //8-13 absent
+    optional uint32 f14 = 14;
+    optional bool f15 = 15;
+    optional bool f16 = 16;
+    optional RaceResultDeviceInfo device = 17;
+}
+message RaceResultEntrySensorData {
+    optional RaceResultEntryHeartRateData heart = 1;
+    optional uint32 f2 = 2;
+    optional uint32 f3 = 3;
+    optional uint32 f4 = 4;
+    optional bool f5 = 5;
+    optional bool f6 = 6;
+    optional uint32 f7 = 7;
+    optional uint32 f8 = 8;
+    optional PowerType power_type = 9;
+    optional float f10 = 10;
+    optional bool f11 = 11;
+}
+message RaceResultSummary {
+    repeated RaceResultEntry entries1 = 1;
+    repeated RaceResultEntry entries2 = 2;
+    optional uint32 f3 = 3;
+}

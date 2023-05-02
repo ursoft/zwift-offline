@@ -1,6 +1,6 @@
 ﻿syntax = "proto2";
-import "Profile.proto";
 package protobuf;
+import "Profile.proto";
 message RouteResultSaveRequest {
     optional string f1 = 1;                 // ? absent
     optional uint64 server_realm = 2;       // ? 1

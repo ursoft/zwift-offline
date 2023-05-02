@@ -1,0 +1,88 @@
+syntax = "proto2";
+package protobuf;
+enum MappingAnnotation_ScaleType {
+    MAP_SCALE = 2;
+    NO_SCALE = 1;
+    SOFT_SCALE = 3;
+}
+enum MappingAnnotation_Type {
+    CUSTOM = 6;
+    FAVORITE_ZWIFTER = 3;
+    FOLLOWEE_ZWIFTER = 2;
+    LOGGED_IN_ZWIFTER = 7;
+    ZWIFTER = 1;
+}
+enum MappingPath_Type {
+    EVENT_ROUTE = 3;
+    PLAYER_HISTORY = 1;
+    ROUTE = 2;
+}
+message Vector3 {
+    optional float f1 = 1;
+    optional float f2 = 2;
+    optional float f3 = 3;
+}
+message MappingAnnotation {
+    optional uint64 f1 = 1;
+    optional MappingAnnotation_Type type = 2;
+    optional Vector3 f3 = 3;
+    optional Vector3 f4 = 4;
+    optional string f5 = 5;
+    optional uint64 f6 = 6;
+    optional bool f7 = 7;
+    optional uint32 f8 = 8;
+    optional uint64 f9 = 9; //enum <= 3
+    optional float f10 = 10;
+    optional string f11 = 11;
+    optional uint32 f12 = 12;
+    optional float f13 = 13;
+    optional uint64 f14 = 14; //enum <= 5
+    optional uint64 f15 = 15; //enum <= 2
+    optional uint64 f16 = 16; //enum <= 3
+    optional uint64 f17 = 17; //enum <= 3
+    optional uint32 f18 = 18;
+    optional float f19 = 19;
+    optional uint32 f20 = 20;
+}
+message MappingAnnotationGroup {
+    optional uint64 f1 = 1;
+    repeated MappingAnnotation ann = 2;
+    optional uint32 f3 = 3;
+}
+message MappingData {
+    repeated MappingAnnotationGroup groups = 1;
+    repeated MappingPath paths = 2;
+    optional float f3 = 3;
+    optional float f4 = 4;
+}
+message MappingPath {
+    optional uint64 f1 = 1;
+    optional uint64 f2 = 2;
+    repeated MappingPathPoint points = 3;
+    optional uint32 f4 = 4;
+    optional MappingPath_Type type = 5;
+}
+message MappingPathPoint {
+    optional float f1 = 1;
+    optional float f2 = 2;
+}
+message IntersectionAhead {
+    repeated IntersectionTurnOption turns = 1;
+    optional uint32 f2 = 2;
+    optional bool f3 = 3;
+}
+enum TurnDirection {
+    LEFT = 1;
+    RIGHT = 2;
+    STRAIGHT = 3;
+}
+message IntersectionTurnOption {
+    optional TurnDirection dir = 1;
+    optional string f2 = 2;
+    optional string f3 = 3;
+    optional bool f4 = 4;
+    optional uint64 f5 = 5;
+}
+message IntersectionTurnSelection {
+    optional uint64 f1 = 1;
+}

@@ -48,7 +48,7 @@ message ClubAttribution {
     optional float value = 2;
 }
 enum FitnessPrivacy {
-    UNSET = 0;
+    USE_DEFAULT = 0;
     HIDE_SENSITIVE_DATA = 1;
     SAME_AS_ACTIVITY = 2;
 }

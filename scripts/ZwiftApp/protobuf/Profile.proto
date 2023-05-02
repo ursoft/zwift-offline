@@ -5,6 +5,30 @@ enum Gender {
     MALE = 1;
     FEMALE = 2;
 }
+enum AnnouncementType {
+    SERVER_MAINTENANCE = 0;
+    GENERAL = 1;
+    STORE = 2;
+}
+enum StravaUploadStatus {
+    AWAITING_UPLOAD = 2;
+    DELETED = 4;
+    NO_FIT_FILE = 1;
+    PROCESSING = 3;
+    READY = 6;
+    UPLOAD_ERROR = 5;
+}
+enum JerseyType {
+    GREEN_JERSEY = 3;
+    NORMAL_JERSEY = 1;
+    ORANGE_JERSEY = 4;
+    POLKA_DOT_JERSEY = 2;
+    REVERSE_GREEN_JERSEY = 7;
+    REVERSE_NORMAL_JERSEY = 5;
+    REVERSE_ORANGE_JERSEY = 8;
+    REVERSE_POLKA_DOT_JERSEY = 6;
+    UNKNOWN_JERSEY = 0;
+}
 enum ProfileFollowStatus {
     PFS_UNKNOWN = 1;
     PFS_REQUESTS_TO_FOLLOW = 2;
@@ -326,6 +350,36 @@ message PowerCurveAggregationMsg {
 message InAppPurchaseReceipt {
     required string f1 = 1;
 }
+message InAppPurchaseTransaction {
+    optional string f1 = 1;
+    optional string f2 = 2;
+    optional uint64 f3 = 3;
+}
+message RedeemCouponResponse {
+    repeated ProfileEntitlement ent = 1;
+    optional string f2 = 2;
+}
+message EntitlementUnlock {
+    optional uint64 f1 = 1;
+}
 message ProfileEntitlements {
     repeated ProfileEntitlement entitlements = 1;
+}
+message AvailableYearsMsg {
+    optional float f1 = 1;
+    optional float f2 = 2;
+    optional float f3 = 3;
+}
+message PacePartnerData {
+    optional float f1 = 1;
+    optional float f2 = 2;
+    optional uint64 f3 = 3;
+}
+message AssetSummary {
+    optional string f1 = 1;
+    optional uint32 f2 = 2;
+    optional uint32 f3 = 3;
+    optional string f4 = 4;
+    optional string f5 = 5;
+    optional string f6 = 6;
 }
