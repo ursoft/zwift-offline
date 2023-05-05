@@ -1,8 +1,9 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "Profile.proto"; //enums PlayerType and Sport
 message InvitedProfileProto {
-    required uint64 player_id = 1;
+    optional uint64 player_id = 1;
     optional string firstName = 2;
     optional string lastName = 3;
     optional string imageSrc = 4;
@@ -17,7 +18,7 @@ enum EventInviteStatus {
 }
 message EventInviteProto {
     optional InvitedProfileProto profile = 1;
-    required EventInviteStatus status = 2;
+    optional EventInviteStatus status = 2;
 }
 message PrivateEventFeedProto {
     required uint64 event_id = 1; //read in PrivateEventsManagerV2::RegisterPrivateEvent
@@ -40,12 +41,13 @@ message PrivateEventFeedProto {
     optional bool rubberbanding = 18; //keep together "rulesId": "1024" 
 }
 message PrivateEventFeedListProto {
-    repeated PrivateEventFeedProto pef = 1;
+    repeated PrivateEventFeedProto pefs = 1;
 }
 message PlayerJoinedEvent {
     required uint64 rel_id = 1; //subgroup id
     optional uint64 player_id = 2;
     optional uint64 pje_f3 = 3;
+    optional uint64 pje_f4 = 4;
 }
 message PlayerLeftEvent {
     required uint64 rel_id = 1; //event id
@@ -55,7 +57,7 @@ message PlayerLeftEvent {
 message EventSubgroupProtobuf { //where is fieldLimit, signedUp, signupStatus, registered, registrationStatus, followeeEntrantCount
 //totalEntrantCount, followeeSignedUpCount, totalSignedUpCount, followeeJoinedCount, totalJoinedCount, rulesSet, workoutHash, overrideMapPreferences
 //qualificationRuleIds, accessValidationResult
-    required uint64 id = 1; // 2395269
+    optional uint64 id = 1; // 2395269
     optional string name = 2; // ex: "3R True2 Steady Ride [2.0w/kg avg] (C)"
     optional string description = 3; // ex: "Welcome to our sociable early morning/evening social group ride."
     optional uint32 evs_f4 = 4; // ""
@@ -76,7 +78,7 @@ message EventSubgroupProtobuf { //where is fieldLimit, signedUp, signupStatus, r
     optional uint64 evs_f19 = 19;
     optional uint64 evs_f20 = 20; //tag416
     optional bool evs_f21 = 21; // false, tag424
-    required uint64 route_id = 22; // 3366225080
+    optional uint64 route_id = 22; // 3366225080
     repeated uint64 invited_leaders = 23; // tag440
     optional float distance_in_meters = 24; // tag453
     optional uint32 laps = 25; // tag456
@@ -104,6 +106,8 @@ message EventSubgroupProtobuf { //where is fieldLimit, signedUp, signupStatus, r
     optional string route_url = 49; //tag906
     repeated int32 evs_f50 = 50; //tag912
     optional bool evs_f51 = 51; //tag920
+    optional uint32 evs_f52 = 52;
+    optional uint32 evs_f53 = 53;
 }
 enum EventVisibility {
     EV_PUBLIC = 1;
@@ -176,16 +180,16 @@ message EventProtobuf { //where is shortName, shortDescription, rulesSet, routeU
 //privateEvent, followeeEntrantCount, totalEntrantCount, followeeSignedUpCount, totalSignedUpCount, followeeJoinedCount,
 //totalJoinedCount, auxiliaryUrl, imageS3Name, imageS3Bucket, cullingType, recurring, recurringOffset, publishRecurring, parentId, type, workoutHash,
 //customUrl, restricted, unlisted, eventSecret, accessExpression, qualificationRuleIds, minGameVersion, recordable, imported, eventTemplateId
-    required uint64 id = 1;
+    optional uint64 id = 1;
     optional uint64 server_realm = 2;
-    required string name = 3;
+    optional string name = 3;
     optional string description = 4;
     optional uint64 event_start = 5; // Start time (epoch time in ms)
     optional string e_f6 = 6;
     optional float distance_in_meters = 7;
     optional uint32 laps = 8;
     optional uint32 e_f9 = 9;
-    repeated EventSubgroupProtobuf category = 10; //event_subgroup_size() <= MAX_SUBGROUPS(6)
+    repeated EventSubgroupProtobuf categories = 10; //event_subgroup_size() <= MAX_SUBGROUPS(6)
     optional string e_f11 = 11;
     optional string image_url = 12;
     optional uint32 duration_in_seconds = 13;
@@ -202,7 +206,7 @@ message EventProtobuf { //where is shortName, shortDescription, rulesSet, routeU
     optional EventType event_type = 24;
     optional uint64 e_f25 = 25;
     optional string e_f26 = 26;
-    optional uint64 e_f27 = 27; //<=4, ENUM? saw = 2
+    optional uint32 e_f27 = 27; //enum <= 5, saw = 2
     optional bool override_map_preferences = 28;
     optional bool invisible_to_non_participants = 29;
     optional EventSeriesProtobuf ev_series = 30;
@@ -217,12 +221,15 @@ message EventProtobuf { //where is shortName, shortDescription, rulesSet, routeU
     optional uint32 e_f39 = 39;
     optional MicroserviceEventData msed = 40;
     repeated uint32 e_f41 = 41;
+    optional uint32 e_f42 = 42;
+    optional uint32 e_f43 = 43;
+    optional bool e_f44 = 44;
 }
 message EventsProtobuf {
     repeated EventProtobuf events = 1;
 }
 message PrivateEventProto {
-    required uint64 id = 1;
+    optional uint64 id = 1;
     optional Sport sport = 2;
     optional uint64 event_start = 3;
     optional uint64 route_id = 4;
@@ -247,27 +254,28 @@ message LateJoinInformation {
     optional uint32 lj_f7 = 7; //64 on wire
 }
 message PlayerRouteDistance {
-    optional int32 player_id = 1;        //BikeManager::FindBikeWithNetworkID
+    required int32 player_id = 1;        //BikeManager::FindBikeWithNetworkID
     optional float distance_covered = 2; //not sure
     optional int32 millisec_to_leader = 3; // ZNETWORK_INTERNAL_ProcessPlayerPackets
 }
 message EventSubgroupPlacements {
-    optional int32 position = 1; //UdpStatistics::registerFanViewLatestPlayerStateInfo
+    required int32 position = 1; //UdpStatistics::registerFanViewLatestPlayerStateInfo
     repeated PlayerRouteDistance player_rd1 = 2;
     repeated PlayerRouteDistance player_rd2 = 3;
-    repeated PlayerRouteDistance event_rider_position = 4;
+    repeated PlayerRouteDistance event_rider_positions = 4;
     repeated PlayerRouteDistance player_rd4 = 5;
     optional int32 event_total_riders = 6;
     optional int32 bike_network_id = 7;
     optional int32 millisec_to_leader = 8; //ZNETWORK_INTERNAL_ProcessPlayerPackets
     optional float esp_f9 = 9; //or fixed
+    repeated PlayerRouteDistance player_rd5 = 10;
 }
 message CrossingStartingLineProto {
-    required uint64 f1 = 1; //time???
+    optional uint64 f1 = 1; //time???
 }
 enum MeetupState_Type {
-    INVITED = 0;
-    JOINED = 1;
+    MEETUP_INVITED = 0;
+    MEETUP_JOINED = 1;
 }
 message MeetupState {
     optional MeetupState_Type type = 1;
@@ -279,7 +287,7 @@ enum LeaderboardType {
 }
 message SegmentLeaderboardResult {
     optional uint64 f1 = 1;
-    optional uint64 f2 = 2; //enum <= 1
+    optional uint32 f2 = 2; //enum <= 1
     optional uint64 f3 = 3;
     optional uint64 f4 = 4;
     optional uint64 f5 = 5;
@@ -289,20 +297,22 @@ message SegmentLeaderboardResult {
     optional uint64 f9 = 9;
     optional string f10 = 10;
     optional uint64 f11 = 11;
-    optional uint64 f12 = 12; //enum <= 1
+    optional uint32 f12 = 12; //enum <= 1
     optional uint32 f13 = 13;
     optional bool f14 = 14;
     optional uint32 f15 = 15;
     optional uint32 f16 = 16;
-    optional uint64 f17 = 17; //enum <= 3
+    optional uint32 f17 = 17; //enum <= 3
     optional uint64 f18 = 18;
     optional string f19 = 19;
 }
 message RiderListEntry {
-    optional string f1 = 1;
-    optional uint32 f2 = 2;
-    optional uint32 f3 = 3;
-    optional string f4 = 4;
-    optional string f5 = 5;
-    optional string f6 = 6;
+    required string f1 = 1;
+    optional uint32 f2 = 2; //enum <=8
+    optional uint64 f3 = 3;
+    optional uint32 f4 = 4; //enum <2
+    optional uint32 f5 = 5;
+    optional uint32 f6 = 6;
+    optional uint32 f7 = 7;
+    repeated uint32 f8 = 8; //enum <=8
 }

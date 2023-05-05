@@ -1,19 +1,20 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "PlayerState.proto";
 message ClientToServer {
-    required int64 server_realm = 1; //UdpClient::sendDisconnectedClientToServer: -1. Otherwise g_CurrentServerRealmID (RealmID or 0 if not connected yet)
+    optional int64 server_realm = 1; //UdpClient::sendDisconnectedClientToServer: -1. Otherwise g_CurrentServerRealmID (RealmID or 0 if not connected yet)
     required int64 player_id = 2;
-    optional int64 world_time = 3;
+    required int64 world_time = 3;
     optional uint32 seqno = 4;
     optional uint32 cts_f5 = 5;
     optional int64 cts_f6 = 6;
-    required PlayerState state = 7;
+    optional PlayerState state = 7;
     optional bool cts_f8 = 8;
     optional bool cts_f9 = 9;
-    required int64 last_update = 10;
+    optional int64 last_update = 10;
     optional bool cts_f11 = 11;
-    required int64 last_player_update = 12;
+    optional int64 last_player_update = 12;
     optional int64 larg_wa_time = 13; //TcpClient::sayHello: LargestWorldAttributeTimestamp
     optional bool cts_f14 = 14;
     repeated int64 subsSegments = 15; //subscribed segment ids? TcpClient::sayHello, TcpClient::sendSubscribeToSegment

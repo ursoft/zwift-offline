@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "Profile.proto";
 enum WorkoutActionRequest_Type {
@@ -46,12 +47,12 @@ message WorkoutSummaries {
     repeated WorkoutSummary items = 1;
 }
 message WorkoutSummary {
-    optional string f1 = 1;
+    required string f1 = 1;
     optional uint32 f2 = 2;
     optional string f3 = 3;
     optional string f4 = 4;
     repeated string f5 = 5;
-    optional Sport sport = 6;        
+    optional Sport sport = 6;
     repeated string f7 = 7;
     optional string f8 = 8;
     optional bool f9 = 9;

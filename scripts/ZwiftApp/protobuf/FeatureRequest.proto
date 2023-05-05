@@ -1,4 +1,5 @@
-syntax = "proto2";
+syntax = "proto3"; //as in original PC build
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 // https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/struct.proto {
 // `Struct` represents a structured data value, consisting of fields
@@ -53,18 +54,18 @@ message ListValue {
 }
 // } https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/struct.proto
 message FeatureResponse_Params {
-    required string name = 1;
-    optional bool value = 2;
-    optional Struct values = 3;
+    string name = 1;
+    bool value = 2;
+    Struct values = 3;
 }
 message FeatureResponse {
     repeated FeatureResponse_Params variants = 1;
 }
 message FeatureRequest_Params {
-    repeated string param = 1;
+    string value = 1;
 }
 message FeatureRequest {
     repeated FeatureRequest_Params params = 1;
-    optional string str_player_id = 2; // userId as string (if logged in and vital) or absent or "0"
+    string str_player_id = 2; // userId as string (if logged in and vital) or absent or "0"
     map<string, string> user_attrs = 3;
 }

@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "UUID.proto";
 enum ClubImage_Type {

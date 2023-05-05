@@ -1,14 +1,15 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 message PlayerSummary {
-    optional int32 plsu_f1 = 1;
-    optional int32 plsu_f2 = 2;
-    optional int32 plsu_f3 = 3;
-    optional int32 plsu_f4 = 4;
+    required int32 plsu_f1 = 1;
+    required int32 plsu_f2 = 2;
+    required int32 plsu_f3 = 3;
+    required int32 plsu_f4 = 4;
 }
 message PlayerSummaries {
-    optional sint64 plsus_f1 = 1; //stored as int32
-    optional sint64 plsus_f2 = 2; //stored as int32
+    optional sint32 plsus_f1 = 1;
+    optional sint32 plsus_f2 = 2;
     optional sint32 plsus_f3 = 3;
     optional sint32 plsus_f4 = 4;
     optional int32 plsus_f5 = 5;

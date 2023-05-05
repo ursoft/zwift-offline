@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 enum MappingAnnotation_ScaleType {
     MAP_SCALE = 2;
@@ -31,22 +32,22 @@ message MappingAnnotation {
     optional uint64 f6 = 6;
     optional bool f7 = 7;
     optional uint32 f8 = 8;
-    optional uint64 f9 = 9; //enum <= 3
+    optional uint32 f9 = 9; //enum <= 3
     optional float f10 = 10;
     optional string f11 = 11;
     optional uint32 f12 = 12;
     optional float f13 = 13;
-    optional uint64 f14 = 14; //enum <= 5
-    optional uint64 f15 = 15; //enum <= 2
-    optional uint64 f16 = 16; //enum <= 3
-    optional uint64 f17 = 17; //enum <= 3
+    optional uint32 f14 = 14; //enum <= 5
+    optional uint32 f15 = 15; //enum <= 2
+    optional uint32 f16 = 16; //enum <= 3
+    optional uint32 f17 = 17; //enum <= 3
     optional uint32 f18 = 18;
-    optional float f19 = 19;
+    optional double f19 = 19;
     optional uint32 f20 = 20;
 }
 message MappingAnnotationGroup {
     optional uint64 f1 = 1;
-    repeated MappingAnnotation ann = 2;
+    repeated MappingAnnotation anns = 2;
     optional uint32 f3 = 3;
 }
 message MappingData {
@@ -72,9 +73,9 @@ message IntersectionAhead {
     optional bool f3 = 3;
 }
 enum TurnDirection {
-    LEFT = 1;
-    RIGHT = 2;
-    STRAIGHT = 3;
+    TD_LEFT = 1;
+    TD_RIGHT = 2;
+    TD_STRAIGHT = 3;
 }
 message IntersectionTurnOption {
     optional TurnDirection dir = 1;

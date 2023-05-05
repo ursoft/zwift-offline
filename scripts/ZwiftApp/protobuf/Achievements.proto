@@ -1,13 +1,14 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 message AchievementEntry {
-    required int32 id = 1;
+    optional int32 id = 1;
 }
 message Achievements {
     repeated AchievementEntry achievements = 1;
 }
 message AchievementUnlockEntry {
-    required int32 id = 1;
+    optional int32 id = 1;
 }
 message AchievementUnlockRequest {
     repeated AchievementUnlockEntry unlocks = 1;

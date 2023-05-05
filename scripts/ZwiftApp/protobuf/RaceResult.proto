@@ -1,11 +1,24 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "Profile.proto"; //enums
 message RaceResultEntry {
-    optional string f1 = 1;
-    optional string f2 = 2;
-    optional string f3 = 3;
-    optional string f4 = 4;
+    optional uint64 f1 = 1;
+    optional uint64 f2 = 2;
+    optional uint64 f3 = 3;
+    optional uint64 f4 = 4;
+    optional RaceResultEntryActivityData act = 5;
+    optional RaceResultEntryCriticalPData crit = 6;
+    optional RaceResultEntryProfileData prof = 7;
+    optional RaceResultEntrySensorData sens = 8;
+    optional bool f9 = 9;
+    optional uint32 f10 = 10;
+    optional string f11 = 11;
+    optional bool f12 = 12;
+    repeated uint32 f13 = 13;
+    optional uint32 f14 = 14;
+    optional bool f15 = 15;
+    optional bool f16 = 16;
 }
 message RaceResult {
     repeated RaceResultEntry entries = 1;

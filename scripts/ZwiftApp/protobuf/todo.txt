@@ -1,1 +1,1 @@
-﻿field meanings and memory layouts (PC version)
+﻿* field meaningful names and real-life binary samples

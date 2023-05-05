@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "Profile.proto";
 enum POWERUP_TYPE {
@@ -29,12 +30,12 @@ enum UserBikeAction {
 message RideOn {
     required int64 player_id = 1;
     required int64 to_player_id = 2;
-    required string first_name = 3;
-    required string last_name = 4;
-    required int32 country_code = 5;
+    optional string first_name = 3;
+    optional string last_name = 4;
+    optional int32 country_code = 5;
 }
 message PlayerState {
-    optional int64 id = 1;
+    required int64 id = 1;
     optional int64 world_time = 2; // milliseconds
     optional int32 distance = 3;  // meters
     optional int32 road_time = 4;  // 1/100 sec
@@ -46,8 +47,8 @@ message PlayerState {
     optional int32 ps_f10 = 10; // BikeEntity.field_B58; 0 - ETA related (something around speed)
     optional int32 heartrate = 11;
     optional int32 power = 12;
-    optional int64 heading = 13;
-    optional int64 lean = 14;
+    optional int32 heading = 13;
+    optional int32 lean = 14;
     optional int32 climbing = 15; // meters
     optional int32 time = 16;     // seconds
     optional int32 ps_f17 = 17;
@@ -73,7 +74,7 @@ message PlayerState {
     optional float z = 27;
     optional int64 watching_rider_id = 28;
     optional int64 group_id = 29;
-    // 30 absent at least in Android Game
+    // 30 absent at least in Android/PC Game
     optional Sport sport = 31;
     optional float ps_f32 = 32;
     optional uint32 ps_f33 = 33;
@@ -83,4 +84,6 @@ message PlayerState {
     optional uint32 ps_f37 = 37; // = f(BikeEntity.field_2a28) BikeEntity::CreateNewPacket
     optional bool can_steer = 38; // = BikeEntity.m_canSteer
     optional int32 route = 39;
+    optional int32 ps_f40 = 40;
+    optional bool ps_f41 = 41;
 }

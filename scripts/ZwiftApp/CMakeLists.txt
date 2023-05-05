@@ -44,7 +44,7 @@ target_link_directories(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE 
-  ${Protobuf_LIBRARIES} #protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite
+  protobuf::libprotobuf-lite #${Protobuf_LIBRARIES} #protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite
   ${Boost_LIBRARIES}
   Noesis.lib #NoesisApp.lib
   Winmm.lib Shcore

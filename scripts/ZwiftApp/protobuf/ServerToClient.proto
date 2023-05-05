@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "PlayerState.proto";
 import "WorldAttribute.proto";
@@ -18,11 +19,11 @@ enum ExpungeReason {
 message ServerToClient {
     optional int64 server_realm = 1;
     optional int64 player_id = 2;
-    optional int64 world_time = 3;
+    required int64 world_time = 3;
     optional int32 seqno = 4;
     optional int32 stc_f5 = 5; //low-priority world time sync algo (not investigated yet, maybe deprecated) in WorldClockService::calculateOneLegLatency
     // 6,7: absent
-    repeated PlayerState states = 8;
+    repeated PlayerState states1 = 8;
     repeated WorldAttribute updates = 9;
     repeated int64 stc_f10 = 10;
     optional bool stc_f11 = 11; //=true???
@@ -42,7 +43,7 @@ message ServerToClient {
     optional UdpConfigVOD udp_config_vod_1 = 25; //tag458
     optional ExpungeReason expunge_reason = 26; //tag464 UdpClient::receivedExpungeReason
     optional UdpConfigVOD udp_config_vod_2 = 27; //tag474
-    repeated PlayerState player_states = 28; //tag482
+    repeated PlayerState states2 = 28; //tag482
     optional TcpConfig tcp_config = 29; //tag490
     repeated int64 ack_subs_segm = 30; //tag496 TcpClient::processSubscribedSegment
     optional uint32 stc_f31 = 31; //tag508

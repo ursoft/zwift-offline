@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "UUID.proto";
 import "Profile.proto";
@@ -17,30 +18,30 @@ enum CampaignReqsConditionalType {
     OR = 2;
 }
 message CampaignProtobuf {
-    optional uint64 f1 = 1;
-    optional string f2 = 2;
-    optional string f3 = 3;
-    optional uint64 f4 = 4;
-    optional uint64 f5 = 5;
-    optional uint64 f6 = 6;
-    optional uint64 f7 = 7;
-    optional uint64 f8 = 8;
-    optional uint64 f9 = 9;
-    optional uint64 f10 = 10;
+    optional uint64 cp_f1 = 1;
+    optional string cp_f2 = 2;
+    optional string cp_f3 = 3;
+    optional uint64 cp_f4 = 4;
+    optional uint64 cp_f5 = 5;
+    optional uint64 cp_f6 = 6;
+    optional uint64 cp_f7 = 7;
+    optional uint64 cp_f8 = 8;
+    optional uint64 cp_f9 = 9;
+    optional uint64 cp_f10 = 10;
     optional CampaignRegistrationStatus status = 11;
-    optional string f12 = 12;
-    optional uint32 f13 = 13;
-    optional uint32 f14 = 14;
-    optional uint32 f15 = 15;
-    optional uint32 f16 = 16;
-    optional uint32 f17 = 17;
-    optional uint32 f18 = 18;
-    optional bool f19 = 19;
-    optional uint32 f20 = 20;
-    optional string f21 = 21;
-    optional bool f22 = 22;
-    optional bool f23 = 23;
-    optional CampaignStageProtobuf stage = 24;
+    optional string cp_f12 = 12;
+    optional uint32 cp_f13 = 13;
+    optional uint32 cp_f14 = 14;
+    optional uint32 cp_f15 = 15;
+    optional uint32 cp_f16 = 16;
+    optional uint32 cp_f17 = 17;
+    optional uint32 cp_f18 = 18;
+    optional bool cp_f19 = 19;
+    optional uint32 cp_f20 = 20;
+    optional string cp_f21 = 21;
+    optional bool cp_f22 = 22;
+    optional bool cp_f23 = 23;
+    repeated CampaignStageProtobuf stages = 24;
 }
 message CampaignRegistrationProtobuf {
     optional uint64 f1 = 1;
@@ -103,6 +104,7 @@ message CampaignSummaryProtobuf {
     optional uint64 f9 = 9; //enum <= 8
     optional uint64 f10 = 10;
     optional uint64 f11 = 11;
+    //no 12
     optional uint64 f13 = 13; //enum <= 8
     optional bool f14 = 14;
     optional string f15 = 15;
@@ -119,12 +121,13 @@ message CampaignDetailResponse {
     optional UUID f1 = 1;
     optional string f2 = 2;;
     optional string f3 = 3;
+    //no f4
     optional uint64 f5 = 5;
     optional uint64 f6 = 6;
     optional uint64 f8 = 8;
     optional uint64 f9 = 9;
     optional bool f10 = 10;
-    optional Gender f11 = 11;
+    optional Gender gender = 11;
     optional string f12 = 12;
     optional string f13 = 13;
     optional string f14 = 14;
@@ -152,7 +155,7 @@ message CampaignRegistrationResponse {
     optional string f3 = 3;
     optional uint64 f4 = 4;
     optional uint32 f5 = 5;
-    optional CampaignRegistrationStatus f6 = 6;
+    optional CampaignRegistrationStatus status = 6;
     repeated CampaignStageProgressResponse progress = 7;
     optional bool f8 = 8;
 }
@@ -160,11 +163,11 @@ message CampaignRegistrationSummaryResponse {
     optional uint64 f1 = 1;
     optional bool f2 = 2;
     optional CampaignDetailResponse detail = 3;
-    optional CampaignRegistrationDetailResponse reg_detail = 4;
+    required CampaignRegistrationDetailResponse reg_detail = 4;
 }
 message CampaignRegistrationUnlockResponse {
     optional uint64 f1 = 1;
-    optional UnlockResponse unlock = 2;
+    required UnlockResponse unlock = 2;
 }
 message CampaignStageProgressResponse {
     optional UUID f1 = 1;
@@ -203,13 +206,13 @@ message CampaignStageResponse {
     optional bool f16 = 16;
     optional uint32 f17 = 17;
     optional uint32 f18 = 18;
-    optional CampaignReqsConditionalType f19 = 19;
+    optional CampaignReqsConditionalType cond = 19;
     optional string f20 = 20;
     optional uint32 f21 = 21;
     repeated CampaignStageRouteResponse stages = 22;
 }
 message CampaignStageRouteFinishedResponse {
-    optional UUID f1 = 1;
+    required UUID f1 = 1;
     optional uint64 f2 = 2;
     optional Sport sport = 3;
     optional uint64 f4 = 4;

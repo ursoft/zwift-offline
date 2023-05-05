@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 //TODO: answer ??? questions and saved_game format (zwift_profile.ksy)
 enum Gender {
@@ -65,6 +66,15 @@ enum PowerType {
     PT_VIRTUAL = 0;
     PT_METER = 1;
 }
+message ProfileSocialFacts {
+    optional int64 profile_id = 1;
+    optional int64 followers_count = 2;
+    optional int64 followees_count = 3;
+    optional int32 followees_in_common_with_logged_in_player = 4;
+    optional FollowStatus follower_status_of_logged_in_player = 5;
+    optional FollowStatus followee_status_of_logged_in_player = 6;
+    optional bool is_favorite_of_logged_in_player = 7;
+}
 message PlayerProfile {
     optional int64 id = 1;
     optional int64 server_realm = 2;
@@ -125,24 +135,15 @@ message PlayerProfile {
     optional uint32 f57 = 57; //??? empty, 0
     optional string large_avatar_url = 58;
     optional fixed64 privacy_bits = 59;
-    repeated ProfileEntitlement entitlements = 60;    
-    optional SocialFacts social_facts = 61;
-    message SocialFacts {
-        optional int64 profile_id = 1;
-        optional int32 followers_count = 2;
-        optional int32 followees_count = 3;
-        optional int32 followees_in_common_with_logged_in_player = 4;
-        optional FollowStatus follower_status_of_logged_in_player = 5;
-        optional FollowStatus followee_status_of_logged_in_player = 6;
-        optional bool is_favorite_of_logged_in_player = 7;
-    }    
+    repeated ProfileEntitlement entitlements = 60;
+    optional ProfileSocialFacts social_facts = 61;
     optional FollowStatus follow_status = 62;
     optional bool connected_to_training_peaks = 63;
-    optional bool connected_to_todays_plan = 64;    
+    optional bool connected_to_todays_plan = 64;
     optional EnrolledProgram enrolled_program = 65;
     enum EnrolledProgram {
         ZWIFT_ACADEMY = 1;
-    }    
+    }
     optional string todayplan_url = 66;
     optional uint32 f67 = 67; //??? empty
     optional fixed32 run_shirt_type = 68;
@@ -222,6 +223,8 @@ message PlayerProfile {
     optional ActivityPrivacyType default_activity_privacy = 125;
     optional bool connected_to_runtastic = 126;
     repeated ProfilePropertyChange property_changes = 127;
+    optional int32 f128 = 128; //???
+    optional int32 f129 = 129; //???
 }
 message PlayerProfiles {
      repeated PlayerProfile profiles = 1;
@@ -233,16 +236,16 @@ message ProfileEntitlement {
         RUN = 2;
         ROW = 3;
         USE = 4;
-    }    
+    }
     optional int64 f2 = 2; // always -1 when "RIDE"; increasing small value when "USE" (437, 438, 911, ..., 1229)    
-    optional ProfileEntitlementStatus status = 3;
-    enum ProfileEntitlementStatus {
+    optional EntitlementStatus status = 3;
+    enum EntitlementStatus {
         EXPIRED = 1;
         ACTIVE = 2;
         CANCELED = 3;
         INACTIVE = 4;
         APPLIED_AS_SUBSCRIPTION_TRIAL_PERIOD = 5;
-    }    
+    }
     optional string period = 4; // 'P7D' = period of 7 days (Y, M also supported for year and month)
     optional uint32 begin_time_unix = 5; //when period started
     optional uint32 end_time_unix = 6;   //when period ended
@@ -257,7 +260,7 @@ message ProfileEntitlement {
         PLATFORM_IOS = 2;
         PLATFORM_ANDROID = 3;
         PLATFORM_TVOS = 4;
-    }    
+    }
     optional uint32 renewal_date_unix = 12; //when next 25km gift renewed
     optional bool new_trial_system = 13; //do not interrupt current track if trial ended
     repeated Platform platforms = 14;
@@ -300,9 +303,9 @@ message ProfilePropertyChange {
         DATE_OF_BIRTH = 1;
         GENDER = 2;
     }
-    optional Id property_name = 1;
-    optional int32 change_count = 2;
-    optional int32 max_changes = 3;
+    required Id property_name = 1;
+    required int32 change_count = 2;
+    required int32 max_changes = 3;
 }
 /*
 ProfileAttribute ID is crc32 of it's name. Examples:
@@ -329,9 +332,10 @@ private
 -1316403440="PACERBOTTUTORIAL" (1)
 */
 message ProfileAttribute {
-    optional int32 id = 1;
+    required int32 id = 1;
     optional int64 number_value = 2;
     optional float float_value = 3;
+    optional bool bool_value = 4;
     optional string string_value = 5;
 }
 message SocialNetworkStatus {
@@ -339,16 +343,8 @@ message SocialNetworkStatus {
     optional bool sns_f2 = 2;
     optional ProfileFollowStatus pfs = 3;
 }
-message BestEffortPointMsg {
-    required double power = 1;
-    optional uint64 timestamp = 2;
-}
-message PowerCurveAggregationMsg {
-    map<string, BestEffortPointMsg> watts = 1;
-    map<string, BestEffortPointMsg> watts_per_kg = 2;
-}
 message InAppPurchaseReceipt {
-    required string f1 = 1;
+    optional string f1 = 1;
 }
 message InAppPurchaseTransaction {
     optional string f1 = 1;
@@ -356,7 +352,7 @@ message InAppPurchaseTransaction {
     optional uint64 f3 = 3;
 }
 message RedeemCouponResponse {
-    repeated ProfileEntitlement ent = 1;
+    repeated ProfileEntitlement ents = 1;
     optional string f2 = 2;
 }
 message EntitlementUnlock {
@@ -365,21 +361,29 @@ message EntitlementUnlock {
 message ProfileEntitlements {
     repeated ProfileEntitlement entitlements = 1;
 }
-message AvailableYearsMsg {
-    optional float f1 = 1;
-    optional float f2 = 2;
-    optional float f3 = 3;
-}
 message PacePartnerData {
     optional float f1 = 1;
     optional float f2 = 2;
     optional uint64 f3 = 3;
 }
 message AssetSummary {
-    optional string f1 = 1;
+    required string f1 = 1;
     optional uint32 f2 = 2;
     optional uint32 f3 = 3;
     optional string f4 = 4;
     optional string f5 = 5;
     optional string f6 = 6;
+}
+enum TimeSeriesType {
+    FTP = 1;
+    WEIGHT_IN_GRAMS = 2;
+}
+message TimeSeries {
+    required uint64 f1 = 1;
+    required TimeSeriesType type = 2;
+    repeated TimeSeriesRecord records = 3;
+}
+message TimeSeriesRecord {
+    required uint32 f1 = 1;
+    optional uint32 f2 = 2;
 }

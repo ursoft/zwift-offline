@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "Profile.proto"; //enums PlayerType and Sport
 import "PlayerState.proto";
@@ -7,13 +8,13 @@ message DropInWorld {
     optional string name = 2;
     optional uint64 course_id = 3;
     optional bool f4 = 4;
-    optional uint64 zwifters = 5;
+    optional uint32 zwifters = 5;
     optional uint64 world_time = 6;
     optional uint64 real_time = 7;
     repeated DropInPlayer pro_players = 8;
     repeated DropInPlayer followees = 9;
     repeated DropInPlayer others = 10;
-    optional uint64 max_zwifters = 11; //stored as int32
+    optional uint32 max_zwifters = 11;
     repeated DropInPlayer pacer_bots = 12;
 }
 message DropInWorldList {
@@ -39,30 +40,31 @@ message DropInPlayer {
     optional int32 route = 17;
     optional uint32 ride_power = 18;
     optional uint32 speed = 19;
+    optional uint32 f20 = 20;
 }
 message Player {
     optional PlayerProfile player_profile = 1;
     optional PlayerState player_state = 2;
 }
 message World {
-    required uint64 id = 1;
-    required string name = 2;
-    required uint64 w_f3 = 3;
+    optional uint64 id = 1;
+    optional string name = 2;
+    optional uint64 w_f3 = 3;
     optional bool w_f4 = 4;
-    required uint64 w_f5 = 5;
-    required uint64 world_time = 6;
-    required uint64 real_time = 7;
+    optional uint32 w_f5 = 5;
+    optional uint64 world_time = 6;
+    optional uint64 real_time = 7;
     repeated Player w_f8 = 8;
 }
 message List {
     repeated World worlds = 1;
 }
 message Query {
-    required string query = 1;
+    optional string query = 1;
 }
 message PlayerLeftWorld {
     required int64 player_id = 1;
-    optional int64 world_time = 2; // not sure
+    required int64 world_time = 2; // not sure
     optional bool another_login = 3; // user profile logged in twice -> one of them should be logged out
     optional bool plw_f4 = 4; //true
     repeated sint64 plw_f5 = 5; // [1056322864]

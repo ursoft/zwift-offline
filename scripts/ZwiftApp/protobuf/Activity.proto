@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "Profile.proto"; //enum ActivityPrivacyType, Sport
 //All decompiled. TODO: uncomment all new fields and use in algo
@@ -31,7 +32,7 @@ message NotableMoment { //.2,.3,.4 meanings inside last_activity.bin - not type,
     optional uint64 activity_id = 1;
     optional NotableMomentType type = 2;
     optional uint32 priority = 3;
-    optional uint64 incident_time = 4;
+    optional uint32 incident_time = 4;
     optional string aux1 = 5; // examples: {"achievementId":35,"name":"PAIRED","description":"Paired a phone through Zwift Companion"}
                               //           {"segmentName":"Marina Sprint","jerseyHash":"0x997d9df7","durationInMS":30524} (from last_activity.bin)
     optional string aux2 = 6; // empty string
@@ -54,12 +55,12 @@ enum FitnessPrivacy {
 }
 message Activity {  //where is primaryImageUrl, feedImageThumbnailUrl, activityRideOnCount, activityCommentCount, eventId, rideOnGiven
     optional uint64 id = 1;
-    required uint64 player_id = 2;
-    required uint64 course_id = 3;
-    required string name = 4;
+    optional uint64 player_id = 2;
+    optional uint64 course_id = 3;
+    optional string name = 4;
     optional string f5 = 5;
     optional bool private_activity = 6;
-    required string start_date = 7;
+    optional string start_date = 7;
     optional string end_date = 8;
     optional float distance_in_meters = 9;
     optional float avg_heart_rate = 10;
@@ -75,7 +76,7 @@ message Activity {  //where is primaryImageUrl, feedImageThumbnailUrl, activityR
     optional uint32 strava_upload_id = 20; //uint64 stored as int32
     optional uint32 strava_activity_id = 21; //uint64 stored as int32
     optional string f22 = 22;
-    optional uint32 f23 = 23; //empty; stored as int32; enum up to 5 - ProfileFollowStatus?
+    optional uint32 f23 = 23; //empty; stored as int32; enum up to 6
     optional bytes fit = 24;
     optional string fit_filename = 25;
     optional uint64 subgroup_id = 26;
@@ -94,6 +95,7 @@ message Activity {  //where is primaryImageUrl, feedImageThumbnailUrl, activityR
     optional string club_name = 39;
     optional int64 moving_time_ms = 40;
     repeated ClubAttribution cas = 41;
+    optional PacePartnerData ppd = 42;
 }
 message ActivityList {
     repeated Activity activities = 1;

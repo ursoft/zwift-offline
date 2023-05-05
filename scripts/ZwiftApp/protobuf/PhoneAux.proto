@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "Social.proto";
 import "Mapping.proto";
@@ -262,12 +263,12 @@ message BLEPeripheralResponse {
     optional uint32 f1 = 1; //enum <= 5
     optional uint32 f2 = 2; //enum <= 3
     optional string f3 = 3;
-    optional BLEPeripheral f4 = 4;
-    optional BLEPeripheralCharacteristic f5 = 5;
+    optional BLEPeripheral per = 4;
+    optional BLEPeripheralCharacteristic char = 5;
 }
 message BLEAdvertisementDataSection {
-    optional BLEAdvertisementDataSection_Type type = 1;
-    optional bytes f2 = 2;
+    required BLEAdvertisementDataSection_Type type = 1;
+    required bytes f2 = 2;
 }
 message BLEPeripheral {
     optional string f1 = 1;
@@ -281,7 +282,7 @@ message BLEAdvertisement {
 }
 message PhoneToGameCommand {
     required int32 seqno = 1;
-    required uint32 command = 2;
+    optional uint32 command = 2;
     optional int64 f3 = 3;
     optional string f4 = 4;
     optional int64 f5 = 5;
@@ -289,7 +290,7 @@ message PhoneToGameCommand {
     optional int64 f7 = 7;
     optional int32 f8 = 8;
     optional uint32 f9 = 9;
-    required uint32 command_copy = 10;
+    optional uint32 command_copy = 10;
     optional SocialPlayerAction f11 = 11;
     // no 12
     optional MobileAlertResponse f13 = 13;
@@ -299,10 +300,11 @@ message PhoneToGameCommand {
     optional string f20 = 20;
     optional bytes f21 = 21;
     optional BLEAdvertisement f22 = 22;
+    optional uint32 f23 = 23;
 }
 message PhoneToGame {
     required int64 player_id = 1;
-    repeated PhoneToGameCommand command = 2;
+    repeated PhoneToGameCommand commands = 2;
     optional float f3 = 3;
     optional float f4 = 4;
     optional float f5 = 5;
@@ -325,20 +327,20 @@ message BoostModeState {
     optional float f5 = 5;
 }
 message GameAction {
-    optional GameAction_Type f1 = 1;
+    optional GameAction_Type type = 1;
 }
 message GameSessionInfo {
-    optional uint64 f1 = 1; //enum <= 2
+    optional uint32 f1 = 1; //enum <= 2
     optional uint64 f2 = 2;
     optional uint64 f3 = 3;
     optional uint64 f4 = 4;
     optional string f5 = 5;
     optional string f6 = 6;
-    optional uint64 f7 = 7; //enum <= 3
+    optional uint32 f7 = 7; //enum <= 3
     optional uint32 f8 = 8;
     optional uint64 f9 = 9;
     optional bool f10 = 10;
-    optional uint64 f11 = 11; //enum <= 5
+    optional uint32 f11 = 11; //enum <= 5
     optional uint64 f12 = 12;
     optional bool f13 = 13;
 }
@@ -353,14 +355,15 @@ message GameToPhone {
     optional PlayerProfile player_profile = 8;
     repeated RiderListEntry riders = 9;
     optional float f10 = 10;
-    repeated GameToPhoneCommand game_to_phone_cmd = 11;
+    repeated GameToPhoneCommand game_to_phone_cmds = 11;
     optional uint64 f12 = 12;
 }
 message GameToPhoneCommand {
-    optional uint32 f1 = 1;
+    required uint32 f1 = 1;
     optional GameToPhoneCommandType type = 2;
     optional uint32 f3 = 3;
     optional string f4 = 4;
+    //5 is absent
     optional string f6 = 6;
     optional uint32 f7 = 7;
     optional uint32 f8 = 8;
@@ -381,17 +384,23 @@ message GameToPhoneCommand {
 }
 message SportsDataRequest {
     optional SportsDataRequest_Type type = 1;
-    optional uint64 f2 = 2; // enum <= 2
-    optional uint64 f3 = 3; // enum <= 3
+    optional uint32 f2 = 2; // enum <= 2
+    optional uint32 f3 = 3; // enum <= 3
 }
 message SportsDataResponse {
     optional SportsDataResponse_Type type = 1;
-    optional SportsDataResponse_DeviceModel device = 2; //or SportsDataResponse_WorkoutStatus ???
-    optional SportsDataResponse_ConnectionStatus status = 3;
+    optional SportsDataResponse_DeviceModel device = 2;
+    optional SportsDataResponse_ConnectionStatus cstatus = 3;
+    repeated uint32 sds_f4 = 4; //enum <= 2
+    repeated uint32 sds_f5 = 5; //enum <= 2
+    repeated uint32 sds_f6 = 6; //enum <= 2
+    optional SportsDataSample m_sample = 7;
+    optional uint32 m_f8 = 8; //enum <= 2
+    optional uint32 m_f9 = 9; //enum
 }
 message SportsDataSample {
-    optional SportsDataSample_Type f1 = 1;
-    optional float f2 = 2;
+    optional SportsDataSample_Type type = 1;
+    optional double f2 = 2;
 }
 enum ClientAction_Type {
     CA_DISCARD_ACTIVITY = 4;
@@ -432,7 +441,7 @@ enum FitnessAttribute_Type {
 }
 message BLEPeripheralRequest {
     optional BLEPeripheralRequestType type = 1;
-    repeated BLEPeripheralService serv = 2;
+    repeated BLEPeripheralService servs = 2;
     optional BLEPeripheral per = 3;
 }
 message BLEPeripheralService {
@@ -458,8 +467,8 @@ message PlayerInfo {
     optional bool f2 = 2;
 }
 message PlayerJoinedWorld {
-    optional uint64 f1 = 1;
-    optional uint64 f2 = 2;
+    required uint64 f1 = 1;
+    required uint64 f2 = 2;
 }
 enum PlayerSegmentInfo_Status {
     ABORTED = 2;
@@ -479,7 +488,7 @@ message RideOnBombRequest {
     optional bool f1 = 1;
 }
 message RideOnBombResponse {
-    optional bool f1 = 1;
+    repeated bool f1 = 1;
 }
 message PlayerActiveSegments {
     repeated PlayerSegmentInfo segments = 1;
@@ -550,7 +559,7 @@ message GamePacket {
     optional ClientInfo client_info = 5;
     optional MappingData mapping_data = 6;
     optional IntersectionAhead intersection_ahead = 7;
-    repeated PlayerInfo player_info = 8;
+    repeated PlayerInfo player_infos = 8;
     optional RideOnBombRequest rideon_bomb_request = 9;
     optional RideOnBombResponse rideon_bomb_response = 10;
     optional EffectRequest effect_request = 11;

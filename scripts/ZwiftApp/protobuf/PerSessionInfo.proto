@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "TcpConfig.proto";
 message PartnersUrls {
@@ -9,6 +10,6 @@ message PerSessionInfo {
     required string relay_url = 1;
     optional PartnersUrls apis = 2;
     optional uint64 time = 3;
-    required TcpConfig nodes = 4;
+    optional TcpConfig nodes = 4;
     optional int32 max_segm_subscrs = 5; //if received, sub_718DE99570 puts log message "Received max allowed segment subscriptions from session: %d", m_maxSegmSubscrs and stores it into GlobalState...
 }

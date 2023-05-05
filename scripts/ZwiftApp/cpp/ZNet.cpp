@@ -1486,11 +1486,11 @@ struct AuthServerRestInvoker { //0x60 bytes
         protobuf::LoginRequest lr;
         lr.set_key(sk);
         for (int i = 0; i < anEventProps.size(); i += 2) {
-            auto p = lr.mutable_properties()->add_property();
+            auto p = lr.mutable_properties()->add_props();
             p->set_name(anEventProps[i]);
             p->set_value(anEventProps[i + 1]);
         }
-        auto pm = lr.mutable_properties()->add_property();
+        auto pm = lr.mutable_properties()->add_props();
         pm->set_name("Machine Id"s);
         pm->set_value(m_machineId);
         ContentType ct;
@@ -1559,8 +1559,8 @@ struct AuthServerRestInvoker { //0x60 bytes
         }
         bool ret = false, disable_encryption_bypass = true;
         protobuf::FeatureRequest v49;
-        *v49.add_params()->add_param() = "game_1_26_2_data_encryption"s;
-        *v49.add_params()->add_param() = "game_1_27_0_disable_encryption_bypass"s;
+        v49.add_params()->set_value("game_1_26_2_data_encryption"s);
+        v49.add_params()->set_value("game_1_27_0_disable_encryption_bypass"s);
         auto respFuture = m_expRi->getFeatureResponse(v49);
         auto resp = respFuture.get();
         if (resp.m_errCode != NRO_OK) {
@@ -2826,7 +2826,7 @@ struct TcpAddressService {
         }
         auto currentHostIsStillGood = foundCurrentNodeInSpecificCluster || (!hasSpecificCluster && foundCurrentNodeInGenericCluster);
         NetworkingLogDebug("TCP currentHostIsStillGood: %d ", currentHostIsStillGood);
-        return (cfg.nodes_size() && !foundCurrentNodeAsFirstNode) || !currentHostIsStillGood;
+        return (cfg.f2() && !foundCurrentNodeAsFirstNode) || !currentHostIsStillGood;
     }
 };
 struct TcpClient {
@@ -4026,3 +4026,14 @@ TEST(SmokeTest, B64) {
     boost::asio::ip::tcp::socket tcpSocket(asioCtx, boost::asio::ip::tcp::v4());
     int so2 = sizeof(tcpSocket);
 }*/
+TEST(SmokeTest, Protobuf) {
+    protobuf::EventSubgroupPlacements EventSubgroupPlacements; //0x90
+    protobuf::CrossingStartingLineProto CrossingStartingLineProto;
+    protobuf::Activity Activity; //0x158
+    protobuf::ActivityImage ActivityImage; //0x60
+    protobuf::FeatureRequest FeatureRequest; //0x68
+    protobuf::UdpConfigVOD UdpConfigVOD;
+    protobuf::RelayAddressesVOD RelayAddressesVOD;
+    protobuf::RelayAddress RelayAddress;
+    protobuf::PlayerSummary PlayerSummary;
+}

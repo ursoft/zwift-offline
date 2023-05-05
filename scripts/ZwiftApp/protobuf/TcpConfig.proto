@@ -1,7 +1,8 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 message TcpAddress {
-    required string ip = 1;
+    optional string ip = 1;
     optional int32 port = 2 [default=3023];      //looks like unciphered port
     optional int32 lb_realm = 3 [default=0];     //load balancing cluster: server realm or 0 (generic)
     optional int32 lb_course = 4 [default=0];    //load balancing cluster: course id (see also TcpAddressService::updateAddresses)
@@ -10,4 +11,5 @@ message TcpAddress {
 message TcpConfig {
     //First server: the TCP telemetry server (34.218.60.145)
     repeated TcpAddress nodes = 1;
+    optional bool f2 = 2;
 }

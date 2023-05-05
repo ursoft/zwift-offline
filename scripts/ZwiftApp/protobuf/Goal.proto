@@ -1,13 +1,14 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 import "Profile.proto"; //enum Sport
 message Goal {
     optional uint64 id = 1;
     required uint64 player_id = 2;
-    optional Sport sport = 3;
-    optional string name = 4; // i.e. "Monthly time goal"
-    optional GoalType type = 5;
-    optional GoalPeriod periodicity = 6;
+    required Sport sport = 3;
+    required string name = 4; // i.e. "Monthly time goal"
+    required GoalType type = 5;
+    required GoalPeriod periodicity = 6;
     optional float target_distance = 7;  //in meters. set to dur for dur goals
     optional float target_duration = 8;  //in minutes. set to dist for dist goals
     optional float actual_distance = 9;  //in meters. is also set for dur goals?
@@ -37,12 +38,12 @@ message GoalHistory {
 }
 message GoalHistoryPeriod {
     optional uint64 f1 = 1;
-    optional uint64 f2 = 2;
-    optional uint64 f3 = 3;
-    optional Sport sport = 4;
-    optional string f5 = 5;
-    optional uint64 f6 = 6; //enum <=1
-    optional uint64 f7 = 7; //enum <=1
+    required uint64 f2 = 2;
+    required uint64 f3 = 3;
+    required Sport sport = 4;
+    required string f5 = 5;
+    required uint32 f6 = 6; //enum <=1
+    required uint32 f7 = 7; //enum <=1
     optional float f8 = 8;
     optional float f9 = 9;
     optional float f10 = 10;

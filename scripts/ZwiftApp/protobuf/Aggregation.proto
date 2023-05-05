@@ -1,0 +1,14 @@
+syntax = "proto3"; //as in original PC build
+option optimize_for = LITE_RUNTIME; //as in original PC build
+package protobuf;
+message AvailableYearsMsg {
+    repeated uint32 f1 = 1;
+}
+message BestEffortPointMsg {
+    double power = 1;
+    uint64 timestamp = 2;
+}
+message PowerCurveAggregationMsg {
+    map<string, BestEffortPointMsg> watts = 1;
+    map<string, BestEffortPointMsg> watts_per_kg = 2;
+}

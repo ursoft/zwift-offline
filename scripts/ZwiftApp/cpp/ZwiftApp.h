@@ -23,6 +23,14 @@
 #include "Playback.pb.h"
 #include "RouteResult.pb.h"
 #include "Social.pb.h"
+#include "Campaign.pb.h"
+#include "Club.pb.h"
+#include "Mapping.pb.h"
+#include "RaceResult.pb.h"
+#include "UUID.pb.h"
+#include "Workout.pb.h"
+#include "Zfiles.pb.h"
+#include "Aggregation.pb.h"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL

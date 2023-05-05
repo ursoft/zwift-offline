@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 enum WA_TYPE {
     WAT_LEAVE = 2;   //proto::PlayerLeftWorld
@@ -31,13 +32,13 @@ enum WA_TYPE {
 }
 message WorldAttribute {
     optional int64 wa_f1 = 1;          //not r/w by game? 587645624533328784, later 5876456 85771834256
-    optional int64 server_realm = 2;
-    optional WA_TYPE wa_type = 3;
+    required int64 server_realm = 2;
+    required WA_TYPE wa_type = 3;
     optional bytes payload = 4;        //not only protobuf
     optional int64 world_time_born = 5;
-    optional int64 x = 6;              //stored as int32
-    optional int64 y_altitude = 7;     //stored as int32
-    optional int64 z = 8;              //stored as int32
+    optional int32 x = 6;
+    optional int32 y_altitude = 7;
+    optional int32 z = 8;
     optional int64 world_time_expire = 9;
     optional int64 rel_id = 10;        //WAT_PPI: pace partner smth; WAT_SPA: to_player_id; WAT_RH: route_id? ...; logWorldAttribute: always player_id
     optional int32 importance = 11;    //not read by game??? WAT_B_ACT:1000; WAT_NM:50000; WAT_RH:5000000; ... 75000 ?
@@ -45,7 +46,7 @@ message WorldAttribute {
     optional int32 wa_f13 = 13;        //not r/w by game? 
     optional int64 timestamp = 14;     //not written by game? (from server) looks like "The Current Epoch Unix Timestamp" in Microseconds
     optional int32 map_rev = 15;       //aka world_id
-    optional int64 wa_f16 = 16;        //not r/w by game? stored as bool
+    optional bool wa_f16 = 16;         //not r/w by game
 }
 message WorldAttributes {
     repeated WorldAttribute world_attributes = 1;

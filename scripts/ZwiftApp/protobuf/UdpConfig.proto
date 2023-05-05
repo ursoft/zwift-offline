@@ -1,4 +1,5 @@
 syntax = "proto2";
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 message RelayAddress {
     optional int32 lb_realm = 1;  // load balancing cluster: server realm or 0 (generic)
@@ -7,6 +8,9 @@ message RelayAddress {
     optional int32 port = 4;
     optional float ra_f5 = 5; //used when appropriate server selection occurs (RelayAddressService::getAddress)
     optional float ra_f6 = 6; //used when appropriate server selection occurs (RelayAddressService::getAddress)
+    optional float ra_f7 = 7;
+    optional float ra_f8 = 8;
+    optional uint32 ra_f9 = 9;
 }
 message UdpConfig {
     repeated RelayAddress relay_addresses = 1;
@@ -22,9 +26,10 @@ message RelayAddressesVOD {
 }
 message UdpConfigVOD {
     repeated RelayAddressesVOD relay_addresses_vod = 1;
-    optional int32 port = 2;
+    optional uint32 port = 2;
     optional int64 ucv_f3 = 3;
     optional int64 ucv_f4 = 4;
     optional float ucv_f5 = 5;
     optional float ucv_f6 = 6;
+    optional int32 ucv_f7 = 7;
 }

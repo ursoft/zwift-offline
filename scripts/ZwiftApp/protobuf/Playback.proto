@@ -1,68 +1,63 @@
-syntax = "proto2";
+syntax = "proto3"; //as in original PC build
+option optimize_for = LITE_RUNTIME; //as in original PC build
 package protobuf;
 enum PlaybackType {
     PB_SEGMENT = 0;
     PB_ROUTE = 1;
 }
 message PlaybackData {
-    required int64 segment_id = 1;
-    required float time = 3;
-    required uint64 world_time = 4;
-    optional PlaybackType type = 11;
+    int64 segment_id = 1;
+    //no f2
+    float time = 3;
+    uint64 world_time = 4;
+    repeated PlaybackPlayerState player_states = 5;
+    repeated PlaybackRoadIdState road_states = 6;
+    repeated PlaybackEquipmentState eq_states = 7;
+    repeated PlaybackAnimationState ani_states = 8;
+    repeated PlaybackPowerupState pup_states = 9;
+    uint32 f10 = 10;
 }
 message PlaybackMetadataList {
     repeated PlaybackMetadata list = 1;
 }
 message PlaybackMetadata {
-    required string uuid = 1;
-    required int64 segment_id = 2;
-    required float time = 4;
-    required uint64 world_time = 5;
-    required string url = 6;
-    optional PlaybackType type = 8;
+    string uuid = 1;
+    int64 segment_id = 2;
+    //no f3
+    float time = 4;
+    uint64 world_time = 5;
+    string url = 6;
+    PlaybackType type = 7;
 }
 message PlaybackAnimationState {
-    optional float f1 = 1;
-    optional int32 f2 = 2;
+    float f1 = 1;
+    int32 f2 = 2;
 }
 message PlaybackPowerupState {
-    optional float f1 = 1;
-    optional int32 f2 = 2;
+    float f1 = 1;
+    int32 f2 = 2;
 }
 message PlaybackRoadIdState {
-    optional float f1 = 1;
-    optional int32 f2 = 2;
+    float f1 = 1;
+    int32 f2 = 2;
 }
 message PlaybackEquipmentState {
-    optional float f1 = 1;
-    optional uint32 f2 = 2;
-    optional int64 f3 = 3;
-    optional int64 f4 = 4;
-    optional uint32 f5 = 5;
-    optional uint32 f6 = 6;
-    optional uint32 f7 = 7;
-    optional uint32 f8 = 8;
-    optional uint32 f9 = 9;
-    optional uint32 f10 = 10;
-    optional uint32 f11 = 11;
+    float f1 = 1;
+    uint32 f2 = 2;
+    int64 f3 = 3;
+    int64 f4 = 4;
+    uint32 f5 = 5;
+    uint32 f6 = 6;
+    uint32 f7 = 7;
+    uint32 f8 = 8;
+    uint32 f9 = 9;
+    uint32 f10 = 10;
+    uint32 f11 = 11;
 }
 message PlaybackPlayerState {
-    optional float f1 = 1;
-    optional float f2 = 2;
-    optional float f3 = 3;
-    optional float f4 = 4;
-    optional float f5 = 5;
-}
-enum TimeSeriesType {
-    FTP = 1;
-    WEIGHT_IN_GRAMS = 2;
-}
-message TimeSeries {
-    optional uint64 f1 = 1;
-    optional TimeSeriesType type = 2;
-    repeated TimeSeriesRecord records = 3;
-}
-message TimeSeriesRecord {
-    optional uint32 f1 = 1;
-    optional uint32 f2 = 2;
+    float f1 = 1;
+    float f2 = 2;
+    float f3 = 3;
+    float f4 = 4;
+    float f5 = 5;
 }
