@@ -10,7 +10,7 @@ message RelayAddress {
     optional float ra_f6 = 6; //used when appropriate server selection occurs (RelayAddressService::getAddress)
     optional float ra_f7 = 7;
     optional float ra_f8 = 8;
-    optional uint32 ra_f9 = 9;
+    optional uint32 cport = 9;
 }
 message UdpConfig {
     repeated RelayAddress relay_addresses = 1;
@@ -31,5 +31,5 @@ message UdpConfigVOD {
     optional int64 ucv_f4 = 4;
     optional float ucv_f5 = 5;
     optional float ucv_f6 = 6;
-    optional int32 ucv_f7 = 7;
+    optional int32 cport = 7;
 }

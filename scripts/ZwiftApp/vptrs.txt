@@ -62,3 +62,8 @@ HashSeedService
 [1,  8] calculateRefreshRelaySessionInAdvance(std::chrono::duration<long,std::ratio<60l,1l>>)
 [2, 16] onHashSeedsReceived(std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::HashSeeds> const> const&)
 [3, 24] onRefreshRelaySession(std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::RelaySessionRefreshResponse> const> const&)
+
+NetworkClientImpl
+[0,  0] NetworkClientImpl__handleDisconnectRequested
+[1,  8] handleWorldAndMapRevisionChanged
+[2, 16] dtr

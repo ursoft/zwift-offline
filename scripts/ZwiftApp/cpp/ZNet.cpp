@@ -569,7 +569,7 @@ struct GenericHttpConnectionManager : public HttpConnectionManager { //0x128 byt
         m_conditionVar.notify_one();
         return res;
     }
-/* TODO:
+/* TODO or OMIT:
 pushComposableRequestTask<std::vector<zwift_network::model::WorkoutsFromPartner>,std::multiset<zwift_network::model::Workout>>(RequestTaskComposer<std::vector<zwift_network::model::WorkoutsFromPartner>,std::multiset<zwift_network::model::Workout>>::Composable,std::function<std::shared_ptr<zwift_network::NetworkResponse<std::multiset<zwift_network::model::Workout>> const> ()(HttpConnection &)> const&)*/
 };
 struct UdpClient;
@@ -2336,6 +2336,9 @@ struct RestServerRestInvoker { //0x70 bytes
         }), true, false);
     }
     /* OMIT:
+RestServerRestInvoker::partnerAccessToken(const std::string &) //OMIT
+RestServerRestInvoker::sendMixpanelEvent(const std::string &,std::vector<std::string> const&) //OMIT
+//not found in PC version yet:
 RestServerRestInvoker::deleteActivityImage(int64_t,int64_t,int64_t) "Delete Activity Image" "/api/profiles/" "/activities/" "/images/" pushRequestTask<void>(true, false) 
 RestServerRestInvoker::getActivity(int64_t,int64_t,bool)
 RestServerRestInvoker::getActivityImage(int64_t,int64_t,int64_t)
@@ -2348,24 +2351,209 @@ RestServerRestInvoker::getTimeSeries(int64_t,protobuf::TimeSeriesType)
 RestServerRestInvoker::getTimeSeries(int64_t,protobuf::TimeSeriesType,const std::string &)
 RestServerRestInvoker::getTimeSeries(int64_t,protobuf::TimeSeriesType,const std::string &,const std::string &)
 RestServerRestInvoker::listPlayerTypes()
-RestServerRestInvoker::partnerAccessToken(const std::string &) //OMIT
 RestServerRestInvoker::profileByEmail(const std::string &)
 RestServerRestInvoker::redeemCoupon(const std::string &)
 RestServerRestInvoker::removeFollower(int64_t,int64_t)
 RestServerRestInvoker::removeRegistrationForEvent(int64_t)
 RestServerRestInvoker::resumeSubscription()
 RestServerRestInvoker::saveProfileReminders(protobuf::PlayerProfile const&)
-RestServerRestInvoker::sendMixpanelEvent(const std::string &,std::vector<std::string> const&) //OMIT
 RestServerRestInvoker::signUrls(const std::string &,std::vector<std::string> const&)
 RestServerRestInvoker::updateFollower(int64_t,int64_t,bool,protobuf::ProfileFollowStatus)
 RestServerRestInvoker::updateNotificationReadStatus(int64_t,int64_t,bool)
 RestServerRestInvoker::uploadReceipt(int64_t,protobuf::InAppPurchaseReceipt &)
-RestServerRestInvoker::~RestServerRestInvoker()*/
+*/
+};
+struct NetworkClientImpl;
+struct HostAndPorts {
+    uint16_t m_ports[4] = {}; //encr, not encr and last 2 are not used
+    std::string m_host;
+};
+struct RelayAddressService {
+    protobuf::RelayAddressesVOD m_vod;
+    std::map<uint64_t, protobuf::RelayAddressesVOD> m_field_48;
+    int m_world = 0, m_map = 0;
+    uint16_t m_defaultPort = 0, m_defaultPortEncr = 0;
+    HostAndPorts getRandomAddress(uint64_t world, uint32_t map, uint64_t a5, bool *a6) {
+        m_world = world;
+        m_map = map;
+        auto v18 = m_field_48.find(MAKELONG(m_world, m_map));
+        auto &v8 = (v18 == m_field_48.end()) ? m_vod : v18->second;
+        auto curSize = v8.relay_addresses_size();
+        if (curSize) { 
+            *a6 = (int)curSize > 1 || (curSize == 1 && v8.relay_addresses(0).has_ra_f5());
+            const auto &v12 = v8.relay_addresses(a5 % curSize);
+            HostAndPorts ret;
+            ret.m_ports[0] = v12.has_cport() ? v12.cport() : m_defaultPortEncr;
+            ret.m_ports[1] = v12.has_port() ? v12.port() : m_defaultPort;
+            ret.m_host = v12.ip();
+            return ret;
+        }
+        return HostAndPorts();
+    }
+    HostAndPorts getAddress(uint64_t world, uint32_t map, float a5, float a6, bool *a7) {
+        m_map = map;
+        m_world = world;
+        auto v15 = m_field_48.find(MAKELONG(m_world, m_map));
+        protobuf::RelayAddressesVOD *ret;
+        if (v15 == m_field_48.end()) {
+            if (0 == m_vod.relay_addresses_size())
+                NetworkingLogWarn("No cluster available for world %lld and map revision %d", world, map);
+            ret = &m_vod;
+        } else {
+            ret = &v15->second;
+        }
+        return getAddress(ret, a5, a6, a7);
+    }
+    HostAndPorts getAddress(protobuf::RelayAddressesVOD *rav, float a4, float a5, bool *a6) {
+        HostAndPorts ret;
+        auto curSize = rav->relay_addresses_size();
+        *a6 = (int)curSize > 1 || (curSize == 1 && rav->relay_addresses(0).has_ra_f5());
+        if (curSize) {
+            const protobuf::RelayAddress *v10 = nullptr;
+            if (0 == rav->rav_f4()) {
+                double v16 = 1.7e308;
+                for (const auto &i : rav->relay_addresses()) {
+                    auto v23 = (float)(a4 - i.ra_f6());
+                    auto v24 = (float)(a5 - i.ra_f7());
+                    v24 = v24 * v24 + v23 * v23;
+                    if (v16 > v24) {
+                        v16 = v24;
+                        v10 = &i;
+                    }
+                }
+            } else {
+                for (const auto &i : rav->relay_addresses()) {
+                    v10 = &i;
+                    if (i.ra_f6() >= a4 && i.ra_f7() >= a5)
+                        break;
+                }
+            }
+            if (v10) {
+                ret.m_ports[0] = v10->has_cport() ? v10->cport() : m_defaultPortEncr;
+                ret.m_ports[1] = v10->has_port() ? v10->port() : m_defaultPort;
+                ret.m_host = v10->ip();
+                return ret;
+            }
+        }
+        return HostAndPorts();
+    }
+    void updateAddresses(const protobuf::UdpConfigVOD &src) {
+        if (src.relay_addresses_vod_size()) {
+            m_defaultPort = src.port();
+            m_defaultPortEncr = src.cport();
+            m_vod.Clear();
+            m_field_48.clear();
+            for (const auto &srci : src.relay_addresses_vod()) {
+                if (srci.lb_realm() || srci.lb_course()) {
+                    m_world = srci.lb_realm();
+                    m_map = srci.lb_course();
+                    m_field_48[MAKELONG(m_world, m_map)] = srci;
+                } else {
+                    m_vod.CopyFrom(srci);
+                }
+            }
+        }
+    }
+};
+struct PeriodicLogger {
+    boost::asio::io_context &m_ctx;
+    uint64_t m_period;
+    std::function<void(uint32_t, uint64_t)> m_func;
+    boost::asio::steady_timer m_timer;
+    int m_counter = 0;
+    PeriodicLogger(boost::asio::io_context &ctx, uint64_t period, const std::function<void(uint32_t, uint64_t)> &f) : m_ctx(ctx), m_period(period), m_timer(ctx) { }
+    void cancel() { m_timer.cancel(); }
+    void log() { m_ctx.post([this]() { resetLogTimer(); }); }
+    void resetLogTimer() {
+        ++m_counter;
+        if (m_counter != 1)
+            return;
+        m_func(1, 0);
+        m_timer.expires_after(std::chrono::milliseconds(m_period));
+        m_timer.async_wait([this](const boost::system::error_code &ec) {
+            if (!ec)
+                m_func(m_counter - 1, m_period);
+        });
+    }
 };
 struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, EncryptionListener { //0x1400-16 bytes
-    //            UdpClient::UdpClient(GlobalState *, WorldClockService *, HashSeedService *, HashSeedService *, UdpStatistics *, RelayServerRestInvoker *, TelemetryService *, UdpClient::Listener &, std::chrono::duration<long long, std::ratio<1l, 1l>>, std::chrono::duration<long long, std::ratio<1l, 1000l>>)
-    UdpClient(GlobalState *, WorldClockService *, HashSeedService *, HashSeedService *, UdpStatistics *, RelayServerRestInvoker *, void /*netImpl*/ *) {
+    GlobalState *m_gs;
+    WorldClockService *m_wcs;
+    HashSeedService *m_hs1, *m_hs2;
+    UdpStatistics *m_us;
+    RelayServerRestInvoker *m_relay;
+    NetworkClientImpl *m_netImpl;
+    EventLoop m_eventLoop;
+    RelayAddressService m_ras;
+    EncryptionInfo m_ei;
+    protocol_encryption::UdpRelayClientCodec m_codec;
+    boost::asio::steady_timer m_connectionTimeoutTimer, m_gameInterpolationTimeoutTimer, m_metricsLogTimer;
+    boost::asio::ip::udp::socket m_udpSocket;
+    std::string m_host, m_chkHost, m_strError;
+    uint8_t m_rxBuf[1492] = {}, m_txBuf[1492] = {};
+    boost::asio::ip::udp::endpoint m_senderEndpoint, m_connEndpoint;
+    moodycamel::ReaderWriterQueue<std::pair<std::shared_ptr<protobuf::ServerToClient>, uint64_t>> m_stcs;
+    moodycamel::ReaderWriterQueue<uint64_t> m_field_1000;
+    std::map<uint64_t, uint64_t> m_field_FC0;
+    std::vector<uint8_t> m_decVector;
+    PeriodicLogger m_periodicLogger;
+    int64_t m_world = 0, m_field_11D8 = 0;
+    int m_field_1208 = 0; // enum?
+    int m_connTimeout, m_to2, m_bigConnTo = 30, m_maxConnSmallTo = 3, m_stcRx = 0, m_rxError = 0, m_ctsTx = 0, m_txError = 0, m_reconnectionAttempts = 0, m_connectionTimeouts = 0, m_map = 0;
+    protobuf::ExpungeReason m_expungeReason = protobuf::ExpungeReason::NOT_EXPUNGED;
+    uint16_t m_port = 0, m_chkPort = 0;
+    bool m_field_15C = false, m_useEncr, m_udpReceiving = false, m_shutDown = false, m_field_F20 = false;
+
+    UdpClient(GlobalState *gs, WorldClockService *wcs, HashSeedService *hs1, HashSeedService *hs2, UdpStatistics *us, RelayServerRestInvoker *relay, NetworkClientImpl /*UdpClient::Listener*/ *netImpl, int connTimeout = 10, int to2 = 2000) :
+        m_gs(gs), m_wcs(wcs), m_hs1(hs1), m_hs2(hs2), m_us(us), m_relay(relay), m_netImpl(netImpl), m_connectionTimeoutTimer(m_eventLoop.m_asioCtx), m_gameInterpolationTimeoutTimer(m_eventLoop.m_asioCtx), m_metricsLogTimer(m_eventLoop.m_asioCtx), 
+        m_udpSocket(m_eventLoop.m_asioCtx), m_periodicLogger(m_eventLoop.m_asioCtx, 10000, [](uint32_t a2, uint64_t dur) {
+            if (dur)
+                NetworkingLogWarn("Received %d datagrams about another world in the last %ds", a2, dur / 1000);
+            else
+                NetworkingLogWarn("Received datagram about another world");
+        }), m_connTimeout(connTimeout), m_to2(to2) {
         //TODO
+        /*
+  *(_QWORD *)&this->field_190 = 0i64;
+  *(_QWORD *)&this->field_198 = 0i64;
+
+  *(_QWORD *)&this->field_E00 = 0i64;
+  *(_QWORD *)&this->field_E08 = 0i64;
+  *(_QWORD *)&this->field_E10 = 0i64;
+  *(_QWORD *)&this->field_F30 = 0i64;
+
+  *(_DWORD *)&this->field_1080 = 1;
+  *(_QWORD *)&this->field_1088 = 0i64;
+
+  *(_QWORD *)&this->field_11E0 = 0i64;
+  *(_QWORD *)&this->field_11E8 = 0i64;
+  *(_QWORD *)&this->field_11F0 = 0i64;
+  *(_QWORD *)&this->field_11F8 = 0i64;
+  *(_QWORD *)&this->field_1200 = 0i64;
+  *(_QWORD *)&this->field_1210 = 0i64;
+  this->field_1218 = 0;
+  *(_WORD *)&this->field_1398 = 0;
+        */
+        resetMetricsLogTimer();
+        m_useEncr = m_gs->shouldUseEncryption();
+        if (m_useEncr) {
+            m_ei = m_gs->getEncryptionInfo();
+            m_codec.m_hostRelayId = m_ei.m_relaySessionId;
+            m_codec.m_generateKey = false;
+            assert(m_ei.m_sk.length() == 16);
+            memcpy(m_codec.m_secretRaw, m_ei.m_sk.c_str(), m_ei.m_sk.length());
+            m_codec.secretRawToString();
+        }
+    }
+    void resetMetricsLogTimer() {
+        m_metricsLogTimer.expires_after(std::chrono::seconds(60));
+        m_metricsLogTimer.async_wait([this](const boost::system::error_code &ec) {
+            if (!ec) {
+                NetworkingLogInfo("UDP metrics {StC Rx: %d, Rx error: %d, CtS Tx: %d, Tx error: %d}", m_stcRx, m_rxError, m_ctsTx, m_txError);
+                m_stcRx = m_rxError = m_ctsTx = m_txError = 0;
+                resetMetricsLogTimer();
+            }
+        });
     }
     void handleEncryptionChange(const EncryptionInfo &ei) override {
         //TODO
@@ -2377,38 +2565,250 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
         //TODO
     }
     void shutdown() {
-        //TODO
+        m_eventLoop.post([this]() {
+            m_shutDown = true;
+            m_connectionTimeoutTimer.cancel();
+            m_gameInterpolationTimeoutTimer.cancel();
+            m_metricsLogTimer.cancel();
+            disconnect();
+            clearEndpoint();
+        });
+        m_eventLoop.enqueueShutdown();
     }
-    /*
-UdpClient::clearEndpoint()
-UdpClient::connect()
-UdpClient::decodeMessage(char const*,uint64_t &)
-UdpClient::disconnect()
+    void clearEndpoint() {
+        m_host.clear();
+        m_port = 0;
+        //OMIT m_connEndpoint = 0;
+    }
+    void connect() {
+        if (!m_codec.initialize(&m_strError)) {
+            //OMIT ? UdpStatistics::increaseEncryptionNewConnectionError((__int64)this->m_us);
+            NetworkingLogError("UDP failed to get new connection id [%s].", m_strError.c_str());
+        }
+        m_chkHost = m_host;
+        m_chkPort = m_port;
+        NetworkingLogInfo("Connecting to UDP server...");
+        boost::system::error_code ec;
+        m_udpSocket.connect(m_connEndpoint, ec);
+        if (ec) {
+            NetworkingLogError("Error connecting to UDP host %s:%d", m_host.c_str(), m_port);
+        } else {
+            resetConnectionTimeoutTimer(m_connTimeout);
+            resetGameInterpolationTimeoutTimer();
+            receive();
+        }
+    }
+    void disconnect() {
+        if (m_udpSocket.is_open()) {
+            boost::system::error_code ec;
+            m_udpSocket.shutdown(m_udpSocket.shutdown_both, ec);
+            if (ec)
+                NetworkingLogWarn("Error shutting down UDP socket [%d] %s", ec.value(), ec.message());
+            m_udpSocket.close(ec);
+            if (ec)
+                NetworkingLogWarn("Error closing UDP socket [%d] %s", ec.value(), ec.message());
+        }
+    }
+    bool resolveAndSetEndpoint(const std::string &host, uint16_t port) {
+        boost::asio::ip::udp::resolver resolver(m_eventLoop.m_asioCtx);
+        boost::asio::ip::udp::resolver::query query(host, std::to_string(port));
+        boost::system::error_code ec;
+        boost::asio::ip::udp::resolver::iterator iter = resolver.resolve(query, ec);
+        if (ec) {
+            NetworkingLogError("Error resolving UDP host %s:%d [%d] %s", host.c_str(), port, ec.value(), ec.message());
+            clearEndpoint();
+            return false;
+        }
+        m_host = host;
+        m_port = port;
+        //OMIT UdpStatistics::setEncryptionEnabled((__int64)this->m_us, this->m_useEncr);
+        NetworkingLogInfo("UDP host %s:%d%s", m_host.c_str(), m_port, m_useEncr ? " (secure)" : "");
+        m_connEndpoint = *iter;
+        return true;
+    }
+    HostAndPorts selectHostAndPorts(uint64_t sel) {
+#if 0 //TODO or OMIT
+        if (sel || this->m_field_F20) {
+            v6 = UdpStatistics::getLatestFanViewedPlayerId((__int64)this->m_us);
+            v7 = UdpStatistics::getLatestInfoFromFanViewedPlayer((__int64)this->m_us);
+            v8 = v7;
+            if (this->m_field_15C && this->m_field_1208 != 2 && v6 && (!v7 || UdpStatistics::PlayerStateInfo::isAged(v7, sel))) {
+                if (!this->m_field_1208) {
+                    v9 = (__int64 *)RelayServerRestInvoker::latestPlayerState(
+                        (__int64 *)this->m_relay,
+                        (__int64)v15,
+                        this->m_world,
+                        v6);
+                    copy_sharedptr((__int64 *)&this->field_1210, v9);
+                    v10 = v15[0];
+                    if (v15[0] && _InterlockedExchangeAdd((volatile signed __int32 *)(v15[0] + 8), 0xFFFFFFFF) == 1) {
+                        v11 = *(void(__fastcall ****)(_QWORD, __int64))(v10 + 216);
+                        if (v11)
+                            (**v11)(*(_QWORD *)(v10 + 216), v10);
+                        else
+                            (**(void(__fastcall ***)(__int64, __int64))v10)(v10, 1i64);
+                    }
+                    this->m_field_1208 = 1;
+                }
+                *(_QWORD *)&this->field_11F8 = 0i64;
+                HostAndPorts ret;
+                ret.m_ports[0] = m_port;
+                ret.m_ports[1] = m_port;
+                ret.m_host = m_host;
+                return ret;
+            } else {
+                *(_QWORD *)&this->field_11F8 = v6;
+                if (!v8)
+                    v6 = this->m_field_11D8;
+                if (*(_QWORD *)&this->field_11E8 == v6) {
+                    v12 = *(float *)&this->field_11F0;
+                    v13 = *(float *)&this->field_11F4;
+                } else if (v8) {
+                    v12 = *(float *)(v8 + 16);
+                    v13 = *(float *)(v8 + 20);
+                } else {
+                    v12 = *(float *)&this->field_11E0;
+                    v13 = *(float *)&this->field_11E4;
+                }
+                return m_ras.getAddress(m_world, m_map,
+                    v12,
+                    v13,
+                    &m_field_15C);
+            }
+        }
+#endif
+        return m_ras.getRandomAddress(m_world, m_map, m_field_11D8, &m_field_15C);
+    }
+    void resetConnectionTimeoutTimer(int to) {
+        m_connectionTimeoutTimer.expires_after(std::chrono::seconds(to));
+        m_connectionTimeoutTimer.async_wait([this](const boost::system::error_code &ec) {
+            if (!ec) //onConnectionTimeout inlined
+                reconnect(true);
+        });
+    }
+    void resetGameInterpolationTimeoutTimer() {
+        m_gameInterpolationTimeoutTimer.expires_after(std::chrono::seconds(5));
+        m_gameInterpolationTimeoutTimer.async_wait([this](const boost::system::error_code &ec) {
+            //OMIT
+            //if (!ec && m_world > 0 && !m_field_F20)
+            //    UdpStatistics::incrementGameInterpolationTimeoutCount((__int64)v1->m_us); 
+        });
+    }
+    void reconnect(bool isTimedOut) {
+        if (m_world > 0 && !m_field_F20) {
+            ++m_reconnectionAttempts;
+            if (isTimedOut) {
+                //OMIT UdpStatistics::incrementConnectionTimeoutCount(m_us);
+                ++m_connectionTimeouts;
+                NetworkingLogWarn("UDP connection timeout (%d so far), reconnection attempt %d", m_connectionTimeouts, m_reconnectionAttempts);
+            } else {
+                //OMIT UdpStatistics::incrementConnectionErrorCount(m_us);
+                NetworkingLogWarn("UDP communication error, reconnection attempt %d", m_reconnectionAttempts);
+            }
+            disconnect();
+            connect();
+        }
+        if (m_reconnectionAttempts >= m_maxConnSmallTo)
+            resetConnectionTimeoutTimer(m_bigConnTo);
+        else
+            resetConnectionTimeoutTimer(m_connTimeout);
+    }
+    void handleWorldAndMapRevisionChanges(uint64_t sel, int64_t world, uint32_t map);
+    void handleRelayAddress(uint64_t sel) {
+        auto v10 = selectHostAndPorts(sel);
+        auto port = m_useEncr ? v10.m_ports[0] : v10.m_ports[1];
+        if (v10.m_host != m_host || port != m_port) {
+            if (resolveAndSetEndpoint(v10.m_host, port)) {
+                disconnect();
+                connect();
+            } else {
+                disconnect();
+            }
+        }
+    }
+    void readCallback(const boost::system::error_code &err, std::size_t count) {
+        if (!err) {
+            resetConnectionTimeoutTimer(m_connTimeout);
+            resetGameInterpolationTimeoutTimer();
+            auto v13 = decodeMessage(m_rxBuf, &count);
+            if (v13) { // UdpClient::processDatagram inlined
+                auto stc = std::make_shared<protobuf::ServerToClient>();
+                if (count && stc->ParseFromArray(v13, count)) {
+                    ++m_stcRx;
+                    handleServerToClient(stc);
+                } else {
+                    NetworkingLogError("Failed to parse UDP StC (%d bytes)", count);
+                    //OMIT m_us->increaseParseErrorCount();
+                }
+            }
+            m_udpReceiving = false;
+            receive();
+        } else {
+            if (err.category() == boost::asio::error::system_category && err.value() == 995 /*timed out*/) {
+                m_udpReceiving = false;
+                receive();
+            } else {
+                NetworkingLogError("Error receiving UDP datagram [%d] %s", err.value(), err.message().c_str());
+                ++m_rxError;
+                m_udpReceiving = false;
+                reconnect(false);
+            }
+        }
+    }
+    void receive() {
+        if (!m_udpReceiving && m_shutDown) {
+            m_udpReceiving = true;
+            m_udpSocket.async_receive_from(boost::asio::buffer(m_rxBuf, sizeof(m_rxBuf)), m_senderEndpoint, 0, std::bind(&UdpClient::readCallback, this, std::placeholders::_1, std::placeholders::_2));
+        }
+    }
+    void handleServerToClient(const std::shared_ptr<protobuf::ServerToClient> &src);
+    const uint8_t *decodeMessage(uint8_t *buf, uint64_t *pCount) {
+        if (!m_useEncr)
+            return buf;
+        m_decVector.clear();
+        if (m_codec.decode(buf, *pCount, &m_decVector, &m_strError)) {
+            *pCount = m_decVector.size();
+            return m_decVector.data();
+        } else {
+            auto sip = m_senderEndpoint.address().to_string();
+            if (m_senderEndpoint.port() == m_chkPort && sip == m_chkHost) {
+                //OMIT m_us->increaseEncryptionDecodeError();
+                NetworkingLogError("Failed to decode UDP StC [%s].", m_strError.c_str());
+                return buf;
+            } else {
+                if (m_senderEndpoint.address().is_v6()) {
+                    NetworkingLogDebug(
+                        "Ignore UDP StC from wrong IPv6 %s:%d (expect %s:%d)",
+                        sip.c_str(),
+                        m_senderEndpoint.port(),
+                        m_chkHost.c_str(),
+                        m_chkPort);
+                    //OMIT m_us->increaseEncryptionWrongServerIpV6();
+                    return nullptr;
+                } else {
+                    NetworkingLogDebug(
+                        "Ignore UDP StC from wrong %s:%d (expect %s:%d)",
+                        sip.c_str(), m_senderEndpoint.port(), m_chkHost.c_str(), m_chkPort);
+                    //OMIT m_us->increaseEncryptionWrongServer();
+                    return nullptr;
+                }
+            }
+        }
+    }
+        /*
 UdpClient::disconnectionRequested(protobuf::ServerToClient const&)
 UdpClient::encodeMessage(char *,uint64_t,uint32_t &)
 UdpClient::getExpungeReasonToBeInformed()
 UdpClient::handleFanViewedPlayerChanges(uint64_t,protobuf::PlayerState const&)
 UdpClient::handlePlayerProfileUpdates(uint64_t,protobuf::PlayerState const&)
 UdpClient::handlePositionChanges(protobuf::PlayerState const&)
-UdpClient::handleRelayAddress(uint64_t)
-UdpClient::handleServerToClient(std::shared_ptr<protobuf::ServerToClient const>)
-UdpClient::handleWorldAndMapRevisionChanges(uint64_t,int64_t,uint32_t)
 UdpClient::handleWorldAttribute(protobuf::WorldAttribute const&)
 UdpClient::isNoWorld(protobuf::ServerToClient const&)
 UdpClient::mapExpungeReasonResponse(protobuf::ExpungeReason)
-UdpClient::onConnectionTimeout(std::error_code)
 UdpClient::popPlayerIdWithUpdatedProfile(int64_t &)
 UdpClient::popServerToClient(std::shared_ptr<protobuf::ServerToClient const> &)
-UdpClient::processDatagram(uint64_t)
-UdpClient::receive()
 UdpClient::receivedExpungeReason(protobuf::ServerToClient const&)
-UdpClient::reconnect(bool)
 UdpClient::reset()
-UdpClient::resetConnectionTimeoutTimer(std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)
-UdpClient::resetGameInterpolationTimeoutTimer()
-UdpClient::resetMetricsLogTimer()
-UdpClient::resolveAndSetEndpoint(const std::string &,ushort)
-UdpClient::selectHostAndPorts(uint64_t)
 UdpClient::sendClientToServer(protobuf::ClientToServer const&,uint32_t)
 UdpClient::sendDisconnectedClientToServer(int64_t)
 UdpClient::sendPlayerState(int64_t,protobuf::PlayerState const&)
@@ -2662,6 +3062,9 @@ struct UdpStatistics { //0x450 bytes
         //OMIT
     }
     //OMIT
+    void inspectServerToClient(const std::shared_ptr<protobuf::ServerToClient> &src, uint64_t, const std::string &host) {
+        //OMIT
+    }
 };
 struct TcpStatistics { //0xC8 bytes
     TcpStatistics() {
@@ -3878,6 +4281,64 @@ void GlobalState::setUdpConfig(const protobuf::UdpConfigVOD &uc, uint64_t a3) {
             ul.handleUdpConfigChange(uc, a3);
         });
     });
+}
+void UdpClient::handleWorldAndMapRevisionChanges(uint64_t sel, int64_t world, uint32_t map) {
+    if (world != -1 && (world != m_world || map != m_map)) {
+        m_world = world;
+        m_map = map;
+        m_field_15C = false;
+        if (m_field_1208 == 2)
+            m_field_1208 = 0;
+        NetworkingLogInfo("Changed to world-map [%lld,%u]", world, map);
+        handleRelayAddress(sel);
+        m_gs->setWorldId(m_world);
+        m_netImpl->handleWorldAndMapRevisionChanged(m_world, m_map);
+    }
+}
+void UdpClient::handleServerToClient(const std::shared_ptr<protobuf::ServerToClient> &src) {
+    if (src->has_has_simult_login() && src->has_simult_login()) {
+        if (!m_field_F20) {
+            m_field_F20 = true;
+            m_netImpl->handleDisconnectRequested(true);
+            NetworkingLogWarn("Disconnected due to simultaneous login");
+        }
+        m_us->inspectServerToClient(src, m_wcs->getWorldTime(), m_host);
+    } else {
+        if (m_field_F20) {
+            m_field_F20 = false;
+            m_netImpl->handleDisconnectRequested(false);
+            NetworkingLogWarn("Simultaneous login has ceased");
+        }
+        if (!src->has_server_realm() || src->server_realm() == 0)
+            m_us->inspectServerToClient(src, m_wcs->getWorldTime(), m_host);
+        else if (src->server_realm() != m_world) {
+            m_periodicLogger.log();
+            m_us->inspectServerToClient(src, m_wcs->getWorldTime(), m_host);
+        } else {
+            if (src->has_expunge_reason()) {
+                m_expungeReason = src->expunge_reason();
+                //OMIT m_us->incrementExpungeReasonReceived();
+                NetworkingLogInfo("World-map [%lld,%u] expunge reason: %d", m_world, m_map, m_expungeReason);
+            }
+            if (src->has_expunge_reason() && m_expungeReason) {
+                m_us->inspectServerToClient(src, m_wcs->getWorldTime(), m_host);
+            } else {
+                m_wcs->handleServerToClient(*src);
+                //OMIT m_us->inspectServerToClient(src, m_wcs->getWorldTime(), m_host);
+                for (const auto &s : src->states1()) {
+                    if (s.has_customization_id()) {
+                        uint64_t &v21 = m_field_FC0[s.id()];
+                        auto v22 = s.customization_id();
+                        if (v21 != v22 && v22 < src->world_time() - 2000) {
+                            v21 = v22;
+                            m_field_1000.enqueue(s.id());
+                        }
+                    }
+                }
+                m_stcs.emplace(src, g_steadyClock.now());
+            }
+        }
+    }
 }
 
 //Units
