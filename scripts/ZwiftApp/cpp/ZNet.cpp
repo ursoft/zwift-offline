@@ -2380,7 +2380,7 @@ struct RelayAddressService {
         auto &v8 = (v18 == m_field_48.end()) ? m_vod : v18->second;
         auto curSize = v8.relay_addresses_size();
         if (curSize) { 
-            *a6 = (int)curSize > 1 || (curSize == 1 && v8.relay_addresses(0).has_ra_f5());
+            *a6 = (int)curSize > 1 || (curSize == 1 && v8.relay_addresses(0).has_x());
             const auto &v12 = v8.relay_addresses(a5 % curSize);
             HostAndPorts ret;
             ret.m_ports[0] = v12.has_cport() ? v12.cport() : m_defaultPortEncr;
@@ -2390,7 +2390,7 @@ struct RelayAddressService {
         }
         return HostAndPorts();
     }
-    HostAndPorts getAddress(uint64_t world, uint32_t map, float a5, float a6, bool *a7) {
+    HostAndPorts getAddress(uint64_t world, uint32_t map, float x, float z, bool *a7) {
         m_map = map;
         m_world = world;
         auto v15 = m_field_48.find(MAKELONG(m_world, m_map));
@@ -2402,19 +2402,19 @@ struct RelayAddressService {
         } else {
             ret = &v15->second;
         }
-        return getAddress(ret, a5, a6, a7);
+        return getAddress(ret, x, z, a7);
     }
-    HostAndPorts getAddress(protobuf::RelayAddressesVOD *rav, float a4, float a5, bool *a6) {
+    HostAndPorts getAddress(protobuf::RelayAddressesVOD *rav, float x, float z, bool *a6) {
         HostAndPorts ret;
         auto curSize = rav->relay_addresses_size();
-        *a6 = (int)curSize > 1 || (curSize == 1 && rav->relay_addresses(0).has_ra_f5());
+        *a6 = (int)curSize > 1 || (curSize == 1 && rav->relay_addresses(0).has_x());
         if (curSize) {
             const protobuf::RelayAddress *v10 = nullptr;
             if (0 == rav->rav_f4()) {
                 double v16 = 1.7e308;
                 for (const auto &i : rav->relay_addresses()) {
-                    auto v23 = (float)(a4 - i.ra_f6());
-                    auto v24 = (float)(a5 - i.ra_f7());
+                    auto v23 = (float)(x - i.x());
+                    auto v24 = (float)(z - i.z());
                     v24 = v24 * v24 + v23 * v23;
                     if (v16 > v24) {
                         v16 = v24;
@@ -2424,7 +2424,7 @@ struct RelayAddressService {
             } else {
                 for (const auto &i : rav->relay_addresses()) {
                     v10 = &i;
-                    if (i.ra_f6() >= a4 && i.ra_f7() >= a5)
+                    if (i.x() >= x && i.z() >= z)
                         break;
                 }
             }
@@ -2476,6 +2476,341 @@ struct PeriodicLogger {
         });
     }
 };
+struct UdpStatistics { //0x450 bytes
+    struct PlayerStateInfo {
+        uint64_t m_id = 0, m_born = 0;
+        float m_x = 0.0f, m_z = 0.0f;
+        bool isAged(uint64_t nt) { return nt - m_born >= 2000; }
+        /* inlined bool isStarved(uint64_t a2) {
+            return false;
+        }*/
+    };
+    std::string m_curHost, m_txPosition, m_field_360;
+    std::mutex m_mutex;
+    std::vector<int64_t> m_field_390;
+    std::vector<uint32_t> m_txSpeeds, m_txPowers, m_txCads, m_txHRs;
+    uint64_t m_latestFanViewedPlayerId = 0, m_ctsTraffic = 0, m_stcTraffic = 0, m_field_408 = 0, m_field_400 = -1, m_field_330 = 0, m_ctsLastTime = 0, m_field_1F0 = 0, m_field_1F8 = 0, m_field_208 = 0, m_field_328 = 0, m_field_280 = 0,
+        m_group_id = 0, m_field_2C0 = 0, m_field_3F8 = 0;
+    int64_t m_field_3E8 = 0, m_field_3E0 = 0x7FFFFFFFFFFFFFFFi64, m_field_3D8 = 0;
+    std::map<uint64_t, PlayerStateInfo> m_field_100;
+    std::set<uint32_t> m_field_78;
+    std::set<int64_t> m_field_158, m_field_198; //or google::protobuf::Descriptor const * ?
+    double m_field_388 = 0.0;
+    int m_parseErrorCount = 0, m_sendErrorCount = 0, m_encrEncodeErrs = 0, m_stcStatesCnt = 0, m_encrWrongServer = 0, m_encrNewConnectionErr = 0, m_encrWrongServer6 = 0, m_connErrCnt1 = 0, m_connErrCnt2 = 0,
+        m_connToCnt1 = 0, m_connToCnt2 = 0, m_expungesCnt = 0, m_interpToCnt1 = 0, m_interpToCnt2 = 0, m_encrDecodeErrs = 0, m_field_3F0 = 0, m_field_410 = 0, m_field_C8 = 0, m_field_C0 = 0, m_field_C4 = 0,
+        m_field_CC = 0, m_field_88 = 0, m_field_E0 = 0, m_field_430 = 0, m_field_448 = 0, m_field_44C = 0, m_field_E4 = 0, m_field_BC = 0, m_field_B8 = 0, m_speed = 0, m_power = 0, m_cadence_uhz = 0, m_zwifters = 0,
+        m_heartrate = 0, m_climbing = 0, m_field_1E0 = 0, m_field_1E4 = 0, m_field_1E8 = 0, m_field_25C = 0, m_field_288 = 0, m_txClimbing = 0;
+    uint32_t m_mapRevisionId = 0;
+    protobuf::Sport m_sport = protobuf::CYCLING;
+    float m_x = 0.0f, m_z = 0.0f, m_wx = 0.0f, m_wz = 0.0f;
+    bool m_encrEnabled = false, m_hasSpeed = false, m_hasPower = false, m_hasCadence = false, m_hasZwifters = false, m_hasCoords = false, m_hasHeartrate = false, m_hasClimbing = false, m_field_1ED = false,
+        m_hasJustWatching = false, m_just_watching = false, m_hasGroupId = false, m_hasSport = false, m_hasMapRevisionId = false, m_hasWorkoutMode = false, m_presentHasPhoneConnected = false, m_phoneConnected = false,
+        m_hasTxPosition = false, m_hasTxClimbing = false;
+    char m_workoutMode = 0;
+    UdpStatistics() {
+        //TODO
+        //m_field_100 is not a map, it has 2500 in ctr (purge older than 2500 ms ?)
+        /*
+  v2 = operator new(0x18ui64);
+  *v2 = v2;
+  v2[1] = v2;
+  *(_QWORD *)&this->field_80 = v2;
+  *(_QWORD *)&this->field_90 = 0i64;
+  *(_QWORD *)&this->field_98 = 0i64;
+  *(_QWORD *)&this->field_A0 = 0i64;
+  *(_QWORD *)&this->field_A8 = 7i64;
+  *(_QWORD *)&this->field_B0 = 8i64;
+  *(_DWORD *)&this->m_field_78 = 0x3F800000;
+  v3 = *(_QWORD *)&this->field_80;
+  v4 = operator new(0x80ui64);
+  *(_QWORD *)&this->field_90 = v4;
+  v5 = v4 + 16;
+  *(_QWORD *)&this->field_98 = v4 + 16;
+  for ( *(_QWORD *)&this->field_A0 = v4 + 16; v4 != v5; ++v4 )
+    *v4 = v3;
+  sub_7FF76A502BE0((unsigned __int64 *)&this->m_field_100, 2500ui64);
+  std::unordered_set<google::protobuf::Descriptor const *>::unordered_set<google::protobuf::Descriptor const *>((__int64)&this->m_field_158);
+  std::unordered_set<google::protobuf::Descriptor const *>::unordered_set<google::protobuf::Descriptor const *>((__int64)&this->m_field_198);
+  this->field_344 = 1;
+  this->field_34C = 1;
+  this->field_354 = 1;
+  this->field_35C = 1;
+          */
+    }
+    void inspectServerToClient(const std::shared_ptr<protobuf::ServerToClient> &stc, uint64_t time, const std::string &host) {
+        std::lock_guard l(m_mutex);
+        registerReceivedDatagram(stc->seqno(), host);
+        for (const auto &v12 : stc->states1()) {
+            if (m_field_328 && time - m_field_330 < 2000) {
+                auto v16 = m_x - v12.x();
+                auto v17 = m_z - v12.z();
+                if (m_field_388 > v17 * v17 + v16 * v16) {
+                    m_field_390.push_back(time - v12.world_time());
+                    m_field_158.emplace(v12.id());
+                    m_field_198.emplace(v12.id());
+                }
+            }
+            auto v20 = &m_field_100[v12.id()];
+            if (v12.id() != v20->m_id || v12.world_time() > v20->m_born) {
+                v20->m_id = v12.id();
+                v20->m_born = v12.world_time();
+                if (v12.has_x() && v12.has_z()) {
+                    v20->m_x = v12.x();
+                    v20->m_z = v12.z();
+                }
+            }
+            if (v12.watching_rider_id() == m_latestFanViewedPlayerId) {
+                m_hasSpeed = v12.has_speed();
+                m_speed = m_hasSpeed ? v12.speed() : 0;
+                m_hasPower = v12.has_power();
+                m_power = m_hasPower ? v12.power() : 0;
+                m_hasCadence = v12.has_cadence_uhz();
+                m_cadence_uhz = m_hasCadence ? v12.cadence_uhz() : 0;
+                m_hasHeartrate = v12.has_heartrate();
+                m_heartrate = m_hasHeartrate ? v12.heartrate() : 0;
+                m_hasClimbing = v12.has_climbing();
+                m_climbing = m_hasClimbing ? v12.climbing() : 0;
+                if (v12.has_x() && v12.has_z()) {
+                    m_wz = v12.z();
+                    m_wx = v12.x();
+                    m_hasCoords = true;
+                } else {
+                    m_hasCoords = false;
+                }
+            }
+        }
+        if (stc->has_zwifters()) {
+            m_zwifters = stc->zwifters();
+            m_hasZwifters = true;
+        }
+        m_stcStatesCnt += stc->states1_size();
+        m_stcTraffic += stc->ByteSizeLong();
+    }
+    void inspectClientToServer(const std::shared_ptr<protobuf::ClientToServer> &cts, uint64_t time) {
+        std::lock_guard l(m_mutex);
+        auto &state = cts->has_state() ? cts->state() : protobuf::PlayerState::default_instance();
+        auto watching_rider_id = state.watching_rider_id();// inlined UdpStatistics::registerFanView
+        if (watching_rider_id == state.id()) {
+            watching_rider_id = 0;
+            m_field_1ED = false;
+        }
+        m_ctsLastTime = time;
+        if (watching_rider_id != m_latestFanViewedPlayerId) {
+            if (m_field_1E0) {
+                m_field_1F0 += time - m_field_1F8;
+                m_field_1F8 = time;
+            }
+            if (m_latestFanViewedPlayerId) {
+                auto v13 = m_field_100.find(m_latestFanViewedPlayerId);
+                if (v13 != m_field_100.end()) {
+                    if (int64_t(time - v13->second.m_born) >= 5000)
+                        ++m_field_1E4;
+                }
+            }
+            m_latestFanViewedPlayerId = watching_rider_id;
+            if (watching_rider_id) {
+                m_field_1E0++;
+                m_field_1ED = true;
+                m_field_208 = watching_rider_id;
+                m_field_1F8 = time;
+                auto v14 = m_field_100.find(watching_rider_id);
+                if (v14 == m_field_100.end() || int64_t(time - v14->second.m_born) >= 2000)
+                    ++m_field_1E8;
+            }
+        }
+        if (cts->has_state()) {
+            ++m_field_25C;
+            m_x = state.x();
+            m_z = state.z();
+            m_field_330 = state.world_time();
+            if (!m_field_328)
+                m_field_328 = state.id();
+        }
+        if (state.group_id() != m_field_280) {
+            ++m_field_288;
+            m_field_280 = state.group_id();
+        }
+        m_hasJustWatching = state.has_just_watching();
+        m_just_watching = m_hasJustWatching ? state.just_watching() : false;
+        m_hasGroupId = state.has_group_id();
+        m_group_id = m_hasGroupId ? state.group_id() : 0;
+        m_hasSport = state.has_sport();
+        m_sport = m_hasSport ? state.sport() : protobuf::CYCLING;
+        auto map = PlayerStateHelper::getMapRevisionId(state, &m_hasMapRevisionId); //URSOFT FIX
+        m_mapRevisionId = m_hasMapRevisionId ? map : 0;
+        m_hasWorkoutMode = state.has_progress();
+        m_workoutMode = m_hasWorkoutMode ? PlayerStateHelper::getWorkoutMode(state) : 0;
+        m_presentHasPhoneConnected = state.has_f19();
+        m_phoneConnected = m_presentHasPhoneConnected ? PlayerStateHelper::getHasPhoneConnected(state) : false;
+        if (PlayerStateHelper::hasPosition(state)) {
+            m_txPosition = PlayerStateHelper::getPosition(state);
+            m_hasTxPosition = true;
+        } else {
+            m_txPosition.clear();
+            m_hasTxPosition = false;
+        }
+        m_hasTxClimbing = state.has_climbing();
+        m_txClimbing = m_hasTxClimbing ? state.climbing() : 0;
+        if (time >= m_field_2C0) {
+            m_field_2C0 = time + 1000;
+            if (state.has_speed())
+                m_txSpeeds.push_back(state.speed());
+            if (state.has_power())
+                m_txPowers.push_back(state.power());
+            if (state.has_cadence_uhz())
+                m_txCads.push_back(state.cadence_uhz());
+            if (state.has_heartrate())
+                m_txHRs.push_back(state.heartrate());
+        }
+        m_ctsTraffic += cts->ByteSizeLong();
+    }
+    uint64_t getLatestFanViewedPlayerId() { return m_latestFanViewedPlayerId; }
+    PlayerStateInfo *getLatestInfoFromFanViewedPlayer() {
+        if (m_latestFanViewedPlayerId) {
+            auto f = m_field_100.find(m_latestFanViewedPlayerId);
+            if (f != m_field_100.end())
+                return &f->second;
+        }
+        return nullptr;
+    }
+    void increaseEncryptionDecodeError() {
+        std::lock_guard l(m_mutex);
+        m_encrDecodeErrs++;
+    }
+    void increaseEncryptionEncodeError() {
+        std::lock_guard l(m_mutex);
+        m_encrEncodeErrs++;
+    }
+    void increaseEncryptionNewConnectionError() {
+        std::lock_guard l(m_mutex);
+        m_encrNewConnectionErr++;
+    }
+    void increaseEncryptionWrongServer() {
+        std::lock_guard l(m_mutex);
+        m_encrWrongServer++;
+    }
+    void increaseEncryptionWrongServerIpV6() {
+        std::lock_guard l(m_mutex);
+        m_encrWrongServer6++;
+    }
+    void increaseParseErrorCount() {
+        std::lock_guard l(m_mutex);
+        m_parseErrorCount++;
+    }
+    void increaseSendErrorCount() {
+        std::lock_guard l(m_mutex);
+        m_sendErrorCount++;
+    }
+    void incrementConnectionErrorCount() {
+        std::lock_guard l(m_mutex);
+        m_connErrCnt1++;
+        m_connErrCnt2++;
+    }
+    void incrementConnectionTimeoutCount() {
+        std::lock_guard l(m_mutex);
+        m_connToCnt1++;
+        m_connToCnt2++;
+    }
+    void incrementExpungeReasonReceived() {
+        std::lock_guard l(m_mutex);
+        m_expungesCnt++;
+    }
+    void incrementGameInterpolationTimeoutCount() {
+        std::lock_guard l(m_mutex);
+        m_interpToCnt1++;
+        m_interpToCnt2++;
+    }
+    void setEncryptionEnabled(bool en) {
+        std::lock_guard l(m_mutex);
+        m_encrEnabled = en;
+    }
+    void registerPlayerStateInfo(const protobuf::PlayerState &pst) {
+        auto id = pst.id();
+        auto f = &m_field_100[id];
+        if (id != f->m_id || pst.world_time() > f->m_born) {
+            f->m_id = id;
+            f->m_born = pst.world_time();
+            if (pst.has_x() && pst.has_z()) {
+                f->m_x = pst.x();
+                f->m_z = pst.z();
+            }
+        }
+    }
+    void registerServerToClientQueueStatistics(int64_t a2, uint64_t a3) {
+        std::lock_guard l(m_mutex);
+        m_field_3D8 += a2;
+        ++m_field_3F0;
+        if (a2 > m_field_3E8)
+            m_field_3E8 = a2;
+        if (a2 < m_field_3E0)
+            m_field_3E0 = a2;
+        m_field_3F8 += a3;
+        ++m_field_410;
+        if (a3 > m_field_408)
+            m_field_408 = a3;
+        if (a3 < m_field_400)
+            m_field_400 = a3;
+    }
+    void registerReceivedDatagram(uint32_t seqno, const std::string &host) {
+        if (host != m_curHost) { // inlined UdpStatistics::resetServerToClientSequenceNumber
+            m_field_C8 += m_field_C0 - m_field_C4;
+            m_field_CC += m_field_88;
+            m_field_78.clear();
+            m_field_C0 = m_field_C4 = 0;
+            auto v12 = m_field_E0 - m_field_430;
+            if (v12) {
+                m_field_430 = m_field_E0;
+                m_field_E4 += m_field_448 - m_field_44C - v12 + 1;
+            }
+            m_field_448 = m_field_44C = 0;
+            m_curHost = host;
+        }
+        uint32_t v14;
+        if (m_field_C0) {
+            v14 = m_field_C4;
+        } else {
+            v14 = seqno - 1;
+            m_field_C0 = seqno - 1;
+            m_field_C4 = seqno - 1;
+        }
+        if (seqno > v14 && m_field_78.insert(seqno).second) {
+            if (seqno >= m_field_C0)
+                m_field_C0 = seqno;
+            else
+                ++m_field_BC;
+            if (seqno > m_field_448) {
+                m_field_448 = seqno;
+                if (m_field_44C == 0)
+                    m_field_44C = seqno;
+            }
+            ++m_field_E0;
+        } else {
+            ++m_field_B8;
+        }
+    }
+        /*TODO UdpStatistics::FanViewStats::toJson(void)
+UdpStatistics::Sample::encryptionToJson(void)
+UdpStatistics::Sample::toJson(void)
+UdpStatistics::UdpStatistics(void)
+UdpStatistics::computeDatagramLostPercentage(void)
+UdpStatistics::computeDatagramOutOfOrderPercentage(void)
+UdpStatistics::computeFanView(void)
+UdpStatistics::getConnectionMetrics(zwift_network::ConnectivityInfo &)
+UdpStatistics::getInnermostSquaredDistance(void)
+UdpStatistics::getParseErrorCount(void)
+UdpStatistics::getSample(void)
+UdpStatistics::isInsideInnermostRing(zwift::protobuf::PlayerState const&,ulong)
+UdpStatistics::registerDatagramWindowSize(void)
+UdpStatistics::registerFanViewLatestPlayerStateInfo(zwift::protobuf::PlayerState const&)
+UdpStatistics::registerSeenPlayers(zwift::protobuf::PlayerState const&)
+UdpStatistics::registerTripDuration(zwift::protobuf::PlayerState const&,ulong)
+UdpStatistics::reset(void)
+UdpStatistics::resetFanViewFields(void)
+UdpStatistics::resetFields(void)
+UdpStatistics::setInnermostDistance(uint)
+UdpStatistics::setSampleInterval(std::chrono::duration<long long,std::ratio<1l,1l>>)
+UdpStatistics::~UdpStatistics()*/
+};
 struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, EncryptionListener { //0x1400-16 bytes
     GlobalState *m_gs;
     WorldClockService *m_wcs;
@@ -2497,13 +2832,14 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
     std::map<uint64_t, uint64_t> m_field_FC0;
     std::vector<uint8_t> m_decVector;
     PeriodicLogger m_periodicLogger;
-    int64_t m_world = 0, m_field_11D8 = 0;
+    std::future<NetworkResponse<protobuf::PlayerState>> m_field_1210;
+    int64_t m_world = 0, m_field_11D8 = 0, m_field_11E8 = 0, m_field_11F8 = 0, m_field_1200 = 0;
     int m_field_1208 = 0; // enum?
     int m_connTimeout, m_to2, m_bigConnTo = 30, m_maxConnSmallTo = 3, m_stcRx = 0, m_rxError = 0, m_ctsTx = 0, m_txError = 0, m_reconnectionAttempts = 0, m_connectionTimeouts = 0, m_map = 0;
+    float m_field_11F0 = 0.0f, m_field_11F4 = 0.0f, m_field_11E0 = 0.0f, m_field_11E4 = 0.0f;
     protobuf::ExpungeReason m_expungeReason = protobuf::ExpungeReason::NOT_EXPUNGED;
     uint16_t m_port = 0, m_chkPort = 0;
     bool m_field_15C = false, m_useEncr, m_udpReceiving = false, m_shutDown = false, m_field_F20 = false;
-
     UdpClient(GlobalState *gs, WorldClockService *wcs, HashSeedService *hs1, HashSeedService *hs2, UdpStatistics *us, RelayServerRestInvoker *relay, NetworkClientImpl /*UdpClient::Listener*/ *netImpl, int connTimeout = 10, int to2 = 2000) :
         m_gs(gs), m_wcs(wcs), m_hs1(hs1), m_hs2(hs2), m_us(us), m_relay(relay), m_netImpl(netImpl), m_connectionTimeoutTimer(m_eventLoop.m_asioCtx), m_gameInterpolationTimeoutTimer(m_eventLoop.m_asioCtx), m_metricsLogTimer(m_eventLoop.m_asioCtx), 
         m_udpSocket(m_eventLoop.m_asioCtx), m_periodicLogger(m_eventLoop.m_asioCtx, 10000, [](uint32_t a2, uint64_t dur) {
@@ -2516,22 +2852,15 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
         /*
   *(_QWORD *)&this->field_190 = 0i64;
   *(_QWORD *)&this->field_198 = 0i64;
-
   *(_QWORD *)&this->field_E00 = 0i64;
   *(_QWORD *)&this->field_E08 = 0i64;
   *(_QWORD *)&this->field_E10 = 0i64;
   *(_QWORD *)&this->field_F30 = 0i64;
-
   *(_DWORD *)&this->field_1080 = 1;
   *(_QWORD *)&this->field_1088 = 0i64;
-
   *(_QWORD *)&this->field_11E0 = 0i64;
   *(_QWORD *)&this->field_11E8 = 0i64;
   *(_QWORD *)&this->field_11F0 = 0i64;
-  *(_QWORD *)&this->field_11F8 = 0i64;
-  *(_QWORD *)&this->field_1200 = 0i64;
-  *(_QWORD *)&this->field_1210 = 0i64;
-  this->field_1218 = 0;
   *(_WORD *)&this->field_1398 = 0;
         */
         resetMetricsLogTimer();
@@ -2582,7 +2911,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
     }
     void connect() {
         if (!m_codec.initialize(&m_strError)) {
-            //OMIT ? UdpStatistics::increaseEncryptionNewConnectionError((__int64)this->m_us);
+            m_us->increaseEncryptionNewConnectionError();
             NetworkingLogError("UDP failed to get new connection id [%s].", m_strError.c_str());
         }
         m_chkHost = m_host;
@@ -2621,62 +2950,44 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
         }
         m_host = host;
         m_port = port;
-        //OMIT UdpStatistics::setEncryptionEnabled((__int64)this->m_us, this->m_useEncr);
+        m_us->setEncryptionEnabled(m_useEncr);
         NetworkingLogInfo("UDP host %s:%d%s", m_host.c_str(), m_port, m_useEncr ? " (secure)" : "");
         m_connEndpoint = *iter;
         return true;
     }
-    HostAndPorts selectHostAndPorts(uint64_t sel) {
-#if 0 //TODO or OMIT
-        if (sel || this->m_field_F20) {
-            v6 = UdpStatistics::getLatestFanViewedPlayerId((__int64)this->m_us);
-            v7 = UdpStatistics::getLatestInfoFromFanViewedPlayer((__int64)this->m_us);
-            v8 = v7;
-            if (this->m_field_15C && this->m_field_1208 != 2 && v6 && (!v7 || UdpStatistics::PlayerStateInfo::isAged(v7, sel))) {
-                if (!this->m_field_1208) {
-                    v9 = (__int64 *)RelayServerRestInvoker::latestPlayerState(
-                        (__int64 *)this->m_relay,
-                        (__int64)v15,
-                        this->m_world,
-                        v6);
-                    copy_sharedptr((__int64 *)&this->field_1210, v9);
-                    v10 = v15[0];
-                    if (v15[0] && _InterlockedExchangeAdd((volatile signed __int32 *)(v15[0] + 8), 0xFFFFFFFF) == 1) {
-                        v11 = *(void(__fastcall ****)(_QWORD, __int64))(v10 + 216);
-                        if (v11)
-                            (**v11)(*(_QWORD *)(v10 + 216), v10);
-                        else
-                            (**(void(__fastcall ***)(__int64, __int64))v10)(v10, 1i64);
-                    }
-                    this->m_field_1208 = 1;
+    HostAndPorts selectHostAndPorts(uint64_t time) {
+        if (time || m_field_F20) {
+            auto fid = m_us->getLatestFanViewedPlayerId();
+            auto info = m_us->getLatestInfoFromFanViewedPlayer();
+            if (m_field_15C && m_field_1208 != 2 && fid && (!info || info->isAged(time))) {
+                if (!m_field_1208) {
+                    m_field_1210 = m_relay->latestPlayerState(m_world, fid);
+                    m_field_1208 = 1;
                 }
-                *(_QWORD *)&this->field_11F8 = 0i64;
+                m_field_11F8 = 0;
                 HostAndPorts ret;
                 ret.m_ports[0] = m_port;
                 ret.m_ports[1] = m_port;
                 ret.m_host = m_host;
                 return ret;
             } else {
-                *(_QWORD *)&this->field_11F8 = v6;
-                if (!v8)
-                    v6 = this->m_field_11D8;
-                if (*(_QWORD *)&this->field_11E8 == v6) {
-                    v12 = *(float *)&this->field_11F0;
-                    v13 = *(float *)&this->field_11F4;
-                } else if (v8) {
-                    v12 = *(float *)(v8 + 16);
-                    v13 = *(float *)(v8 + 20);
+                m_field_11F8 = fid;
+                float x, z;
+                if (!info)
+                    fid = m_field_11D8;
+                if (m_field_11E8 == fid) {
+                    x = m_field_11F0;
+                    z = m_field_11F4;
+                } else if (info) {
+                    x = info->m_x;
+                    z = info->m_z;
                 } else {
-                    v12 = *(float *)&this->field_11E0;
-                    v13 = *(float *)&this->field_11E4;
+                    x = m_field_11E0;
+                    z = m_field_11E4;
                 }
-                return m_ras.getAddress(m_world, m_map,
-                    v12,
-                    v13,
-                    &m_field_15C);
+                return m_ras.getAddress(m_world, m_map, x, z, &m_field_15C);
             }
         }
-#endif
         return m_ras.getRandomAddress(m_world, m_map, m_field_11D8, &m_field_15C);
     }
     void resetConnectionTimeoutTimer(int to) {
@@ -2689,20 +3000,19 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
     void resetGameInterpolationTimeoutTimer() {
         m_gameInterpolationTimeoutTimer.expires_after(std::chrono::seconds(5));
         m_gameInterpolationTimeoutTimer.async_wait([this](const boost::system::error_code &ec) {
-            //OMIT
-            //if (!ec && m_world > 0 && !m_field_F20)
-            //    UdpStatistics::incrementGameInterpolationTimeoutCount((__int64)v1->m_us); 
+            if (!ec && m_world > 0 && !m_field_F20)
+                m_us->incrementGameInterpolationTimeoutCount(); 
         });
     }
     void reconnect(bool isTimedOut) {
         if (m_world > 0 && !m_field_F20) {
             ++m_reconnectionAttempts;
             if (isTimedOut) {
-                //OMIT UdpStatistics::incrementConnectionTimeoutCount(m_us);
+                m_us->incrementConnectionTimeoutCount();
                 ++m_connectionTimeouts;
                 NetworkingLogWarn("UDP connection timeout (%d so far), reconnection attempt %d", m_connectionTimeouts, m_reconnectionAttempts);
             } else {
-                //OMIT UdpStatistics::incrementConnectionErrorCount(m_us);
+                m_us->incrementConnectionErrorCount();
                 NetworkingLogWarn("UDP communication error, reconnection attempt %d", m_reconnectionAttempts);
             }
             disconnect();
@@ -2713,9 +3023,9 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
         else
             resetConnectionTimeoutTimer(m_connTimeout);
     }
-    void handleWorldAndMapRevisionChanges(uint64_t sel, int64_t world, uint32_t map);
-    void handleRelayAddress(uint64_t sel) {
-        auto v10 = selectHostAndPorts(sel);
+    void handleWorldAndMapRevisionChanges(uint64_t time, int64_t world, uint32_t map);
+    void handleRelayAddress(uint64_t time) {
+        auto v10 = selectHostAndPorts(time);
         auto port = m_useEncr ? v10.m_ports[0] : v10.m_ports[1];
         if (v10.m_host != m_host || port != m_port) {
             if (resolveAndSetEndpoint(v10.m_host, port)) {
@@ -2738,7 +3048,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
                     handleServerToClient(stc);
                 } else {
                     NetworkingLogError("Failed to parse UDP StC (%d bytes)", count);
-                    //OMIT m_us->increaseParseErrorCount();
+                    m_us->increaseParseErrorCount();
                 }
             }
             m_udpReceiving = false;
@@ -2772,7 +3082,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
         } else {
             auto sip = m_senderEndpoint.address().to_string();
             if (m_senderEndpoint.port() == m_chkPort && sip == m_chkHost) {
-                //OMIT m_us->increaseEncryptionDecodeError();
+                m_us->increaseEncryptionDecodeError();
                 NetworkingLogError("Failed to decode UDP StC [%s].", m_strError.c_str());
                 return buf;
             } else {
@@ -2783,37 +3093,66 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
                         m_senderEndpoint.port(),
                         m_chkHost.c_str(),
                         m_chkPort);
-                    //OMIT m_us->increaseEncryptionWrongServerIpV6();
+                    m_us->increaseEncryptionWrongServerIpV6();
                     return nullptr;
                 } else {
                     NetworkingLogDebug(
                         "Ignore UDP StC from wrong %s:%d (expect %s:%d)",
                         sip.c_str(), m_senderEndpoint.port(), m_chkHost.c_str(), m_chkPort);
-                    //OMIT m_us->increaseEncryptionWrongServer();
+                    m_us->increaseEncryptionWrongServer();
                     return nullptr;
                 }
             }
         }
     }
+    void handleFanViewedPlayerChanges(uint64_t time, const protobuf::PlayerState &ps) {
+        int v29 = 0;
+        if (this->m_field_15C) {
+            auto LatestFanViewedPlayerId = m_us->getLatestFanViewedPlayerId();
+            if (LatestFanViewedPlayerId != m_field_11F8) {
+                if (LatestFanViewedPlayerId != m_field_1200) {
+                    m_field_1200 = LatestFanViewedPlayerId;
+                    m_field_1208 = 0;
+                    /* OMIT telemetry if (ps.id() == ps.watching_rider_id())
+                        (*(void(__fastcall **)(_DWORD *, _QWORD, __int64, const char *, const char *))(*(_QWORD *)m_ts + 8i64))(
+                            m_ts,
+                            0i64,
+                            3i64,
+                            "fanview",
+                            "Back to me");
+                    else
+                        TelemetryService::remoteLogF(
+                            m_ts,
+                            0,
+                            3u,
+                            (__int64)"fanview",
+                            "Watching Player ID %lli",
+                            ps->m_watching_rider_id);*/
+                }
+                if (m_field_1208 == 1 && m_field_1210.valid() && m_field_1210.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+                    auto result = m_field_1210.get();
+                    if (result.m_errCode) {
+                        NetworkingLogError("Error requesting fan viewed player state: [%d] %s", result.m_errCode, result.m_msg.c_str());
+                    } else {
+                        m_us->registerPlayerStateInfo(result.m_T);
+                        auto sh_stc = std::make_shared<protobuf::ServerToClient>();
+                        auto states = sh_stc->mutable_states1();
+                        states->Add(std::move(result.m_T));
+                        m_stcs.emplace(sh_stc, g_steadyClock.now());
+                    }
+                }
+                handleRelayAddress(time);
+            }
+        }
+    }
         /*
-UdpClient::disconnectionRequested(protobuf::ServerToClient const&)
-UdpClient::encodeMessage(char *,uint64_t,uint32_t &)
-UdpClient::getExpungeReasonToBeInformed()
-UdpClient::handleFanViewedPlayerChanges(uint64_t,protobuf::PlayerState const&)
-UdpClient::handlePlayerProfileUpdates(uint64_t,protobuf::PlayerState const&)
-UdpClient::handlePositionChanges(protobuf::PlayerState const&)
-UdpClient::handleWorldAttribute(protobuf::WorldAttribute const&)
-UdpClient::isNoWorld(protobuf::ServerToClient const&)
-UdpClient::mapExpungeReasonResponse(protobuf::ExpungeReason)
-UdpClient::popPlayerIdWithUpdatedProfile(int64_t &)
-UdpClient::popServerToClient(std::shared_ptr<protobuf::ServerToClient const> &)
-UdpClient::receivedExpungeReason(protobuf::ServerToClient const&)
-UdpClient::reset()
 UdpClient::sendClientToServer(protobuf::ClientToServer const&,uint32_t)
-UdpClient::sendDisconnectedClientToServer(int64_t)
-UdpClient::sendPlayerState(int64_t,protobuf::PlayerState const&)
 UdpClient::sendRegularClientToServer(int64_t,uint32_t,protobuf::PlayerState const&)
+UdpClient::sendPlayerState(int64_t,protobuf::PlayerState const&)
+UdpClient::popServerToClient(std::shared_ptr<protobuf::ServerToClient const> &)
 UdpClient::serializeToUdpMessage(protobuf::ClientToServer const&,uint32_t &)
+
+UdpClient::reset()
 UdpClient::setPlayerProfileUpdated(uint64_t)
 UdpClient::shouldPrependDontForwardByte(protobuf::ClientToServer const&)
 UdpClient::shouldPrependVoronoiOrDieByte(protobuf::ClientToServer const&)
@@ -3056,15 +3395,6 @@ struct WorkoutServiceRestInvoker { //0x30 bytes
     /*TODO
 WorkoutServiceRestInvoker::fetchAssetSummary(const std::string &)
 WorkoutServiceRestInvoker::fetchCustomWorkouts(zwift_network::Optional<std::string>)*/
-};
-struct UdpStatistics { //0x450 bytes
-    UdpStatistics() {
-        //OMIT
-    }
-    //OMIT
-    void inspectServerToClient(const std::shared_ptr<protobuf::ServerToClient> &src, uint64_t, const std::string &host) {
-        //OMIT
-    }
 };
 struct TcpStatistics { //0xC8 bytes
     TcpStatistics() {
@@ -4282,7 +4612,7 @@ void GlobalState::setUdpConfig(const protobuf::UdpConfigVOD &uc, uint64_t a3) {
         });
     });
 }
-void UdpClient::handleWorldAndMapRevisionChanges(uint64_t sel, int64_t world, uint32_t map) {
+void UdpClient::handleWorldAndMapRevisionChanges(uint64_t time, int64_t world, uint32_t map) {
     if (world != -1 && (world != m_world || map != m_map)) {
         m_world = world;
         m_map = map;
@@ -4290,7 +4620,7 @@ void UdpClient::handleWorldAndMapRevisionChanges(uint64_t sel, int64_t world, ui
         if (m_field_1208 == 2)
             m_field_1208 = 0;
         NetworkingLogInfo("Changed to world-map [%lld,%u]", world, map);
-        handleRelayAddress(sel);
+        handleRelayAddress(time);
         m_gs->setWorldId(m_world);
         m_netImpl->handleWorldAndMapRevisionChanged(m_world, m_map);
     }
@@ -4317,14 +4647,14 @@ void UdpClient::handleServerToClient(const std::shared_ptr<protobuf::ServerToCli
         } else {
             if (src->has_expunge_reason()) {
                 m_expungeReason = src->expunge_reason();
-                //OMIT m_us->incrementExpungeReasonReceived();
+                m_us->incrementExpungeReasonReceived();
                 NetworkingLogInfo("World-map [%lld,%u] expunge reason: %d", m_world, m_map, m_expungeReason);
             }
             if (src->has_expunge_reason() && m_expungeReason) {
                 m_us->inspectServerToClient(src, m_wcs->getWorldTime(), m_host);
             } else {
                 m_wcs->handleServerToClient(*src);
-                //OMIT m_us->inspectServerToClient(src, m_wcs->getWorldTime(), m_host);
+                m_us->inspectServerToClient(src, m_wcs->getWorldTime(), m_host);
                 for (const auto &s : src->states1()) {
                     if (s.has_customization_id()) {
                         uint64_t &v21 = m_field_FC0[s.id()];

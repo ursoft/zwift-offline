@@ -6,8 +6,8 @@ message RelayAddress {
     optional int32 lb_course = 2; // load balancing cluster: course id
     optional string ip = 3;
     optional int32 port = 4;
-    optional float ra_f5 = 5; //used when appropriate server selection occurs (RelayAddressService::getAddress)
-    optional float ra_f6 = 6; //used when appropriate server selection occurs (RelayAddressService::getAddress)
+    optional float x = 5;
+    optional float z = 6;
     optional float ra_f7 = 7;
     optional float ra_f8 = 8;
     optional uint32 cport = 9;

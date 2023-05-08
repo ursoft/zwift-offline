@@ -43,10 +43,10 @@ message PlayerState {
     optional uint32 speed = 6;    // millimeters per hour
     optional uint32 ps_f7 = 7;
     optional int32 road_position = 8;
-    optional int32 cadence_uhz = 9; // =(cad / 60) * 1000000
+    optional uint32 cadence_uhz = 9; // =(cad / 60) * 1000000
     optional int32 ps_f10 = 10; // BikeEntity.field_B58; 0 - ETA related (something around speed)
-    optional int32 heartrate = 11;
-    optional int32 power = 12;
+    optional uint32 heartrate = 11;
+    optional uint32 power = 12;
     optional int32 heading = 13;
     optional int32 lean = 14;
     optional int32 climbing = 15; // meters
