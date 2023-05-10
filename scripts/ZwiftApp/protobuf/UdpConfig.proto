@@ -28,8 +28,8 @@ message UdpConfigVOD {
     repeated RelayAddressesVOD relay_addresses_vod = 1;
     optional uint32 port = 2;
     optional int64 ucv_f3 = 3;
-    optional int64 ucv_f4 = 4;
-    optional float ucv_f5 = 5;
-    optional float ucv_f6 = 6;
+    optional int64 player_id = 4;
+    optional float x = 5;
+    optional float z = 6;
     optional int32 cport = 7;
 }
