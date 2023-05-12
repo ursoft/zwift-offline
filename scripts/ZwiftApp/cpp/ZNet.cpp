@@ -137,7 +137,7 @@ struct HttpStatistics { //0x320 - 16 bytes
 };
 std::string g_CNL_VER = "3.27.4"s;
 enum HttpRequestMode { HRM_SEQUENTIAL, HRM_CONCURRENT };
-enum AcceptType { ATH_PB, ATH_JSON };
+enum AcceptType { ATH_PB, ATH_JSON, ATH_OCTET };
 struct AcceptHeader {
     AcceptHeader() {}
     AcceptHeader(AcceptType src) {
@@ -147,6 +147,9 @@ struct AcceptHeader {
             break;
         case ATH_JSON:
             m_hdr = "Accept: application/json"s;
+            break;
+        case ATH_OCTET:
+            m_hdr = "Accept: application/octet-stream"s;
             break;
         default:
             break;
@@ -2334,6 +2337,15 @@ struct RestServerRestInvoker { //0x70 bytes
             return ret;
         }), true, false);
     }
+    std::future<NetworkResponse<bool>> createRegistration(int64_t id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<bool>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url + "/events/subgroups/register/"s + std::to_string(id));
+        auto v9 = conn->performPost(url, ContentTypeHeader(CTH_JSON), "{}"s, AcceptHeader(ATH_JSON), "Create Registration"s, false);
+        return HttpHelper::convertToResultResponse<bool>(v9, [](const Json::Value &json) {
+            return json["registered"].asBool();
+            });
+            }), true, false);
+    }
     /* OMIT:
 RestServerRestInvoker::partnerAccessToken(const std::string &) //OMIT
 RestServerRestInvoker::sendMixpanelEvent(const std::string &,std::vector<std::string> const&) //OMIT
@@ -3537,72 +3549,159 @@ struct AuxiliaryControllerAddress { //80 bytes
     AuxiliaryControllerAddress() {}
 };
 struct ActivityRecommendationRestInvoker { //0x30 bytes
-    ActivityRecommendationRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
-    }
-    void getActivityRecommendations(const std::string &a2) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    ActivityRecommendationRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/recommendations"s) {}
+    std::future<NetworkResponse<Json::Value>> getActivityRecommendations(const std::string &aGoal) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<Json::Value>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.add("goal"s, aGoal);
+            std::string url(m_url + "/recommendation"s + qsb.getString(true));
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_JSON), "Get Activity Recommendations"s);
+            return HttpHelper::convertToJsonResponse(v9);
+        }), true, false);
     }
 };
 struct AchievementsRestInvoker { //0x30 bytes
-    AchievementsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO = ExperimentsRestInvoker
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    AchievementsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server) {}
+    std::future<NetworkResponse<protobuf::Achievements>> load() {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::Achievements>(CurlHttpConnection *)>([this](CurlHttpConnection *conn) {
+            std::string url(m_url + "/api/achievement/loadPlayerAchievements"s);
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Load Achievements"s);
+            return HttpHelper::convertToResultResponse<protobuf::Achievements>(v9);
+        }), true, false);
     }
-    /*TODO
-AchievementsRestInvoker::load()
-AchievementsRestInvoker::unlock(protobuf::achievement::AchievementUnlockRequest const&)*/
+    std::future<NetworkResponse<void>> unlock(const  protobuf::AchievementUnlockRequest &rq) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string hash("/api/achievement/unlock"s), url(m_url + hash);
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, rq);
+            auto v9 = conn->performPostWithHash(url, ContentTypeHeader(CTH_PB), payload, AcceptHeader(), "Unlock Achievements"s, hash);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
+    }
 };
 struct CampaignRestInvoker { //0x70 bytes
-    CampaignRestInvoker(const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url1, m_url2, m_url3;
+    CampaignRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url1(server + "/api/profiles"s), 
+        m_url2(server + "/api/campaign/proto/campaigns"s), m_url3(server + "/api/campaign/public/proto/campaigns"s) {}
+    std::future<NetworkResponse<protobuf::CampaignRegistrationResponse>> enrollPlayer(const std::string &sn) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::CampaignRegistrationResponse>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performPost(m_url2 + "/shortName/"s + sn + "/enroll"s, AcceptHeader(ATH_PB), "Campaign service enroll player"s);
+            return HttpHelper::convertToResultResponse<protobuf::CampaignRegistrationResponse>(v9);
+        }), true, false);
     }
-    /*TODO
-CampaignRestInvoker::CampaignRestInvoker(std::shared_ptr<ZwiftHttpConnectionManager>,const std::string &)
-CampaignRestInvoker::enrollPlayer(int64_t,const std::string &)
-CampaignRestInvoker::enrollPlayer(const std::string &)
-CampaignRestInvoker::getActiveCampaigns()
-CampaignRestInvoker::getCampaigns()
-CampaignRestInvoker::getCompletedCampaigns()
-CampaignRestInvoker::getProgress(const std::string &)
-CampaignRestInvoker::getRegistration(const std::string &)
-CampaignRestInvoker::playerSummary(int64_t,const std::string &)
-CampaignRestInvoker::registerPlayer(int64_t,const std::string &)
-CampaignRestInvoker::registerPlayer(const std::string &)
-CampaignRestInvoker::withdrawPlayer(int64_t,const std::string &)
-CampaignRestInvoker::withdrawPlayer(const std::string &)*/
+    std::future<NetworkResponse<protobuf::ListPublicActiveCampaignResponse>> getActiveCampaigns() {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::ListPublicActiveCampaignResponse>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(m_url3 + "/active"s, AcceptHeader(ATH_PB), "Campaign service get active campaigns"s);
+            return HttpHelper::convertToResultResponse<protobuf::ListPublicActiveCampaignResponse>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::ListCampaignRegistrationSummaryResponse>> getCampaigns() {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::ListCampaignRegistrationSummaryResponse>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(m_url2, AcceptHeader(ATH_PB), "Campaign service get campaigns"s);
+            return HttpHelper::convertToResultResponse<protobuf::ListCampaignRegistrationSummaryResponse>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::CampaignRegistrationResponse>> getRegistration(const std::string &sn) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::CampaignRegistrationResponse>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(m_url2 + "/shortName/"s + sn + "/registration"s, AcceptHeader(ATH_PB), "Campaign service get campaigns"s);
+            return HttpHelper::convertToResultResponse<protobuf::CampaignRegistrationResponse>(v9);
+        }), true, false);
+    }
+    /*PC:absent:
+enrollPlayer(int64_t,const std::string &)
+getCompletedCampaigns()
+getProgress(const std::string &)
+playerSummary(int64_t,const std::string &)
+registerPlayer(int64_t,const std::string &)
+registerPlayer(const std::string &)
+withdrawPlayer(int64_t,const std::string &)
+withdrawPlayer(const std::string &)*/
 };
 struct ClubsRestInvoker { //0x30 bytes
-    ClubsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    ClubsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/clubs"s) {}
+    std::future<NetworkResponse<void>> resetMyActiveClub() {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url + "/club/reset-my-active-club.proto"s);
+            auto v9 = conn->performPost(url, ContentTypeHeader(CTH_PB), ""s, AcceptHeader(), "Reset My Active Club"s, false);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
     }
-    /*TODO
-ClubsRestInvoker::listMyClubs(zwift_network::Optional<protobuf::club::Membership_Status>,zwift_network::Optional<int>,zwift_network::Optional<int>)
-ClubsRestInvoker::myActiveClub()
-ClubsRestInvoker::resetMyActiveClub()
-ClubsRestInvoker::setMyActiveClub(protobuf::club::UUID const&)*/
+    std::future<NetworkResponse<void>> setMyActiveClub(const protobuf::UUID &id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url + "/club/my-active-club.proto"s);
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, id);
+            auto v9 = conn->performPost(url, ContentTypeHeader(CTH_PB), payload, AcceptHeader(), "Set My Active Club"s, false);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::Clubs>> listMyClubs(Optional<protobuf::Membership_Status> status, Optional<int> start, Optional<int> limit) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::Clubs>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.addOptional("status"s, status);
+            qsb.addOptional("start"s, start);
+            qsb.addOptional("limit"s, limit);
+            auto v9 = conn->performGet(m_url + "/club/list/my-clubs.proto"s + qsb.getString(true), AcceptHeader(ATH_PB), "List My Clubs"s);
+            return HttpHelper::convertToResultResponse<protobuf::Clubs>(v9);
+        }), true, false);
+    }
 };
 struct EventCoreRestInvoker { //0x30 bytes
-    EventCoreRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    EventCoreRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/events-core"s) {}
+    std::future<NetworkResponse<bool>> createRegistration(int64_t id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<bool>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url + "/events/subgroups/register/"s + std::to_string(id));
+            auto v9 = conn->performPost(url, ContentTypeHeader(CTH_JSON), "{}"s, AcceptHeader(ATH_JSON), "Create Registration"s, false);
+            return HttpHelper::convertToResultResponse<bool>(v9, [](const Json::Value &json) {
+                return json["registered"].asBool();
+            });
+        }), true, false);
     }
-    /*TODO
-EventCoreRestInvoker::createRegistration(int64_t)
-EventCoreRestInvoker::createSignup(int64_t)
-EventCoreRestInvoker::deleteRegistration(int64_t)
-EventCoreRestInvoker::deleteSignup(int64_t)*/
+    std::future<NetworkResponse<bool>> deleteRegistration(int64_t id) { //absent in PC version
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<bool>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url + "/events/register/"s + std::to_string(id));
+            auto v9 = conn->performDelete(url, AcceptHeader(ATH_JSON), "Delete Registration"s);
+            return HttpHelper::convertToResultResponse<bool>(v9, [](const Json::Value &json) {
+                return !json["registered"].asBool();
+            });
+        }), true, false);
+    }
+    std::future<NetworkResponse<bool>> deleteSignup(int64_t id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<bool>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url + "/events/signup/"s + std::to_string(id));
+            auto v9 = conn->performDelete(url, AcceptHeader(ATH_JSON), "Delete Signup"s);
+            return HttpHelper::convertToResultResponse<bool>(v9, [](const Json::Value &json) {
+                return !json["signedUp"].asBool();
+            });
+        }), true, false);
+    }
+    /* absent in PC createSignup(int64_t)*/
 };
 struct EventFeedRestInvoker { //0x30 bytes
-    EventFeedRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    EventFeedRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/eventfeed"s) {}
+    std::future<NetworkResponse<protobuf::EventsProtobuf>> getEvents(const model::EventsSearch &es) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::EventsProtobuf>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performPost(m_url + "/proto/search"s, ContentTypeHeader(CTH_JSON), HttpHelper::jsonToString(es), AcceptHeader(ATH_PB), "Get Events"s, false);
+            return HttpHelper::convertToResultResponse<protobuf::EventsProtobuf>(v9);
+        }), true, false);
     }
-    /*TODO
-EventFeedRestInvoker::getEvents(zwift_network::model::EventsSearch const&)
-EventFeedRestInvoker::getMyEvents(zwift_network::model::BaseEventsSearch const&)*/
+    /*absent in PC getMyEvents(zwift_network::model::BaseEventsSearch const&) "Get My Events" "/proto/my-events" */
 };
 struct FirmwareUpdateRestInvoker { //0x30 bytes
-    FirmwareUpdateRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //OMIT
-    }
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    FirmwareUpdateRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/dfu"s) {}
     /*OMIT
 FirmwareUpdateRestInvoker::getAllFirmwareReleases(const std::string &)
 FirmwareUpdateRestInvoker::getFirmwareRelease(const std::string &,const std::string &)
@@ -3613,98 +3712,222 @@ FirmwareUpdateRestInvoker::parseFirmwareReleaseList(Json::Value const&)
 FirmwareUpdateRestInvoker::sendDeviceDiagnostics(const std::string &,const std::string &,const std::vector<uchar> &)*/
 };
 struct GenericRestInvoker { //0x10 bytes
-    GenericRestInvoker(GenericHttpConnectionManager *mgr) {
-        //TODO
-    }
-    /*TODO GenericRestInvoker::get(const std::string &)*/
+    GenericHttpConnectionManager *m_mgr;
+    GenericRestInvoker(GenericHttpConnectionManager *mgr) : m_mgr(mgr) {}
+    /*absent in PC GenericRestInvoker::get(const std::string &) GenericHttpConnectionManager::pushRequestTask<std::string> "Generic Get Request" */
 };
 struct PrivateEventsRestInvoker { //0x30 bytes
-    PrivateEventsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    PrivateEventsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/private_event"s) {}
+    std::future<NetworkResponse<void>> accept(int64_t id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url + std::to_string(id) + "/accept"s);
+            auto v9 = conn->performPost(url, AcceptHeader(), "Accept Private Event"s);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
     }
-    /*TODO
-PrivateEventsRestInvoker::accept(int64_t)
-PrivateEventsRestInvoker::feed(int64_t,int64_t,zwift_network::Optional<protobuf::EventInviteStatusProto>,bool)
-PrivateEventsRestInvoker::get(int64_t)
-PrivateEventsRestInvoker::reject(int64_t)*/
+    std::future<NetworkResponse<void>> reject(int64_t id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url + std::to_string(id) + "/reject"s);
+            auto v9 = conn->performPut(url, AcceptHeader(), "Reject Private Event"s, false);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::PrivateEventFeedListProto>> feed(int64_t start_date, int64_t end_date, Optional<protobuf::EventInviteStatus> status, bool organizer_only_past_events) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PrivateEventFeedListProto>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.add("start_date", start_date);
+            qsb.add("end_date", end_date);
+            qsb.add("organizer_only_past_events", organizer_only_past_events);
+            if (status.m_hasValue) {
+                switch (status.m_T) {
+                case protobuf::PENDING:
+                    qsb.add("status", "PENDING");
+                    break;
+                case protobuf::ACCEPTED:
+                    qsb.add("status", "ACCEPTED");
+                    break;
+                case protobuf::REJECTED:
+                    qsb.add("status", "REJECTED");
+                    break;
+                default:
+                    assert(false);
+                }
+            }
+            auto v9 = conn->performGet(m_url + "/feed"s + qsb.getString(true), AcceptHeader(ATH_PB), "Get Private Event Feed"s);
+            return HttpHelper::convertToResultResponse<protobuf::PrivateEventFeedListProto>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::PrivateEventProto>> get(int64_t id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PrivateEventProto>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(m_url + "/"s + std::to_string(id), AcceptHeader(ATH_PB), "Get Private Event"s);
+            return HttpHelper::convertToResultResponse<protobuf::PrivateEventProto>(v9);
+        }), true, false);
+    }
 };
 struct RaceResultRestInvoker { //0x30 bytes
-    RaceResultRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    RaceResultRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/race-results"s) {}
+    std::future<NetworkResponse<void>> createRaceResultEntry(const protobuf::RaceResultEntrySaveRequest &rq) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, rq);
+            auto v9 = conn->performPost(m_url, ContentTypeHeader(CTH_PB), payload, AcceptHeader(), "Create Race Result Entry"s, false);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
     }
-    /*TODO
-RaceResultRestInvoker::createRaceResultEntry(protobuf::RaceResultEntrySaveRequest const&)
-RaceResultRestInvoker::getEventRaceResult(int64_t,zwift_network::Optional<int>,zwift_network::Optional<int>)
-RaceResultRestInvoker::getEventRaceResultSummary(int64_t)
-RaceResultRestInvoker::getSubgroupRaceResult(int64_t,zwift_network::Optional<int>,zwift_network::Optional<int>)
-RaceResultRestInvoker::getSubgroupRaceResultSummary(int64_t)*/
+    std::future<NetworkResponse<protobuf::RaceResultSummary>> getSubgroupRaceResultSummary(int64_t sid) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::RaceResultSummary>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.add("event_subgroup_id", sid);
+            auto v9 = conn->performGet(m_url + "/summary"s + qsb.getString(true), AcceptHeader(ATH_PB), "Get Subgroup Race Result Summary"s);
+            return HttpHelper::convertToResultResponse<protobuf::RaceResultSummary>(v9);
+        }), true, false);
+    }
+    /* absent in PC:
+getEventRaceResult(int64_t,zwift_network::Optional<int>,zwift_network::Optional<int>) RaceResult "Get Event Race Result"
+getEventRaceResultSummary(int64_t) RaceResultSummary "Get Event Race Result Summary"
+getSubgroupRaceResult(int64_t,zwift_network::Optional<int>,zwift_network::Optional<int>) RaceResult "Get Subgroup Race Result"*/
 };
 struct RouteResultsRestInvoker { //0x30 bytes
-    RouteResultsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO = Experiments
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    RouteResultsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server) {}
+    std::future<NetworkResponse<void>> save(const protobuf::RouteResultSaveRequest &rq) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, rq);
+            auto v9 = conn->performPost(m_url + "/route-results"s, ContentTypeHeader(CTH_PB), payload, AcceptHeader(ATH_PB), "Save Route Result"s, false);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
     }
-    /*TODO RouteResultsRestInvoker::save(protobuf::routeresults::RouteResultSaveRequest const&)*/
 };
 struct PlayerPlaybackRestInvoker { //0x30 bytes
-    PlayerPlaybackRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    PlayerPlaybackRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/player-playbacks/player"s) {}
+    std::future<NetworkResponse<std::string>> savePlayback(const protobuf::PlaybackData &data) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<std::string>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, data);
+            auto v9 = conn->performPost(m_url + "/playback"s, ContentTypeHeader(CTH_PB), payload, AcceptHeader(), "Save Playback"s, false);
+            return HttpHelper::convertToStringResponse(v9);
+        }), true, false);
     }
-    /*TODO
-PlayerPlaybackRestInvoker::deletePlayback(const std::string &)
-PlayerPlaybackRestInvoker::getMyPlaybackLatest(int64_t,uint64_t,uint64_t)
-PlayerPlaybackRestInvoker::getMyPlaybackPr(int64_t,uint64_t,uint64_t)
-PlayerPlaybackRestInvoker::getMyPlaybacks(int64_t)
-PlayerPlaybackRestInvoker::getPlaybackData(protobuf::playback::PlaybackMetadata const&)
-PlayerPlaybackRestInvoker::savePlayback(protobuf::playback::PlaybackData const&)*/
+    std::future<NetworkResponse<protobuf::PlaybackMetadata>> getMyPlaybackLatest(int64_t a2, uint64_t after, uint64_t before) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlaybackMetadata>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.add("after", after);
+            qsb.add("before", before);
+            auto v9 = conn->performGet(m_url + "/me/playbacks/"s + std::to_string(a2) + "/latest"s + qsb.getString(true), AcceptHeader(ATH_PB), "Get My Playback Latest"s);
+            return HttpHelper::convertToResultResponse<protobuf::PlaybackMetadata>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::PlaybackMetadata>> getMyPlaybackPr(int64_t a2, uint64_t after, uint64_t before) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlaybackMetadata>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.add("after", after);
+            qsb.add("before", before);
+            auto v9 = conn->performGet(m_url + "/me/playbacks/"s + std::to_string(a2) + "/pr"s + qsb.getString(true), AcceptHeader(ATH_PB), "Get My Playback PR"s);
+            return HttpHelper::convertToResultResponse<protobuf::PlaybackMetadata>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::PlaybackMetadataList>> getMyPlaybacks(int64_t a2) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlaybackMetadataList>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(m_url + "/me/playbacks/"s + std::to_string(a2), AcceptHeader(ATH_PB), "Get My Playback"s);
+            return HttpHelper::convertToResultResponse<protobuf::PlaybackMetadataList>(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::PlaybackData>> getPlaybackData(const protobuf::PlaybackMetadata &md) {
+        std::string url = md.url();
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PlaybackData>(CurlHttpConnection *)>([url](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_PB), "Get Playback Data"s);
+            return HttpHelper::convertToResultResponse<protobuf::PlaybackData>(v9);
+        }), false, false);
+    }
+    /*PC absent: deletePlayback(const std::string &) "Delete Playback" */
 };
 struct SegmentResultsRestInvoker { //0x30 bytes
-    SegmentResultsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    SegmentResultsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/live-segment-results-service"s) {}
+    std::future<NetworkResponse<protobuf::SegmentResults>> getLeaderboard(int64_t sid) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::SegmentResults>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(m_url + "/leaderboard/"s + std::to_string(sid), AcceptHeader(ATH_PB), "Segment Results Leaderboard"s);
+            return HttpHelper::convertToResultResponse<protobuf::SegmentResults>(v9);
+        }), true, false);
     }
-    /*TODO 
-SegmentResultsRestInvoker::getLeaderboard(int64_t)
-SegmentResultsRestInvoker::getSegmentJerseyLeaders()*/
+    /*absent in PC getSegmentJerseyLeaders() SegmentResults "Segment Jersey Leaders" */
 };
 struct PowerCurveRestInvoker { //0x30 bytes
-    PowerCurveRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    PowerCurveRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/power-curve"s) {}
+    std::future<NetworkResponse<protobuf::PowerCurveAggregationMsg>> getBestEffortsPowerCurveFromAllTime() {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::PowerCurveAggregationMsg>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(m_url + "/best/all-time"s, AcceptHeader(ATH_PB), "Power Curve Best From All Time"s);
+            return HttpHelper::convertToResultResponse<protobuf::PowerCurveAggregationMsg>(v9);
+        }), true, false);
     }
-    /*TODO
-PowerCurveRestInvoker::getAvailablePowerCurveYears()
-PowerCurveRestInvoker::getBestEffortsPowerCurveByDays(int)
-PowerCurveRestInvoker::getBestEffortsPowerCurveByYear(int)
-PowerCurveRestInvoker::getBestEffortsPowerCurveFromAllTime()*/
+    /*absent in PC
+getAvailablePowerCurveYears() AvailableYearsMsg "Power Curve List Years"
+getBestEffortsPowerCurveByDays(int) PowerCurveAggregationMsg "Power Curve Best By Days"
+getBestEffortsPowerCurveByYear(int) PowerCurveAggregationMsg "Power Curve Best By Year"*/
 };
 struct ZFileRestInvoker { //0x30 bytes
-    ZFileRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    ZFileRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/zfiles"s) {}
+    std::future<NetworkResponse<void>> erase(int64_t id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<void>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url + '/' + std::to_string(id));
+            auto v9 = conn->performDelete(url, AcceptHeader(), "Erase ZFile"s);
+            return HttpHelper::convertToVoidResponse(v9);
+        }), true, false);
     }
-    /*TODO 
-ZFileRestInvoker::create(protobuf::ZFileProto const&)
-ZFileRestInvoker::download(int64_t)
-ZFileRestInvoker::erase(int64_t)
-ZFileRestInvoker::list(const std::string &)*/
+    std::future<NetworkResponse<std::string>> download(int64_t id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<std::string>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(m_url + '/' + std::to_string(id) + "/download"s, AcceptHeader(ATH_OCTET), "Download ZFile"s);
+            return HttpHelper::convertToStringResponse(v9);
+        }), true, false);
+    }
+    std::future<NetworkResponse<protobuf::ZFileProto>> create(const protobuf::ZFileProto &data) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::ZFileProto>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::vector<char> payload;
+            HttpHelper::protobufToCharVector(&payload, data);
+            auto v9 = conn->performPost(m_url, ContentTypeHeader(CTH_PB), payload, AcceptHeader(ATH_PB), "Create ZFile"s, true);
+            return HttpHelper::convertToResultResponse<protobuf::ZFileProto>(v9);
+        }), true, false);
+    }
+    /*absent in PC: ZFileRestInvoker::list(const std::string &) ZFilesProto "List ZFiles" */
 };
 struct ZwiftWorkoutsRestInvoker { //0x38 bytes
-    ZwiftWorkoutsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    ZwiftWorkoutsRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/zfiles"s /*hmm*/) {}
+    std::future<NetworkResponse<std::string>> fetchWorkout(const std::string &id) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<std::string>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            std::string url(m_url + '/' + id + "/download");
+            auto v9 = conn->performGet(url, AcceptHeader(ATH_OCTET), "Get Workout"s);
+            return HttpHelper::convertToStringResponse(v9);
+        }), true, false);
     }
-    /*TODO 
-ZwiftWorkoutsRestInvoker::createWorkout(const std::string &,protobuf::Sport,const std::string &)
+    /* absent in PC
+ZwiftWorkoutsRestInvoker::createWorkout(const std::string &,protobuf::Sport,const std::string &) ZFileProto "Create Workout"
 ZwiftWorkoutsRestInvoker::createWorkoutProto(const std::string &,protobuf::Sport,const std::string &)
-ZwiftWorkoutsRestInvoker::deleteWorkout(const std::string &)
-ZwiftWorkoutsRestInvoker::editWorkout(const std::string &,const std::string &,protobuf::Sport,const std::string &)
-ZwiftWorkoutsRestInvoker::fetchUpcomingWorkouts(RequestTaskComposer<std::vector<zwift_network::model::WorkoutsFromPartner>,std::multiset<zwift_network::model::Workout>>::Composable)
-ZwiftWorkoutsRestInvoker::fetchWorkout(const std::string &)
-ZwiftWorkoutsRestInvoker::~ZwiftWorkoutsRestInvoker()*/
+ZwiftWorkoutsRestInvoker::deleteWorkout(const std::string &) void "Delete Workout"
+ZwiftWorkoutsRestInvoker::editWorkout(const std::string &,const std::string &,protobuf::Sport,const std::string &) void "Update Workout"
+//OMIT ZwiftWorkoutsRestInvoker::fetchUpcomingWorkouts(RequestTaskComposer<std::vector<zwift_network::model::WorkoutsFromPartner>,std::multiset<zwift_network::model::Workout>>::Composable)*/
 };
 struct WorkoutServiceRestInvoker { //0x30 bytes
-    WorkoutServiceRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) {
-        //TODO
-    }
-    /*TODO
-WorkoutServiceRestInvoker::fetchAssetSummary(const std::string &)
-WorkoutServiceRestInvoker::fetchCustomWorkouts(zwift_network::Optional<std::string>)*/
+    ZwiftHttpConnectionManager *m_mgr;
+    std::string m_url;
+    WorkoutServiceRestInvoker(ZwiftHttpConnectionManager *mgr, const std::string &server) : m_mgr(mgr), m_url(server + "/api/workout"s) {}
+    /*absent in PC
+WorkoutServiceRestInvoker::fetchAssetSummary(const std::string &) AssetSummary "Get Asset Summary"
+WorkoutServiceRestInvoker::fetchCustomWorkouts(zwift_network::Optional<std::string>) WorkoutSummaries "Get Custom Workouts" */
 };
 struct TcpStatistics { //0xC8 bytes
     TcpStatistics() {
@@ -4252,7 +4475,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         m_arRi = new ActivityRecommendationRestInvoker(m_httpConnMgr4, m_server);
         m_achRi = new AchievementsRestInvoker(m_httpConnMgr4, m_server);
         m_authInvoker = new AuthServerRestInvoker(m_machine.m_id, m_authMgr, m_httpConnMgr3, m_expRi, m_server);
-        m_camRi = new CampaignRestInvoker(m_server);
+        m_camRi = new CampaignRestInvoker(m_httpConnMgr3, m_server);
         m_clubsRi = new ClubsRestInvoker(m_httpConnMgr3, m_server);
         m_ecRi = new EventCoreRestInvoker(m_httpConnMgr3, m_server);
         m_efRi = new EventFeedRestInvoker(m_httpConnMgr4, m_server);

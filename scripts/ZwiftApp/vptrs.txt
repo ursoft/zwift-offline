@@ -34,12 +34,12 @@ setUploadTimeout 9
 [12, 96] performPostStr
 [13, 104] performPostVec
 [14, 112] performPost(str)
-performPost 15
+[15, 120] performPost 15
 performPostWithTimeout 16
-performPostWithHash 17
+[17, 136] performPostWithHash 17
 [18, 144] performPut ct,at
 performPut ct 19
-performPut ac 20
+[20, 160] performPut ac 20
 [21, 168] performPutOrPost
 performPutOrPost 22
 escapeUrl 23

@@ -96,6 +96,7 @@ namespace model {
         int m_signUpStatus = 0, m_riderSlot = 0;
         bool m_signedUp = false;
     };
+    struct EventsSearch : public Json::Value {};
     /*
 zwift_network::model::FirmwareRelease::FirmwareRelease(std::string const&,std::string const&,std::string const&,bool,std::string const&)
 zwift_network::model::FirmwareRelease::FirmwareRelease(zwift_network::model::FirmwareRelease const&)
