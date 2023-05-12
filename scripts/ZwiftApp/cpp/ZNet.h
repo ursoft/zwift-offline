@@ -78,14 +78,15 @@ namespace zwift_network {
 }
 struct ProfileRequestLazyContext {
     struct PlayerIdProvider {
-        //TODO
+        virtual std::unordered_set<int64_t> getPlayerIds(uint32_t key) = 0;
     };
-    ProfileRequestLazyContext(uint32_t, const PlayerIdProvider &prov) {
-        //TODO
-    }
+    uint32_t m_key = 0;
+    PlayerIdProvider *m_prov;
+    ProfileRequestLazyContext(uint32_t key, PlayerIdProvider *prov) : m_key(key), m_prov(prov) {}
     std::unordered_set<int64_t> getPlayerIds() const {
         std::unordered_set<int64_t> ret;
-        //TODO
+        if (m_prov)
+            ret = m_prov->getPlayerIds(m_key);
         return ret;
     }
 };

@@ -3396,19 +3396,130 @@ struct WorldAttributeService { //0x270 bytes
     }
     bool popWorldAttribute(protobuf::WorldAttribute &dest) { return m_rwq.try_dequeue(dest); }
 };
-struct ProfileRequestDebouncer { //0x1E0 bytes
-    ProfileRequestDebouncer(EventLoop *, RestServerRestInvoker *, uint32_t) {
-        //TODO
+struct ProfileRequestDebouncer : public ProfileRequestLazyContext::PlayerIdProvider { //0x1E0 bytes
+    std::mutex m_mapPromisesMtx, m_cpromMtx;
+    EventLoop *m_eventLoop;
+    RestServerRestInvoker *m_rest;
+    boost::asio::steady_timer m_timer;
+    using NR = NetworkResponse<protobuf::PlayerProfile>;
+    using NRS = NetworkResponse<protobuf::PlayerProfiles>;
+    using PP = std::promise<NR>;
+    using PF = std::future<NR>;
+    using PPS = std::unordered_multimap<int64_t, PP>;
+    PPS m_mapPromises;
+    struct RequestContext {
+        FutureWaiter<NRS> m_waiter;
+        PPS m_multimap;
+        RequestContext(boost::asio::io_context &ctx) : m_waiter(ctx) {}
+    };
+    using CPS = std::unordered_map<uint32_t, RequestContext>;
+    CPS m_contextProms;
+    int m_rqCounter = 0;
+    uint32_t m_cntLimit;
+    bool m_dpStarted = false;
+    ProfileRequestDebouncer(EventLoop *el, RestServerRestInvoker *rest, uint32_t cntLimit) : m_eventLoop(el), m_rest(rest), m_timer(el->m_asioCtx), m_cntLimit(cntLimit) { m_contextProms.reserve(16); }
+    ~ProfileRequestDebouncer() /* vptr[0] */ {
+        m_timer.cancel();
+        NetworkResponse<protobuf::PlayerProfile> abortValue{ "Request aborted"s, NRO_REQUEST_ABORTED };
+        for (auto &i : m_mapPromises)
+            i.second.set_value(abortValue);
+        for (auto &i : m_contextProms)
+            for (auto &j : i.second.m_multimap)
+                j.second.set_value(abortValue);
     }
-/*
-ProfileRequestDebouncer::addRequest(int64_t const&)
-ProfileRequestDebouncer::getContextPromises(uint32_t)
-ProfileRequestDebouncer::getPlayerIds(uint32_t)
-ProfileRequestDebouncer::onProfilesReceived(uint32_t,std::shared_ptr<zwift_network::NetworkResponse<protobuf::PlayerProfiles> const> const&)
-ProfileRequestDebouncer::requestProfiles()
-ProfileRequestDebouncer::returnProfilePromises(std::unordered_multimap<int64_t,std::promise<std::shared_ptr<zwift_network::NetworkResponse<protobuf::PlayerProfile> const>>> &)
-ProfileRequestDebouncer::startDebouncePeriod()
-ProfileRequestDebouncer::~ProfileRequestDebouncer()*/
+    PF addRequest(int64_t playerId) {
+        PP prom;
+        PF ret = prom.get_future();
+        {
+            std::lock_guard l(m_mapPromisesMtx);
+            m_mapPromises.emplace(playerId, std::move(prom));
+            if (m_mapPromises.size() < 26) {
+                if (!m_dpStarted)
+                    startDebouncePeriod();
+            } else {
+                m_timer.cancel();
+                requestProfiles();
+            }
+        }
+        return ret;
+    }
+    std::unordered_set<int64_t> getPlayerIds(uint32_t key) override /* vptr[1] */ {
+        std::unordered_set<int64_t> ret;
+        auto contextPromises = getContextPromises(key);
+        if (contextPromises) {
+            std::lock_guard l(m_cpromMtx);
+            {
+                m_dpStarted = false;
+                contextPromises->swap(m_mapPromises);
+            }
+            int cnt = 0;
+            for (auto &i : *contextPromises) {
+                ret.insert(i.first);
+                if (++cnt >= m_cntLimit)
+                    break;
+            }
+        }
+        return ret;
+    }
+//protected:
+    PPS *getContextPromises(uint32_t key) {
+        std::lock_guard l(m_cpromMtx);
+        auto it = m_contextProms.find(key);
+        if (it == m_contextProms.end())
+            return nullptr;
+        return &it->second.m_multimap;
+    }
+    void onProfilesReceived(uint32_t key, const NRS &nr) {
+        auto contextPromises = getContextPromises(key);
+        if (!contextPromises)
+            return;
+        if (nr.m_errCode == NRO_HTTP_STATUS_NOT_FOUND) {
+            NetworkResponse<protobuf::PlayerProfile> nf{"Profile not found"s, NRO_HTTP_STATUS_NOT_FOUND};
+            for (auto &i : *contextPromises)
+                i.second.set_value(nf);
+            contextPromises->clear();
+        } else if (nr.m_errCode == NRO_OK) {
+            for (auto &i : nr.m_T.profiles()) {
+                auto id = i.id();
+                auto f = contextPromises->equal_range(id);
+                for (auto &j = f.first; j != f.second; ++j) {
+                    NetworkResponse<protobuf::PlayerProfile> ret;
+                    ret.m_T.CopyFrom(i);
+                    j->second.set_value(std::move(ret));
+                }
+            }
+        }
+        returnProfilePromises(contextPromises);
+        m_contextProms.erase(key);
+    }
+    void startDebouncePeriod() {
+        m_dpStarted = true;
+        m_timer.expires_after(std::chrono::milliseconds(200));
+        m_timer.async_wait([this](const boost::system::error_code &ec) {
+            if (!ec)
+                this->requestProfiles();
+        });
+    }
+    void requestProfiles() {
+        uint32_t key;
+        RequestContext *ctx;
+        {
+            std::lock_guard l(m_cpromMtx);
+            key = m_rqCounter++;
+            auto inserted = m_contextProms.emplace(key, m_eventLoop->m_asioCtx).first;
+            ctx = &inserted->second;
+        }
+        ProfileRequestLazyContext lctx(key, this);
+        ctx->m_waiter.waitAsync(m_rest->profilesByPlayerIds(lctx), 50, [this, key](const NetworkResponse<protobuf::PlayerProfiles> &p) {
+            this->onProfilesReceived(key, p);
+        });
+    }
+    void returnProfilePromises(PPS *pSrc) {
+        std::lock_guard l(m_mapPromisesMtx);
+        m_mapPromises.swap(*pSrc);
+        if (!m_dpStarted)
+            startDebouncePeriod();
+    }
 };
 struct NetworkClockService { //0x18 bytes
     uint64_t m_localCreTime, m_netCreTime;
