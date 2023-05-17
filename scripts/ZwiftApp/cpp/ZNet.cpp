@@ -677,6 +677,7 @@ struct base64 : public std::string { //IDA: Base64Url, base64::
             }
         }
     }
+    void encode(const std::string &src) { encode((const uint8_t *)src.c_str(), src.length()); }
     void encode(const uint8_t *src, size_t len) {
         auto output_length = 4 * ((len + 2) / 3);
         resize(output_length);
@@ -1236,7 +1237,7 @@ struct Codec {
         }
         return true;
     }
-    bool decode(const uint8_t *src, uint32_t len, std::vector<uint8_t> *dest, std::string *err) { /*vptr[DCNT]*/
+    bool decode(const uint8_t *src, uint32_t len, std::vector<uint8_t> *dest, std::string *err) { /*vptr[2]*/
         if (!m_initOK && !initialize(err))
             return false;
         if (m_reset[DEC]) {
@@ -3127,7 +3128,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
             m_udpReceiving = false;
             receive();
         } else {
-            if (err.category() == boost::asio::error::system_category && err.value() == 995 /*timed out*/) {
+            if (err.category() == boost::asio::error::system_category && err.value() == ERROR_OPERATION_ABORTED) {
                 m_udpReceiving = false;
                 receive();
             } else {
@@ -3901,7 +3902,14 @@ struct ZFileRestInvoker { //0x30 bytes
             return HttpHelper::convertToResultResponse<protobuf::ZFileProto>(v9);
         }), true, false);
     }
-    /*absent in PC: ZFileRestInvoker::list(const std::string &) ZFilesProto "List ZFiles" */
+    std::future<NetworkResponse<protobuf::ZFilesProto>> list(const std::string &folder) {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::ZFilesProto>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            QueryStringBuilder qsb;
+            qsb.add("folder", folder);
+            auto v9 = conn->performGet(m_url + "/list"s + qsb.getString(true), AcceptHeader(ATH_PB), "List ZFiles"s);
+            return HttpHelper::convertToResultResponse<protobuf::ZFilesProto>(v9);
+        }), true, false);
+    }
 };
 struct ZwiftWorkoutsRestInvoker { //0x38 bytes
     ZwiftHttpConnectionManager *m_mgr;
@@ -4097,68 +4105,14 @@ struct TcpAddressService {
 };
 struct TcpClient {
     struct SegmentSubscription {
-        std::promise<NetworkResponse<protobuf::SegmentResults> *> *m_promise = nullptr;
-        bool m_hasValue = false;
-        SegmentSubscription(boost::asio::io_context *ctx, std::promise<NetworkResponse<protobuf::SegmentResults> *> *promise) : m_promise(promise) {
-            //TODO Android:
-            /*  this_ = this;
-            *this = *(_OWORD *)promise;
-            *(_QWORD *)promise = 0LL;
-            *(_QWORD *)(promise + 8) = 0LL;
-            v5 = *ctx;
-            v9 = &`typeinfo for'asio::detail::typeid_wrapper<asio::detail::deadline_timer_service<asio::detail::chrono_time_traits<std::chrono::steady_clock,asio::wait_traits<std::chrono::steady_clock>>>>;
-                v10 = 0LL;
-            v6 = asio::detail::service_registry::do_use_service(
-                v5,
-                (__int64 *)&v9,
-                (__int64(__fastcall *)(__int64))asio::detail::service_registry::create<asio::detail::deadline_timer_service<asio::detail::chrono_time_traits<std::chrono::steady_clock, asio::wait_traits<std::chrono::steady_clock>>>, asio::io_context>,
-                (__int64)ctx);
-            *((_QWORD *)this_ + 10) = ctx;
-            *((_QWORD *)this_ + 5) = 0LL;
-            *((_QWORD *)this_ + 6) = 0LL;
-            *((_QWORD *)this_ + 8) = 0LL;
-            *((_QWORD *)this_ + 9) = 0LL;
-            *((_QWORD *)this_ + 7) = -1LL;
-            *((_DWORD *)this_ + 23) = 0;
-            *((_QWORD *)this_ + 12) = ZZN4asio9execution6detail17any_executor_base16object_fns_tableINS_10io_context19basic_executor_typeINSt6__ndk19allocatorIvEELj0EEEEEPKNS2_10object_fnsEPNS6_9enable_ifIXaantsr7is_sameIT_vEE5valuentsr7is_sameISE_NS6_10shared_ptrIvEEEE5valueEvE4typeEE3fns;
-            *((_QWORD *)this_ + 13) = this_ + 5;
-            *((_QWORD *)this_ + 14) = ZZN4asio9execution6detail17any_executor_base16target_fns_tableINS_10io_context19basic_executor_typeINSt6__ndk19allocatorIvEELj0EEEEEPKNS2_10target_fnsEbPNS6_9enable_ifIXntsr7is_sameIT_vEE5valueEvE4typeEE16fns_with_execute;
-            *((_QWORD *)this_ + 15) = asio::execution::any_executor<asio::execution::context_as_t<asio::execution_context &>, asio::execution::detail::blocking::never_t<0>, asio::execution::prefer_only<asio::execution::detail::blocking::possibly_t<0>>, asio::execution::prefer_only<asio::execution::detail::outstanding_work::tracked_t<0>>, asio::execution::prefer_only<asio::execution::detail::outstanding_work::untracked_t<0>>, asio::execution::prefer_only<asio::execution::detail::relationship::fork_t<0>>, asio::execution::prefer_only<asio::execution::detail::relationship::continuation_t<0>>>::prop_fns_table<asio::io_context::basic_executor_type<std::allocator<void>, 0u>>()::fns;
-            *((_QWORD *)this_ + 2) = v6;
-            *((_QWORD *)this_ + 3) = 0LL;
-            *((_BYTE *)this_ + 32) = 0;
-            v7 = *ctx;
-            v9 = &`typeinfo for'asio::detail::typeid_wrapper<asio::detail::deadline_timer_service<asio::detail::chrono_time_traits<std::chrono::steady_clock,asio::wait_traits<std::chrono::steady_clock>>>>;
-                v10 = 0LL;
-            result = asio::detail::service_registry::do_use_service(
-                v7,
-                (__int64 *)&v9,
-                (__int64(__fastcall *)(__int64))asio::detail::service_registry::create<asio::detail::deadline_timer_service<asio::detail::chrono_time_traits<std::chrono::steady_clock, asio::wait_traits<std::chrono::steady_clock>>>, asio::io_context>,
-                (__int64)ctx);
-            *((_QWORD *)this_ + 24) = ctx;
-            this_ += 12;
-            *((_QWORD *)this_ - 5) = 0LL;
-            *((_QWORD *)this_ - 4) = 0LL;
-            *((_QWORD *)this_ - 2) = 0LL;
-            *((_QWORD *)this_ - 1) = 0LL;
-            *((_QWORD *)this_ - 3) = -1LL;
-            *((_DWORD *)this_ + 3) = 0;
-            *((_QWORD *)this_ + 2) = ZZN4asio9execution6detail17any_executor_base16object_fns_tableINS_10io_context19basic_executor_typeINSt6__ndk19allocatorIvEELj0EEEEEPKNS2_10object_fnsEPNS6_9enable_ifIXaantsr7is_sameIT_vEE5valuentsr7is_sameISE_NS6_10shared_ptrIvEEEE5valueEvE4typeEE3fns;
-            *((_QWORD *)this_ + 3) = this_;
-            *((_QWORD *)this_ + 4) = ZZN4asio9execution6detail17any_executor_base16target_fns_tableINS_10io_context19basic_executor_typeINSt6__ndk19allocatorIvEELj0EEEEEPKNS2_10target_fnsEbPNS6_9enable_ifIXntsr7is_sameIT_vEE5valueEvE4typeEE16fns_with_execute;
-            *((_QWORD *)this_ + 5) = asio::execution::any_executor<asio::execution::context_as_t<asio::execution_context &>, asio::execution::detail::blocking::never_t<0>, asio::execution::prefer_only<asio::execution::detail::blocking::possibly_t<0>>, asio::execution::prefer_only<asio::execution::detail::outstanding_work::tracked_t<0>>, asio::execution::prefer_only<asio::execution::detail::outstanding_work::untracked_t<0>>, asio::execution::prefer_only<asio::execution::detail::relationship::fork_t<0>>, asio::execution::prefer_only<asio::execution::detail::relationship::continuation_t<0>>>::prop_fns_table<asio::io_context::basic_executor_type<std::allocator<void>, 0u>>()::fns;
-            *((_QWORD *)this_ - 8) = result;
-            *((_QWORD *)this_ - 7) = 0LL;
-            *((_BYTE *)this_ - 48) = 0;
-            *((_QWORD *)this_ + 6) = 0LL;
-            *((_QWORD *)this_ + 12) = 0LL;
-            *((_BYTE *)this_ + 112) = 0;
-            *((_WORD *)this_ + 64) = 0;
-            *((_BYTE *)this_ + 130) = 0;
-            *((_DWORD *)this_ + 33) = 0;
-            *((_BYTE *)this_ + 136) = 0;*/
-        }
-        void setPromiseValue(uint64_t segment, NetworkResponse<protobuf::SegmentResults> *val) {
+        std::promise<NetworkResponse<protobuf::SegmentResults>> *m_promise = nullptr;
+        boost::asio::steady_timer m_timer1;
+        FutureWaiter<NetworkResponse<protobuf::SegmentResults>> m_fwaiter;
+        int m_retryCnt = 0;
+        bool m_hasValue = false, m_waitingAck = false, m_pendingRequest = false, m_subsOK = false;
+        SegmentSubscription(boost::asio::io_context *ctx, std::promise<NetworkResponse<protobuf::SegmentResults>> *promise) : m_promise(promise), m_timer1(*ctx), m_fwaiter(*ctx) {}
+        template<class T> //by ref and by rvalue ref
+        void setPromiseValue(uint64_t segment, T val) {
             if (m_promise) {
                 if (m_hasValue) {
                     NetworkingLogDebug("SEGMENT RESULTS: Attempted to set value on a promise that already had a value for segment %ld", segment);
@@ -4172,23 +4126,67 @@ struct TcpClient {
             }
         }
     };
-    moodycamel::ReaderWriterQueue<void * /*TODO*/> m_rwq;
+    GlobalState *m_gs;
+    WorldClockService *m_wcs;
+    HashSeedService *m_hss;
+    WorldAttributeService *m_wat;
+    RelayServerRestInvoker *m_relay;
+    SegmentResultsRestInvoker *m_segRes;
+    NetworkClientImpl *m_ncli;
+    moodycamel::ReaderWriterQueue<std::pair<uint64_t, protobuf::ServerToClient>> m_rwq;
     std::string m_ip;
     EventLoop m_eventLoop;
     int64_t m_worldId = 0, m_port = 0;
-    RelayServerRestInvoker *m_relay;
     boost::asio::ip::tcp::socket m_tcpSocket;
+    boost::asio::ip::tcp::endpoint m_endpoint;
     uint32_t m_mapRevision = 0;
     TcpAddressService m_tcpAddressService;
     FutureWaiter<NetworkResponse<protobuf::TcpConfig>> m_tcpConfigWaiter;
     boost::asio::steady_timer m_asioTimer2, m_asioTimer3, m_asioTimer4;
+    protocol_encryption::TcpRelayClientCodec m_codec;
+    std::string m_decodeError;
+    std::vector<uint8_t> m_decodedMessage, m_encodedMessage;
+    std::unordered_map<int64_t, SegmentSubscription> m_subscrSegments;
+    EncryptionInfo m_ei;
+    uint8_t m_buf64k[0x10000] = {}, m_txBuf1492[1492] = {};
+    uint32_t m_timeout1, m_timeout2, m_max_segm_subscrs = 3, m_ctsSeqNo = 1;
+    bool m_shouldUseEncryption = false;
+    TcpClient(GlobalState *gs, WorldClockService *wcs, HashSeedService *hss, WorldAttributeService *wat, RelayServerRestInvoker *relay, SegmentResultsRestInvoker *segRes, NetworkClientImpl *ncli, int t1 = 35000, int t2 = 5000) : 
+        m_gs(gs), m_wcs(wcs), m_hss(hss), m_wat(wat), m_relay(relay), m_segRes(segRes), m_ncli(ncli), m_rwq(100),
+        m_tcpSocket(m_eventLoop.m_asioCtx, boost::asio::ip::tcp::v4()), 
+        m_tcpConfigWaiter(m_eventLoop.m_asioCtx), m_asioTimer2(m_eventLoop.m_asioCtx),
+        m_asioTimer3(m_eventLoop.m_asioCtx), m_asioTimer4(m_eventLoop.m_asioCtx), m_timeout1(t1), m_timeout2(t2) {
+        m_subscrSegments.reserve(16);
+        m_eventLoop.post([this]() {
+            auto &psi = this->m_gs->getPerSessionInfo();
+            this->handleTcpConfig(psi.nodes());
+            if (psi.has_max_segm_subscrs()) {
+                this->m_max_segm_subscrs = psi.max_segm_subscrs();
+                NetworkingLogDebug("Received max allowed segment subscriptions from session: %d", this->m_max_segm_subscrs);
+            }
+            this->m_shouldUseEncryption = this->m_gs->shouldUseEncryption();
+            if (this->m_shouldUseEncryption) {
+                this->m_ei = this->m_gs->getEncryptionInfo();
+                this->m_codec.m_hostRelayId = this->m_ei.m_relaySessionId;
+                this->m_codec.m_generateKey = false;
+                memmove(this->m_codec.m_secretRaw, this->m_ei.m_sk.c_str(), std::max(sizeof(this->m_codec.m_secretRaw), this->m_ei.m_sk.size()));
+                this->m_codec.m_secret.encode(this->m_codec.m_secretRaw, sizeof(this->m_codec.m_secretRaw));
+            }
+        });
+    }
     void segmentSubscriptionsShutdown() {
-        //TODO
+        for(auto &ss : m_subscrSegments) {
+            ss.second.m_timer1.cancel();
+            ss.second.m_fwaiter.cancel();
+            NetworkingLogDebug("SEGMENT RESULTS: shutdown segment %ld (waitingAck %s, pendingRequest %s)", ss.first, ss.second.m_waitingAck ? "true" : "false", ss.second.m_pendingRequest ? "true" : "false");
+            ss.second.setPromiseValue(ss.first, NetworkResponse<protobuf::SegmentResults>{ "Shutdown TCP connection"s, NRO_REQUEST_ABORTED });
+        }
+        m_subscrSegments.clear();
     }
     void clearEndpoint() {
         m_ip.clear();
         m_port = 0;
-        //TODO shared_release((__int64 *)&this->field_262[6], (__int64 *)&v3);
+        m_endpoint = boost::asio::ip::tcp::endpoint();
     }
     void shutdown() {
         m_eventLoop.post([this]() {
@@ -4249,7 +4247,39 @@ struct TcpClient {
         });
     }
     void resolveEndpointAndConnect() {
-        //TODO
+        boost::asio::ip::tcp::resolver resolver(m_eventLoop.m_asioCtx);
+        auto addr = m_tcpAddressService.getAddress(m_worldId, m_mapRevision);
+        auto usePort = addr->cport(), normalPort = addr->port();
+        auto &sip = addr->ip();
+        NetworkingLogDebug("TCP resolveEndpointAndConnect %s:%d ", sip.c_str(), normalPort);
+        if (!m_shouldUseEncryption)
+            usePort = normalPort;
+        auto strPort = std::to_string(usePort);
+        boost::asio::ip::tcp::resolver::query query(sip, strPort);
+        boost::system::error_code ec;
+        boost::asio::ip::tcp::resolver::iterator iter = resolver.resolve(query, ec);
+        if (ec) {
+            handleCommunicationError(ec, "Error resolving TCP host "s + sip + ":"s + strPort);
+        } else {
+            m_ip = sip;
+            m_port = usePort;
+            if (!m_codec.newConnection(&m_decodeError)) {
+                //OMIT TcpStatistics::increaseEncryptionNewConnectionError((_Mtx_t)this->m_stat);
+                NetworkingLogError("TCP failed to get new connection id [%s].", m_decodeError.c_str());
+            }
+            //OMIT TcpStatistics::setEncryptionEnabled((_Mtx_t)this->m_stat, this->m_shouldUseEncryption);
+            NetworkingLogInfo("TCP host %s:%d%s", m_ip.c_str(), m_port, m_shouldUseEncryption ? " (secure)" : "");
+            NetworkingLogInfo("Connecting to TCP server...");
+            m_endpoint = *iter;
+            m_tcpSocket.async_connect(*iter, [this](const std::error_code &ec) {
+                if (ec) {
+                    this->handleCommunicationError(ec, "Error connecting to TCP host "s + this->m_ip + ':' + std::to_string(this->m_port));
+                } else {
+                    this->m_asioTimer3.cancel();
+                    this->sayHello();
+                }
+            });
+        }
     }
     void disconnect() {
         if (!m_tcpSocket.is_open()) {
@@ -4274,49 +4304,301 @@ struct TcpClient {
             reconnect(false);
         }
     }
-    TcpClient(GlobalState *gs, WorldClockService *wcs, HashSeedService *hss, WorldAttributeService *wat, RelayServerRestInvoker *relay, SegmentResultsRestInvoker *segRes, NetworkClientImpl *ncli, int t1 = 35000, int t2 = 5000) : 
-        m_rwq(100), m_relay(relay),
-        m_tcpSocket(m_eventLoop.m_asioCtx, boost::asio::ip::tcp::v4()), 
-        m_tcpConfigWaiter(m_eventLoop.m_asioCtx), m_asioTimer2(m_eventLoop.m_asioCtx),
-        m_asioTimer3(m_eventLoop.m_asioCtx), m_asioTimer4(m_eventLoop.m_asioCtx) {
-        //TODO
-    }
-    void onInactivityTimeout(/*std::error_code*/) {
-        NetworkingLogWarn("TCP connection timed out owing to inactivity");
-        //OMIT m_stat->TcpStatistics::increaseConnectionTimeoutCount();
-        reconnect(true);
+    void onInactivityTimeout(const std::error_code &ec) {
+        if (!ec) {
+            NetworkingLogWarn("TCP connection timed out owing to inactivity");
+            //OMIT m_stat->TcpStatistics::increaseConnectionTimeoutCount();
+            reconnect(true);
+        }
     }
     void reconnect(bool refreshTcpConfigIfNeeded) {
         NetworkingLogDebug("TCP reconnect refreshTcpConfigIfNeeded: %d ", refreshTcpConfigIfNeeded);
         disconnect();
         waitDisconnection(refreshTcpConfigIfNeeded);
     }
-        /*
-TcpClient::Listener::~Listener()
-TcpClient::connect()
-TcpClient::decodeMessage(char *,uint64_t &)
-TcpClient::encodeMessage(char *,uint64_t,uint32_t &)
-TcpClient::getClientToServerForHelloMessage(uint64_t,int64_t)
-TcpClient::getMaximumHelloMessageSize()
-TcpClient::getTcpMessageSize(uint32_t)
-TcpClient::handleCommunicationError(std::error_code,const std::string &)
-TcpClient::handleTcpConfigChanged(protobuf::TcpConfig const&)
-TcpClient::onTcpConfigReceived(std::shared_ptr<zwift_network::NetworkResponse<protobuf::TcpConfig> const> const&)
-TcpClient::popServerToClient(std::shared_ptr<protobuf::ServerToClient const> &)
-TcpClient::processPayload(uint64_t)
-TcpClient::processSegmentSubscription(int64_t,std::shared_ptr<std::promise<std::shared_ptr<zwift_network::NetworkResponse<protobuf::SegmentResults> const>>>)
-TcpClient::processSegmentUnsubscription(int64_t)
-TcpClient::processSubscribedSegment(protobuf::ServerToClient const&)
-TcpClient::readHeader()
-TcpClient::readPayload(uint32_t)
-TcpClient::resetTimeoutTimer()
-TcpClient::sayHello()
-TcpClient::sendClientToServer(TcpCommand,protobuf::ClientToServer &,std::function<void ()()> const&,std::function<void ()()> const&)
-TcpClient::sendSubscribeToSegment(int64_t,std::shared_ptr<TcpClient::SegmentSubscription> const&)
-TcpClient::serializeToTcpMessage(TcpCommand,protobuf::ClientToServer const&,std::array<char,1492ul> &,uint32_t &)
-TcpClient::subscribeToSegmentAndGetLeaderboard(int64_t)
-TcpClient::unsubscribeFromSegment(int64_t)
-TcpClient::~TcpClient()    */
+    void handleCommunicationError(const std::error_code &ec, const std::string &str) {
+        NetworkingLogDebug("%s [%d] %s", str.c_str(), ec.value(), ec.message().c_str());
+        if (ec.category() == boost::asio::error::system_category && ec.value() == ERROR_OPERATION_ABORTED)
+            return;
+        //OMIT TcpStatistics::increaseCommunicationErrorCount((_Mtx_t)this->m_stat);
+        m_asioTimer2.cancel();
+        m_asioTimer3.expires_after(std::chrono::milliseconds(m_timeout2));
+        m_asioTimer3.async_wait([this](boost::system::error_code const &lam_ec) {
+            if (lam_ec) {
+                NetworkingLogDebug("TCP handleCommunicationError waiting time canceled; do not reconnect()");
+            } else {
+                NetworkingLogDebug("TCP handleCommunicationError finished the waiting time (%dms); now reconnect()", this->m_timeout2);
+                reconnect(true);
+            }
+        });
+    }
+    uint8_t *decodeMessage(uint8_t *encr, uint64_t *pInOutLen) {
+        auto decodedPtr = encr;
+        if (m_shouldUseEncryption) {
+            m_decodedMessage.clear();
+            if (!m_codec.decode(encr, *pInOutLen, &m_decodedMessage, &m_decodeError)) {
+                //OMIT TcpStatistics::increaseEncryptionDecodeError((_Mtx_t)this->m_stat);
+                NetworkingLogError("Failed to decode TCP CtS [%s]." /*URSOFT: looks like bug here, must be StC*/, m_decodeError.c_str());
+                decodedPtr = nullptr;
+            } else {
+                *pInOutLen = m_decodedMessage.size();
+                decodedPtr = m_decodedMessage.data();
+            }
+        }
+        return decodedPtr;
+    }
+    void encodeMessage(uint8_t *pSignedMsg, uint64_t sizeLimit, uint32_t *pInOutLen) {
+        if (m_shouldUseEncryption && *pInOutLen >= 2) {
+            m_encodedMessage.resize(2);
+            if (m_codec.encode(pSignedMsg + 2, *pInOutLen - 2, &m_encodedMessage, &m_decodeError)) {
+                if (m_encodedMessage.size() > sizeLimit) {
+                    //OMIT TcpStatistics::increaseEncryptionEncodeBufferTruncate(m_stat);
+                    m_encodedMessage.resize(sizeLimit);
+                }
+                *(uint16_t *)pSignedMsg = htons(m_encodedMessage.size() - 2);
+                memmove(pSignedMsg + 2, m_encodedMessage.data() + 2, m_encodedMessage.size() - 2);
+                *pInOutLen = m_encodedMessage.size();
+            } else {
+                //TcpStatistics::increaseEncryptionEncodeError(m_stat);
+                NetworkingLogError("Failed to encode TCP CtS [%s].", m_decodeError.c_str());
+            }
+        }
+    }
+    void processPayload(uint64_t len);
+    void processSubscribedSegment(const protobuf::ServerToClient &stc) {
+        for(auto id : stc.ack_subs_segm()) {
+            NetworkingLogDebug("SEGMENT RESULTS: ack received for segment %ld", id);
+            auto fnd = m_subscrSegments.find(id);
+            if (fnd == m_subscrSegments.end()) {
+                NetworkingLogDebug("SEGMENT RESULTS: ack received but we are not subscribing for segment %ld", id);
+            } else {
+                if (fnd->second.m_pendingRequest) {
+                    NetworkingLogDebug("SEGMENT RESULTS: ack received but we already have a pending for segment %ld", id);
+                } else if (fnd->second.m_waitingAck) {
+                    fnd->second.m_waitingAck = false;
+                    fnd->second.m_timer1.cancel();
+                    NetworkingLogDebug("SEGMENT RESULTS: ack timer canceled for segment %ld", id);
+                    if (fnd->second.m_subsOK)
+                    {
+                        NetworkingLogDebug("SEGMENT RESULTS: resubscribing to segment %ld", id);
+                    } else {
+                        NetworkingLogDebug("SEGMENT RESULTS: request leaderboard for segment %ld", id);
+                        auto ptr = &fnd->second;
+                        ptr->m_pendingRequest = true;
+                        ptr->m_fwaiter.waitAsync(m_segRes->getLeaderboard(id), 100, [ptr, id](const NetworkResponse<protobuf::SegmentResults> &nr) {
+                            NetworkingLogDebug("SEGMENT RESULTS: received leaderboard for segment %ld", id);
+                            ptr->setPromiseValue(id, nr);
+                            ptr->m_pendingRequest = false;
+                        });
+                    }
+                } else {
+                    NetworkingLogDebug("SEGMENT RESULTS: ack received but we are not waiting ack for segment %ld", id);
+                }
+            }
+        }
+    }
+    enum TcpCommand { TCMD_HELLO_MESSAGE, TCMD_SEGMENT_RESULTS };
+    void sendClientToServer(TcpCommand cmd, protobuf::ClientToServer *pCts, const std::function<void()> &onSuccess, const std::function<void()> &onError) {
+        pCts->set_seqno(m_ctsSeqNo++);
+        auto ptx = m_txBuf1492;
+        auto ctsLen = pCts->ByteSizeLong();
+        *(uint16_t *)ptx = htons(ctsLen + 6);
+        ptx[2] = 1;
+        ptx[3] = cmd;
+        uint32_t msglen = ctsLen + 8;
+        assert(msglen < sizeof(m_txBuf1492));
+        pCts->SerializeToArray(ptx + 4, ctsLen);
+        m_hss->signMessage(ptx + 2, ctsLen + 2, pCts->world_time());
+        encodeMessage(ptx, sizeof(m_txBuf1492), &msglen);
+        m_tcpSocket.async_send(boost::asio::buffer(ptx, msglen), 0, [=](const boost::system::error_code &error, std::size_t bytes_transferred) {
+            if (error) {
+                if (onError)
+                    onError();
+                std::string msg = "Error sending TCP "s;
+                switch (cmd) {
+                case TCMD_HELLO_MESSAGE: msg += "HELLO_MESSAGE"s; break;
+                case TCMD_SEGMENT_RESULTS: msg += "SEGMENT_RESULTS"s; break;
+                default: assert(false); msg += "???"s; break;
+                }
+                msg += " message"s;
+                this->handleCommunicationError(error, msg);
+            } else {
+                if (onSuccess)
+                    onSuccess();
+            }
+        });
+    }
+    void sayHello() {
+        auto PlayerId = m_gs->getPlayerId();
+        auto largestWaTime = m_wat->getLargestWorldAttributeTimestamp();
+        protobuf::ClientToServer v24;
+        v24.set_world_time(0);
+        v24.set_larg_wa_time(largestWaTime);
+        v24.set_player_id(PlayerId);
+        NetworkingLogInfo("Saying hello to TCP server (largest wa is %llu)", largestWaTime);
+        for (auto &ss : m_subscrSegments) {
+            v24.add_subssegments(ss.first);
+            if (ss.second.m_waitingAck) {
+                ss.second.m_timer1.cancel();
+            }
+            ss.second.m_waitingAck = true;
+            ss.second.m_subsOK = true;
+        }
+        sendClientToServer(TCMD_HELLO_MESSAGE, &v24, [this]() /*succ*/ {
+            resetTimeoutTimer();
+            readHeader();
+        }, [this]() /*error*/ {
+            for (auto &ss : this->m_subscrSegments)
+                ss.second.m_waitingAck = false;
+        });
+    }
+    void resetTimeoutTimer() {
+        m_asioTimer2.expires_after(std::chrono::milliseconds(m_timeout1));
+        m_asioTimer2.async_wait([this](const std::error_code &ec) { this->onInactivityTimeout(ec); });
+    }
+    void tcp_async_receive(uint8_t *pDest, int nBytes, bool header) { m_tcpSocket.async_receive(boost::asio::buffer(pDest, nBytes), 0,
+        [this, pDest, nBytes, header] (const boost::system::error_code &error, std::size_t bytes_transferred) {
+            int64_t remained = nBytes - bytes_transferred;
+            if ((!error && !bytes_transferred) || error || remained == 0) {
+                if (error) {
+                    this->handleCommunicationError(error, "Error receiving TCP "s + (header ? "header"s : "payload"s));
+                } else {
+                    this->resetTimeoutTimer();
+                    if (header) {
+                        auto payLen = ntohs(*(uint16_t *)this->m_buf64k);
+                        if (payLen) {
+                            this->readPayload(payLen);
+                        } else {
+                            //OMIT TcpStatistics::registerNetUseIn((_Mtx_t)m_this->m_stat, 2i64);
+                            this->readHeader();
+                        }
+                    } else {
+                        this->resetTimeoutTimer();
+                        this->processPayload(pDest + bytes_transferred - this->m_buf64k - 2);
+                        this->readHeader();
+                    }
+                }
+                return;
+            }
+            uint8_t *pNewDest = pDest + bytes_transferred;
+            if (pNewDest + remained <= this->m_buf64k + sizeof(m_buf64k))
+                this->tcp_async_receive(pNewDest, remained, header);
+            else
+                assert(!"overflow in tcp_async_receive");
+        });
+    }
+    void readPayload(uint32_t size) { tcp_async_receive(m_buf64k + 2, std::min((int)size, (int)sizeof(m_buf64k) - 2), false); }
+    void readHeader() { tcp_async_receive(m_buf64k, 2, true); }
+    void processSegmentUnsubscription(int64_t id) {
+        protobuf::ClientToServer cts;
+        cts.set_player_id(m_gs->getPlayerId());
+        cts.set_server_realm(m_worldId);
+        cts.set_world_time(m_wcs->getWorldTime());
+        cts.add_unssegments(id);
+        NetworkingLogDebug("SEGMENT RESULTS: unsubscribe from segment %ld", id);
+        sendClientToServer(TCMD_SEGMENT_RESULTS, &cts, std::function<void()>(), std::function<void()>());
+        auto fnd = m_subscrSegments.find(id);
+        if (fnd == m_subscrSegments.end()) {
+            NetworkingLogDebug("SEGMENT RESULTS: unsubscribe segment %ld not found", id);
+        } else {
+            fnd->second.m_timer1.cancel();
+            fnd->second.m_fwaiter.cancel();
+            NetworkingLogDebug("SEGMENT RESULTS: unsubscribe from segment %ld (waitingAck %s, pendingRequest %s)", id, fnd->second.m_waitingAck ? "true" : "false", fnd->second.m_pendingRequest ? "true" : "false");
+            fnd->second.setPromiseValue(id, NetworkResponse<protobuf::SegmentResults>{ "Unsubscribe from segment"s, NRO_REQUEST_ABORTED });
+            NetworkingLogDebug("SEGMENT RESULTS: erase unsubscribed segment %ld", id);
+            m_subscrSegments.erase(fnd);
+        }
+    }
+    void sendSubscribeToSegment(int64_t id, SegmentSubscription *pSS) {
+        protobuf::ClientToServer cts;
+        cts.set_player_id(m_gs->getPlayerId());
+        cts.set_server_realm(m_worldId);
+        cts.set_world_time(m_wcs->getWorldTime());
+        cts.add_subssegments(id);
+        if (pSS->m_retryCnt)
+            NetworkingLogDebug("SEGMENT RESULTS: subscribe to segment %ld (retry %d)", id, pSS->m_retryCnt);
+        else
+            NetworkingLogDebug("SEGMENT RESULTS: subscribe to segment %ld", id);
+        pSS->m_waitingAck = true;
+        sendClientToServer(TCMD_SEGMENT_RESULTS, &cts, [this, pSS, id]() {
+            pSS->m_timer1.expires_after(std::chrono::milliseconds(5000));
+            pSS->m_timer1.async_wait([this, id](const std::error_code &ec) {
+                if (!ec) {
+                    NetworkingLogDebug("SEGMENT RESULTS: ack not received after 5 seconds for segment %ld; retry ", id);
+                    this->processSegmentSubscription(id, nullptr);
+                }
+            });
+        }, [pSS]() {
+            pSS->m_waitingAck = false;
+        });
+    }
+    void processSegmentSubscription(int64_t sid, const std::shared_ptr<std::promise<NetworkResponse<protobuf::SegmentResults>>> &ptr) {
+        if (ptr && m_subscrSegments.size() >= m_max_segm_subscrs) {
+            NetworkingLogDebug("SEGMENT RESULTS: detected too many segment subscriptions (max count: %d)", m_max_segm_subscrs);
+            NetworkResponse<protobuf::SegmentResults> err{ "Too many segment subscriptions"s, NRO_TOO_MANY_SEGMENT_RESULTS_SUBSCRIPTIONS };
+            ptr->set_value(std::move(err));
+            return;
+        }
+        auto fnd = m_subscrSegments.find(sid);
+        SegmentSubscription *pSS = nullptr;
+        if (fnd == m_subscrSegments.end()) {
+            NetworkingLogDebug("SEGMENT RESULTS: new subscription to segment %ld", sid);
+            auto e = m_subscrSegments.emplace(sid, TcpClient::SegmentSubscription(&m_eventLoop.m_asioCtx, ptr.get()));
+            pSS = &e.first->second;
+        } else {
+            pSS = &fnd->second;
+            if (pSS->m_waitingAck) {
+                NetworkingLogDebug("SEGMENT RESULTS: cancel waiting ack for segment %ld", sid);
+                pSS->m_timer1.cancel();
+                pSS->m_waitingAck = false;
+            } else if (pSS->m_pendingRequest) {
+                NetworkingLogDebug("SEGMENT RESULTS: cancel pending request for segment %ld", sid);
+                pSS->m_fwaiter.cancel();
+                pSS->m_pendingRequest = false;
+            }
+            if (ptr) {
+                pSS->m_retryCnt = 0;
+                pSS->m_hasValue = false;
+                pSS->m_promise->swap(*ptr.get());
+            } else {
+                if (pSS->m_retryCnt) {
+                    pSS->setPromiseValue(sid, NetworkResponse<protobuf::SegmentResults>{ "Ack not received"s, NRO_REQUEST_TIMED_OUT });
+                    NetworkingLogDebug("SEGMENT RESULTS: erase segment %ld ack not received", sid);
+                    m_subscrSegments.erase(fnd);
+                    return;
+                }
+                pSS->m_retryCnt = 1;
+            }
+            NetworkingLogDebug("SEGMENT RESULTS: already %s to segment %ld", pSS->m_retryCnt ? "subscribing" : "subscribed", sid);
+        }
+        sendSubscribeToSegment(sid, pSS);
+    }
+    bool popServerToClient(protobuf::ServerToClient &dest) {
+        std::pair<uint64_t, protobuf::ServerToClient> res;
+        bool ret = m_rwq.try_dequeue(res);
+        dest.Swap(&res.second);
+        return ret;
+    }
+    std::future<NetworkResponse<protobuf::SegmentResults>> subscribeToSegmentAndGetLeaderboard(int64_t id) {
+        auto promise = std::make_shared<std::promise<NetworkResponse<protobuf::SegmentResults>>>();
+        auto ret = promise->get_future();
+        m_eventLoop.post([this, id, promise]() {
+            processSegmentSubscription(id, promise);
+        });
+        return ret;
+    }
+    void unsubscribeFromSegment(int64_t id) { m_eventLoop.post([this, id]() { this->processSegmentUnsubscription(id); }); }
+/*inlined:
+connect()
+getClientToServerForHelloMessage(uint64_t,int64_t)
+getMaximumHelloMessageSize()
+getTcpMessageSize(uint32_t)
+onTcpConfigReceived(std::shared_ptr<zwift_network::NetworkResponse<protobuf::TcpConfig> const> const&)
+serializeToTcpMessage(TcpCommand,protobuf::ClientToServer const&,std::array<char,1492ul> &,uint32_t &)
+absent in PC:
+void handleTcpConfigChanged(const protobuf::TcpConfig &cfg)
+Listener::~Listener()
+~TcpClient()*/
 };
 struct AuxiliaryController : public WorldIdListener {
     void handleWorldIdChange(int64_t worldId) override {
@@ -4418,6 +4700,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
     NetworkClientImpl() : m_rwqAux(1) { //QUEST: why two vtables
         google::protobuf::internal::VerifyVersion(3021000 /* URSOFT FIX: slightly up from 3020000*/, 3020000, __FILE__);
     }
+    NetworkLogLevel GetNetworkMaxLogLevel() const { return m_nco.m_maxLogLevel; }
     void startTcpClient() {
         if (!m_tcpClient && !m_nco.m_bHttpOnly)
             m_tcpClient = new TcpClient(m_globalState, m_wclock, m_hashSeed1, m_wat, m_relay, m_srRi, this);
@@ -4624,6 +4907,9 @@ struct NetworkClientImpl { //0x400 bytes, calloc
             return makeNetworkResponseFuture<protobuf::SocialNetworkStatus>(NRO_INVALID_ARGUMENT, "Invalid followee player id"s);
         return m_restInvoker->addFollowee(playerId, followeeId, a5, pfs);
     }
+    void handleAuxiliaryControllerAddress(const AuxiliaryControllerAddress &aux) {
+        //TODO
+    }
     /*NetworkClientImpl::NetworkClientImpl(std::shared_ptr<MachineIdProvider>,std::shared_ptr<HttpConnectionFactory>)
 NetworkClientImpl::acceptPrivateEventInvitation(int64_t)
 NetworkClientImpl::campaignSummary(const std::string &)
@@ -4708,7 +4994,6 @@ NetworkClientImpl::getSubgroupRaceResultSummary(int64_t)
 NetworkClientImpl::getVersion()
 NetworkClientImpl::globalCleanup()
 NetworkClientImpl::globalInitialize()
-NetworkClientImpl::handleAuxiliaryControllerAddress(zwift_network::AuxiliaryControllerAddress)
 NetworkClientImpl::handleDisconnectRequested(bool)
 NetworkClientImpl::handleWorldAndMapRevisionChanged(int64_t,uint32_t)
 NetworkClientImpl::initialize(const std::string &,const std::string &,std::function<void ()(char *)> const&,const std::string &,zwift_network::NetworkClientOptions const&)
@@ -5203,6 +5488,46 @@ void UdpClient::handleServerToClient(const std::shared_ptr<protobuf::ServerToCli
         }
     }
 }
+void TcpClient::processPayload(uint64_t len) {
+    //OMIT TcpStatistics::registerNetUseIn(*((TcpStatistics **)this + 24), len + 2);
+    auto decodedPtr = decodeMessage(m_buf64k, &len);
+    if (!decodedPtr) {
+        handleCommunicationError(boost::asio::error::make_error_code(boost::asio::error::broken_pipe), "Failed to decode TCP StC"s);
+    } else {
+        protobuf::ServerToClient stc;
+        if (stc.ParseFromArray(decodedPtr, len)) {
+            auto wcs_time = m_wcs->getWorldTime();
+            //OMIT ? TcpStatistics::inspectServerToClient((_Mtx_t)this->m_stat, (__int64)&_stc_ptr->m_stc, wcs_time);
+            m_wat->handleServerToClient(stc);
+            if (stc.has_zc_local_ip()) {
+                auto &zc_key = stc.zc_key();
+                if (m_ncli->GetNetworkMaxLogLevel() == NL_DEBUG) {
+                    if (zc_key.length()) {
+                        base64 sk;
+                        sk.encode(zc_key);
+                        NetworkingLogDebug("ZC encryption info from TCP StC: port %d secure port %d secret key %s", stc.zc_local_port(), stc.zc_secure_port(), sk.c_str());
+                    } else {
+                        NetworkingLogDebug("ZC encryption info missing in TCP StC (no auxiliary_controller_secret_key)");
+                    }
+                }
+                AuxiliaryControllerAddress auxAddr(stc.zc_local_ip(), stc.zc_local_port(), stc.zc_protocol(), stc.zc_secure_port(), zc_key);
+                m_ncli->handleAuxiliaryControllerAddress(auxAddr);
+            }
+            if (stc.has_udp_config_vod_1())
+                m_gs->setUdpConfig(stc.udp_config_vod_1(), wcs_time);
+            if (stc.has_tcp_config()) {
+                NetworkingLogDebug("TCP TcpConfig from StC");
+                handleTcpConfig(stc.tcp_config());
+            }
+            processSubscribedSegment(stc); //QUEST я передвинул перед m_rwq.emplace, чтобы объект был еще тут - надеюсь, не повлияет
+            if (stc.has_ev_subgroup_ps())
+                m_rwq.emplace(wcs_time, std::move(stc));
+        } else {
+            //OMIT TcpStatistics::increaseParseErrorCount_0((_Mtx_t)this->m_stat);
+            handleCommunicationError(boost::asio::error::make_error_code(boost::asio::error::broken_pipe), "Failed to parse TCP StC"s);
+        }
+    }
+}
 
 //Units
 TEST(SmokeTest, JsonWebToken) {
@@ -5351,7 +5676,7 @@ TEST(SmokeTest, B64) {
     int so2 = sizeof(tcpSocket);
 }*/
 TEST(SmokeTest, Protobuf) {
-    protobuf::EventSubgroupPlacements EventSubgroupPlacements; //0x90
+    /*protobuf::EventSubgroupPlacements EventSubgroupPlacements; //0x90
     protobuf::CrossingStartingLineProto CrossingStartingLineProto;
     protobuf::Activity Activity; //0x158
     protobuf::ActivityImage ActivityImage; //0x60
@@ -5359,5 +5684,9 @@ TEST(SmokeTest, Protobuf) {
     protobuf::UdpConfigVOD UdpConfigVOD;
     protobuf::RelayAddressesVOD RelayAddressesVOD;
     protobuf::RelayAddress RelayAddress;
-    protobuf::PlayerSummary PlayerSummary;
+    protobuf::PlayerSummary PlayerSummary;*/
+    std::string s(4500, 'L');
+    s += "q"s;
+    s.erase(0, 5);
+    printf(s.c_str());
 }

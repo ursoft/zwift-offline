@@ -30,5 +30,13 @@ Static variables
 
 Other static libs
 ~~~~~~~~~~~~~~~~~
-turn off https://github.com/getsentry/sentry-native
+turned off https://github.com/getsentry/sentry-native
 
+current decompilation stats
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+future/lib/total code(kb): 9352/7012/16364, badNames=39764; libs/total: 55%: 34618/62119
+future/lib/total code(kb): 9173/7191/16364, badNames=38464; libs/total: 56%: 35017/62119
+future/lib/total code(kb): 9149/7214/16364, badNames=38269; libs/total: 56%: 35168/62119 - protobuf constructors
+future/lib/total code(kb): 9149/7214/16364, badNames=37623; libs/total: 56%: 35168/62119 - protobuf vtable names
+future/lib/total code(kb): 9110/7253/16364, badNames=37250; libs/total: 56%: 35246/62119 - 1:1 (1st iter)
+future/lib/total code(kb): 9094/7270/16364, badNames=37214; libs/total: 56%: 35346/62119 - done with TcpClient
