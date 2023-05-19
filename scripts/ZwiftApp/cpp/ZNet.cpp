@@ -3,6 +3,8 @@
 #include "concurrentqueue/concurrentqueue.h"
 #include "openssl/md5.h"
 #include "xxhash.h"
+using protobuf_bytes = std::string; //it is better for Google to make it a vector, but...
+std::vector<uint8_t> fix_google(const protobuf_bytes &src) { return std::vector<uint8_t>((uint8_t *)src.data(), (uint8_t *)src.data() + src.length()); }
 bool g_NetworkOn;
 void ZNETWORK_Shutdown() {
     if (g_NetworkOn) {
@@ -654,34 +656,63 @@ static const char indexB64[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J
 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3',
 '4', '5', '6', '7', '8', '9', '+', '/' };
 static const int modB64[] = { 0, 2, 1 };
-struct base64 : public std::string { //IDA: Base64Url, base64::
-    void decode(const std::string &src) { decode(src, 0, src.length()); }
-    void decode(const std::string &src, int offset, int len) {
+namespace base64 { //IDA: Base64Url, base64::
+    std::vector<uint8_t> toBin(const std::string &src, int offset = 0, int len = -1) {
+        std::vector<uint8_t> ret;
         const uint8_t *p = (uint8_t *)src.c_str() + offset;
+        if (len < 0)
+            len = src.length();
         int pad = len > 0 && (len % 4 || p[len - 1] == '=');
         const size_t L = ((len + 3) / 4 - pad) * 4;
-        resize(0);
-        reserve(L / 4 * 3 + pad);
+        ret.resize(0);
+        ret.reserve(L / 4 * 3 + pad);
         for (size_t i = 0, j = 0; i < L; i += 4) {
             int n = B64index[p[i]] << 18 | B64index[p[i + 1]] << 12 | B64index[p[i + 2]] << 6 | B64index[p[i + 3]];
-            push_back(n >> 16);
-            push_back(n >> 8 & 0xFF);
-            push_back(n & 0xFF);
+            ret.push_back(n >> 16);
+            ret.push_back(n >> 8 & 0xFF);
+            ret.push_back(n & 0xFF);
         }
         if (pad) {
             int n = B64index[p[L]] << 18 | B64index[p[L + 1]] << 12;
-            push_back(n >> 16);
+            ret.push_back(n >> 16);
             if (len > L + 2 && p[L + 2] != '=') {
                 n |= B64index[p[L + 2]] << 6;
-                push_back(n >> 8 & 0xFF);
+                ret.push_back(n >> 8 & 0xFF);
             }
         }
+        return ret;
     }
-    void encode(const std::string &src) { encode((const uint8_t *)src.c_str(), src.length()); }
-    void encode(const uint8_t *src, size_t len) {
+    protobuf_bytes toProtobufBytes(const std::string &src, int offset = 0, int len = -1) {
+        protobuf_bytes ret;
+        const uint8_t *p = (uint8_t *)src.c_str() + offset;
+        if (len < 0)
+            len = src.length();
+        int pad = len > 0 && (len % 4 || p[len - 1] == '=');
+        const size_t L = ((len + 3) / 4 - pad) * 4;
+        ret.resize(0);
+        ret.reserve(L / 4 * 3 + pad);
+        for (size_t i = 0, j = 0; i < L; i += 4) {
+            int n = B64index[p[i]] << 18 | B64index[p[i + 1]] << 12 | B64index[p[i + 2]] << 6 | B64index[p[i + 3]];
+            ret += char(n >> 16);
+            ret += char(n >> 8 & 0xFF);
+            ret += char(n & 0xFF);
+        }
+        if (pad) {
+            int n = B64index[p[L]] << 18 | B64index[p[L + 1]] << 12;
+            ret += char(n >> 16);
+            if (len > L + 2 && p[L + 2] != '=') {
+                n |= B64index[p[L + 2]] << 6;
+                ret += char(n >> 8 & 0xFF);
+            }
+        }
+        return ret;
+    }
+    //void encode(const std::string &src) { encode((const uint8_t *)src.c_str(), src.length()); }
+    std::string toString(const uint8_t *src, size_t len) {
+        std::string ret;
         auto output_length = 4 * ((len + 2) / 3);
-        resize(output_length);
-        auto dest = data();
+        ret.resize(output_length);
+        auto dest = ret.data();
         for (int i = 0, j = 0; i < len;) {
             uint32_t octet_a = i < len ? src[i++] : 0;
             uint32_t octet_b = i < len ? src[i++] : 0;
@@ -694,10 +725,22 @@ struct base64 : public std::string { //IDA: Base64Url, base64::
         }
         for (int i = 0; i < modB64[len % 3]; i++)
             dest[output_length - 1 - i] = '=';
+        return ret;
+    }
+    template<class T>
+    std::string toString(const std::vector<T> &src) {
+        return toString((const uint8_t *)src.data(), src.size());
+    }
+    template<typename T, size_t N>
+    std::string toString(const T (&src)[N]) {
+        return toString((const uint8_t *)&src[0], N);
+    }
+    std::string toString(const protobuf_bytes &src) {
+        return toString((const uint8_t *)src.data(), src.length());
     }
 };
 namespace HttpHelper {
-    static NetworkResponse<Json::Value> parseJson(const std::string &src) {
+    static NetworkResponse<Json::Value> parseJsonStr(const std::string &src) {
         NetworkResponse<Json::Value> ret;
         Json::Reader r;
         if (!r.parse(src, ret, false)) {
@@ -706,11 +749,12 @@ namespace HttpHelper {
         }
         return ret;
     }
-    static NetworkResponse<Json::Value> parseJson(const std::vector<char> &src) {
+    template<class T>
+    static NetworkResponse<Json::Value> parseJson(const std::vector<T> &src) {
         NetworkResponse<Json::Value> ret;
         Json::Reader r;
-        if (src.size() == 0 || !r.parse(&src.front(), &src.back(), ret, false)) {
-            NetworkingLogError("Error parsing JSON: %s\nJSON: %s", r.getFormattedErrorMessages().c_str(), src.size() ? &src.front() : "empty");
+        if (src.size() == 0 || !r.parse((const char *)&src.front(), (const char *)&src.back(), ret, false)) {
+            NetworkingLogError("Error parsing JSON: %s\nJSON: %s", r.getFormattedErrorMessages().c_str(), src.size() ? (const char *)&src.front() : "empty");
             ret.storeError(NRO_JSON_PARSING_ERROR, "Error parsing json"s);
         }
         return ret;
@@ -767,7 +811,7 @@ namespace HttpHelper {
     }
     static NetworkResponse<Json::Value> convertToJsonResponse(const QueryResult &src) {
         NetworkResponse<Json::Value> ret;
-        return src.ok(&ret) ? parseJson(src) : ret;
+        return src.ok(&ret) ? parseJson(src.m_T) : ret;
     }
     static NetworkResponse<std::string> convertToStringResponse(const NetworkResponse<std::vector<char>> &src) {
         NetworkResponse<std::string> ret;
@@ -795,7 +839,7 @@ struct JsonWebToken : public NetworkResponseBase { //0x68 bytes
     const std::string &asString() const { return m_base64; }
     const std::string &getSessionState() const { return m_sessionState; }
     const std::string &getSubject() const { return m_sub; }
-    bool parsePayload(const std::string &payload) {
+    bool parsePayload(const std::vector<uint8_t> &payload) {
         auto pr = HttpHelper::parseJson(payload);
         if (pr.ok(this)) {
             m_exp = 10'000'000ull * pr.m_T["exp"].asInt();
@@ -816,9 +860,7 @@ struct JsonWebToken : public NetworkResponseBase { //0x68 bytes
             storeError(NRO_JSON_WEB_TOKEN_PARSING_ERROR, "Second separator not found"s);
             return false;
         }
-        base64 payload;
-        payload.decode(jwt, firstSep + 1, secondSep - firstSep - 1);
-        if (parsePayload(payload)) {
+        if (parsePayload(base64::toBin(jwt, firstSep + 1, secondSep - firstSep - 1))) {
             m_base64 = jwt;
             return true;
         }
@@ -835,7 +877,7 @@ struct Oauth2Credentials : public NetworkResponseBase {
     uint64_t getAccessTokenExpiresIn() const { return m_exp; }
     const JsonWebToken &getRefreshToken() const { return m_rfToken; }
     bool parse(const std::string &src) {
-        auto pr = HttpHelper::parseJson(src);
+        auto pr = HttpHelper::parseJsonStr(src);
         bool ret = false;
         if (pr.ok(this)) {
             auto at = pr.m_T["access_token"].asString();
@@ -1168,7 +1210,7 @@ struct iv {
 };
 struct Codec {
     uint8_t m_secretRaw[16] = {}, m_headerBuf[16] = {};
-    base64 m_secret;
+    std::string m_secret;
     enum Direction { ENC, DEC, DCNT };
     EVP_CIPHER_CTX *m_ciphers[DCNT] = {};
     std::mutex m_mutex;
@@ -1185,7 +1227,7 @@ struct Codec {
     ~Codec() { freeCiphers(); }
     bool fail(std::string &&errSrc, std::string *err) { err->assign(std::move(errSrc)); freeCiphers(); return false; }
     int failM1(std::string &&errSrc, std::string *err) { err->assign(std::move(errSrc)); freeCiphers(); return -1; }
-    void secretRawToString() { m_secret.encode(m_secretRaw, sizeof(m_secretRaw)); }
+    void secretRawToString() { m_secret = base64::toString(m_secretRaw); }
     bool initialize(std::string *err) {
         std::lock_guard l(m_mutex);
         if (!m_initOK) {
@@ -1214,10 +1256,9 @@ struct Codec {
                 secretRawToString();
             } else {
                 if (m_secret.length()) {
-                    base64 b64;
-                    b64.decode(m_secret, 0, m_secret.length());
-                    if (b64.size() == sizeof(m_secretRaw))
-                        memmove(m_secretRaw, b64.data(), sizeof(m_secretRaw));
+                    auto bin = base64::toBin(m_secret);
+                    if (bin.size() == sizeof(m_secretRaw))
+                        memmove(m_secretRaw, bin.data(), sizeof(m_secretRaw));
                     else
                         return fail("decode key is greater than expected"s, err);
                 } else {
@@ -1484,7 +1525,7 @@ struct AuthServerRestInvoker { //0x60 bytes
         }), true, false);
     }
     AuthServerRestInvoker(const std::string &machineId, ZwiftAuthenticationManager *authMgr, ZwiftHttpConnectionManager *httpConnMgr3, ExperimentsRestInvoker *expRi, const std::string &server) : m_machineId(machineId), m_server(server), m_authMgr(authMgr), m_expRi(expRi), m_conn(httpConnMgr3) {}
-    NetworkResponse<protobuf::LoginResponse> doLogIn(const std::string &sk, const std::vector<std::string> &anEventProps, CurlHttpConnection *conn) {
+    NetworkResponse<protobuf::LoginResponse> doLogIn(const protobuf_bytes &sk, const std::vector<std::string> &anEventProps, CurlHttpConnection *conn) {
         std::string LogInV2;
         auto url = m_server + "/api/users/login"s;
         protobuf::LoginRequest lr;
@@ -1512,22 +1553,20 @@ struct AuthServerRestInvoker { //0x60 bytes
             AcceptHeader(ATH_PB), LogInV2, false);
         return HttpHelper::convertToResultResponse<protobuf::LoginResponse>(v42);
     }
-    std::string getSecretKey(const EncryptionOptions &eo) {
+    protobuf_bytes getSecretKey(const EncryptionOptions &eo) {
         if (!eo.m_disableEncrWithServer && shouldEnableEncryptionBasedOnFeatureFlag(eo)) {
             if (!eo.m_secretKeyBase64.empty()) {
-                base64 ret;
-                ret.decode(eo.m_secretKeyBase64);
-                return ret;
+                return base64::toProtobufBytes(eo.m_secretKeyBase64);
             } else {
                 protocol_encryption::TcpRelayClientCodec codec;
                 std::string err;
                 if (codec.m_initOK || codec.initialize(&err))
-                    return std::string((char *)codec.m_secretRaw, _countof(codec.m_secretRaw));
+                    return protobuf_bytes((char *)codec.m_secretRaw, _countof(codec.m_secretRaw));
                 else
                     NetworkingLogError("Failed to get secret key: %s", err.c_str());
             }
         }
-        return std::string();
+        return protobuf_bytes();
     }
     std::future<NetworkResponse<std::string>> logOut(const std::function<void()> &func) {
         return m_authMgr->getLoggedIn() ?
@@ -3542,11 +3581,12 @@ struct NetworkClockService { //0x18 bytes
     }
 };
 struct AuxiliaryControllerAddress { //80 bytes
-    std::string m_localIp, m_key;
-    int m_localPort = 0, m_stc_f31 = 0;
+    std::string m_localIp;
+    std::vector<uint8_t> m_key;
+    int m_localPort = 0, m_localCPort = 0;
     protobuf::IPProtocol m_proto = protobuf::TCP;
-    AuxiliaryControllerAddress(const std::string &localIp, uint32_t localPort, protobuf::IPProtocol protocol, uint32_t stc_f31, const std::string &key) :
-        m_localIp(localIp), m_key(key), m_localPort(localPort), m_stc_f31(stc_f31), m_proto(protocol) {}
+    AuxiliaryControllerAddress(const std::string &localIp, uint32_t localPort, protobuf::IPProtocol protocol, uint32_t localCPort, const std::vector<uint8_t> &key) :
+        m_localIp(localIp), m_key(key), m_localPort(localPort), m_localCPort(localCPort), m_proto(protocol) {}
     AuxiliaryControllerAddress() {}
 };
 struct ActivityRecommendationRestInvoker { //0x30 bytes
@@ -4170,7 +4210,7 @@ struct TcpClient {
                 this->m_codec.m_hostRelayId = this->m_ei.m_relaySessionId;
                 this->m_codec.m_generateKey = false;
                 memmove(this->m_codec.m_secretRaw, this->m_ei.m_sk.c_str(), std::max(sizeof(this->m_codec.m_secretRaw), this->m_ei.m_sk.size()));
-                this->m_codec.m_secret.encode(this->m_codec.m_secretRaw, sizeof(this->m_codec.m_secretRaw));
+                this->m_codec.m_secret = base64::toString(this->m_codec.m_secretRaw);
             }
         });
     }
@@ -4600,51 +4640,643 @@ void handleTcpConfigChanged(const protobuf::TcpConfig &cfg)
 Listener::~Listener()
 ~TcpClient()*/
 };
-struct AuxiliaryController : public WorldIdListener {
+struct AuxiliaryController : public WorldIdListener { //0x105B8-16 bytes
+    GlobalState *m_gs;
+    WorldClockService *m_wcs;
+    NetworkClockService *m_ncs;
+    std::mutex m_mutex1, m_mutex2, m_mutex3, m_mutex4;
+    protocol_encryption::ZcClientCodec m_codec;
+    std::string m_hardKey, m_errString;
+    zwift_network::Motion m_motion1, m_motion2;
+    boost::asio::io_context m_asioCtx;
+    boost::asio::ip::tcp::socket m_socket;
+    boost::asio::steady_timer m_tmrConnect, m_tmrKeepAlive, m_tmrKeepAliveIOS;
+    std::function<void()> m_func;
+    std::vector<protobuf::GameToPhoneCommand> m_commands;
+    std::queue<protobuf::PhoneToGameCommand> m_ptgc_queue;
+    uint8_t m_buf[65536] = {};
+    std::vector<uint8_t> m_decrVector;
+    double m_max_ptg_f9 = 0.0;
+    uint64_t m_playerId = 0;
+    int64_t m_worldId = 0;
+    uint32_t m_starts = 0, m_seqNoGtp = 0, m_seqNoCmd = 0, m_maxPtgSeqno = 0, m_last_command_seq_num_phone_reports = 0;
+    protobuf::IPProtocol m_proto = protobuf::TCP;
+    uint16_t m_hardPort = 0;
+    bool m_stopped = true, m_encryption = false, m_writeToMot2 = false, m_hasMotionData = false, m_connectedOK = false, 
+        m_lastStatus = false, m_gtp_f6 = false, m_use_metric = false, m_connInProgress = false, m_ci2telemetry_sent = false, m_socketWriteInProgress = false;
+    AuxiliaryController(int64_t playerId, GlobalState *gs, WorldClockService *wcs, /*OMIT AuxiliaryControllerStatistics*/std::function<void()> f) : 
+        m_gs(gs), m_wcs(wcs), m_ncs(wcs->m_ncs), m_socket(m_asioCtx), m_tmrConnect(m_asioCtx), m_tmrKeepAlive(m_asioCtx), m_tmrKeepAliveIOS(m_asioCtx), m_func(f) {}
+    void send_game_to_phone(protobuf::GameToPhone *gtp) {
+        if (m_connectedOK) {
+            m_buf[0] = 1;
+            gtp->set_seqno(_InterlockedExchangeAdd(&m_seqNoGtp, 1));
+            gtp->set_ack_seqno(m_maxPtgSeqno);
+            gtp->set_f6(m_gtp_f6);
+            gtp->set_use_metric(m_use_metric);
+            gtp->set_time(m_wcs->getWorldTime());
+            {
+                std::lock_guard l(m_mutex3);
+                for (auto &i : m_commands) {
+                    if (i.seqno() <= m_last_command_seq_num_phone_reports)
+                        NetworkingLogWarn("Auxiliary Controller discarding command %d: i->sequence_number() > last_command_seq_num_phone_reports_ (%d > %d)", (int)i.type(), i.seqno(), m_last_command_seq_num_phone_reports);
+                    else if (m_proto == protobuf::TCP || i.type() != protobuf::GAME_TO_PHONE_SOCIAL_PLAYER_ACTION)
+                        i.Swap(gtp->add_game_to_phone_cmds());
+                }
+                m_commands.clear();
+            }
+            auto len = gtp->protobuf::GameToPhone::ByteSizeLong();
+            uint8_t *buf = (uint8_t *)malloc(len + 4);
+            *(uint32_t *)buf = htonl(len);
+            if (gtp->SerializeToArray(buf + 4, len)) {
+                m_asioCtx.post([this, buf, len]() {
+                    this->attempt_write_to_tcp_socket(buf, len + 4);
+                });
+            } else {
+                NetworkingLogError("Auxiliary Controller failed to encode GameToPhone protobuf.");
+            }
+        }
+    }
+    void attempt_write_to_tcp_socket(uint8_t *buf, uint32_t len) {
+        if (!m_socketWriteInProgress) {
+            m_socketWriteInProgress = true;
+            if (m_encryption) {
+                auto payloadLen = len - 4;
+                std::vector<uint8_t> encrypted;
+                encrypted.resize(4);
+                if (!this->m_codec.encode(buf + 4, payloadLen, &encrypted, &this->m_errString)) {
+                    free(buf);
+                    //OMIT AuxiliaryControllerStatistics::increaseEncryptionEncodeError((_Mtx_t)this->m_stat);
+                    NetworkingLogError("Auxiliary Controller failed to encode message: %s", this->m_errString.c_str());
+                    return;
+                }
+                free(buf);
+                len = encrypted.size();
+                *(uint32_t *)encrypted.data() = len - 4;
+                buf = (uint8_t *)malloc(len);
+                memmove(buf, encrypted.data(), len);
+            }
+            m_socket.async_send(boost::asio::buffer(buf, len), [this, buf, len](const boost::system::error_code &error, std::size_t bytes_transferred) {
+                //OMITAuxiliaryControllerStatistics::registerNetUseOut(this->m_stat, bytes_transferred);
+                bool disconnect = true;
+                if (error) {
+                    NetworkingLogError("Auxiliary Controller failed to send data: '%s' (%d)", error.message().c_str(), error.value());
+                } else {
+                    if (bytes_transferred == len )
+                        disconnect = false;
+                    else
+                        NetworkingLogError("Auxiliary Controller failed to send the correct number of bytes (%d/%d)", bytes_transferred, len);
+                }
+                if (disconnect)
+                    this->disconnect();
+                this->m_socketWriteInProgress = false;
+                if (buf)
+                    free(buf);
+            });
+        }
+        m_asioCtx.post([this, buf, len]() {
+            this->attempt_write_to_tcp_socket(buf, len);
+        });
+    }
+    uint16_t init_encryption(const AuxiliaryControllerAddress &addr) {
+        if (!m_encryption)
+            return addr.m_localPort;
+        if (!m_hardKey.empty()) {
+            NetworkingLogDebug("Auxiliary Controller using a hardcoded secret key for encryption (prefs.xml) [%s]", m_hardKey.c_str());
+            auto hardKey = base64::toBin(m_hardKey);
+            m_codec.m_generateKey = false;
+            if (hardKey.size() != 16) {
+                m_errString = "decode key is greater than expected"s;
+                NetworkingLogError("Auxiliary Controller failed to set secret key: %s", m_errString.c_str());
+                return m_hardPort;
+            }
+            memmove(m_codec.m_secretRaw, hardKey.data(), 16);
+            return m_hardPort;
+        }
+        if (addr.m_key.empty()) {
+            m_encryption = false;
+            return addr.m_localPort;
+        }
+        m_codec.m_secret = base64::toString(addr.m_key);
+        NetworkingLogDebug("Auxiliary Controller using a generated secret key for encryption (/profiles/me/phone) [%s]", m_codec.m_secret.c_str());
+        m_codec.m_generateKey = false;
+        memmove(m_codec.m_secretRaw, addr.m_key.data(), std::min((int)sizeof(m_codec.m_secretRaw), (int)addr.m_key.size()));
+        return (uint16_t)addr.m_localCPort;
+    }
     void handleWorldIdChange(int64_t worldId) override {
+        m_worldId = worldId;
+        protobuf::GameToPhone gtf;
+        gtf.set_player_id(m_playerId);
+        gtf.set_world_id(worldId);
+        send_game_to_phone(&gtf);
+    }
+    void tcp_connect(const AuxiliaryControllerAddress &addr) {
+        auto port = init_encryption(addr);
+        //OMIT AuxiliaryControllerStatistics::setEncryptionEnabled((_Mtx_t)this->m_stat, this->m_encryption);
+        NetworkingLogInfo("Auxiliary Controller attempting to connect to phone at: %s:%d%s", addr.m_localIp.c_str(), port, m_encryption ? " (secure)" : "");
+        boost::system::error_code ec;
+        auto ip_addr = boost::asio::ip::make_address(addr.m_localIp.c_str(), ec);
+        if (ec) {
+            NetworkingLogError("Auxiliary Controller failed to get IP address: '%s' (%d)", ec.message().c_str(), ec.value());
+        } else {
+            boost::asio::ip::tcp::endpoint ep(ip_addr, port);
+            if (m_connInProgress) {
+                NetworkingLogWarn("Auxiliary Controller connection attempt already in progress");
+            } else {
+                m_connInProgress = true;
+                m_tmrConnect.expires_after(std::chrono::seconds(5));
+                m_tmrConnect.async_wait([this](const std::error_code &ec) {
+                    //socket_connect_timer_handler
+                    if (ec) {
+                        if (ec.category() != boost::asio::error::system_category || ec.value() != ERROR_OPERATION_ABORTED) {
+                            NetworkingLogError("Auxiliary Controller socket connect timeout timer: '%s' (%d)", ec.message().c_str(), ec.value());
+                            this->m_tmrConnect.cancel();
+                        }
+                    } else {
+                        this->disconnect();
+                    }
+                });
+                m_socket.async_connect(ep, [this](const std::error_code &ec) {
+                    //tcp_connection_handler
+                    this->m_tmrConnect.cancel();
+                    if (ec || !this->m_connInProgress) {
+                        NetworkingLogInfo("Auxiliary Controller failed to connect to socket: '%s' (%d)", ec.message().c_str(), ec.value());
+                        this->m_connectedOK = false;
+                        this->m_lastStatus = false;
+                        this->m_ci2telemetry_sent = false;
+                        //OMITAuxiliaryControllerStatistics::setPaired((_Mtx_t)v18->m_stat, 0);
+                        boost::system::error_code cec;
+                        this->m_socket.close(cec);
+                        if (cec)
+                            NetworkingLogInfo("Auxiliary Controller failed to close socket: '%s' (%d)", cec.message().c_str(), cec.value());
+                    } else {
+                        if (!this->m_connectedOK || !this->m_lastStatus) {
+                            this->m_connectedOK = true;
+                            //OMIT AuxiliaryControllerStatistics::setPaired((_Mtx_t)this->m_stat, 1);
+                        }
+                        if (!this->m_codec.newConnection(&this->m_errString)) {
+                            //OMIT AuxiliaryControllerStatistics::increaseEncryptionNewConnectionError((_Mtx_t)this->m_stat);
+                            NetworkingLogError("Auxiliary Controller failed to get new connection: %s", this->m_errString.c_str());
+                        }
+                        NetworkingLogInfo("Auxiliary Controller connected successfully");
+                        this->repeat_keep_alive(0);
+                        this->do_tcp_receive_encoded_message_length();
+                        _InterlockedExchange(&this->m_maxPtgSeqno, 0);
+                    }
+                });
+            }
+        }
+    }
+    void do_stop() {
+        m_tmrKeepAliveIOS.cancel();
+        m_asioCtx.stop();
+        disconnect();
+        m_stopped = true;
+        std::lock_guard l2(m_mutex2);
+        {
+            m_hasMotionData = false;
+            m_max_ptg_f9 = 0i64;
+            std::lock_guard l3(m_mutex3);
+            m_last_command_seq_num_phone_reports = 0;
+            m_commands.clear();
+        }
+        NetworkingLogInfo("Auxiliary Controller stopped");
+    }
+    void stop() {
+        std::lock_guard l(m_mutex1);
+        if (!m_stopped)
+            do_stop();
+    }
+    ~AuxiliaryController() {
+        if (!m_stopped) {
+            std::lock_guard l(m_mutex1);
+            do_stop();
+        }
+    }
+    bool motion_data(zwift_network::Motion *pDest) {
+        std::lock_guard l(m_mutex2);
+        if (m_hasMotionData) {
+            if (m_writeToMot2)
+                *pDest = m_motion1;
+            else
+                *pDest = m_motion2;
+            return true;
+        }
+        return false;
+    }
+    void disconnect() {
+        m_tmrKeepAlive.cancel();
+        m_tmrConnect.cancel();
+        if (true) {
+            boost::system::error_code ec;
+            if (m_connInProgress && !m_socket.is_open()) {
+                ec.assign(10009, boost::asio::error::system_category);
+            } else {
+                m_socket.shutdown(m_socket.shutdown_both, ec);
+            }
+            if (ec)
+                NetworkingLogWarn("Auxiliary Controller failed to shut down tcp socket: '%s' (%d)", ec.message().c_str(), ec.value());
+            if (m_connInProgress || m_socket.is_open())
+                m_socket.close(ec);
+            if (ec)
+                NetworkingLogWarn("Auxiliary Controller failed to close tcp socket: '%s' (%d)", ec.message().c_str(), ec.value());
+        }
+        m_connInProgress = false;
+        m_connectedOK = false;
+        m_lastStatus = false;
+        m_ci2telemetry_sent = false;
+        //OMIT AuxiliaryControllerStatistics::setPaired((_Mtx_t)this->m_stat, 0);
+    }
+    void start(const AuxiliaryControllerAddress &addr, bool shouldEncrypt, uint32_t hardPort, const std::string &hardKey) {
+        std::lock_guard l(m_mutex1);
+        if (m_stopped) {
+            ++m_starts;
+            m_proto = addr.m_proto;
+            if (m_proto) {
+                m_hardPort = hardPort;
+                m_hardKey = hardKey;
+                m_encryption = shouldEncrypt;
+                keep_io_service_alive();
+                //OMIT AuxiliaryControllerStatistics::setProtocol((_Mtx_t)this->m_stat, m_proto);
+                tcp_connect(addr);
+                m_asioCtx.restart();
+                boost::asio::detail::win_thread t([this]() {
+                    m_asioCtx.run();
+                });
+                NetworkingLogInfo("Auxiliary Controller started");
+                this->m_stopped = false;
+            }
+        } else {
+            NetworkingLogWarn("Auxiliary Controller controller already started");
+        }
+    }
+    void keep_io_service_alive() { //QUEST: what is this for
+        m_tmrKeepAliveIOS.expires_after(std::chrono::seconds(30));
+        m_tmrKeepAliveIOS.async_wait([this](const boost::system::error_code &ec) {
+            if (ec) {
+                if (ec.category() == boost::asio::error::system_category && ec.value() == ERROR_OPERATION_ABORTED)
+                    NetworkingLogInfo("Auxiliary Controller shutting down io_service keep alive loop");
+                else
+                    NetworkingLogError("Auxiliary Controller received '%s' (%d) while processing the keep alive timer.", ec.message().c_str(), ec.value());
+            } else {
+                this->keep_io_service_alive();
+            }
+        });
+    }
+    void send_pairing_status(bool good) {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_PAIRING_STATUS);
+        gtpc.set_status_good(good);
+        NetworkingLogInfo("Sending Pairing Status of: %s", good ? "true" : "false");
+        {
+            std::lock_guard l(m_mutex3);
+            m_seqNoCmd++;
+            gtpc.set_seqno(m_seqNoCmd);
+            m_commands.emplace_back(std::move(gtpc));
+        }
+        protobuf::GameToPhone gtp;
+        gtp.set_player_id(m_playerId);
+        gtp.set_world_id(m_worldId);
+        send_game_to_phone(&gtp);
+        m_lastStatus = good;
+    }
+    void repeat_keep_alive(int sec) {
+        m_tmrKeepAlive.expires_after(std::chrono::seconds(sec));
+        m_tmrKeepAlive.async_wait([this](const boost::system::error_code &ec) {
+            if (ec) {
+                if (ec.category() == boost::asio::error::system_category && ec.value() == ERROR_OPERATION_ABORTED)
+                    return NetworkingLogInfo("Auxiliary Controller shutting down keep alive loop");
+                else
+                    NetworkingLogError("Auxiliary Controller failed to send keep alive packet: '%s' (%d) during send of keep alive packet.", ec.message().c_str(), ec.value());
+            }
+            this->send_keep_alive_packet();
+        });
+    }
+    void send_keep_alive_packet() {
+        if (!m_buf[0]) {
+            protobuf::GameToPhone v14;
+            v14.set_player_id(m_playerId);
+            v14.set_world_id(m_worldId);
+            send_game_to_phone(&v14);
+        }
+        m_buf[0] = 0;
+        repeat_keep_alive(5);
+    }
+    void do_tcp_receive_encoded_message(uint32_t) {
         //TODO
     }
-    /*TODO zwift_network::AuxiliaryController::AuxiliaryController(int64_t,std::shared_ptr<GlobalState>,std::shared_ptr<WorldClockService>,std::shared_ptr<AuxiliaryControllerStatistics>,std::function<void ()()>)
-zwift_network::AuxiliaryController::add_pending_command(std::shared_ptr<protobuf::GameToPhoneCommand> const&)
-zwift_network::AuxiliaryController::attempt_write_to_tcp_socket(uchar const*,uint32_t)
-zwift_network::AuxiliaryController::clear_telemetry()
-zwift_network::AuxiliaryController::connect(zwift_network::AuxiliaryControllerAddress const&)
-zwift_network::AuxiliaryController::disconnect()
-zwift_network::AuxiliaryController::do_receive()
-zwift_network::AuxiliaryController::do_tcp_receive_encoded_message(uint32_t)
-zwift_network::AuxiliaryController::do_tcp_receive_encoded_message_length()
-zwift_network::AuxiliaryController::get_world_id()
-zwift_network::AuxiliaryController::handleWorldIdChange(int64_t)
-zwift_network::AuxiliaryController::init_encryption(zwift_network::AuxiliaryControllerAddress const&)
-zwift_network::AuxiliaryController::keep_io_service_alive()
-zwift_network::AuxiliaryController::motion_data(zwift_network::Motion &)
-zwift_network::AuxiliaryController::pop_phone_to_game_command(std::shared_ptr<protobuf::PhoneToGameCommand const> &)
-zwift_network::AuxiliaryController::process_phone_to_game(protobuf::PhoneToGame &)
-zwift_network::AuxiliaryController::reconnect(zwift_network::AuxiliaryControllerAddress const&)
-zwift_network::AuxiliaryController::register_bytes_out(uint64_t)
-zwift_network::AuxiliaryController::send_activate_power_up_command(int,uint32_t)
-zwift_network::AuxiliaryController::send_ble_peripheral_request(protobuf::BLEPeripheralRequest const&)
-zwift_network::AuxiliaryController::send_clear_power_up_command()
-zwift_network::AuxiliaryController::send_customize_action_button_command(uint32_t,uint32_t,const std::string &,const std::string &,bool)
-zwift_network::AuxiliaryController::send_default_activity_name(const std::string &)
-zwift_network::AuxiliaryController::send_game_packet(const std::string &,bool)
-zwift_network::AuxiliaryController::send_game_to_phone(protobuf::GameToPhone &)
-zwift_network::AuxiliaryController::send_image_to_mobile_app(const std::string &,const std::string &)
-zwift_network::AuxiliaryController::send_keep_alive_packet()
-zwift_network::AuxiliaryController::send_mobile_alert(protobuf::MobileAlert const&)
-zwift_network::AuxiliaryController::send_mobile_alert_cancel_command(protobuf::MobileAlert const&)
-zwift_network::AuxiliaryController::send_pairing_status(bool)
-zwift_network::AuxiliaryController::send_player_profile(protobuf::PlayerProfile const&)
-zwift_network::AuxiliaryController::send_player_state(protobuf::PlayerState const&)
-zwift_network::AuxiliaryController::send_rider_list_entries(std::list<protobuf::RiderListEntry> const&)
-zwift_network::AuxiliaryController::send_set_power_up_command(const std::string &,const std::string &,const std::string &,int)
-zwift_network::AuxiliaryController::send_social_player_action(protobuf::SocialPlayerAction const&)
-zwift_network::AuxiliaryController::set_client_info_to_telemetry(protobuf::PhoneToGameCommand const&)
-zwift_network::AuxiliaryController::set_connection_handlers()
-zwift_network::AuxiliaryController::start(zwift_network::AuxiliaryControllerAddress const&,bool,uint32_t,const std::string &)
-zwift_network::AuxiliaryController::stop()
-zwift_network::AuxiliaryController::tcp_connect(zwift_network::AuxiliaryControllerAddress const&)
-zwift_network::AuxiliaryController::~AuxiliaryController()*/
+    bool pop_phone_to_game_command(protobuf::PhoneToGameCommand *dest) {
+        std::lock_guard l(m_mutex4);
+        if (!m_ptgc_queue.empty()) {
+            dest->Swap(&m_ptgc_queue.front());
+            m_ptgc_queue.pop();
+            return true;
+        } 
+        return false;
+    }
+    void reconnect(const AuxiliaryControllerAddress &addr) {
+        std::lock_guard l(m_mutex1);
+        if (!this->m_connectedOK && !this->m_stopped && !this->m_connInProgress) {
+            disconnect();
+            m_proto = addr.m_proto;
+            //OMIT AuxiliaryControllerStatistics::setProtocol((_Mtx_t)this->m_stat, m_proto);
+            tcp_connect(addr);
+        }
+    }
+    void do_tcp_receive_encoded_message_length() {
+        m_socket.async_receive(boost::asio::buffer(m_buf + 1, 4), [this](const boost::system::error_code &err, std::size_t bytes_transferred) {
+            if (err) {
+                if (err.category() == boost::asio::error::system_category && err.value() == ERROR_OPERATION_ABORTED)
+                    NetworkingLogError("Auxiliary Controller received '%s' (%d) during message length receive handler", err.message().c_str(), err.value());
+                this->disconnect();
+                return;
+            }
+            if (!bytes_transferred) {
+                NetworkingLogError("Auxiliary Controller received empty message in message length receive handler");
+                this->disconnect();
+                return;
+            }
+            //OMIT AuxiliaryControllerStatistics::registerNetUseIn((_Mtx_t)(*a3)->m_stat, bytes_transferred);
+            auto len = ntohl(*(uint32_t *)(this->m_buf + 1));
+            if (len >= 0x400) {
+                NetworkingLogError("Auxiliary Controller received a message length above the threshold");
+                this->disconnect();
+                return;
+            }
+            m_socket.async_receive(boost::asio::buffer(m_buf + 1, len), [this, len](const boost::system::error_code &err, std::size_t bytes_transferred) {
+                if (err) {
+                    if (err.category() == boost::asio::error::system_category && err.value() == ERROR_OPERATION_ABORTED)
+                        NetworkingLogError("Auxiliary Controller received '%s' (%d) during message receive handler", err.message().c_str(), err.value());
+                    this->disconnect();
+                    return;
+                }
+                if (!bytes_transferred) {
+                    NetworkingLogError("Auxiliary Controller received empty message in message receive handler");
+                    this->disconnect();
+                    return;
+                }
+                auto pData = this->m_buf + 1;
+                //OMIT AuxiliaryControllerStatistics::registerNetUseIn((_Mtx_t)(*a3)->m_stat, bytes_transferred);
+                if (this->m_encryption) {
+                    this->m_decrVector.clear();
+                    if (!this->m_codec.decode(pData, bytes_transferred, &this->m_decrVector, &this->m_errString)) {
+                        //OMIT AuxiliaryControllerStatistics::increaseEncryptionDecodeError((_Mtx_t)(*this)->m_stat);
+                        NetworkingLogError("Auxiliary Controller failed to decode message: %s", this->m_errString.c_str());
+                        this->disconnect();
+                        return;
+                    }
+                    pData = this->m_decrVector.data();
+                    bytes_transferred = this->m_decrVector.size();
+                }
+                if (pData) {
+                    protobuf::PhoneToGame ptg;
+                    if (ptg.ParseFromArray(pData, bytes_transferred)) {
+                        this->process_phone_to_game(ptg);
+                        this->do_tcp_receive_encoded_message_length();
+                    } else {
+                        NetworkingLogError("Auxiliary Controller failed to parse message");
+                        this->disconnect();
+                    }
+                }
+            });
+        });
+    }
+    void process_phone_to_game(const protobuf::PhoneToGame &ptg) {
+        if (ptg.commands_size()) {
+            for(auto &i : ptg.commands()) {
+                if (i.seqno() <= m_maxPtgSeqno) {
+                    NetworkingLogWarn("Discarding command from phone: %d", (int)i.command());
+                } else {
+                    if (i.command() == protobuf::PAIRING_AS) {
+                        if (i.player_id() == m_playerId) {
+                            send_pairing_status(true);
+                        } else {
+                            NetworkingLogWarn("BAD PAIRING! Mobile Player ID: %d is not equal to Game Player ID: %d", i.player_id(), m_playerId);
+                            send_pairing_status(false);
+                            m_func();
+                        }
+                    } else {
+                        /* OMIT if (!this->m_ci2telemetry_sent && i.command() == protobuf::PHONE_TO_GAME_PACKET)
+                        {
+                            memset(v37, 0, 0xD8ui64);
+                            zwift::protobuf::GamePacket::GamePacket((__int64)v37, 0i64, 0);
+                            v37[0] = (__int64)&zwift::protobuf::GamePacket::`vftable';
+                                if ((unsigned __int8)protobuf::MessageLite::ParseFromString(
+                                    v37,
+                                    *(_QWORD *)(v10 + 48) & 0xFFFFFFFFFFFFFFF8ui64))
+                                {
+                                    if ((v37[2] & 8) != 0)
+                                    {
+                                        v17 = &off_7FF76B03B9A0;
+                                        if (v37[9])
+                                            v17 = (void ***)v37[9];
+                                        AuxiliaryControllerStatistics::setZcInfo((_Mtx_t)this->m_stat, (__int64)v17);
+                                        this->m_field_103C0 = 1;
+                                    }
+                                } else
+                                {
+                                    v16 = Logger::getLogger();
+                                    NetworkingLog(NL_ERROR, &v16->m_errorPrefix, "Auxiliary Controller failed to parse GamePacket message");
+                                }
+                                sub_7FF76A4BE070(v37);
+                        }*/
+                        std::lock_guard l(m_mutex4);
+                        m_ptgc_queue.emplace(i);
+                    }
+                    m_maxPtgSeqno = i.seqno();
+                }
+            }
+        }
+        if (ptg.has_f3()) {
+            if (ptg.f9() > m_max_ptg_f9) {
+                m_max_ptg_f9 = ptg.f9();
+                auto pDestMot = m_writeToMot2 ? &m_motion2 : &m_motion1;
+                pDestMot->m_ptg_f3 = ptg.f3();
+                pDestMot->m_ptg_f4 = ptg.f4();
+                pDestMot->m_ptg_f5 = ptg.f5();
+                pDestMot->m_ptg_f6 = ptg.f6();
+                pDestMot->m_ptg_f7 = ptg.f7();
+                pDestMot->m_ptg_f8 = ptg.f8();
+                pDestMot->m_ptg_f9 = m_max_ptg_f9;
+                std::lock_guard l(m_mutex2);
+                m_writeToMot2 = !m_writeToMot2;
+                m_hasMotionData = true;
+            }
+        }
+        {
+            std::lock_guard l(m_mutex3);
+            if (m_last_command_seq_num_phone_reports < ptg.seqno())
+                m_last_command_seq_num_phone_reports = ptg.seqno();
+        }
+    }
+    void send_clear_power_up_command() {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_CLEAR_POWER_UP);
+        std::lock_guard l(m_mutex3);
+        m_seqNoCmd++;
+        gtpc.set_seqno(m_seqNoCmd);
+        m_commands.emplace_back(std::move(gtpc));
+    }
+    void send_activate_power_up_command(int powerupId, uint32_t powerupParam) {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_ACTIVATE_POWER_UP);
+        std::lock_guard l(m_mutex3);
+        m_seqNoCmd++;
+        gtpc.set_seqno(m_seqNoCmd);
+        gtpc.set_powerup_id(powerupId);
+        gtpc.set_powerup_param(powerupParam);
+        m_commands.emplace_back(std::move(gtpc));
+    }
+    void send_ble_peripheral_request(const protobuf::BLEPeripheralRequest &req) {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_BLEPERIPHERAL_REQUEST);
+        auto rq = req.New(gtpc.GetArena());
+        rq->CopyFrom(req);
+        gtpc.set_allocated_ble_rq(rq);
+        std::lock_guard l(m_mutex3);
+        m_seqNoCmd++;
+        gtpc.set_seqno(m_seqNoCmd);
+        m_commands.emplace_back(std::move(gtpc));
+    }
+    void send_customize_action_button_command(uint32_t a2, uint32_t a3, const std::string &a4, const std::string &a5, bool a6) {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_CUSTOMIZE_ACTION_BUTTON);
+        gtpc.set_f8(a2);
+        gtpc.set_f9(a3);
+        gtpc.set_f10(a4);
+        gtpc.set_f11(a5);
+        gtpc.set_f13(a6);
+        std::lock_guard l(m_mutex3);
+        m_seqNoCmd++;
+        gtpc.set_seqno(m_seqNoCmd);
+        m_commands.emplace_back(std::move(gtpc));
+    }
+    void send_default_activity_name(const std::string &name) {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_DEFAULT_ACTIVITY_NAME);
+        gtpc.set_act_name(name);
+        std::lock_guard l(m_mutex3);
+        m_seqNoCmd++;
+        gtpc.set_seqno(m_seqNoCmd);
+        m_commands.emplace_back(std::move(gtpc));
+    }
+    void send_game_packet(const std::string &a2, bool force) {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_PACKET);
+        gtpc.set_f21(a2);
+        {
+            std::lock_guard l(m_mutex3);
+            m_seqNoCmd++;
+            gtpc.set_seqno(m_seqNoCmd);
+            m_commands.emplace_back(std::move(gtpc));
+        }
+        if (force) {
+            protobuf::GameToPhone gtp;
+            gtp.set_player_id(m_playerId);
+            gtp.set_world_id(m_worldId);
+            send_game_to_phone(&gtp);
+        }
+    }
+    void send_image_to_mobile_app(const std::string &pathName, const std::string &imgName) {
+        if (m_proto == protobuf::TCP) {
+            NetworkingLogInfo("Uploading image to mobile device %s", pathName.c_str());
+            std::ifstream v19(pathName, std::ios::binary);
+            if (!v19.is_open()) {
+                NetworkingLogError("Activity Upload failed to read image file");
+            } else {
+                protobuf::GameToPhoneCommand gtpc;
+                gtpc.set_type(protobuf::GAME_TO_PHONE_SEND_IMAGE);
+                std::string content((std::istreambuf_iterator<char>(v19)), std::istreambuf_iterator<char>());
+                gtpc.set_img_bits(content);
+                gtpc.set_img_name(imgName);
+                std::lock_guard l(m_mutex3);
+                m_seqNoCmd++;
+                gtpc.set_seqno(m_seqNoCmd);
+                m_commands.emplace_back(std::move(gtpc));
+            }
+        }
+    }
+    void send_mobile_alert(const protobuf::MobileAlert &alert) {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_MOBILE_ALERT);
+        auto newAlert = alert.New(gtpc.GetArena());
+        newAlert->CopyFrom(alert);
+        gtpc.set_allocated_mobile_alert(newAlert);
+        std::lock_guard l(m_mutex3);
+        m_seqNoCmd++;
+        gtpc.set_seqno(m_seqNoCmd);
+        m_commands.emplace_back(std::move(gtpc));
+    }
+    void send_mobile_alert_cancel_command(const protobuf::MobileAlert &alert) {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_MOBILE_ALERT_CANCEL);
+        auto newAlert = alert.New(gtpc.GetArena());
+        newAlert->CopyFrom(alert);
+        gtpc.set_allocated_mobile_alert(newAlert);
+        std::lock_guard l(m_mutex3);
+        m_seqNoCmd++;
+        gtpc.set_seqno(m_seqNoCmd);
+        m_commands.emplace_back(std::move(gtpc));
+    }
+    void send_player_profile(const protobuf::PlayerProfile &prof) {
+        protobuf::GameToPhone gtp;
+        auto newProf = prof.New(gtp.GetArena());
+        newProf->CopyFrom(prof);
+        newProf->clear_email();
+        newProf->clear_dob();
+        gtp.set_allocated_player_profile(newProf);
+        gtp.set_player_id(m_playerId);
+        gtp.set_world_id(m_worldId);
+        send_game_to_phone(&gtp);
+    }
+    void send_player_state(const protobuf::PlayerState &state) {
+        protobuf::GameToPhone gtp;
+        auto newState = state.New(gtp.GetArena());
+        newState->CopyFrom(state);
+        gtp.set_allocated_player_state(newState);
+        gtp.set_player_id(m_playerId);
+        gtp.set_world_id(m_worldId);
+        send_game_to_phone(&gtp);
+    }
+    void send_rider_list_entries(const std::list<protobuf::RiderListEntry> &riders) {
+        protobuf::GameToPhone gtp;
+        for (auto &i : riders)
+            gtp.add_riders()->CopyFrom(i);
+        gtp.set_player_id(m_playerId);
+        gtp.set_world_id(m_worldId);
+        send_game_to_phone(&gtp);
+    }
+    void send_set_power_up_command(const std::string &a2, const std::string &a3, const std::string &a4, int powerupId) {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_SET_POWER_UP);
+        gtpc.set_f4(a2);
+        gtpc.set_f6(a3);
+        gtpc.set_f12(a4);
+        gtpc.set_powerup_id(powerupId);
+        std::lock_guard l(m_mutex3);
+        m_seqNoCmd++;
+        gtpc.set_seqno(m_seqNoCmd);
+        m_commands.emplace_back(std::move(gtpc));
+    }
+    void send_social_player_action(const protobuf::SocialPlayerAction &SPA) {
+        protobuf::GameToPhoneCommand gtpc;
+        gtpc.set_type(protobuf::GAME_TO_PHONE_SOCIAL_PLAYER_ACTION);
+        auto newSPA = SPA.New(gtpc.GetArena());
+        newSPA->CopyFrom(SPA);
+        gtpc.set_allocated_spa(newSPA);
+        std::lock_guard l(m_mutex3);
+        m_seqNoCmd++;
+        gtpc.set_seqno(m_seqNoCmd);
+        m_commands.emplace_back(std::move(gtpc));
+    }
+        /* inlined: set_connection_handlers()
+register_bytes_out(uint64_t)
+get_world_id()
+clear_telemetry()
+add_pending_command(std::shared_ptr<protobuf::GameToPhoneCommand> const&)
+set_client_info_to_telemetry(protobuf::PhoneToGameCommand const&)
+connect(zwift_network::AuxiliaryControllerAddress const&)
+do_receive()
+*/
 };
 struct NetworkClientImpl { //0x400 bytes, calloc
     std::string m_server;
@@ -4733,7 +5365,10 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         }
     }
     void shutdownAuxiliaryController() {
-        //TODO
+        if (m_aux) {
+            m_aux->stop();
+            FreeAndNil(m_aux);
+        }
     }
     void LogStart() {
         NetworkingLogInfo("CNL %s", g_CNL_VER.c_str());
@@ -4910,6 +5545,33 @@ struct NetworkClientImpl { //0x400 bytes, calloc
     void handleAuxiliaryControllerAddress(const AuxiliaryControllerAddress &aux) {
         //TODO
     }
+    void onMyPlayerProfileReceived(const NetworkResponse<protobuf::PlayerProfile> &prof) {
+        if (!prof.m_errCode) {
+            auto playerId = prof.m_T.id();
+            NetworkingLogInfo("Player ID: %d", playerId);
+            auto &aid = prof.m_T.mix_panel_distinct_id();
+            NetworkingLogInfo("Analytics ID: %s", aid.c_str());
+            //OMIT TelemetryService::setProfileInfo((__int64)this->m_ts, (__int64)m_pb, v8, v9);
+            if (m_globalState->getPlayerId() != playerId) {
+                m_globalState->setPlayerId(playerId);
+                shutdownAuxiliaryController();
+                m_aux = new AuxiliaryController(playerId, m_globalState, m_wclock, /*m_auxStat,*/ [this]() {
+                    auto fut = m_relay->setPhoneAddress(""s, 0, protobuf::TCP, 0, ""s);
+                    fut.get();
+                });
+                m_globalState->registerWorldIdListener(m_aux);
+                initializeWorkoutManager(prof.m_T);
+                shutdownTcpClient();
+                startTcpClient();
+            }
+            if (m_aux)
+                m_aux->m_use_metric = prof.m_T.use_metric();
+        }
+    }
+    void initializeWorkoutManager(const protobuf::PlayerProfile &prof) {
+        //TODO
+    }
+
     /*NetworkClientImpl::NetworkClientImpl(std::shared_ptr<MachineIdProvider>,std::shared_ptr<HttpConnectionFactory>)
 NetworkClientImpl::acceptPrivateEventInvitation(int64_t)
 NetworkClientImpl::campaignSummary(const std::string &)
@@ -4998,7 +5660,6 @@ NetworkClientImpl::handleDisconnectRequested(bool)
 NetworkClientImpl::handleWorldAndMapRevisionChanged(int64_t,uint32_t)
 NetworkClientImpl::initialize(const std::string &,const std::string &,std::function<void ()(char *)> const&,const std::string &,zwift_network::NetworkClientOptions const&)
 NetworkClientImpl::initializeTelemetry()
-NetworkClientImpl::initializeWorkoutManager(protobuf::PlayerProfile const&)
 NetworkClientImpl::isLoggedIn()
 NetworkClientImpl::isPairedToPhone()
 NetworkClientImpl::isPlayerIdInvalid(int64_t)
@@ -5020,7 +5681,6 @@ NetworkClientImpl::networkTime()
 NetworkClientImpl::noLogInAttempted()
 NetworkClientImpl::onLoggedIn(protobuf::PerSessionInfo const&,const std::string &,GlobalState::EncryptionInfo const&)
 NetworkClientImpl::onLoggedOut()
-NetworkClientImpl::onMyPlayerProfileReceived(std::shared_ptr<zwift_network::NetworkResponse<protobuf::PlayerProfile> const> const&)
 NetworkClientImpl::onSaveActivityReceived(std::shared_ptr<zwift_network::NetworkResponse<int64_t> const> const&)
 NetworkClientImpl::onUpdatedPlayerProfileReceived(bool,bool,bool,uint32_t)
 NetworkClientImpl::parseValidationErrorMessage(const std::string &)
@@ -5503,14 +6163,13 @@ void TcpClient::processPayload(uint64_t len) {
                 auto &zc_key = stc.zc_key();
                 if (m_ncli->GetNetworkMaxLogLevel() == NL_DEBUG) {
                     if (zc_key.length()) {
-                        base64 sk;
-                        sk.encode(zc_key);
+                        auto sk = base64::toString(zc_key);
                         NetworkingLogDebug("ZC encryption info from TCP StC: port %d secure port %d secret key %s", stc.zc_local_port(), stc.zc_secure_port(), sk.c_str());
                     } else {
                         NetworkingLogDebug("ZC encryption info missing in TCP StC (no auxiliary_controller_secret_key)");
                     }
                 }
-                AuxiliaryControllerAddress auxAddr(stc.zc_local_ip(), stc.zc_local_port(), stc.zc_protocol(), stc.zc_secure_port(), zc_key);
+                AuxiliaryControllerAddress auxAddr(stc.zc_local_ip(), stc.zc_local_port(), stc.zc_protocol(), stc.zc_secure_port(), fix_google(zc_key));
                 m_ncli->handleAuxiliaryControllerAddress(auxAddr);
             }
             if (stc.has_udp_config_vod_1())
@@ -5654,14 +6313,13 @@ TEST(SmokeTest, DISABLED_LoginTestToken) {
     EXPECT_EQ(rt, r.m_msg);
 }
 TEST(SmokeTest, B64) {
-    base64 obj;
     uint8_t rawData[] = { "\x1\x2\x3-lorem\0ipsum" };
-    obj.encode(rawData, _countof(rawData));
+    auto obj = base64::toString(rawData, _countof(rawData));
     EXPECT_STREQ("AQIDLWxvcmVtAGlwc3VtAA==", obj.c_str());
     std::string b64copy(obj);
-    obj.decode(b64copy);
-    EXPECT_EQ(obj.size(), _countof(rawData));
-    EXPECT_EQ(0, memcmp(rawData, obj.c_str(), _countof(rawData)));
+    auto obj1 = base64::toBin(b64copy);
+    EXPECT_EQ(obj1.size(), _countof(rawData));
+    EXPECT_EQ(0, memcmp(rawData, obj1.data(), _countof(rawData)));
 }
 /*TEST(SmokeTest, Timer) {
     boost::asio::io_context asioCtx;

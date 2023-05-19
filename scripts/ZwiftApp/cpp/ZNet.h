@@ -70,6 +70,15 @@ std::future<NetworkResponse<RET>> makeNetworkResponseFuture(NetworkRequestOutcom
     return ret;
 }
 namespace zwift_network {
+    struct Motion { //32 bytes
+        float m_ptg_f3 = 0.0f;
+        float m_ptg_f4 = 0.0f;
+        float m_ptg_f5 = 0.0f;
+        float m_ptg_f6 = 0.0f;
+        float m_ptg_f7 = 0.0f;
+        float m_ptg_f8 = 0.0f;
+        double m_ptg_f9 = 0.0;
+    };
     void get_goals(int64_t playerId);
     void save_goal(const protobuf::Goal &);
     std::future<NetworkResponse<std::string>> log_out();

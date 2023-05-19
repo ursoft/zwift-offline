@@ -282,7 +282,7 @@ message BLEAdvertisement {
 }
 message PhoneToGameCommand {
     required int32 seqno = 1;
-    optional uint32 command = 2;
+    optional PhoneToGameCommandType command = 2;
     optional int64 f3 = 3;
     optional string f4 = 4;
     optional int64 f5 = 5;
@@ -296,7 +296,7 @@ message PhoneToGameCommand {
     optional MobileAlertResponse f13 = 13;
     // no 14-17
     optional BLEPeripheralResponse f18 = 18;
-    optional int64 f19 = 19;
+    optional int64 player_id = 19;
     optional string f20 = 20;
     optional bytes f21 = 21;
     optional BLEAdvertisement f22 = 22;
@@ -312,7 +312,7 @@ message PhoneToGame {
     optional float f7 = 7;
     optional float f8 = 8;
     optional double f9 = 9;
-    optional int32 f10 = 10;
+    optional int32 seqno = 10;
 }
 enum BoostModeState_Type {
     BOOST1 = 1;
@@ -345,40 +345,40 @@ message GameSessionInfo {
     optional bool f13 = 13;
 }
 message GameToPhone {
-    optional uint32 f1 = 1;
-    optional uint32 f2 = 2;
-    optional uint64 f3 = 3;
-    optional uint64 f4 = 4;
+    optional uint32 seqno = 1;
+    optional uint32 ack_seqno = 2;
+    optional uint64 player_id = 3;
+    optional int64 world_id = 4;
     optional PlayerState player_state = 5;
     optional bool f6 = 6;
-    optional bool f7 = 7;
+    optional bool use_metric = 7;
     optional PlayerProfile player_profile = 8;
     repeated RiderListEntry riders = 9;
     optional float f10 = 10;
     repeated GameToPhoneCommand game_to_phone_cmds = 11;
-    optional uint64 f12 = 12;
+    optional uint64 time = 12;
 }
 message GameToPhoneCommand {
-    required uint32 f1 = 1;
+    required uint32 seqno = 1;
     optional GameToPhoneCommandType type = 2;
-    optional uint32 f3 = 3;
+    optional uint32 powerup_id = 3;
     optional string f4 = 4;
     //5 is absent
     optional string f6 = 6;
-    optional uint32 f7 = 7;
+    optional uint32 powerup_param = 7;
     optional uint32 f8 = 8;
     optional uint32 f9 = 9;
     optional string f10 = 10;
     optional string f11 = 11;
     optional string f12 = 12;
     optional bool f13 = 13;
-    optional string f14 = 14;
-    optional string f15 = 15;
+    optional bytes img_bits = 14;
+    optional string img_name = 15;
     optional SocialPlayerAction spa = 16;
     optional MobileAlert mobile_alert = 17;
     optional BLEPeripheralRequest ble_rq = 18;
-    optional bool f19 = 19;
-    optional string f20 = 20;
+    optional bool status_good = 19;
+    optional string act_name = 20;
     optional string f21 = 21;
     optional uint32 f22 = 22;
 }
