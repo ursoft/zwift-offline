@@ -69,36 +69,6 @@ std::future<NetworkResponse<RET>> makeNetworkResponseFuture(NetworkRequestOutcom
     immediate.set_value(NetworkResponse<RET>{msg, code});
     return ret;
 }
-namespace zwift_network {
-    struct Motion { //32 bytes
-        float m_ptg_f3 = 0.0f;
-        float m_ptg_f4 = 0.0f;
-        float m_ptg_f5 = 0.0f;
-        float m_ptg_f6 = 0.0f;
-        float m_ptg_f7 = 0.0f;
-        float m_ptg_f8 = 0.0f;
-        double m_ptg_f9 = 0.0;
-    };
-    void get_goals(int64_t playerId);
-    void save_goal(const protobuf::Goal &);
-    std::future<NetworkResponse<std::string>> log_out();
-    std::future<NetworkResponse<void>> reset_password(const std::string &newPwd);
-    std::future<NetworkResponse<protobuf::PlayerState>> latest_player_state(int64_t worldId, int64_t playerId);
-}
-struct ProfileRequestLazyContext {
-    struct PlayerIdProvider {
-        virtual std::unordered_set<int64_t> getPlayerIds(uint32_t key) = 0;
-    };
-    uint32_t m_key = 0;
-    PlayerIdProvider *m_prov;
-    ProfileRequestLazyContext(uint32_t key, PlayerIdProvider *prov) : m_key(key), m_prov(prov) {}
-    std::unordered_set<int64_t> getPlayerIds() const {
-        std::unordered_set<int64_t> ret;
-        if (m_prov)
-            ret = m_prov->getPlayerIds(m_key);
-        return ret;
-    }
-};
 namespace model {
     struct EventSignupResponse {
         std::string m_riderStartTime;
@@ -149,6 +119,102 @@ zwift_network::model::WorkoutsFromPartner::getOutcome(void)
 zwift_network::model::WorkoutsFromPartner::getPartner(void)
 zwift_network::model::WorkoutsFromPartner::getWorkouts(void)*/
 }
+namespace zwift_network {
+    struct Motion { //32 bytes
+        float m_ptg_f3 = 0.0f;
+        float m_ptg_f4 = 0.0f;
+        float m_ptg_f5 = 0.0f;
+        float m_ptg_f6 = 0.0f;
+        float m_ptg_f7 = 0.0f;
+        float m_ptg_f8 = 0.0f;
+        double m_ptg_f9 = 0.0;
+    };
+    std::future<NetworkResponse<protobuf::Goals>> get_goals(int64_t playerId);
+    std::future<NetworkResponse<protobuf::Goal>> save_goal(const protobuf::Goal &);
+    std::future<NetworkResponse<std::string>> log_out();
+    std::future<NetworkResponse<void>> reset_password(const std::string &newPwd);
+    std::future<NetworkResponse<protobuf::PlayerState>> latest_player_state(int64_t worldId, int64_t playerId);
+    std::future<NetworkResponse<Json::Value>> get_activity_recommendations(const std::string &aGoal);
+    std::future<NetworkResponse<protobuf::PowerCurveAggregationMsg>> get_best_efforts_power_curve_from_all_time();
+    NetworkRequestOutcome send_activate_power_up_command(int powerupId, int powerupParam);
+    NetworkRequestOutcome unsubscribe_from_segment(int64_t id);
+    NetworkRequestOutcome send_customize_action_button_command(uint32_t a2, uint32_t a3, char *a4, char *a5, bool a6);
+    bool pop_server_to_client(std::shared_ptr<protobuf::ServerToClient> &dest);
+    std::future<NetworkResponse<bool>> create_subgroup_registration(int64_t id);
+    std::future<NetworkResponse<int64_t>> create_activity_ride_on(int64_t playerIdSender, int64_t playerIdTarget);
+    std::future<NetworkResponse<void>> accept_private_event_invitation(int64_t id);
+    std::future<NetworkResponse<void>> create_race_result_entry(const protobuf::RaceResultEntrySaveRequest &rq);
+    std::future<NetworkResponse<protobuf::ZFileProto>> create_zfile(const protobuf::ZFileProto &p);
+    std::future<NetworkResponse<protobuf_bytes>> download_zfile(int64_t id);
+    std::future<NetworkResponse<void>> erase_zfile(int64_t id);
+    std::future<NetworkResponse<protobuf::Achievements>> get_achievements();
+    std::future<NetworkResponse<protobuf::ListPublicActiveCampaignResponse>> get_active_campaigns();
+    std::future<NetworkResponse<protobuf::EventsProtobuf>> get_events(const model::EventsSearch &es);
+    std::future<NetworkResponse<protobuf::FeatureResponse>> get_feature_response(const protobuf::FeatureRequest &rq);
+    std::future<NetworkResponse<protobuf::LateJoinInformation>> get_late_join_information(int64_t meetupId);
+    std::future<NetworkResponse<protobuf::PlaybackMetadataList>> get_my_playbacks(int64_t a2);
+    std::future<NetworkResponse<protobuf::PlaybackData>> get_playback_data(const protobuf::PlaybackMetadata &md);
+    std::future<NetworkResponse<protobuf::PrivateEventProto>> get_private_event(int64_t id);
+    std::future<NetworkResponse<protobuf::ZFilesProto>> list_zfiles(const std::string &folder);
+    std::future<NetworkResponse<protobuf::ProfileEntitlements>> my_profile_entitlements();
+    std::future<NetworkResponse<void>> reject_private_event_invitation(int64_t id);
+    std::future<NetworkResponse<void>> reset_my_active_club();
+    std::future<NetworkResponse<std::string>> save_playback(const protobuf::PlaybackData &data);
+    std::future<NetworkResponse<void>> save_route_result(const protobuf::RouteResultSaveRequest &r);
+    std::future<NetworkResponse<int64_t>> save_segment_result(const protobuf::SegmentResult &sr);
+    std::future<NetworkResponse<void>> set_my_active_club(const protobuf::UUID &id);
+    std::future<NetworkResponse<void>> unlock_achievements(const protobuf::AchievementUnlockRequest &rq);
+    std::future<NetworkResponse<protobuf::CampaignRegistrationResponse>> enroll_in_campaign_v2(const std::string &sn);
+    std::future<NetworkResponse<protobuf::ListCampaignRegistrationSummaryResponse>> get_campaigns_v2();
+    std::future<NetworkResponse<protobuf::CampaignRegistrationResponse>> get_registration_in_campaign_v2(const std::string &sn);
+    std::future<NetworkResponse<protobuf::EventsProtobuf>> get_events_in_interval(const std::string &start, const std::string &end, int limit);
+    std::future<NetworkResponse<protobuf::PlaybackMetadata>> get_my_playback_latest(int64_t a2, uint64_t after, uint64_t before);
+    std::future<NetworkResponse<protobuf::PlaybackMetadata>> get_my_playback_pr(int64_t a2, uint64_t after, uint64_t before);
+    std::future<NetworkResponse<protobuf::Clubs>> list_my_clubs(Optional<protobuf::Membership_Status> status, Optional<int> start, Optional<int> limit);
+    std::future<NetworkResponse<protobuf::PrivateEventFeedListProto>> private_event_feed(int64_t start_date, int64_t end_date, Optional<protobuf::EventInviteStatus> status, bool organizer_only_past_events);
+    std::future<NetworkResponse<void>> create_user(const std::string &email, const std::string &pwd, const std::string &firstN, const std::string &lastN);
+    std::future<NetworkResponse<protobuf::PlayerProfile>> my_profile();
+    std::future<NetworkResponse<int64_t>> save_world_attribute(const protobuf::WorldAttribute &wa);
+    std::future<NetworkResponse<protobuf::EventProtobuf>> get_event(int64_t id);
+    std::future<NetworkResponse<protobuf::PlayerSocialNetwork>> get_followees(int64_t profileId, bool followRequests);
+    std::future<NetworkResponse<protobuf::RaceResultSummary>> get_subgroup_race_result_summary(int64_t sid);
+    std::future<NetworkResponse<bool>> register_for_event_subgroup(int64_t id);
+    std::future<NetworkResponse<std::string>> log_in_with_oauth2_credentials(const std::string &sOauth, const std::vector<std::string> &a4, const std::string &oauthClient);
+    std::future<NetworkResponse<std::string>> log_in_with_email_and_password(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient);
+    std::future<NetworkResponse<void>> remove_followee(int64_t playerId, int64_t followeeId);
+    std::future<NetworkResponse<protobuf::SocialNetworkStatus>> add_followee(int64_t playerId, int64_t followeeId, bool a5, protobuf::ProfileFollowStatus pfs);
+    std::future<NetworkResponse<model::EventSignupResponse>> create_subgroup_signup(int64_t id);
+    std::future<NetworkResponse<protobuf::ZFileProto>> create_zfile_gzip(const std::string &name, const std::string &folder, const std::string &filePath);
+    std::future<NetworkResponse<void>> delete_activity(int64_t playerId, int64_t actId);
+    std::future<NetworkResponse<bool>> delete_subgroup_signup(int64_t id);
+    std::future<NetworkResponse<bool>> remove_signup_for_event(int64_t id);
+    std::future<NetworkResponse<void>> save_time_crossing_start_line(int64_t eventId, const protobuf::CrossingStartingLineProto &csl);
+    std::future<NetworkResponse<model::EventSignupResponse>> signup_for_event_subgroup(int64_t eventId);
+    std::future<NetworkResponse<protobuf::PlayerProfiles>> get_event_subgroup_entrants(protobuf::EventParticipation ep, int64_t eventId, uint32_t limit);
+    std::future<NetworkResponse<int64_t>> save_activity_image(int64_t profileId, const protobuf::ActivityImage &img, const std::string &imgPath);
+    std::future<NetworkResponse<void>> remove_goal(int64_t playerId, int64_t goalId);
+    std::future<NetworkResponse<int64_t>> save_activity(const protobuf::Activity &act, bool uploadToStrava, const std::string &fitPath);
+    std::future<NetworkResponse<protobuf::SegmentResults>> query_segment_results(int64_t serverRealm, int64_t segmentId, const std::string &from, const std::string &to, bool full);
+    std::future<NetworkResponse<void>> update_profile(const protobuf::PlayerProfile &prof, bool inGameFields);
+    std::future<NetworkResponse<protobuf::ActivityList>> get_activities(int64_t profileId, const Optional<int64_t> &startsAfter, const Optional<int64_t> &startsBefore, bool fetchSnapshots);
+    std::future<NetworkResponse<protobuf::PlayerProfile>> profile(int64_t profileId, bool bSocial);
+    std::future<NetworkResponse<protobuf::SegmentResults>> subscribe_to_segment_and_get_leaderboard(int64_t sid);
+}
+NetworkRequestOutcome ZNETWORK_ClearPlayerPowerups();
+struct ProfileRequestLazyContext {
+    struct PlayerIdProvider {
+        virtual std::unordered_set<int64_t> getPlayerIds(uint32_t key) = 0;
+    };
+    uint32_t m_key = 0;
+    PlayerIdProvider *m_prov;
+    ProfileRequestLazyContext(uint32_t key, PlayerIdProvider *prov) : m_key(key), m_prov(prov) {}
+    std::unordered_set<int64_t> getPlayerIds() const {
+        std::unordered_set<int64_t> ret;
+        if (m_prov)
+            ret = m_prov->getPlayerIds(m_key);
+        return ret;
+    }
+};
 struct NetworkClient {
     NetworkClientImpl *m_pImpl;
     NetworkClient();
@@ -156,13 +222,6 @@ struct NetworkClient {
     static void globalInitialize();
     static void globalCleanup();
     void initialize(const std::string &server, const std::string &certs, const std::string &version);
-    std::future<NetworkResponse<std::string>> logInWithOauth2Credentials(const std::string &sOauth, const std::vector<std::string> &a4, const std::string &oauthClient);
-    std::future<NetworkResponse<std::string>> logInWithEmailAndPassword(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient);
-    std::future<NetworkResponse<std::string>> logOut();
-    std::future<NetworkResponse<void>> resetPassword(const std::string &newPwd);
-    std::future<NetworkResponse<protobuf::PlayerState>> latestPlayerState(int64_t worldId, int64_t playerId);
-    std::future<NetworkResponse<void>> removeFollowee(int64_t playerId, int64_t followeeId);
-    std::future<NetworkResponse<protobuf::SocialNetworkStatus>> addFollowee(int64_t playerId, int64_t followeeId, bool a5, protobuf::ProfileFollowStatus pfs);
 };
 namespace ZNet {
     struct Error {
