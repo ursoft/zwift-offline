@@ -41,3 +41,5 @@ future/lib/total code(kb): 9149/7214/16364, badNames=37623; libs/total: 56%: 351
 future/lib/total code(kb): 9110/7253/16364, badNames=37250; libs/total: 56%: 35246/62119 - 1:1 (1st iter)
 future/lib/total code(kb): 9094/7270/16364, badNames=37214; libs/total: 56%: 35346/62119 - done with TcpClient
 future/lib/total code(kb): 9068/7296/16364, badNames=37155; libs/total: 57%: 35419/62119 - done with AuxiliaryController
+future/lib/total code(kb): 8997/7367/16364, badNames=37100; libs/total: 57%: 35708/62119 - NetworkClientImpl 30%
+future/lib/total code(kb): 8959/7404/16364, badNames=37062; libs/total: 57%: 35846/62119 - NetworkClientImpl 70%

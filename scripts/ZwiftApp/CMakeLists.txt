@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(ZwiftApp)
 
-add_compile_options("/nologo")
+add_compile_options(/nologo /bigobj)
 include(cmake/thirdparty.cmake)
 
 add_executable(${PROJECT_NAME} WIN32)

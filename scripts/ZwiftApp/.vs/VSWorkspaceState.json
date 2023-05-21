@@ -10,8 +10,8 @@
     "",
     "\\cmake",
     "\\cpp",
-    "\\protobuf",
     "\\res"
   ],
+  "SelectedNode": "\\CMakeLists.txt",
   "PreviewInSolutionExplorer": false
 }

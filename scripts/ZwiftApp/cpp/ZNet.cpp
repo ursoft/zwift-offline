@@ -3,6 +3,7 @@
 #include "concurrentqueue/concurrentqueue.h"
 #include "openssl/md5.h"
 #include "xxhash.h"
+#include <regex>
 std::vector<uint8_t> fix_google(const protobuf_bytes &src) { return std::vector<uint8_t>((uint8_t *)src.data(), (uint8_t *)src.data() + src.length()); }
 bool g_NetworkOn;
 void ZNETWORK_Shutdown() {
@@ -629,7 +630,7 @@ struct GlobalState { //0x530 bytes
     std::mutex m_mutex;
     bool m_shouldUseEncryption;
     GlobalState(EventLoop *, const protobuf::PerSessionInfo &, const std::string &, const EncryptionInfo &);
-    bool shouldUseEncryption() { return m_shouldUseEncryption; }
+    bool shouldUseEncryption() const { return m_shouldUseEncryption; }
     void registerUdpConfigListener(UdpConfigListener *lis);
     void registerEncryptionListener(EncryptionListener *lis);
     void registerWorldIdListener(WorldIdListener *lis);
@@ -2935,7 +2936,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
     uint8_t m_rxBuf[1492] = {}, m_txBuf[1492] = {};
     boost::asio::ip::udp::endpoint m_senderEndpoint, m_connEndpoint;
     moodycamel::ReaderWriterQueue<std::pair<std::shared_ptr<protobuf::ServerToClient>, uint64_t>> m_stcs;
-    moodycamel::ReaderWriterQueue<uint64_t> m_field_1000;
+    moodycamel::ReaderWriterQueue<uint64_t> m_updatedIds;
     std::map<uint64_t, uint64_t> m_field_FC0;
     std::vector<uint8_t> m_decVector, m_encVector;
     PeriodicLogger m_periodicLogger;
@@ -4666,7 +4667,7 @@ struct AuxiliaryController : public WorldIdListener { //0x105B8-16 bytes
     protobuf::IPProtocol m_proto = protobuf::TCP;
     uint16_t m_hardPort = 0;
     bool m_stopped = true, m_encryption = false, m_writeToMot2 = false, m_hasMotionData = false, m_connectedOK = false, 
-        m_lastStatus = false, m_gtp_f6 = false, m_use_metric = false, m_connInProgress = false, m_ci2telemetry_sent = false, m_socketWriteInProgress = false;
+        m_lastStatus = false, m_teleportAllowed = false, m_use_metric = false, m_connInProgress = false, m_ci2telemetry_sent = false, m_socketWriteInProgress = false;
     AuxiliaryController(int64_t playerId, GlobalState *gs, WorldClockService *wcs, /*OMIT AuxiliaryControllerStatistics*/std::function<void()> f) : 
         m_gs(gs), m_wcs(wcs), m_ncs(wcs->m_ncs), m_socket(m_asioCtx), m_tmrConnect(m_asioCtx), m_tmrKeepAlive(m_asioCtx), m_tmrKeepAliveIOS(m_asioCtx), m_func(f) {}
     void send_game_to_phone(protobuf::GameToPhone *gtp) {
@@ -4674,7 +4675,7 @@ struct AuxiliaryController : public WorldIdListener { //0x105B8-16 bytes
             m_buf[0] = 1;
             gtp->set_seqno(_InterlockedExchangeAdd(&m_seqNoGtp, 1));
             gtp->set_ack_seqno(m_maxPtgSeqno);
-            gtp->set_f6(m_gtp_f6);
+            gtp->set_teleport_allowed(m_teleportAllowed);
             gtp->set_use_metric(m_use_metric);
             gtp->set_time(m_wcs->getWorldTime());
             {
@@ -5331,7 +5332,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
     AuxiliaryController *m_aux = nullptr;
     moodycamel::ReaderWriterQueue<const AuxiliaryControllerAddress> m_rwqAux;
     AuxiliaryControllerAddress m_curAux;
-    uint32_t m_field_10 = 100;
+    uint32_t m_limitProfPerRq = 100;
     bool m_tcpDisconnected = false, m_initOK = false, m_loginOK = false, m_someFunc0 = false;
     NetworkClientImpl() : m_rwqAux(1) {
         google::protobuf::internal::VerifyVersion(3021000 /* URSOFT FIX: slightly up from 3020000*/, 3020000, __FILE__);
@@ -5374,7 +5375,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
             FreeAndNil(m_aux);
         }
     }
-    void LogStart() {
+    void logLibSummary() {
         NetworkingLogInfo("CNL %s", g_CNL_VER.c_str());
         NetworkingLogInfo("Machine Id: %s", m_machine.m_id.c_str());
     }
@@ -5384,7 +5385,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         m_curlf.initialize(zaVersion, m_machine.m_id);
         _time64(&m_netStartTime1);
         m_netStartTime2 = m_netStartTime1;
-        LogStart();
+        logLibSummary();
         bool skipCertCheck = m_nco.m_skipCertCheck;
         //smart shared pointers actively used here, but what for???
         m_httpConnMgr0 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL);
@@ -5440,7 +5441,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         m_hashSeed1->start();
         m_hashSeed2 = new HashSeedService(m_evLoop, m_globalState, m_relay, m_wclock, true);
         m_hashSeed2->start();
-        m_profRqDebouncer = new ProfileRequestDebouncer(m_evLoop, m_restInvoker, m_field_10);
+        m_profRqDebouncer = new ProfileRequestDebouncer(m_evLoop, m_restInvoker, m_limitProfPerRq);
         if (!m_nco.m_bHttpOnly) {
             m_udpClient = new UdpClient(m_globalState, m_wclock, m_hashSeed1, m_hashSeed2, m_udpStat, m_relay, this);
             m_globalState->registerUdpConfigListener(m_udpClient);
@@ -5996,330 +5997,212 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         InitializeCNLfirst(protobuf::PlayerProfile, m_restInvoker);
         if (profileId > 0) {
             if (!m_profRqDebouncer || bSocial)
-                m_restInvoker->profileByPlayerId(profileId, bSocial);
+                return m_restInvoker->profileByPlayerId(profileId, bSocial);
             else
-                m_profRqDebouncer->addRequest(profileId);
+                return m_profRqDebouncer->addRequest(profileId);
         } else {
             return makeNetworkResponseFuture<protobuf::PlayerProfile>(NRO_INVALID_ARGUMENT, "Invalid player id"s);
         }
     }
     std::future<NetworkResponse<protobuf::SegmentResults>> subscribeToSegmentAndGetLeaderboard(int64_t sid) {
-        InitializeCNLfirst(protobuf::SegmentResults, m_loginOK);
-        if (m_someFunc0) {
-            return makeNetworkResponseFuture<protobuf::SegmentResults>(NRO_DISCONNECTED_DUE_TO_SIMULTANEOUS_LOGINS, "Log out other connection first"s);
+        if (m_loginOK) {
+            if (m_someFunc0) {
+                return makeNetworkResponseFuture<protobuf::SegmentResults>(NRO_DISCONNECTED_DUE_TO_SIMULTANEOUS_LOGINS, "Log out other connection first"s);
+            } else {
+                if (m_tcpClient)
+                    return m_tcpClient->subscribeToSegmentAndGetLeaderboard(sid);
+                else
+                    return makeNetworkResponseFuture<protobuf::SegmentResults>(NRO_NO_PLAYER_ID_YET, "Get my profile first"s);
+            }
         } else {
-            if (m_tcpClient)
-                m_tcpClient->subscribeToSegmentAndGetLeaderboard(sid);
-            else
-                return makeNetworkResponseFuture<protobuf::SegmentResults>(NRO_NO_PLAYER_ID_YET, "Get my profile first"s);
+            return makeNetworkResponseFuture<protobuf::SegmentResults>(NRO_NOT_LOGGED_IN, "Log in first"s);
         }
     }
-    NetworkRequestOutcome sendPlayerState(int64_t id, const protobuf::PlayerState &pst) {
-        //TODO
+    std::future<NetworkResponse<protobuf::PlayerProfiles>> profiles(const std::unordered_set<int64_t> &rq) {
+        InitializeCNLfirst(protobuf::PlayerProfiles, m_restInvoker);
+        if (rq.empty())
+            return makeNetworkResponseFuture<protobuf::PlayerProfiles>(NRO_INVALID_ARGUMENT, "Empty player ids"s);
+        for (auto i : rq)
+            if (i <= 0)
+                return makeNetworkResponseFuture<protobuf::PlayerProfiles>(NRO_INVALID_ARGUMENT, "Invalid player ids"s);
+        if (rq.size() <= m_limitProfPerRq)
+            return m_restInvoker->profilesByPlayerIds(rq);
+        return makeNetworkResponseFuture<protobuf::PlayerProfiles>(NRO_INVALID_ARGUMENT, 
+            "Requested number of players "s + std::to_string(rq.size()) + " exceeded maximum allowed of " + 
+            std::to_string(m_limitProfPerRq) + " per request"s);
     }
-    enum ProfileProperties { nope };
-    static void validateProperty(ProfileProperties pp, const std::string &ppval) {
-        //TODO
+    bool shouldTryToEnableEncryptionWithZc() {
+        if (m_nco.m_disableEncryptionWithZc)
+            return false;
+        if (m_nco.m_zcSecretKeyBase64.length() || m_nco.m_ignoreEncryptionFeatureFlag)
+            return true;
+        else
+            return m_globalState->shouldUseEncryption();
+    }
+    NetworkRequestOutcome sendPlayerState(int64_t id, const protobuf::PlayerState &pst) {
+        if (!m_loginOK)
+            return NRO_NOT_LOGGED_IN;
+        if (!m_aux || !m_aux->m_connectedOK || !m_aux->m_lastStatus) {
+            auto tmNow = _time64(nullptr);
+            if (m_aux) {
+                m_rwqAux.try_dequeue(m_curAux);
+                if (m_curAux.m_localIp.length()) {
+                    auto need_pause = (_difftime64(tmNow, m_netStartTime1) < 120.0) ? 1.0 : 15.0;
+                    if (_difftime64(tmNow, m_netStartTime2) > need_pause) {
+                        if (m_aux->m_stopped) {
+                            auto en = shouldTryToEnableEncryptionWithZc();
+                            m_aux->start(m_curAux, en, m_nco.m_zcSecurePort, m_nco.m_zcSecretKeyBase64);
+                        } else {
+                            m_aux->reconnect(m_curAux);
+                        }
+                        _time64(&m_netStartTime2);
+                    }
+                }
+            }
+        }
+        auto ret = m_udpClient->sendPlayerState(id, pst);
+        if (m_aux && m_aux->m_connectedOK && m_aux->m_lastStatus && ret == NRO_OK && m_globalState->getPlayerId() == pst.id())
+            m_aux->send_player_state(pst);
+        return ret;
+    }
+    std::future<NetworkResponse<protobuf::DropInWorldList>> fetchDropInWorldList() {
+        InitializeCNLfirst(protobuf::DropInWorldList, m_relay);
+        return m_relay->fetchDropInWorldList(false);
+    }
+    std::future<NetworkResponse<protobuf::DropInWorldList>> fetchWorldsCountsAndCapacities() {
+        InitializeCNLfirst(protobuf::DropInWorldList, m_relay);
+        return m_relay->fetchDropInWorldList(true);
+    }
+    std::list<ValidateProperty> parseValidationErrorMessage(const std::string &msg) {
+        std::list<ValidateProperty> ret;
+        size_t parsePos = 0;
+        auto pref = "[PARAMETER]\r"s, suff = "]\r"s;
+        const int skipSuf = 3; //or less?
+        while (parsePos < msg.length()) {
+            parsePos = msg.find(pref, parsePos);
+            if (parsePos == -1)
+                break;
+            parsePos += pref.length();
+            for (int i = 0; i < skipSuf; i++) {
+                parsePos = msg.find(suff, parsePos + 1);
+                if (parsePos == -1)
+                    break;
+            }
+            if (parsePos == -1)
+                break;
+            parsePos += 3;
+            if (parsePos < msg.length()) {
+                if (msg.find("email_required"s, parsePos) != -1) ret.push_back(VP_EMAIL_REQ);
+                else if (msg.find("email_wrong_length"s, parsePos) != -1) ret.push_back(VP_EMAIL_WRONG_LEN);
+                else if (msg.find("email_too_short"s, parsePos) != -1) ret.push_back(VP_EMAIL_SHORT);
+                else if (msg.find("email_too_long"s, parsePos) != -1) ret.push_back(VP_EMAIL_LONG);
+                else if (msg.find("email_invalid"s, parsePos) != -1) ret.push_back(VP_EMAIL_FORMAT);
+                else if (msg.find("emails_must_match"s, parsePos) != -1) ret.push_back(VP_EMAIL_UNEQ);
+                else if (msg.find("profile_required"s, parsePos) != -1) ret.push_back(VP_PROF_REQ);
+                else if (msg.find("profile_not_allowed"s, parsePos) != -1) ret.push_back(VP_PROF_UN);
+                else if (msg.find("profile_id_must_be_0"s, parsePos) != -1) ret.push_back(VP_PROF_NN);
+                else if (msg.find("profile_ids_must_match"s, parsePos) != -1) ret.push_back(VP_PROF_UNEQ);
+                else if (msg.find("profile_invalid"s, parsePos) != -1) ret.push_back(VP_PROF_INV);
+                else if (msg.find("password_required"s, parsePos) != -1) ret.push_back(VP_PSW_REQ);
+                else if (msg.find("password_wrong_length"s, parsePos) != -1) ret.push_back(VP_PSW_LEN);
+                else if (msg.find("password_too_short"s, parsePos) != -1) ret.push_back(VP_PSW_SHORT);
+                else if (msg.find("password_too_long"s, parsePos) != -1) ret.push_back(VP_PSW_LONG);
+                else if (msg.find("password_invalid"s, parsePos) != -1) ret.push_back(VP_PSW_FORMAT);
+                else if (msg.find("password_mismatch"s, parsePos) != -1) ret.push_back(VP_PSW_UNEQ);
+                else if (msg.find("first_name_required"s, parsePos) != -1) ret.push_back(VP_FN_REQ);
+                else if (msg.find("first_name_wrong_length"s, parsePos) != -1) ret.push_back(VP_FN_LEN);
+                else if (msg.find("first_name_too_short"s, parsePos) != -1) ret.push_back(VP_FN_SHORT);
+                else if (msg.find("first_name_too_long"s, parsePos) != -1) ret.push_back(VP_FN_LONG);
+                else if (msg.find("last_name_required"s, parsePos) != -1) ret.push_back(VP_LN_REQ);
+                else if (msg.find("last_name_wrong_length"s, parsePos) != -1) ret.push_back(VP_LN_LEN);
+                else if (msg.find("last_name_too_short"s, parsePos) != -1) ret.push_back(VP_LN_SHORT);
+                else if (msg.find("last_name_too_long"s, parsePos) != -1) ret.push_back(VP_LN_LONG);
+            }
+        }
+        if (ret.empty()) {
+            NetworkingLogError("Could not parse error_message string: %s", msg.c_str());
+            ret.push_back(VP_PARSE_ERROR);
+        }
+        return ret;
+    }
+    bool popPhoneToGameCommand(protobuf::PhoneToGameCommand *pDest) {
+        if (m_aux)
+            return m_aux->pop_phone_to_game_command(pDest);
+        else
+            return false;
     }
 
     /*
-void campaignSummary(const std::string &)
-void connectLanExerciseDevice(uint32_t,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)
-void deleteSubgroupRegistration(int64_t)
+LATER: void connectLanExerciseDevice(uint32_t,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)
+void disconnectLanExerciseDevice(uint32_t)
+void registerLanExerciseDeviceMessageReceivedCallback(std::function<void ()(zwift_network::LanExerciseDeviceInfo const&,const std::vector<uchar> &)> const&)
+void registerLanExerciseDeviceStatusCallback(std::function<void ()(zwift_network::LanExerciseDeviceInfo const&)> const&)
+void startScanningForLanExerciseDevices()
+void stopScanningForLanExerciseDevices()
+void getConnectionQuality()
+void sendDeviceDiagnostics(const std::string &,const std::string &,const std::vector<uchar> &)
+void sendMessageToLanExerciseDevice(uint32_t,const std::vector<uchar> &)
 
 ABSENT in PC void createWorkout(const std::string &,protobuf::Sport,const std::string &)
 void deleteActivityImage(int64_t,int64_t,int64_t)
 void deletePlayback(const std::string &)
-
+void deleteSubgroupRegistration(int64_t)
 void deleteWorkout(const std::string &)
-void deregisterTelemetryJson(const std::string &)
-void disconnectLanExerciseDevice(uint32_t)
 void editWorkout(const std::string &,const std::string &,protobuf::Sport,const std::string &)
-void enrollInCampaign(const std::string &)
-void enrollInCampaignV2(const std::string &)
 void fetchAssetSummary(const std::string &)
 void fetchCustomWorkouts(zwift_network::Optional<std::string>)
-void fetchDropInWorldList()
-void fetchUpcomingWorkouts()
-void fetchWorkout(zwift_network::model::WorkoutPartnerEnum,const std::string &)
-void fetchWorldsCountsAndCapacities()
-void fromIso8601(const std::string &)
-void get(const std::string &)
 void getActivity(int64_t,int64_t,bool)
 void getActivityImage(int64_t,int64_t,int64_t)
-void getAllFirmwareReleases(const std::string &)
 void getAvailablePowerCurveYears()
-void getBestEffortsPowerCurveByDays(zwift_network::PowerCurveAggregationDays)
-void getBestEffortsPowerCurveByYear(int)
-void getCampaignsV2()
-void getCompletedCampaigns()
-void getConnectionMetrics(zwift_network::ConnectivityInfo &)
-void getConnectionQuality()
-void getEvent(int64_t)
 void getEventRaceResult(int64_t,zwift_network::Optional<int>,zwift_network::Optional<int>)
 void getEventRaceResultSummary(int64_t)
-void getEvents(zwift_network::model::EventsSearch const&)
-void getEventsInInterval(const std::string &,const std::string &,int)
-void getFeatureResponse(protobuf::experimentation::FeatureRequest const&)
-void getFeatureResponseByMachineId(protobuf::experimentation::FeatureRequest const&)
-void getFirmwareRelease(const std::string &,const std::string &)
-OMIT: void getFirmwareUpdates(std::vector<zwift_network::model::FirmwareRequest> const&)
-void getFollowees(int64_t,bool)
-void getFollowees(int64_t,int64_t,bool)
+void getSubgroupRaceResult(int64_t,zwift_network::Optional<int>,zwift_network::Optional<int>)
+void updateFollower(int64_t,int64_t,bool,protobuf::ProfileFollowStatus)
 void getFollowers(int64_t,bool)
 void getFollowers(int64_t,int64_t,bool)
-void getLibVersion()
-void getMyEvents(zwift_network::model::BaseEventsSearch const&)
-void getMyPlaybackLatest(int64_t,uint64_t,uint64_t)
-void getMyPlaybackPr(int64_t,uint64_t,uint64_t)
-void getNotifications()
-void getPlaybackData(protobuf::playback::PlaybackMetadata const&)
-void getPlayerId()
-void getPrivateEvent(int64_t)
-void getProgressInCampaignV2(const std::string &)
-void getRegistrationInCampaignV2(const std::string &)
-void getSegmentJerseyLeaders()
 void getSegmentResult(int64_t)
-void getSessionId()
-void getSubgroupRaceResult(int64_t,zwift_network::Optional<int>,zwift_network::Optional<int>)
-void getSubgroupRaceResultSummary(int64_t)
-void getVersion()
-void globalCleanup()
-void globalInitialize()
-void handleDisconnectRequested(bool)
-void handleWorldAndMapRevisionChanged(int64_t,uint32_t)
-void initialize(const std::string &,const std::string &,std::function<void ()(char *)> const&,const std::string &,zwift_network::NetworkClientOptions const&)
-void initializeTelemetry()
-void isLoggedIn()
-void isPairedToPhone()
-void isPlayerIdInvalid(int64_t)
-void latestPlayerState(int64_t,int64_t)
-void listMyClubs(zwift_network::Optional<protobuf::club::Membership_Status>,zwift_network::Optional<int>,zwift_network::Optional<int>)
-void listPlayerTypes()
-void listZFiles(const std::string &)
-void logIn(const std::string &,const std::string &,const std::string &,std::vector<std::string> const&,const std::string &)
-void logInWithEmailAndPassword(const std::string &,const std::string &,std::vector<std::string> const&,bool,const std::string &)
-void logInWithOauth2Credentials(const std::string &,std::vector<std::string> const&,const std::string &)
-void logLibSummary()
-void logOut()
-void machineId()
-void motionData(zwift_network::Motion &)
+void getSegmentJerseyLeaders()
+void returnToHome()
+void resumeSubscription()
+void resetPassword(const std::string &)
+void getBestEffortsPowerCurveByDays(zwift_network::PowerCurveAggregationDays)
+void getBestEffortsPowerCurveByYear(int)
+void getMyEvents(zwift_network::model::BaseEventsSearch const&)
+void removeFollower(int64_t,int64_t)
+void saveProfileReminders(protobuf::PlayerProfile const&)
+void getNotifications()
+void removeRegistrationForEvent(int64_t)
+void updateNotificationReadStatus(int64_t,int64_t,bool)
 void myActiveClub()
-void myProfile()
-void myProfileEntitlements()
-void networkTime()
-void noLogInAttempted()
-void onLoggedIn(protobuf::PerSessionInfo const&,const std::string &,GlobalState::EncryptionInfo const&)
-void onSaveActivityReceived(std::shared_ptr<zwift_network::NetworkResponse<int64_t> const> const&)
-void onUpdatedPlayerProfileReceived(bool,bool,bool,uint32_t)
-void parseValidationErrorMessage(const std::string &)
-void popPhoneToGameCommand(std::shared_ptr<protobuf::PhoneToGameCommand const> &)
-void popPlayerIdWithUpdatedProfile(int64_t &)
-void popWorldAttribute(std::shared_ptr<protobuf::WorldAttribute const> &)
-void privateEventFeed(int64_t,int64_t,zwift_network::Optional<protobuf::EventInviteStatusProto>,bool)
-void profile(const std::string &)
-void profiles(std::unordered_set<int64_t> const&)
-void redeemCoupon(const std::string &)
-void registerForEventSubgroup(int64_t)
+void signUrls(const std::string &,std::vector<std::string> const&)
+void uploadReceipt(protobuf::InAppPurchaseReceipt &)
+
+OMIT void initializeTelemetry()
+void getFirmwareUpdates(std::vector<zwift_network::model::FirmwareRequest> const&)
+void sendMixpanelEvent(const std::string &,std::vector<std::string> const&)
+void campaignSummary(const std::string &)
+void deregisterTelemetryJson(const std::string &)
+void enrollInCampaign(const std::string &)
+void enrollInCampaignV2(const std::string &)
+void fetchUpcomingWorkouts()
+void fetchWorkout(zwift_network::model::WorkoutPartnerEnum,const std::string &)
+void getAllFirmwareReleases(const std::string &)
+void getConnectionMetrics(zwift_network::ConnectivityInfo &)
+void getFirmwareRelease(const std::string &,const std::string &)
 void registerInCampaign(const std::string &)
 void registerInCampaignV2(const std::string &)
-void registerLanExerciseDeviceMessageReceivedCallback(std::function<void ()(zwift_network::LanExerciseDeviceInfo const&,const std::vector<uchar> &)> const&)
-void registerLanExerciseDeviceStatusCallback(std::function<void ()(zwift_network::LanExerciseDeviceInfo const&)> const&)
-void registerLoggingFunction(std::function<void ()(char *)> const&)
-void registerTelemetryJson(const std::string &,std::function<Json::Value ()(std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)> const&)
-void rejectPrivateEventInvitation(int64_t)
-void remoteLog(zwift_network::LogLevel,char const*,char const*)
-void remoteLogAndFlush(zwift_network::LogLevel,char const*,char const*)
-void removeFollower(int64_t,int64_t)
-void removeGoal(int64_t,int64_t)
-void removeRegistrationForEvent(int64_t)
-void resetCredentials()
-void resetMyActiveClub()
-void resetPassword(const std::string &)
-void resumeSubscription()
-void returnToHome()
-void roundTripLatencyInMilliseconds()
-void savePlayback(protobuf::playback::PlaybackData const&)
-void saveProfileReminders(protobuf::PlayerProfile const&)
-void saveRouteResult(protobuf::routeresults::RouteResultSaveRequest const&)
-void saveSegmentResult(protobuf::SegmentResult const&)
-void saveWorldAttribute(protobuf::WorldAttribute &)
-void sendAnalyticsEvent(const std::string &,std::vector<std::string> const&)
-void sendBlePeripheralRequest(protobuf::BLEPeripheralRequest const&)
-void sendDefaultActivityNameCommand(const std::string &)
-void sendDeviceDiagnostics(const std::string &,const std::string &,const std::vector<uchar> &)
-void sendGamePacket(const std::string &,bool)
-void sendImageToMobileApp(const std::string &,const std::string &)
-void sendMessageToLanExerciseDevice(uint32_t,const std::vector<uchar> &)
-//OMIT void sendMixpanelEvent(const std::string &,std::vector<std::string> const&)
-void sendMobileAlert(protobuf::MobileAlert const&)
-void sendMobileAlertCancelCommand(protobuf::MobileAlert const&)
-void sendPlayerProfile(protobuf::PlayerProfile const&)
-void sendRiderListEntries(std::list<protobuf::RiderListEntry> const&)
-void sendSetPowerUpCommand(const std::string &,const std::string &,const std::string &,int)
-void sendSocialPlayerAction(protobuf::SocialPlayerAction const&)
-void setMyActiveClub(protobuf::club::UUID const&)
-void setTeleportingAllowed(bool)
-void shouldTryToEnableEncryptionWithZc()
-void shutdownAuxiliaryController()
-void shutdownServiceEventLoop()
-void shutdownTcpClient()
-void shutdownUdpClient()
-void signUrls(const std::string &,std::vector<std::string> const&)
-void startScanningForLanExerciseDevices()
-void startTcpClient()
-void stopScanningForLanExerciseDevices()
-void toIso8601(int64_t)
-void unlockAchievements(protobuf::achievement::AchievementUnlockRequest const&)
-void updateFollower(int64_t,int64_t,bool,protobuf::ProfileFollowStatus)
-void updateNotificationReadStatus(int64_t,int64_t,bool)
-void updateTelemetrySampleInterval(std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)
-void uploadReceipt(protobuf::InAppPurchaseReceipt &)
+void getProgressInCampaignV2(const std::string &)
+void getRegistrationInCampaignV2(const std::string &)
+void redeemCoupon(const std::string &)
 void withdrawFromCampaign(const std::string &)
 void withdrawFromCampaignV2(const std::string &)
-void worldTime()
-~NetworkClientImpl()*/
+void sendAnalyticsEvent(const std::string &,std::vector<std::string> const&)
+void registerTelemetryJson(const std::string &,std::function<Json::Value ()(std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)> const&)
+void onSaveActivityReceived(std::shared_ptr<zwift_network::NetworkResponse<int64_t> const> const&)
+void remoteLog(zwift_network::LogLevel,char const*,char const*)
+void remoteLogAndFlush(zwift_network::LogLevel,char const*,char const*)
+*/
 };
-/*zwift_network::NetworkClient::NetworkClient(const std::string &)
-zwift_network::NetworkClient::acceptPrivateEventInvitation(int64_t)
-zwift_network::NetworkClient::campaignSummary(const std::string &)
-zwift_network::NetworkClient::connectLanExerciseDevice(uint32_t,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)
-zwift_network::NetworkClient::createRaceResultEntry(protobuf::RaceResultEntrySaveRequest const&)
-zwift_network::NetworkClient::deleteWorkout(const std::string &)
-zwift_network::NetworkClient::deregisterTelemetryJson(const std::string &)
-zwift_network::NetworkClient::disconnectLanExerciseDevice(uint32_t)
-zwift_network::NetworkClient::editWorkout(const std::string &,const std::string &,protobuf::Sport,const std::string &)
-zwift_network::NetworkClient::enrollInCampaign(const std::string &)
-zwift_network::NetworkClient::enrollInCampaignV2(const std::string &)
-zwift_network::NetworkClient::eraseZFile(int64_t)
-zwift_network::NetworkClient::fetchAssetSummary(const std::string &)
-zwift_network::NetworkClient::fetchCustomWorkouts(zwift_network::Optional<std::string>)
-zwift_network::NetworkClient::fetchDropInWorldList()
-zwift_network::NetworkClient::fetchUpcomingWorkouts()
-zwift_network::NetworkClient::fetchWorkout(zwift_network::model::WorkoutPartnerEnum,const std::string &)
-zwift_network::NetworkClient::fetchWorldsCountsAndCapacities()
-zwift_network::NetworkClient::fromIso8601(const std::string &)
-zwift_network::NetworkClient::get(const std::string &)
-zwift_network::NetworkClient::getAchievements()
-zwift_network::NetworkClient::getActiveCampaigns()
-zwift_network::NetworkClient::getActivity(int64_t,int64_t,bool)
-zwift_network::NetworkClient::getActivityImage(int64_t,int64_t,int64_t)
-zwift_network::NetworkClient::getAllFirmwareReleases(const std::string &)
-zwift_network::NetworkClient::getAvailablePowerCurveYears()
-zwift_network::NetworkClient::getBestEffortsPowerCurveByDays(zwift_network::PowerCurveAggregationDays)
-zwift_network::NetworkClient::getBestEffortsPowerCurveByYear(int)
-zwift_network::NetworkClient::getCampaignsV2()
-zwift_network::NetworkClient::getCompletedCampaigns()
-zwift_network::NetworkClient::getConnectionMetrics(zwift_network::ConnectivityInfo &)
-zwift_network::NetworkClient::getConnectionQuality()
-zwift_network::NetworkClient::getEvent(int64_t)
-zwift_network::NetworkClient::getEventRaceResult(int64_t,zwift_network::Optional<int>,zwift_network::Optional<int>)
-zwift_network::NetworkClient::getEventRaceResultSummary(int64_t)
-zwift_network::NetworkClient::getEvents(zwift_network::model::EventsSearch const&)
-zwift_network::NetworkClient::getEventsInInterval(const std::string &,const std::string &,int)
-zwift_network::NetworkClient::getFollowees(int64_t,bool)
-zwift_network::NetworkClient::getFollowees(int64_t,int64_t,bool)
-zwift_network::NetworkClient::getFollowers(int64_t,bool)
-zwift_network::NetworkClient::getFollowers(int64_t,int64_t,bool)
-zwift_network::NetworkClient::getGoals(int64_t)
-zwift_network::NetworkClient::getLateJoinInformation(int64_t)
-zwift_network::NetworkClient::getLibVersion()
-zwift_network::NetworkClient::getMyEvents(zwift_network::model::BaseEventsSearch const&)
-zwift_network::NetworkClient::getMyPlaybackLatest(int64_t,uint64_t,uint64_t)
-zwift_network::NetworkClient::getMyPlaybackPr(int64_t,uint64_t,uint64_t)
-zwift_network::NetworkClient::getNotifications()
-zwift_network::NetworkClient::getPlaybackData(protobuf::playback::PlaybackMetadata const&)
-zwift_network::NetworkClient::getPlayerId()
-zwift_network::NetworkClient::getPrivateEvent(int64_t)
-zwift_network::NetworkClient::getProgressInCampaignV2(const std::string &)
-zwift_network::NetworkClient::getRegistrationInCampaignV2(const std::string &)
-zwift_network::NetworkClient::getSegmentJerseyLeaders()
-zwift_network::NetworkClient::getSegmentResult(int64_t)
-zwift_network::NetworkClient::getSessionId()
-zwift_network::NetworkClient::getSubgroupRaceResult(int64_t,zwift_network::Optional<int>,zwift_network::Optional<int>)
-zwift_network::NetworkClient::getSubgroupRaceResultSummary(int64_t)
-zwift_network::NetworkClient::getVersion()
-zwift_network::NetworkClient::globalCleanup()
-zwift_network::NetworkClient::globalInitialize()
-zwift_network::NetworkClient::initialize(const std::string &,const std::string &,std::function<void ()(char *)> const&,const std::string &,zwift_network::NetworkClientOptions const&)
-zwift_network::NetworkClient::initializeTelemetry()
-zwift_network::NetworkClient::isLoggedIn()
-zwift_network::NetworkClient::isPairedToPhone()
-zwift_network::NetworkClient::latestPlayerState(int64_t,int64_t)
-zwift_network::NetworkClient::listMyClubs(zwift_network::Optional<protobuf::club::Membership_Status>,zwift_network::Optional<int>,zwift_network::Optional<int>)
-zwift_network::NetworkClient::listPlayerTypes()
-zwift_network::NetworkClient::listZFiles(const std::string &)
-zwift_network::NetworkClient::logIn(const std::string &,const std::string &,const std::string &,std::vector<std::string> const&,const std::string &)
-zwift_network::NetworkClient::logInWithEmailAndPassword(const std::string &,const std::string &,std::vector<std::string> const&,bool,const std::string &)
-zwift_network::NetworkClient::logInWithOauth2Credentials(const std::string &,std::vector<std::string> const&,const std::string &)
-zwift_network::NetworkClient::logOut()
-zwift_network::NetworkClient::machineId()
-zwift_network::NetworkClient::motionData(zwift_network::Motion &)
-zwift_network::NetworkClient::myActiveClub()
-zwift_network::NetworkClient::myProfile()
-zwift_network::NetworkClient::myProfileEntitlements()
-zwift_network::NetworkClient::networkTime()
-zwift_network::NetworkClient::parseValidationErrorMessage(const std::string &)
-zwift_network::NetworkClient::popPhoneToGameCommand(std::shared_ptr<protobuf::PhoneToGameCommand const> &)
-zwift_network::NetworkClient::popPlayerIdWithUpdatedProfile(int64_t &)
-zwift_network::NetworkClient::popWorldAttribute(std::shared_ptr<protobuf::WorldAttribute const> &)
-zwift_network::NetworkClient::privateEventFeed(int64_t,int64_t,zwift_network::Optional<protobuf::EventInviteStatusProto>,bool)
-zwift_network::NetworkClient::profile(const std::string &)
-zwift_network::NetworkClient::profiles(std::unordered_set<int64_t> const&)
-zwift_network::NetworkClient::redeemCoupon(const std::string &)
-zwift_network::NetworkClient::registerForEventSubgroup(int64_t)
-zwift_network::NetworkClient::registerInCampaign(const std::string &)
-zwift_network::NetworkClient::registerInCampaignV2(const std::string &)
-zwift_network::NetworkClient::registerLanExerciseDeviceMessageReceivedCallback(std::function<void ()(zwift_network::LanExerciseDeviceInfo const&,const std::vector<uchar> &)> const&)
-zwift_network::NetworkClient::registerLanExerciseDeviceStatusCallback(std::function<void ()(zwift_network::LanExerciseDeviceInfo const&)> const&)
-zwift_network::NetworkClient::registerLoggingFunction(std::function<void ()(char const*)> const&)
-zwift_network::NetworkClient::registerTelemetryJson(const std::string &,std::function<Json::Value ()(std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)> const&)
-zwift_network::NetworkClient::rejectPrivateEventInvitation(int64_t)
-zwift_network::NetworkClient::remoteLog(zwift_network::LogLevel,char const*,char const*)
-zwift_network::NetworkClient::remoteLogAndFlush(zwift_network::LogLevel,char const*,char const*)
-zwift_network::NetworkClient::removeFollower(int64_t,int64_t)
-zwift_network::NetworkClient::removeGoal(int64_t,int64_t)
-zwift_network::NetworkClient::removeRegistrationForEvent(int64_t)
-zwift_network::NetworkClient::resetCredentials()
-zwift_network::NetworkClient::resetMyActiveClub()
-zwift_network::NetworkClient::resetPassword(const std::string &)
-zwift_network::NetworkClient::resumeSubscription()
-zwift_network::NetworkClient::returnToHome()
-zwift_network::NetworkClient::roundTripLatencyInMilliseconds()
-zwift_network::NetworkClient::savePlayback(protobuf::playback::PlaybackData const&)
-zwift_network::NetworkClient::saveProfileReminders(protobuf::PlayerProfile const&)
-zwift_network::NetworkClient::saveRouteResult(protobuf::routeresults::RouteResultSaveRequest const&)
-zwift_network::NetworkClient::saveSegmentResult(protobuf::SegmentResult const&)
-zwift_network::NetworkClient::saveWorldAttribute(protobuf::WorldAttribute &)
-zwift_network::NetworkClient::sendActivatePowerUpCommand(int,uint32_t)
-zwift_network::NetworkClient::sendAnalyticsEvent(const std::string &,std::vector<std::string> const&)
-zwift_network::NetworkClient::sendBlePeripheralRequest(protobuf::BLEPeripheralRequest const&)
-zwift_network::NetworkClient::sendDefaultActivityNameCommand(const std::string &)
-zwift_network::NetworkClient::sendDeviceDiagnostics(const std::string &,const std::string &,const std::vector<uchar> &)
-zwift_network::NetworkClient::sendGamePacket(const std::string &,bool)
-zwift_network::NetworkClient::sendImageToMobileApp(const std::string &,const std::string &)
-zwift_network::NetworkClient::sendMessageToLanExerciseDevice(uint32_t,const std::vector<uchar> &)
-zwift_network::NetworkClient::sendMobileAlert(protobuf::MobileAlert const&)
-zwift_network::NetworkClient::sendMobileAlertCancelCommand(protobuf::MobileAlert const&)
-zwift_network::NetworkClient::sendPlayerProfile(protobuf::PlayerProfile const&)
-zwift_network::NetworkClient::sendRiderListEntries(std::list<protobuf::RiderListEntry> const&)
-zwift_network::NetworkClient::sendSetPowerUpCommand(const std::string &,const std::string &,const std::string &,int)
-zwift_network::NetworkClient::sendSocialPlayerAction(protobuf::SocialPlayerAction const&)
-zwift_network::NetworkClient::setMyActiveClub(protobuf::club::UUID const&)
-zwift_network::NetworkClient::setTeleportingAllowed(bool)
-zwift_network::NetworkClient::signUrls(const std::string &,std::vector<std::string> const&)
-zwift_network::NetworkClient::startScanningForLanExerciseDevices()
-zwift_network::NetworkClient::stopScanningForLanExerciseDevices()
-zwift_network::NetworkClient::toIso8601(int64_t)
-zwift_network::NetworkClient::unlockAchievements(protobuf::achievement::AchievementUnlockRequest const&)
-zwift_network::NetworkClient::updateFollower(int64_t,int64_t,bool,protobuf::ProfileFollowStatus)
-zwift_network::NetworkClient::updateNotificationReadStatus(int64_t,int64_t,bool)
-zwift_network::NetworkClient::updateTelemetrySampleInterval(std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)
-zwift_network::NetworkClient::uploadReceipt(protobuf::InAppPurchaseReceipt &)
-zwift_network::NetworkClient::withdrawFromCampaign(const std::string &)
-zwift_network::NetworkClient::withdrawFromCampaignV2(const std::string &)
-zwift_network::NetworkClient::worldTime()
-zwift_network::NetworkClient::~NetworkClient()*/
 NetworkClient::NetworkClient() { m_pImpl = new(calloc(sizeof(NetworkClientImpl), 1)) NetworkClientImpl; }
 NetworkClient::~NetworkClient() { m_pImpl->~NetworkClientImpl(); free(m_pImpl); }
 void NetworkClient::globalInitialize() { curl_global_init(CURL_GLOBAL_ALL); }
@@ -6327,6 +6210,183 @@ void NetworkClient::globalCleanup() { curl_global_cleanup(); }
 void NetworkClient::initialize(const std::string &server, const std::string &certs, const std::string &version) { m_pImpl->initialize(server, certs, version); }
 NetworkRequestOutcome ZNETWORK_ClearPlayerPowerups() { return g_networkClient->m_pImpl->sendClearPowerUpCommand(); }
 namespace zwift_network {
+NetworkRequestOutcome send_image_to_mobile_app(const std::string &pathName, const std::string &imgName) {
+    auto aux = g_networkClient->m_pImpl->m_aux;
+    if (!aux || !aux->m_connectedOK || !aux)
+        return NRO_NOT_PAIRED_TO_PHONE;
+    aux->send_image_to_mobile_app(pathName, imgName);
+    return NRO_OK;
+}
+NetworkRequestOutcome send_set_power_up_command(const std::string &a2, const std::string &a3, const std::string &a4, int puId) {
+    auto aux = g_networkClient->m_pImpl->m_aux;
+    if (!aux || !aux->m_connectedOK || !aux)
+        return NRO_NOT_PAIRED_TO_PHONE;
+    aux->send_set_power_up_command(a2, a3, a4, puId);
+    return NRO_OK;
+}
+NetworkRequestOutcome send_rider_list_entries(const std::list<protobuf::RiderListEntry> &list) {
+    auto aux = g_networkClient->m_pImpl->m_aux;
+    if (!aux || !aux->m_connectedOK || !aux)
+        return NRO_NOT_PAIRED_TO_PHONE;
+    aux->send_rider_list_entries(list);
+    return NRO_OK;
+}
+NetworkRequestOutcome send_mobile_alert_cancel_command(const protobuf::MobileAlert &ma) {
+    auto aux = g_networkClient->m_pImpl->m_aux;
+    if (!aux || !aux->m_connectedOK || !aux)
+        return NRO_NOT_PAIRED_TO_PHONE;
+    aux->send_mobile_alert_cancel_command(ma);
+    return NRO_OK;
+}
+NetworkRequestOutcome send_player_profile(const protobuf::PlayerProfile &pp) {
+    auto aux = g_networkClient->m_pImpl->m_aux;
+    if (!aux || !aux->m_connectedOK || !aux)
+        return NRO_NOT_PAIRED_TO_PHONE;
+    aux->send_player_profile(pp);
+    return NRO_OK;
+}
+NetworkRequestOutcome send_social_player_action(const protobuf::SocialPlayerAction &spa) {
+    auto aux = g_networkClient->m_pImpl->m_aux;
+    if (!aux || !aux->m_connectedOK || !aux)
+        return NRO_NOT_PAIRED_TO_PHONE;
+    aux->send_social_player_action(spa);
+    return NRO_OK;
+}
+NetworkRequestOutcome send_mobile_alert(const protobuf::MobileAlert &ma) {
+    auto aux = g_networkClient->m_pImpl->m_aux;
+    if (!aux || !aux->m_connectedOK || !aux)
+        return NRO_NOT_PAIRED_TO_PHONE;
+    aux->send_mobile_alert(ma);
+    return NRO_OK;
+}
+NetworkRequestOutcome send_default_activity_name_command(const std::string &name) {
+    auto aux = g_networkClient->m_pImpl->m_aux;
+    if (!aux || !aux->m_connectedOK || !aux)
+        return NRO_NOT_PAIRED_TO_PHONE;
+    aux->send_default_activity_name(name);
+    return NRO_OK;
+}
+NetworkRequestOutcome send_game_packet(const std::string &a2, bool force) {
+    auto aux = g_networkClient->m_pImpl->m_aux;
+    if (!aux || !aux->m_connectedOK || !aux)
+        return NRO_NOT_PAIRED_TO_PHONE;
+    aux->send_game_packet(a2, force);
+    return NRO_OK;
+}
+NetworkRequestOutcome send_ble_peripheral_request(const protobuf::BLEPeripheralRequest &rq) {
+    auto aux = g_networkClient->m_pImpl->m_aux;
+    if (!aux || !aux->m_connectedOK || !aux)
+        return NRO_NOT_PAIRED_TO_PHONE;
+    aux->send_ble_peripheral_request(rq);
+    return NRO_OK;
+}
+NetworkRequestOutcome setTeleportingAllowed(bool a) {
+    if (!g_networkClient->m_pImpl->m_aux)
+        return NRO_NO_PLAYER_ID_YET;
+    g_networkClient->m_pImpl->m_aux->m_teleportAllowed = a;
+    return NRO_OK;
+}
+bool pop_world_attribute(protobuf::WorldAttribute *dest) {
+    if (g_networkClient->m_pImpl->m_loginOK)
+        return g_networkClient->m_pImpl->m_wat->popWorldAttribute(*dest);
+    return false;
+}
+bool pop_player_id_with_updated_profile(int64_t *ret) {
+    if (!g_networkClient->m_pImpl->m_loginOK)
+        return false;
+    return g_networkClient->m_pImpl->m_udpClient->m_updatedIds.try_dequeue(*ret); // UdpClient::popPlayerIdWithUpdatedProfile
+}
+bool pop_phone_to_game_command(protobuf::PhoneToGameCommand *pDest) { return g_networkClient->m_pImpl->popPhoneToGameCommand(pDest); }
+std::future<NetworkResponse<protobuf::PlayerProfiles>> profiles(const std::unordered_set<int64_t> &rq) { return g_networkClient->m_pImpl->profiles(rq); }
+bool motion_data(Motion *dest) {
+    auto m_aux = g_networkClient->m_pImpl->m_aux;
+    if (m_aux)
+        return m_aux->motion_data(dest);
+    else
+        return false;
+}
+static const char *fmt8601 = "%Y-%m-%dT%H:%M:%SZ";
+time_t from_iso_8601(const std::string &sdt) {
+    int Y, m, d, H = 0, M = 0, S = 0;
+    auto sc = sscanf_s(sdt.c_str(), "%d-%d-%dT%d:%d:%d", &Y, &m, &d, &H, &M, &S);
+    if ((sc != 6 && sc != 3) || m > 12 || m < 1 || d < 1 || d > 31 || H < 0 || H > 23 || M < 0 || M > 59 || S < 0 || S > 59) {
+        NetworkingLogError("Invalid parameter on DateTime::fromIso8601String: %s", sdt.c_str());
+        return 0;
+    }
+    tm tm_{};
+    tm_.tm_year = Y;
+    tm_.tm_mon = m - 1;
+    tm_.tm_mday = d;
+    tm_.tm_hour = H;
+    tm_.tm_min = M;
+    tm_.tm_sec = S;
+    tm_.tm_isdst = -1;
+    return _mktime64(&tm_);
+}
+std::string to_iso_8601(time_t dt) {
+    tm tm_{};
+    if (dt == 0 || gmtime_s(&tm_, &dt)) {
+        NetworkingLogError("Invalid time on DateTime::GMT_TIME %lld", dt);
+        tm_.tm_year = 70;
+        tm_.tm_mday = 13;
+        tm_.tm_hour = 14;
+        tm_.tm_min = 15;
+        tm_.tm_sec = 16;
+    }
+    char buf[32];
+    if (strftime(buf, sizeof(buf), fmt8601, &tm_))
+        return buf;
+    NetworkingLogError("Invalid parameter on DateTime::toString: %lld %s", dt, fmt8601);
+    return "1970-01-13T14:15:16.000000+0000"s;
+}
+std::future<NetworkResponse<protobuf::DropInWorldList>> fetch_drop_in_world_list() { return g_networkClient->m_pImpl->fetchDropInWorldList(); }
+std::list<ValidateProperty> parse_validation_error_message(const std::string &msg) { return g_networkClient->m_pImpl->parseValidationErrorMessage(msg); }
+std::future<NetworkResponse<protobuf::DropInWorldList>> fetch_worlds_counts_and_capacities() { return g_networkClient->m_pImpl->fetchWorldsCountsAndCapacities(); }
+bool isPairedToPhone() {
+    auto m_aux = g_networkClient->m_pImpl->m_aux;
+    return m_aux && m_aux->m_connectedOK && m_aux->m_lastStatus;
+}
+ValidateProperty validateProperty(ProfileProperties pp, const std::string &ppval) {
+    switch (pp) {
+    case PP_EMAIL:
+        if (ppval.length() < 6)
+            return VP_EMAIL_SHORT;
+        if (ppval.length() > 255)
+            return VP_EMAIL_LONG;
+        {
+            const std::regex pattern("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-\\+]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$"
+            /*"(\\w+)(\\.|_)?(\\w*)@(\\w+)(\\.(\\w+))+"*/);
+            if (std::regex_match(ppval, pattern))
+                return VP_OK;
+        }
+        return VP_EMAIL_FORMAT;
+    case PP_PASSWORD:
+        if (ppval.length() < 8)
+            return VP_PSW_SHORT;
+        if (ppval.length() > 255)
+            return VP_PSW_LONG;
+        {
+            const std::regex pattern("^((?=.*[0-9])(?=.*[A-Za-z])(?=\\S+$).{8,255})$");
+            if (std::regex_match(ppval, pattern))
+                return VP_OK;
+        }
+        return VP_PSW_FORMAT;
+    case PP_FIRST_NAME:
+        if (ppval.length() == 0)
+            return VP_FN_SHORT;
+        if (ppval.length() > 255)
+            return VP_FN_LONG;
+        return VP_OK;
+    case PP_LAST_NAME:
+        if (ppval.length() == 0)
+            return VP_LN_SHORT;
+        if (ppval.length() > 255)
+            return VP_LN_LONG;
+        return VP_OK;
+    default:
+        return VP_OK;
+    }
+}
 std::future<NetworkResponse<bool>> remove_signup_for_event(int64_t id) { return g_networkClient->m_pImpl->removeSignupForEvent(id); }
 std::future<NetworkResponse<protobuf::SegmentResults>> query_segment_results(int64_t serverRealm, int64_t segmentId, const std::string &from, const std::string &to, bool full) {
     return g_networkClient->m_pImpl->querySegmentResults(serverRealm, segmentId, from, to, full);
@@ -6576,7 +6636,7 @@ void UdpClient::handleServerToClient(const std::shared_ptr<protobuf::ServerToCli
                         auto v22 = s.customization_id();
                         if (v21 != v22 && v22 < src->world_time() - 2000) {
                             v21 = v22;
-                            m_field_1000.enqueue(s.id());
+                            m_updatedIds.enqueue(s.id());
                         }
                     }
                 }

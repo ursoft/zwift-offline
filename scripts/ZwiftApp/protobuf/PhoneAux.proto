@@ -350,7 +350,7 @@ message GameToPhone {
     optional uint64 player_id = 3;
     optional int64 world_id = 4;
     optional PlayerState player_state = 5;
-    optional bool f6 = 6;
+    optional bool teleport_allowed = 6;
     optional bool use_metric = 7;
     optional PlayerProfile player_profile = 8;
     repeated RiderListEntry riders = 9;

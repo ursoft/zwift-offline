@@ -1,4 +1,12 @@
 #pragma once
+enum ProfileProperties { PP_EMAIL, PP_PASSWORD, PP_FIRST_NAME, PP_LAST_NAME };
+enum ValidateProperty {
+    VP_OK = 0, VP_PARSE_ERROR, VP_EMAIL_REQ = 2, VP_EMAIL_WRONG_LEN = 3, VP_EMAIL_SHORT = 4, VP_EMAIL_LONG = 5, VP_EMAIL_FORMAT = 6,
+    VP_EMAIL_UNEQ = 7, VP_PROF_REQ = 8, VP_PROF_UN = 9, VP_PROF_NN = 10, VP_PROF_UNEQ = 11, VP_PROF_INV = 12,
+    VP_PSW_REQ = 13, VP_PSW_LEN = 14, VP_PSW_SHORT = 15, VP_PSW_LONG = 16, VP_PSW_FORMAT = 17, VP_PSW_UNEQ = 18,
+    VP_FN_REQ = 19, VP_FN_LEN = 20, VP_FN_SHORT = 21, VP_FN_LONG = 22,
+    VP_LN_REQ = 23, VP_LN_LEN = 24, VP_LN_SHORT = 25, VP_LN_LONG = 26
+};
 inline void str_tolower(std::string &s) { std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); }); }
 enum NetworkRequestOutcome {
     NRO_OK = 0, NRO_INITIALIZATION_FAILED, NRO_NOT_INITIALIZED, NRO_NOT_LOGGED_IN, NRO_NO_LOG_IN_ATTEMPTED, NRO_NO_PLAYER_ID_YET,
@@ -129,6 +137,28 @@ namespace zwift_network {
         float m_ptg_f8 = 0.0f;
         double m_ptg_f9 = 0.0;
     };
+    bool isPairedToPhone();
+    bool pop_phone_to_game_command(protobuf::PhoneToGameCommand *pDest);
+    bool pop_player_id_with_updated_profile(int64_t *ret);
+    NetworkRequestOutcome send_ble_peripheral_request(const protobuf::BLEPeripheralRequest &rq);
+    NetworkRequestOutcome send_default_activity_name_command(const std::string &name);
+    NetworkRequestOutcome send_game_packet(const std::string &a2, bool force);
+    NetworkRequestOutcome send_image_to_mobile_app(const std::string &pathName, const std::string &imgName);
+    NetworkRequestOutcome send_mobile_alert(const protobuf::MobileAlert &ma);
+    NetworkRequestOutcome send_mobile_alert_cancel_command(const protobuf::MobileAlert &ma);
+    NetworkRequestOutcome send_player_profile(const protobuf::PlayerProfile &pp);
+    NetworkRequestOutcome send_set_power_up_command(const std::string &a2, const std::string &a3, const std::string &a4, int puId);
+    NetworkRequestOutcome send_social_player_action(const protobuf::SocialPlayerAction &spa);
+    NetworkRequestOutcome send_rider_list_entries(const std::list<protobuf::RiderListEntry> &list);
+    bool pop_world_attribute(protobuf::WorldAttribute *dest);
+    NetworkRequestOutcome setTeleportingAllowed(bool a);
+    std::list<ValidateProperty> parse_validation_error_message(const std::string &msg);
+    bool motion_data(Motion *dest);
+    time_t from_iso_8601(const std::string &sdt);
+    std::string to_iso_8601(time_t dt);
+    std::future<NetworkResponse<protobuf::DropInWorldList>> fetch_drop_in_world_list();
+    std::future<NetworkResponse<protobuf::DropInWorldList>> fetch_worlds_counts_and_capacities();
+    ValidateProperty validateProperty(ProfileProperties pp, const std::string &ppval);
     std::future<NetworkResponse<protobuf::Goals>> get_goals(int64_t playerId);
     std::future<NetworkResponse<protobuf::Goal>> save_goal(const protobuf::Goal &);
     std::future<NetworkResponse<std::string>> log_out();
