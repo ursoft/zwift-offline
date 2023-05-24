@@ -1,7 +1,6 @@
 #pragma once
-class NotableMoment {};
-class NotableMomentType {};
-enum NOTABLEMOMENT_TYPE { NMT_CNT };
+struct NotableMoment {};
+struct NotableMomentType {};
 class NotableMomentsManager { //984 bytes
 public:
     NotableMomentsManager();

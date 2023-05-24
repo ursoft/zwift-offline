@@ -6479,6 +6479,7 @@ std::future<NetworkResponse<std::string>> log_in_with_oauth2_credentials(const s
 std::future<NetworkResponse<std::string>> log_in_with_email_and_password(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient) {
     return g_networkClient->m_pImpl->logInWithEmailAndPassword(email, pwd, anEventProps, reserved, oauthClient);
 }
+uint64_t world_time() { auto w = g_networkClient->m_pImpl->m_wclock; return w ? w->getWorldTime() : 0; }
 }
 bool initialize_zwift_network(const std::string &server, const std::string &certs, const std::string &version) {
     NetworkClient::globalInitialize();
@@ -6496,12 +6497,13 @@ void shutdown_zwift_network() {
 uint64_t g_serverTime;
 double g_accumulatedTime;
 uint64_t ZNETWORK_GetNetworkSyncedTimeGMT() {
+    static const double bc = 9.223372036854776e18;
     if (!g_serverTime)
         return 0i64;
     uint64_t ovf_corr = 0i64;
-    if (g_accumulatedTime >= 9.223372036854776e18) {
-        g_accumulatedTime -= 9.223372036854776e18;
-        if (g_accumulatedTime - 9.223372036854776e18 < 9.223372036854776e18)
+    if (g_accumulatedTime >= bc) {
+        g_accumulatedTime -= bc;
+        if (g_accumulatedTime - bc < bc)
             ovf_corr = 0x8000000000000000ui64;
     }
     return g_serverTime + ovf_corr + (uint64_t)g_accumulatedTime;
@@ -6683,6 +6685,109 @@ void TcpClient::processPayload(uint64_t len) {
             handleCommunicationError(boost::asio::error::make_error_code(boost::asio::error::broken_pipe), "Failed to parse TCP StC"s);
         }
     }
+}
+int g_segmentCnt;
+Leaderboards g_Leaderboards;
+SegmentResultsWrapper *ZNETWORK_RegisterSegmentID(int64_t hash, TimingArchEntity *tae /*= nullptr*/) {
+    ++g_segmentCnt;
+    Log("Registered segment %d with hash id %lld", g_segmentCnt, hash);
+    SegmentResultsWrapper item;
+    item.m_hash = hash;
+    //TODO *(_QWORD *)item_->field_50 = 0i64;    *(_WORD *)&item_->field_50[8] = 0;    *(_WORD *)&item_->field_50[32] = 0;
+    item.m_srpList.m_tae = tae;
+    return &g_Leaderboards.m_srwList.emplace_back(std::move(item));
+}
+void ZNETWORK_RegisterLocalPlayersRouteResult(const RouteFinishData &rfd) {
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    auto v3 = g_pGameWorld->WorldID();
+    if (mainBike && /* TODO (*(__int64 *)&m_mainBike->field_C65[67] >= 0 || m_mainBike->field_805[1]) &&*/ v3) {
+        protobuf::RouteResultSaveRequest v22;
+        v22.set_server_realm(g_CurrentServerRealmID);
+        v22.set_map_id(v3);
+        if (g_ActivityID > 0)
+            v22.set_activity_id(g_ActivityID);
+        v22.set_route_hash(rfd.m_routeHash);
+        v22.set_event_id(rfd.m_eventId);
+        v22.set_world_time(rfd.m_world_time);
+        v22.set_elapsed_ms(rfd.m_elapsed_ms);
+        v22.set_power_type(rfd.m_powerMeter ? protobuf::PT_METER : protobuf::PT_VIRTUAL);
+        v22.set_height_in_cm(rfd.m_height_in_cm);
+        v22.set_weight_in_grams(rfd.m_weight_in_grams);
+        v22.set_gender(rfd.m_isMale ? protobuf::MALE : protobuf::FEMALE);
+        v22.set_avg_power((int)rfd.m_avg_power);
+        v22.set_max_power((int)rfd.m_max_power);
+        v22.set_avg_hr((int)rfd.m_avg_hr);
+        v22.set_max_hr((int)rfd.m_max_hr);
+        v22.set_ftp(rfd.m_ftp);
+        v22.set_steering(rfd.m_steering);
+        v22.set_player_type(rfd.m_player_type);
+        v22.set_calories((int)rfd.m_calories);
+        v22.set_sport(rfd.m_sport);
+        //TODO FitnessDeviceManager::GetDeviceNameAndModelFitnessDeviceManager::m_pSelectedCadenceDevice);
+        v22.set_cadence_sensor("TODOcadence_sensor_type"s);
+        //TODO FitnessDeviceManager::GetDeviceNameAndModel(FitnessDeviceManager::m_pSelectedControllableTrainerDevice);
+        v22.set_controllable("TODOcontrollable_type"s);
+        //TODO FitnessDeviceManager::GetDeviceNameAndModel(FitnessDeviceManager::m_pSelectedHRDevice);
+        v22.set_hr_monitor("TODOhr_sensor_type"s);
+        //TODO FitnessDeviceManager::GetDeviceNameAndModel(FitnessDeviceManager::m_pSelectedPowerDevice);
+        v22.set_power_meter("TODOpowermeter_type"s);
+        Log(": Saving Full route results for route %lld with a time of %f", rfd.m_routeHash, rfd.m_world_time);
+        zwift_network::save_route_result(v22).get();
+    }
+}
+std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double w_time, float resultTimeInSeconds, BikeEntity *pBike, bool lj, float data_f4) {
+    auto groupEvent = pBike->GetEventID();
+    Log("RaceResult: (player) groupEvent %d seconds %3.2f for %3.2f meter", groupEvent, resultTimeInSeconds, data_f4, lj ? " (LJ)" : "");
+    protobuf::RaceResultEntrySaveRequest rq;
+    rq.set_late_join(lj);
+    rq.set_f14(pBike->m_race_f14);
+    rq.set_f15(pBike->m_race_f15);
+    rq.set_f16(pBike->m_race_f16);
+    auto data = rq.mutable_data();
+    data->set_activity_id(g_ActivityID);
+    data->set_sport(pBike->m_bc->m_sport);
+    data->set_map_id(g_pGameWorld->WorldID());
+    data->set_server_realm(g_CurrentServerRealmID);
+    data->set_world_time_ms(uint64_t(w_time * 1000.0));
+    data->set_result_time_ms(uint64_t(resultTimeInSeconds * 1000.0f));
+    data->set_f4((int)data_f4); //distance?
+    /* TODO if (g_NoesisFeatureFlag && *(&g_NoesisFeatureFlag + 2))// UI_Refactor::NoesisFeatureFlags::GetNoesisFeatureFlag
+    {
+        pb_clear((unsigned __int64 *)&qword_7FF76B36DF78);
+        dword_7FF76B36DF70 &= ~1u;
+    }
+    if ((dword_7FF76B36DF70 & 1) != 0)
+    {
+        data->m_f10 = *(std::string *)(qword_7FF76B36DF78));
+    }*/
+    auto sensor = rq.mutable_sensor();
+    auto sensor_f2 = pBike->m_bc->m_sensor_f2 / fmaxf(pBike->m_bc->m_total_smth, 0.0001f);
+    sensor->set_f2((int)sensor_f2);
+    //TODO sensor->set_power_type(*((_BYTE *)pBike->m_ptr + 284) != 0);
+    auto heart = sensor->mutable_heart();
+    heart->set_f2(pBike->m_bc->m_heart_f2 / fmaxf(pBike->m_bc->m_total_smth, 0.0001f));
+    //TODO heart->set_actual(FitnessDeviceManager::m_pSelectedHRDevice && timeGetTime() - *((_DWORD *)FitnessDeviceManager::m_pSelectedHRDevice + 68) < 10000);
+    sensor->set_f11(pBike->m_sensor_f11);
+    auto crit = rq.mutable_crit();
+    float bta_20h = 0.0f, bta_5h = 0.0f, bta_hour = 0.0, bta_15min = 0.0;
+    auto cpc = (CriticalPowerCurve *)DataRecorder::Instance()->GetComponent(RecorderComponent::T_CPC); // ZNETWORK_INTERNAL_GetCPValues
+    if (cpc) {
+        if (resultTimeInSeconds >= 900.0f)
+            bta_15min = cpc->GetBestTimeAverage(900.0f, resultTimeInSeconds);
+        if (resultTimeInSeconds > 3600.0f)
+            bta_hour = cpc->GetBestTimeAverage(3600.0f, resultTimeInSeconds);
+        if (resultTimeInSeconds > 18000.0f)
+            bta_5h = cpc->GetBestTimeAverage(18000.0f, resultTimeInSeconds);
+        if (resultTimeInSeconds > 72000.0f)
+            bta_20h = cpc->GetBestTimeAverage(72000.0f, resultTimeInSeconds);
+    } else {
+        LogTyped(LOG_ERROR, "CritPower ptr null (saveRequest)");
+    }
+    crit->set_bta_15min((int)bta_15min);
+    crit->set_bta_hour((int)bta_hour);
+    crit->set_bta_5h((int)bta_5h);
+    crit->set_bta_20h((int)bta_20h);
+    return zwift_network::create_race_result_entry(rq);
 }
 
 //Units

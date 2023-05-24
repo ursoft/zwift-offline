@@ -101,7 +101,7 @@ public:
     Experimentation(ZNetAdapter *, EventSystem *ev);
 
     void HandleEvent(EVENT_ID e, va_list args) override; //vtblEvent
-    virtual ~Experimentation() { /*todo*/ }                                          //vtblExp+0
+    virtual ~Experimentation() { /* TODO */ }                                        //vtblExp+0
     ExpIsEnabledResult IsEnabled(FeatureID id, const FeatureCallback &func);         //vtblExp+1
     ExpVariant IsEnabled(FeatureID id, ExpVariant overrideIfUn);                     //vtblExp+2
     bool IsEnabled(FeatureID id);                                                    //vtblExp+3

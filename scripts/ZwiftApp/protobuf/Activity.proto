@@ -29,7 +29,7 @@ enum NotableMomentType {
     NMT_HOLIDAY_EVENT_COMPLETE = 21;
 }
 message NotableMoment { //.2,.3,.4 meanings inside last_activity.bin - not type, priority, incidentTime (i.e. 1595, 8, 9)
-    optional uint64 activity_id = 1;
+    optional int64 activity_id = 1;
     optional NotableMomentType type = 2;
     optional uint32 priority = 3;
     optional uint32 incident_time = 4;
@@ -74,7 +74,7 @@ message Activity {  //where is primaryImageUrl, feedImageThumbnailUrl, activityR
     optional float calories = 18;
     optional float total_elevation = 19;
     optional uint32 strava_upload_id = 20; //uint64 stored as int32
-    optional uint32 strava_activity_id = 21; //uint64 stored as int32
+    optional int32 strava_activity_id = 21; //int64 stored as int32
     optional string f22 = 22;
     optional uint32 f23 = 23; //empty; stored as int32; enum up to 6
     optional bytes fit = 24;

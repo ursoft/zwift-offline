@@ -9,7 +9,7 @@ const FeatureMetadata g_featureMetadata[FID_CNT] = { //FillFeatureMetadata
     //variants.txt[game_1_26_2_data_encryption] not used here
     //variants.txt[game_1_27_0_disable_encryption_bypass] not used here
     { FID_PPDATA,  "game_1_31_pp_data", 0, 0, 6, 6, 7 }, //variants.txt simple bool.true
-    { FID_PPDATA,  "game_1_31_rlog", 0, 0, 6, 6, 9 }, //variants.txt "values": { "fields": { "DISABLED_LEVELS": { "stringValue": "DEBUG,INFO,WARNING" }, "DISABLED_TYPES" : { "stringValue": "" } } }
+    { FID_RLOG,    "game_1_31_rlog", 0, 0, 6, 6, 9 }, //variants.txt "values": { "fields": { "DISABLED_LEVELS": { "stringValue": "DEBUG,INFO,WARNING" }, "DISABLED_TYPES" : { "stringValue": "" } } }
     { FID_FQUERY,  "game_1_31_fquery", 0, 0, 6, 6, 7 }, //variants.txt simple bool.true
     { FID_VID_CAP, "game_VideoCapture", 0, 0, 7, 8, 9 }, //variants.txt simple bool.false
     { FID_SERV_PC, "game_1_32_server_power_curves", 0, 1, 7, 7, 9 }, //variants.txt "values": { "fields": { "view_enabled": { "boolValue": false } } } 

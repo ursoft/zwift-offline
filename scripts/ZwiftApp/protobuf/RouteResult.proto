@@ -4,10 +4,10 @@ package protobuf;
 import "Profile.proto";
 message RouteResultSaveRequest {
     optional string f1 = 1;                 // ? absent
-    optional uint64 server_realm = 2;       // ? 1
+    optional uint64 server_realm = 2;
     optional uint64 map_id = 3;
     optional uint64 route_hash = 4;
-    optional uint64 f5 = 5;                 // ? 0
+    optional uint64 event_id = 5;
     optional uint64 world_time = 6;
     optional uint64 elapsed_ms = 7;         // ? 685865 (10:51=651), 642389, 461114 (8:24=504)
     optional PowerType power_type = 8;
@@ -22,8 +22,8 @@ message RouteResultSaveRequest {
     optional Gender gender = 18;
     optional PlayerType player_type = 19;
     optional Sport sport = 20;
-    optional uint64 activity_id = 21;
-    optional bool f22 = 22; // 0
+    optional int64 activity_id = 21;
+    optional bool steering = 22;
     optional string hr_monitor = 23;
     optional string power_meter = 24;
     optional string controllable = 25;

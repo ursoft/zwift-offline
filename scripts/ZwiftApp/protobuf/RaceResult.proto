@@ -30,25 +30,25 @@ message RaceResultDeviceInfo {
     optional string f4 = 4;
 }
 message RaceResultEntryActivityData {
-    optional int64 f1 = 1;
-    optional int64 f2 = 2;
+    optional int64 server_realm = 1;
+    optional int64 activity_id = 2;
     optional Sport sport = 3;
     optional uint32 f4 = 4;
-    optional int64 f5 = 5;
-    optional int64 f6 = 6;
-    optional int64 f7 = 7;
+    optional int64 result_time_ms = 5;
+    optional int64 map_id = 6;
+    optional int64 world_time_ms = 7;
     optional int64 f8 = 8;
     optional string f9 = 9;
     optional string f10 = 10;
 }
-message RaceResultEntryCriticalPData {
-    optional uint32 f1 = 1;
-    optional uint32 f2 = 2;
-    optional uint32 f3 = 3;
-    optional uint32 f4 = 4;
+message RaceResultEntryCriticalPData { //best time average critical power
+    optional uint32 bta_15min = 1;
+    optional uint32 bta_hour = 2;
+    optional uint32 bta_5h = 3;
+    optional uint32 bta_20h = 4;
 }
 message RaceResultEntryHeartRateData {
-    optional bool f1 = 1;
+    optional bool actual = 1; //last 10s are measured too
     optional uint32 f2 = 2;
     optional uint32 f3 = 3;
 }
@@ -62,11 +62,11 @@ message RaceResultEntryProfileData {
     optional string f7 = 7;
 }
 message RaceResultEntrySaveRequest {
-    optional int64 f1 = 1;
+    optional int64 event_id = 1;
     optional RaceResultEntryActivityData data = 2;
     optional RaceResultEntryCriticalPData crit = 3;
     optional RaceResultEntrySensorData sensor = 4;
-    optional bool f5 = 5;
+    optional bool late_join = 5;
     optional uint32 f6 = 6;
     optional string f7 = 7;
     //8-13 absent
