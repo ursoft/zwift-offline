@@ -80,9 +80,8 @@ void Zwift_EndSession(bool bShutdown) {
     auto mainBike = BikeManager::Instance()->m_mainBike;
     static auto orgJersey = SIG_CalcCaseInsensitiveSignature("Humans/Accessories/CyclingJerseys/Originals_Zwift_02.xml");
     if (bShutdown && mainBike && Experimentation::Instance()->IsEnabled(FID_TDFFEM)
-        && mainBike->m_yellowJersey && mainBike->m_jersey == orgJersey) {
-        mainBike->m_changeFlags0 |= BCH0_JERSEY;
-        mainBike->m_jersey = mainBike->m_yellowJersey;
+        && mainBike->m_yellowJersey && mainBike->m_profile.ride_jersey() == orgJersey) {
+        mainBike->m_profile.set_ride_jersey(mainBike->m_yellowJersey);
         mainBike->m_yellowJersey = 0;
         EndGameSession(false);
     } else {

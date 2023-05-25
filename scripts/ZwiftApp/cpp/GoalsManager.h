@@ -2,6 +2,7 @@
 inline int g_nGoalsAdded;
 class GoalsManager : public EventObject { //176 bytes
     inline static std::unique_ptr<GoalsManager> s_pSelf;
+    std::future<NetworkResponse<protobuf::Goals>> m_get_future;
     protobuf::Goals m_goals;
     bool m_hasPersonalGoal = false, m_oldConverted = false, m_loadedOk = false, m_loadingNow = false;
     const protobuf::Goal *m_activeDistanceGoal = nullptr, *m_activeDurationGoal = nullptr;

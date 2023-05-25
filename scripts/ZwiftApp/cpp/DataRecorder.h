@@ -5,7 +5,7 @@ struct DataPointVEC3 {
     float m_time;
 };
 struct RecorderComponent { //0x98 bytes
-    float m_valMax = 0.0f, m_valMin = 1e15f, m_startTime = 0.0f, m_field_84 = 0.0f, m_period = 60.0f, m_init_a2 = 1.0f, m_curTime = 0.0f, m_valMax_init, m_valMin_init, m_field_94 = 0.0f, m_maxTime = 0.0f;
+    float m_valMax = 0.0f, m_valMin = 1e15f, m_startTime = 0.0f, m_field_84 = 0.0f, m_period = 60.0f, m_timeBetweenPoints = 1.0f, m_curTime = 0.0f, m_valMax_init, m_valMin_init, m_nextPointTime = 0.0f, m_maxTime = 0.0f;
     VEC3 m_v3max, m_v3min, m_v3max_init, m_v3min_init;
     enum TYPE { T_0 = 0, T_1 = 1, T_2 = 2, T_3 = 3, T_4 = 4, T_DISTANCE = 5, T_6 = 6, T_CPC = 7, T_8 = 8, T_9 = 9 } m_type;
     enum TIME_PERIOD { TP_0 };
@@ -14,17 +14,17 @@ struct RecorderComponent { //0x98 bytes
     bool m_b1 = true, m_res0 = true;
     RecorderComponent(TYPE ty) : m_type(ty) {}
     void SampleSensor(float, float);
-    void SampleCount();
+    size_t SampleCount() { return m_dataPoints.size(); }
     void PreConfigure(float, float, float);
-    void ImportXML(tinyxml2::XMLDocument *);
-    void GetTimeRange(float *, float *);
-    void GetDataPointAtTime(float);
-    void GetBestTimeAverage(float);
-    void GetAverageFromPastNSeconds_Weighted(float);
+    void ImportXML(const tinyxml2::XMLDocument &src);
+    void GetTimeRange(float *from, float *to);
+    const DataPoint &GetDataPointAtTime(float);
+    float GetBestTimeAverage(float pastSec);
+    float GetAverageFromPastNSeconds_Weighted(float secs);
     float GetAverageFromPastNSeconds(float secs);
-    void ExportXML();
+    tinyxml2::XMLDocument *ExportXML();
     virtual ~RecorderComponent() {} //vptr[0]
-    void Init(float a2, uint32_t reserve); //vptr[1]
+    void Init(float timeBetweenPoints, uint32_t reserve); //vptr[1]
     virtual void Update(float); //vptr[2]
     virtual bool InitializeDrawData(RecorderComponent::TIME_PERIOD) { return true; } //vptr[3]
     virtual void GetBestTimeAverage(std::vector<DataPoint> *, bool, uint64_t *, uint64_t *) {} //vptr[4]
@@ -35,35 +35,56 @@ struct RecorderComponent { //0x98 bytes
     void AddDataPointVEC3(const VEC3 &val, float time); //vptr[9]
 };
 struct Grapher { //0x60 bytes
+    enum RenderStyle { RS_0 };
+    enum PointReductionMethod { PRM_0 };
     Grapher(RecorderComponent *rc);
+    void Reset();
+    void RenderYLabels(float, float, float, float, const char *, uint32_t);
+    void RenderXLabels(float, float, float, char const *, uint32_t);
+    void PleaseMatchThisGraph(Grapher *);
+    void GetVertexPosition(float *, float *, float, float, float, float, bool);
+    void GetTimeForXPosition(float, float);
+    void GetMinValue(float *);
+    void GetMaxValue(float *);
+    void GetInterpolatedXPosition(float, float);
+    void FormatTimeString(uint32_t, char *);
+    void DrawSpecificTimes(float, float, float, float, uint32_t, Grapher::RenderStyle, uint32_t, float, float);
+    void DrawBG(float, float, float, float, uint32_t, Grapher::RenderStyle);
+    void Draw(float, float, float, float, uint32_t, Grapher::RenderStyle, uint32_t, bool, const char *, const char *, uint32_t, bool, bool, int32_t, Grapher::PointReductionMethod);
+    void CalculateXTimeSteps(bool, bool);
+    inline static int s_reducedDataPointsCache = -1;
 };
 struct AntiSandbaggingParams {
-    //TODO
+    //TODO - no functions
+};
+struct RideCPC { //32 bytes
+    uint64_t m_netTime = 0;
+    std::vector<DataPoint> m_data;
 };
 struct JobData;
 struct CriticalPowerCurve : public RecorderComponent, EventObject { //0x188 bytes
     ZNet::NetworkService *m_net;
     Experimentation *m_exp;
     std::vector<DataPoint> m_cpDataPoints;
-    //EventSystem *m_ev;
-    std::vector<std::vector<DataPoint /*not sure*/>> m_c_of_c;
-    uint64_t m_field_50 = 0;
-    uint32_t m_field_64 = 0, m_field_58 = 0, m_field_60 = 0, m_field_5C = 0;
-    bool m_field_C4 = false;
+    std::vector<RideCPC> m_rideCPC;
+    std::unordered_map<uint16_t, uint16_t> m_maxPowerAtInterval;
+    uint64_t m_playerId = 0;
+    uint32_t m_field_64 = 0, m_field_60 = 0, m_field_5C = 0, m_cpIdMin = 0, m_cpIdMax = 0, m_cpIdOffset = 0;
+    float m_threadDoneTime = 0.0;
+    bool m_field_C4 = false, m_threadCalcInProgress = false, m_immunToCheatFlag = false, m_isMale = true;
     CriticalPowerCurve(ZNet::NetworkService *net, Experimentation *exp, EventSystem *ev);
     ~CriticalPowerCurve();
-    void StartThreadedCalculation(JobData *);
+    static void StartThreadedCalculation(JobData *);
     void SearchCriticalPowerInCurrentRide();
     void SearchCriticalPower(uint16_t, uint16_t, uint16_t, uint32_t);
-    void Save();
+    bool Save();
     void SandbaggerWarning(const float *, float, float);
     void LoggedIn(const protobuf::PlayerProfile &, int32_t);
     void Load();
-    void GetServerMeanMaximalPowerAtInterval(uint16_t);
+    uint16_t GetServerMeanMaximalPowerAtInterval(uint16_t interval);
     void GetServerMeanMaximalPower(std::vector<DataPoint> &, bool);
-    void GetMaxPowerOutputTiers(int32_t);
-    void DoneThreadedCalculation(int32_t, JobData *);
-    void CreateFolder(const char *, uint32_t);
+    float GetMaxPowerOutputTiers(uint32_t sel);
+    static void DoneThreadedCalculation(int32_t, JobData *);
     void AntiSandbaggingCheck(AntiSandbaggingParams *ptr);
     void AntiCheatingCheck();
     void PrepareForNextRide();
@@ -77,7 +98,7 @@ struct CriticalPowerCurve : public RecorderComponent, EventObject { //0x188 byte
     const std::vector<DataPoint> &GetDataPoints() { return m_cpDataPoints; }
     void AddDataPoint(float val, float time) override;
 };
-class DataRecorder : EventObject {
+class DataRecorder {
     inline static std::unique_ptr<DataRecorder> g_DataRecorder;
     std::vector<RecorderComponent *> m_components;
     Grapher *m_graphers[6];
@@ -90,9 +111,8 @@ public:
     static DataRecorder *Instance() { zassert(g_DataRecorder.get() != nullptr); return g_DataRecorder.get(); }
     static void Shutdown() { g_DataRecorder.reset(); }
     DataRecorder(Experimentation *exp, ZNet::NetworkService *net, EventSystem *ev);
-    void HandleEvent(EVENT_ID, va_list) override;
-    void ExpensiveCalculateTSS();
-    void ExpensiveCalculateTSS_EstimatedPower(const std::vector<float> &);
+    static float ExpensiveCalculateTSS();
+    float ExpensiveCalculateTSS_EstimatedPower(const std::vector<float> &);
     RecorderComponent *GetComponent(RecorderComponent::TYPE);
     void Init();
     void ResetSessionData();

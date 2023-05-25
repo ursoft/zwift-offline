@@ -9,9 +9,8 @@ void UnitTypeManager::SetUseMetric(bool m) {
     if (BikeManager::Instance()) {
         auto mainBike = BikeManager::Instance()->m_mainBike;
         if (mainBike) {
-            if (mainBike->m_metricUnits != m) {
-                mainBike->m_changeFlags1 |= BCH1_UNITS;
-                mainBike->m_metricUnits = m;
+            if (mainBike->m_profile.use_metric() != m) {
+                mainBike->m_profile.set_use_metric(m);
                 if (!m_readonly && mainBike->m_writable)
                     mainBike->SaveProfile(true, false);
             }
@@ -24,7 +23,7 @@ void UnitTypeManager::HandleEvent(EVENT_ID e, va_list) {
     if (e == EV_33 && BikeManager::Instance()) {
         auto mainBike = BikeManager::Instance()->m_mainBike;
         if (mainBike)
-            SetUseMetric(mainBike->m_metricUnits);
+            SetUseMetric(mainBike->m_profile.use_metric());
     }
 }
 UnitTypeManager::~UnitTypeManager() { m_eventSystem->Unsubscribe(EV_33, this); }

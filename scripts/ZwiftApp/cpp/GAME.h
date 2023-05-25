@@ -43,7 +43,7 @@ void GAME_FetchLevelFromRoute(uint32_t);
 //void GAME_FinishedGroupWorkout(GroupEvents::SubgroupState *)
 void GAME_FlatRoadTrainerResistanceWithinRangeValue();
 void GAME_GODUpdate(float);
-void GAME_GetCurrentPlayerSport();
+inline protobuf::Sport GAME_GetCurrentPlayerSport() { return BikeManager::Instance()->m_mainBike->m_bc->m_sport; }
 void GAME_GetCurrentPlayerTrainingMetric();
 void GAME_GetCurrentPlayerTrainingMetric();
 void GAME_GetDistanceToFinishInMeters();

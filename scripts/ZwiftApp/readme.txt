@@ -43,3 +43,4 @@ future/lib/total code(kb): 9094/7270/16364, badNames=37214; libs/total: 56%: 353
 future/lib/total code(kb): 9068/7296/16364, badNames=37155; libs/total: 57%: 35419/62119 - done with AuxiliaryController
 future/lib/total code(kb): 8997/7367/16364, badNames=37100; libs/total: 57%: 35708/62119 - NetworkClientImpl 30%
 future/lib/total code(kb): 8959/7404/16364, badNames=37062; libs/total: 57%: 35846/62119 - NetworkClientImpl 70%
+future/lib/total code(kb): 8932/7432/16364, badNames=36989; libs/total: 57%: 35913/62119 - NetworkClientImpl 100%, NETWORK_* and DataRecorder 10%

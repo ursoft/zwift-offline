@@ -77,7 +77,8 @@ const protobuf::Goal *GoalsManager::GetNewestInactivePersonalGoalOfType(protobuf
 }
 void GoalsManager::Load() {
     m_loadingNow = true;
-    zwift_network::get_goals(BikeManager::Instance()->m_mainBike->m_playerId);
+    m_get_future = zwift_network::get_goals(BikeManager::Instance()->m_mainBike->m_playerIdTx);
+    m_get_future.get();
     //TODO
     /* android
     v3 = *(unsigned __int64 **)&result->field_10;
