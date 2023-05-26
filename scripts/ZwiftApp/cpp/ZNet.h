@@ -22,6 +22,7 @@ enum NetworkRequestOutcome {
     NRO_HTTP_STATUS_BAD_REQUEST = 400, NRO_HTTP_STATUS_UNAUTHORIZED = 401, NRO_HTTP_STATUS_FORBIDDEN = 403, NRO_HTTP_STATUS_NOT_FOUND = 404,
     NRO_HTTP_STATUS_CONFLICT = 409, NRO_HTTP_STATUS_GONE = 410, NRO_HTTP_STATUS_TOO_MANY_REQUESTS = 429, NRO_HTTP_STATUS_SERVICE_UNAVAILABLE = 503,
     NRO_HTTP_STATUS_BANDWIDTH_LIMIT_EXCEEDED = 509 };
+std::string_view NetworkRequestOutcomeToString(NetworkRequestOutcome code);
 void shutdown_zwift_network();
 template<class T>
 struct Optional {
@@ -44,6 +45,7 @@ struct Optional {
         m_hasValue = set;
     }
 };
+template<typename R> bool is_ready(const std::future<R> &f) { return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready; }
 struct NetworkClientImpl;
 struct NetworkResponseBase {
     std::string m_msg;
@@ -225,7 +227,7 @@ namespace zwift_network {
     std::future<NetworkResponse<void>> remove_goal(int64_t playerId, int64_t goalId);
     std::future<NetworkResponse<int64_t>> save_activity(const protobuf::Activity &act, bool uploadToStrava, const std::string &fitPath);
     std::future<NetworkResponse<protobuf::SegmentResults>> query_segment_results(int64_t serverRealm, int64_t segmentId, const std::string &from, const std::string &to, bool full);
-    std::future<NetworkResponse<void>> update_profile(const protobuf::PlayerProfile &prof, bool inGameFields);
+    std::future<NetworkResponse<void>> update_profile(bool inGameFields, const protobuf::PlayerProfile &prof, bool udp);
     std::future<NetworkResponse<protobuf::ActivityList>> get_activities(int64_t profileId, const Optional<int64_t> &startsAfter, const Optional<int64_t> &startsBefore, bool fetchSnapshots);
     std::future<NetworkResponse<protobuf::PlayerProfile>> profile(int64_t profileId, bool bSocial);
     std::future<NetworkResponse<protobuf::SegmentResults>> subscribe_to_segment_and_get_leaderboard(int64_t sid);
@@ -255,31 +257,270 @@ struct NetworkClient {
     void initialize(const std::string &server, const std::string &certs, const std::string &version);
 };
 namespace ZNet {
+    using RequestId = uint64_t;
     struct Error {
         Error(std::string_view msg, NetworkRequestOutcome netReqOutcome) : m_msg(msg), m_netReqOutcome(netReqOutcome), m_hasNetReqOutcome(true) {}
         Error(std::string_view msg) : m_msg(msg) {}
-
         std::string_view m_msg;
         NetworkRequestOutcome m_netReqOutcome = NRO_OK;
         bool m_hasNetReqOutcome = false;
     };
-    struct Params {};
+    struct RetryParams {
+        int (*m_backoffMultiplier)(int) = nullptr;
+        uint32_t m_count = 0, m_timeout = 0;
+    };
+    struct Params { //0x70 bytes
+        std::string_view m_funcName;
+        std::function<void(Error)> m_onError;
+        RetryParams m_retry{};
+        uint32_t m_timeout = 0;
+        bool m_has_retry = false;
+    };
+    template<typename T> struct TOnReady { using type = std::function<void(const T &)>; };
+    template<> struct TOnReady<void> { using type = std::function<void(void)>; };
+    struct IRPC {
+        virtual std::pair<NetworkRequestOutcome, bool> Post(bool blocking) = 0;
+        virtual bool ShouldRemove(uint32_t dt) = 0;
+        virtual ~IRPC() {}
+    };
+    /* OMIT: used in analytics and campaigns only; template<typename T>
+    struct NetworkFetcher<T> {
+        void Update();
+        bool WaitDone(uint32_t to) {
+            if (!*((_QWORD *)this + 7))
+                return false;
+            v4 = std::chrono::steady_clock::now(this);
+            v5 = Update();
+            v9 = 0LL;
+            v11 = 1000000 * to;
+            if (to >= 1) {
+                do {
+                    if (v5 != 1)
+                        break;
+                    sched_yield();
+                    v12 = Update();
+                    v5 = (int)v12;
+                    v9 = std::chrono::steady_clock::now(v12) - v4;
+                } while (v9 < v11);
+            }
+            if (v9 >= v11)
+                Log("[ZNet] Future timed out after [%ums]!", v9, v6, v7, v8);
+            return v5 == 2;
+        }
+    };*/
+    template<typename T> struct RPC : public IRPC {
+        std::function<std::future<NetworkResponse<T>>(void)> m_futureCreator;
+        TOnReady<T>::type m_onSuccess;
+        std::string_view m_parFuncName;
+        std::function<void(Error)> m_onError;
+        std::future<NetworkResponse<T>> m_future;
+        uint32_t m_wrkTime = 0, m_timeout = 0;
+        RPC(std::function<std::future<NetworkResponse<T>>(void)> &&fc, TOnReady<T>::type &&fsucc, Params *p) :
+            m_futureCreator(fc), m_onSuccess(fsucc), m_parFuncName(p->m_funcName), m_onError(std::move(p->m_onError)), m_timeout(p->m_timeout) { zassert(m_parFuncName.length() || "RPC enqueued without a name, expect inferior debugging"); }
+        std::pair<NetworkRequestOutcome, bool> Post(bool blocking) override  { //vptr[2]
+            /*if (m_future == nullptr) {
+                Log("[ZNet] Invalid future! [%s]", m_parFuncName.data());
+LABEL_56:
+                if (m_onError)
+                    m_onError(Error{ "Invalid Network Future" });
+LABEL_57:
+                return { 0, false };
+            }*/
+            if (blocking)
+                m_future.wait();
+            if (!is_ready(m_future)) {
+                if (!m_timeout || m_wrkTime < m_timeout)
+                    zassert(!"Must have timed out if the future is valid but not ready.");
+                Log("[ZNet] Timed Out! [%s] [%d ms]", m_parFuncName.data(), m_wrkTime);
+                if (m_onError)
+                    m_onError(Error{ "Timeout" });
+                return { NRO_OK, false };
+            }
+            auto result = m_future.get();
+            /*if (result == nullptr ) - not possible now
+            {
+                Log("[ZNet] NetworkResponsePtr is null! [%s]", this->m_parFuncName.m_str, v11, v12, 0);
+                v14 = this->m_onError.Ptrs;
+                if (v14)
+                {
+                    v33 = *&off_7FF779BCE830;
+                    BYTE4(v34) = 0;
+                    v31 = *&off_7FF779BCE830;
+                    v32 = v34;
+                    (*(*v14 + 2))(v14, &v31);
+                }
+                *(ret + 4) = 0;
+                return ret;
+            }*/
+            //OMIT CrashReporting::Instance()->AddBreadcrumb(v16, "[ZNet] get_outcome: ", this->m_parFuncName.m_str);
+            if (result.m_errCode) {
+                auto s = NetworkRequestOutcomeToString(result.m_errCode);
+                Log("[ZNet] Unsuccessful network call %s! [%s] [%d ms]", s.data(), m_parFuncName.data(), m_wrkTime);
+                if (m_onError)
+                    m_onError(Error{ result.m_msg, result.m_errCode });
+                return { result.m_errCode, true};
+            }
+            //nop("[ZNet] [%s] RPC completed successfully");
+            zassert(result.m_errCode == 0 && "Invalid response!")
+            if (m_onSuccess)
+                if constexpr (std::is_same<T, void>::value)
+                    m_onSuccess();
+                else
+                    m_onSuccess(result.m_T);
+            return { NRO_OK, true };
+        }
+        bool ShouldRemove(uint32_t dt) override { //vptr[1]
+            m_wrkTime += dt;
+            if (!m_future.valid() || is_ready(m_future))
+                return true;
+            return m_timeout && m_wrkTime >= m_timeout;
+        }
+        virtual ~RPC() {} //vptr[0]
+    };
+    template<typename T>
+    struct RetryableRPC : public RPC<T> {
+        int32_t (*m_backoffMultiplier)(int32_t) = nullptr;
+        int32_t m_backoffDelayInit = 5000, m_maxRetries = 5, m_remainRetries = 5, m_backoffDelay = 5000;
+        bool IsRetryable() {
+            bool valid = this->m_future.valid();
+            bool timedOut = this->m_timeout && (this->m_wrkTime >= this->m_timeout);
+            bool notReady = !is_ready(this->m_future);
+            bool ret = true;
+            if (!valid || timedOut || notReady) {
+                Log("[ZNet] RRPC::IsRetryable (%s) future in error state: (valid: %d) (timed out: %d) (not ready: %d)", this->m_parFuncName.data(), valid, timedOut, notReady);
+            } else {
+                auto outcome = PeekAtResponse().m_errCode;
+                //if (outcome) {
+                    if (!outcome || outcome == 400) {
+                        ret = false;
+                    } else {
+                        Log("[ZNet] RRPC::IsRetryable (%s) outcome not ok: %d", this->m_parFuncName.data(), outcome);
+                        ret = true;
+                    }
+                /*} else {
+                    Log("[ZNet] RRPC::IsRetryable (%s) null future value", this->m_base.m_parFuncName.m_str, v5, v6, not_ready);
+                    v7 = 1;
+                }*/
+            }
+            return ret;
+        }
+        const NetworkResponse<T> &PeekAtResponse() {
+            return this->m_future.get();
+        }
+        bool ShouldRemove(uint32_t dt) override {
+            if (m_backoffDelay > 0) {
+                m_backoffDelay -= dt;
+                if (m_backoffDelay > 0)
+                    return false;
+                Log("[ZNet] RRPC (%s) retrying...", this->m_parFuncName.data());
+                this->m_future = this->m_futureCreator();
+                return false;
+            }
+            this->m_wrkTime += dt;
+            if (this->m_future.valid() && !is_ready(this->m_future))
+                if (!this->m_timeout || this->m_wrkTime < this->m_timeout)
+                    return false;
+            if (!IsRetryable() || m_remainRetries <= 0)
+                return true;
+            Log("[ZNet] RRPC (%s) in error state, and initiating retry logic...", this->m_parFuncName.data());
+            this->m_wrkTime = 0;
+            --m_remainRetries;
+            int backoff_index = 1;
+            if (m_maxRetries - m_remainRetries > 1)
+                backoff_index = m_maxRetries - m_remainRetries;
+            m_backoffDelay = m_backoffDelayInit * (m_backoffMultiplier ? m_backoffMultiplier(backoff_index) : 1);
+            Log("[ZNet] RRPC backoff index: %d, backoff delay milliseconds: %d", backoff_index, m_backoffDelay);
+            return false;
+        }
+        RetryableRPC(std::function<std::future<NetworkResponse<T>>()> &&fc, TOnReady<T>::type &&fsucc, Params *p) : RPC<T>(std::move(fc), std::move(fsucc), p) {
+            if (p->m_has_retry)
+                m_backoffMultiplier = p->m_retry.m_backoffMultiplier;
+        }
+        ~RetryableRPC() {}
+    };
     class NetworkService {
         inline static std::unique_ptr<NetworkService> g_NetworkService;
     public:
         NetworkService() {}
-        ~NetworkService() {}
+        ~NetworkService() {} //vptr[0][0]
         static void Initialize() { g_NetworkService.reset(new NetworkService()); }
         static bool IsInitialized() { return g_NetworkService.get() != nullptr; }
         static NetworkService *Instance() { zassert(g_NetworkService.get() != nullptr); return g_NetworkService.get(); }
         static void Shutdown() { g_NetworkService.reset(); }
-        //void GetAllTimeBestEffortsPowerCurve(std::function<void()(protobuf::PowerCurveAggregationMsg const &)>, ZNet::Params);
-        //void GetAssetSummary(std::string const &, std::function<void()(protobuf::AssetSummary const &)>, ZNet::Params);
-        //void GetProfile(long long, std::function<void()(protobuf::PlayerProfile const &)>, ZNet::Params);
-        //void GetWorkout(std::string const &, std::function<void()(std::string const &)>, ZNet::Params);
-        //void GetWorkoutSummaries(std::optional<std::string>, std::optional<std::string>, std::function<void()(protobuf::WorkoutSummaries const &)>, ZNet::Params);
-        //void UpdateProfile(bool, const protobuf::PlayerProfile &, bool, std::function<void()(void)> const &, ZNet::Params const &);
+        RequestId GetProfile(int64_t playerId, std::function<void(const protobuf::PlayerProfile &)> &&func, Params *pParams); //vptr[0][1]
+        RequestId UpdateProfile(bool inGameFields, const protobuf::PlayerProfile &prof, bool udp, std::function<void(void)> &&func, Params *pParams); //vptr[0][2]
+        RequestId GetAllTimeBestEffortsPowerCurve(std::function<void(const protobuf::PowerCurveAggregationMsg &)> &&f, Params *pParams); //vptr[2][1]
+        /* OMIT RequestId GetWorkoutSummaries(std::optional<std::string>, std::optional<std::string>, std::function<void(const protobuf::WorkoutSummaries &)>, Params *pParams)
+OMIT RequestId GetAssetSummary(const std::string &, const std::function<void(protobuf::AssetSummary const &)> &, Params *pParams)
+OMIT RequestId GetWorkout(const std::string const&,std::function<void (const std::string &)>, Params *pParams) */
     };
+    struct API {
+        std::mutex m_mutex;
+        std::unordered_map<RequestId, std::unique_ptr<IRPC>> m_map;
+        uint64_t m_counter = 0;
+        static API *Inst() { static API s_inst; return &s_inst; }
+        template<typename T>
+        RequestId Enqueue(std::function<std::future<NetworkResponse<T>>(void)> &&f, TOnReady<T>::type &&ready_f, Params *p) {
+            std::unique_ptr<IRPC> r;
+            if (p->m_has_retry)
+                r.reset(new RetryableRPC<T>(std::move(f), std::move(ready_f), p));
+            else
+                r.reset(new RPC<T>(std::move(f), std::move(ready_f), p));
+            RequestId ret = 0;
+            if (r) {
+                std::lock_guard l(m_mutex);
+                ret = ++m_counter;
+                m_map.emplace(ret, std::move(r));
+            }
+            return ret;
+        }
+        bool Dequeue(RequestId req) {
+            std::lock_guard l(m_mutex);
+            return m_map.erase(req) > 0;
+        }
+        void Blocking_Send(std::function<std::future<NetworkResponse<void>(void)>>, const Params &);
+        void GetStatus(RequestId);
+        void IsBusy();
+        void Update(uint32_t);
+        void WaitFor(RequestId);
+    };
+    RequestId UpdateProfile(bool inGameFields, const protobuf::PlayerProfile &prof, bool udp, std::function<void(void)> &&f, Params *pParams);
+    RequestId GetProfile(int64_t playerId, std::function<void(const protobuf::PlayerProfile &)> &&func, Params *pParams);
+    /*
+void DeleteActivity(long long,ulong,std::function<void ()(void)>,std::function<void ()(Error)>);
+void DownloadPlayback(protobuf::playback::PlaybackMetadata const&,std::function<void ()(protobuf::playback::PlaybackData const&)>,std::function<void ()(Error)>);
+void EnrollInCampaign(std::string const&,std::function<void ()(protobuf::campaign::CampaignRegistrationResponse const&)>,std::function<void ()(Error)>,Params);
+void FetchSegmentJerseyLeaders(std::function<void ()(protobuf::SegmentResults)>,std::function<void ()(Error)>);
+void GetAchievements(std::function<void ()(protobuf::achievement::Achievements)>,std::function<void ()(Error)>);
+void GetActiveCampaigns(std::function<void ()(protobuf::campaign::ListPublicActiveCampaignResponse const&)>,std::function<void ()(Error)>);
+void GetActivities(long long,std::function<void ()(protobuf::ActivityList const&)>,Params);
+void GetCampaignRegistration(std::string const&,std::function<void ()(protobuf::campaign::CampaignRegistrationResponse const&)>,std::function<void ()(Error)>,Params);
+void GetCampaigns(std::function<void ()(protobuf::campaign::ListCampaignRegistrationSummaryResponse const&)>,Params);
+void GetClubList(std::function<void ()(protobuf::club::Clubs const&)>,Params);
+void GetDropInWorldList(std::function<void ()(protobuf::DropInWorldList const&)>,Params);
+void GetFeatureVariant(protobuf::experimentation::FeatureRequest &&,std::function<void ()(protobuf::experimentation::FeatureResponse)>,std::__ndk1<void ()(Error)>);
+void GetFollowees(long,bool,std::function<void ()(protobuf::PlayerSocialNetwork const&)>,Params);
+void GetGroupEvent(long long,std::function<void ()(protobuf::EventProtobuf const&)>,std::function<void ()(Error)>);
+void GetMyPlaybackLatest(long long,ulong long,ulong long,std::function<void ()(protobuf::playback::PlaybackMetadata const&)>,std::function<void ()(Error)>);
+void GetMyPlaybackPr(long long,ulong long,ulong long,std::function<void ()(protobuf::playback::PlaybackMetadata const&)>,std::function<void ()(Error)>);
+void GetMyPlaybacks(long long,std::function<void ()(protobuf::playback::PlaybackMetadataList const&)>,std::function<void ()(Error)>);
+void GetPlayerState(long,long long,std::function<void ()(protobuf::PlayerState const&)>,Params);
+void GetProfile(std::function<void ()(protobuf::PlayerProfile const&)>,Params);
+void GetProfile(std::string const&,std::function<void ()(protobuf::PlayerProfile const&)>,Params);
+void GetProfile(std::string_view,std::function<void ()(protobuf::PlayerProfile const&)>,Params);
+void GetProfiles(std::unordered_set<long> const&,std::function<void ()(protobuf::PlayerProfiles const&)>,Params);
+void GetProgressInCampaign(std::string const&,std::function<void ()(protobuf::campaign::CampaignRegistrationDetailResponse const&)>,std::function<void ()(Error)>,Params);
+void RegisterInCampaign(std::string const&,std::function<void ()(protobuf::campaign::CampaignRegistrationResponse const&)>,std::function<void ()(Error)>,Params);
+void SaveActivity(protobuf::Activity &&,bool,std::basic_string<char,protobuf::Activity &&::char_traits<char>,protobuf::Activity &&::allocator<char>> const&,protobuf::Activity &&::function<void ();(long)id ov>,std::basic_string<char,protobuf::Activity &&::char_traits<char>,protobuf::Activity &&::allocator<char>> const&<void ()(Error)>);
+void SavePlayback(protobuf::playback::PlaybackData const&,std::function<void ()(std::string const&)>,std::function<void ()(Error)>);
+void SaveSegmentResult(protobuf::SegmentResult const&,std::function<void ()(long const&)>,std::function<void ()(Error)>);
+void SubscribeToRouteSegment(long long,std::function<void ()(protobuf::SegmentResults)>,std::function<void ()(Error)>);
+void ToString(zwift_network::NetworkRequestOutcome);
+void template<typename T> TryGet<T>(std::future<std::shared_ptr<zwift_network::NetworkResponse<void> const>> &);
+void UnlockAchievements(std::vector<int> const&,std::function<void ()(void)>,std::function<void ()(Error)>);
+void WaitForPendingRequests<std::vector<RequestId>>(std::vector<RequestId> const&,std::string_view);
+void WithdrawFromCampaign(std::string const&,std::function<void ()(protobuf::campaign::CampaignRegistrationResponse const&)>,std::function<void ()(Error)>,Params);
+*/
 }
 namespace uuid {
     static std::random_device              rd;

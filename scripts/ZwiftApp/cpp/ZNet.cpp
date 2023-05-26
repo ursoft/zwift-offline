@@ -12,6 +12,62 @@ void ZNETWORK_Shutdown() {
         g_NetworkOn = false;
     }
 }
+std::string_view NetworkRequestOutcomeToString(NetworkRequestOutcome code) {
+    switch (code) {
+    default:
+        return "Unknown";
+    case NRO_OK:
+        return "OK";
+    case NRO_INITIALIZATION_FAILED:
+        return "INITIALIZATION_FAILED";
+    case NRO_NOT_INITIALIZED:
+        return "NOT_INITIALIZED";
+    case NRO_NOT_LOGGED_IN:
+        return "NOT_LOGGED_IN";
+    case NRO_NO_LOG_IN_ATTEMPTED:
+        return "NO_LOG_IN_ATTEMPTED";
+    case NRO_NO_PLAYER_ID_YET:
+        return "NO_PLAYER_ID_YET";
+    case NRO_NO_WORLD_SELECTED:
+        return "NO_WORLD_SELECTED";
+    case NRO_INVALID_WORLD_ID:
+        return "INVALID_WORLD_ID";
+    case NRO_UDP_CLIENT_STOPPED:
+        return "UDP_CLIENT_STOPPED";
+    case NRO_DISCONNECTED_DUE_TO_SIMULTANEOUS_LOGINS:
+        return "DISCONNECTED_DUE_TO_SIMULTANEOUS_LOGINS";
+    case NRO_CLIENT_TO_SERVER_IS_TOO_BIG:
+        return "CLIENT_TO_SERVER_IS_TOO_BIG";
+    case NRO_REQUEST_ABORTED:
+        return "REQUEST_ABORTED";
+    case NRO_INVALID_ARGUMENT:
+        return "INVALID_ARGUMENT";
+    case NRO_REQUEST_TIMED_OUT:
+        return "REQUEST_TIMED_OUT";
+    case NRO_UNEXPECTED_HTTP_RESPONSE:
+        return "UNEXPECTED_HTTP_RESPONSE";
+    case NRO_TOO_MANY_SEGMENT_RESULTS_SUBSCRIPTIONS:
+        return "TOO_MANY_SEGMENT_RESULTS_SUBSCRIPTIONS";
+    case NRO_HTTP_STATUS_BAD_REQUEST:
+        return "HTTP_STATUS_BAD_REQUEST";
+    case NRO_HTTP_STATUS_UNAUTHORIZED:
+        return "HTTP_STATUS_UNAUTHORIZED";
+    case NRO_HTTP_STATUS_FORBIDDEN:
+        return "HTTP_STATUS_FORBIDDEN";
+    case NRO_HTTP_STATUS_NOT_FOUND:
+        return "HTTP_STATUS_NOT_FOUND";
+    case NRO_HTTP_STATUS_CONFLICT:
+        return "HTTP_STATUS_CONFLICT";
+    case NRO_HTTP_STATUS_GONE:
+        return "HTTP_STATUS_GONE";
+    case NRO_HTTP_STATUS_TOO_MANY_REQUESTS:
+        return "HTTP_STATUS_TOO_MANY_REQUESTS";
+    case NRO_HTTP_STATUS_SERVICE_UNAVAILABLE:
+        return "HTTP_STATUS_SERVICE_UNAVAILABLE";
+    case NRO_HTTP_STATUS_BANDWIDTH_LIMIT_EXCEEDED:
+        return "HTTP_STATUS_BANDWIDTH_LIMIT_EXCEEDED";
+    }
+}
 struct QueryStringBuilder : std::multimap<std::string, std::string> {
     void add(const std::string &name, bool val) { emplace(name, val ? "true"s : "false"s); }
     void add(const std::string &name, const char *val) { emplace(name, val); }
@@ -1882,7 +1938,7 @@ struct FutureWaiter : public boost::asio::steady_timer {
     bool m_inWait = false;
     void poll(const boost::system::error_code &ec) {
         if (!ec) {
-            if (m_obj.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+            if (!is_ready(m_obj))
                 return waitAgain();
             m_inWait = false;
             m_func(m_obj.get());
@@ -3232,7 +3288,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
                             "Watching Player ID %lli",
                             ps->m_watching_rider_id);*/
                 }
-                if (m_field_1208 == 1 && m_field_1210.valid() && m_field_1210.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+                if (m_field_1208 == 1 && m_field_1210.valid() && is_ready(m_field_1210)) {
                     auto result = m_field_1210.get();
                     if (result.m_errCode) {
                         NetworkingLogError("Error requesting fan viewed player state: [%d] %s", result.m_errCode, result.m_msg.c_str());
@@ -5960,11 +6016,11 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         else
             return makeNetworkResponseFuture<protobuf::SegmentResults>(NRO_INVALID_ARGUMENT, "Invalid world id"s);
     }
-    std::future<NetworkResponse<void>> updateProfile(const protobuf::PlayerProfile &prof, bool inGameFields) {
+    std::future<NetworkResponse<void>> updateProfile(bool inGameFields, const protobuf::PlayerProfile &prof, bool udp) {
         InitializeCNLfirst(void, m_restInvoker);
         bool m = prof.use_metric();
-        return m_restInvoker->updateProfile(prof, inGameFields, [this, inGameFields, m]() {
-            if (inGameFields && this->m_udpClient)
+        return m_restInvoker->updateProfile(prof, inGameFields, [this, udp, m]() {
+            if (udp && this->m_udpClient)
                 this->m_udpClient->setPlayerProfileUpdated(this->m_wclock->getWorldTime());
             //TelemetryService::setPowerSourceType((__int64)v4->m_ts, v1);
             if (this->m_aux)
@@ -6364,7 +6420,7 @@ std::future<NetworkResponse<protobuf::PlayerProfile>> profile(int64_t profileId,
 std::future<NetworkResponse<protobuf::ActivityList>> get_activities(int64_t profileId, const Optional<int64_t> &startsAfter, const Optional<int64_t> &startsBefore, bool fetchSnapshots) {
     return g_networkClient->m_pImpl->getActivities(profileId, startsAfter, startsBefore, fetchSnapshots);
 }
-std::future<NetworkResponse<void>> update_profile(const protobuf::PlayerProfile &prof, bool inGameFields) { return g_networkClient->m_pImpl->updateProfile(prof, inGameFields); }
+std::future<NetworkResponse<void>> update_profile(bool inGameFields, const protobuf::PlayerProfile &prof, bool udp) { return g_networkClient->m_pImpl->updateProfile(inGameFields, prof, udp); }
 std::future<NetworkResponse<int64_t>> save_activity(const protobuf::Activity &act, bool uploadToStrava, const std::string &fitPath) { return g_networkClient->m_pImpl->saveActivity(act, uploadToStrava, fitPath); }
 std::future<NetworkResponse<void>> remove_goal(int64_t playerId, int64_t goalId) { return g_networkClient->m_pImpl->removeGoal(playerId, goalId); }
 std::future<NetworkResponse<int64_t>> save_activity_image(int64_t profileId, const protobuf::ActivityImage &img, const std::string &imgPath) { return g_networkClient->m_pImpl->saveActivityImage(profileId, img, imgPath); }
@@ -6757,6 +6813,37 @@ std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double w_
     crit->set_bta_20h((int)bta_20h);
     return zwift_network::create_race_result_entry(rq);
 }
+namespace ZNet {
+RequestId NetworkService::GetAllTimeBestEffortsPowerCurve(std::function<void(const protobuf::PowerCurveAggregationMsg &)> &&f, Params *pParams) {
+    pParams->m_funcName = "GetBestEffortsPowerCurveAllTime";
+    pParams->m_retry = RetryParams { .m_count = 3, .m_timeout = 2000 };
+    pParams->m_has_retry = true;
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::PowerCurveAggregationMsg>>()>([]() { return zwift_network::get_best_efforts_power_curve_from_all_time(); }),
+        std::move(f), pParams);
+}
+RequestId UpdateProfile(bool inGameFields, const protobuf::PlayerProfile &prof, bool udp, std::function<void(void)> &&f, Params *pParams) {
+    zassert(ZNETWORK_IsLoggedIn() && "UpdateProfile called when not logged in!");
+    if (ZNETWORK_IsLoggedIn()) {
+        pParams->m_funcName = "UpdateProile";
+        return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<void>>()>([inGameFields, prof, udp]() {
+            return zwift_network::update_profile(inGameFields, prof, udp);
+        }), std::move(f), pParams);
+    }
+    return 0;
+}
+RequestId NetworkService::UpdateProfile(bool inGameFields, const protobuf::PlayerProfile &prof, bool udp, std::function<void(void)> &&func, Params *pParams) {
+    return ZNet::UpdateProfile(inGameFields, prof, udp, std::move(func), pParams);
+}
+RequestId GetProfile(int64_t playerId, std::function<void(const protobuf::PlayerProfile &)> &&f, Params *pParams) {
+    pParams->m_funcName = "GetProfile";
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::PlayerProfile>>()>([playerId]() {
+        return zwift_network::profile(playerId, false);
+    }), std::move(f), pParams);
+}
+RequestId NetworkService::GetProfile(int64_t playerId, std::function<void(const protobuf::PlayerProfile &)> &&func, Params *pParams) {
+    return ZNet::GetProfile(playerId, std::move(func), pParams);
+}
+};
 
 //Units
 TEST(SmokeTest, JsonWebToken) {

@@ -379,15 +379,18 @@ void CriticalPowerCurve::Reset() {
 }
 void CriticalPowerCurve::UpdateServerBestPowerCurve() {
     if (m_exp->IsEnabled(FID_SERV_PC)) {
-        /* TODO v2 = ZNet::API::Inst();
-        ZNet::API::Dequeue(v2, this->field_170);
-        m_net = this->m_net;
-        memset(v6, 0, sizeof(v6));
-        v4 = *m_net;
-        v5[0] = &std::_Func_impl_no_alloc<_lambda_b5040236f1f66d4163eb2b5e34b0808b_, void, zwift::protobuf::powercurve::aggregation::PowerCurveAggregationMsg const &>::`vftable';
-        v5[7] = v5;
-        v5[1] = this;
-        this->field_170 = *(*(v4 + 8))(m_net, &v7, v5, v6);*/
+        ZNet::API::Inst()->Dequeue(m_requestId);
+        ZNet::Params p{};
+        m_requestId = m_net->GetAllTimeBestEffortsPowerCurve([this](const protobuf::PowerCurveAggregationMsg &pcam) {
+            this->m_maxPowerAtInterval.clear(); //this[35...38]
+            this->m_maxWattsKey = 0; // this[40][0]
+            for (auto &i : pcam.watts()) {
+                auto key = _strtoi64(i.first.c_str(), nullptr, 10);
+                m_maxPowerAtInterval[key] = i.second.power(); //v14
+                if (key > this->m_maxWattsKey)
+                    this->m_maxWattsKey = key;
+            }
+        }, &p);
     }
 }
 void CriticalPowerCurve::HandleEvent(EVENT_ID ev, va_list) {
@@ -464,8 +467,7 @@ void RecorderComponent::ImportXML(const tinyxml2::XMLDocument &src) {
 CriticalPowerCurve::~CriticalPowerCurve() {
     m_eventSystem->Unsubscribe(EV_RESET, this);
     m_eventSystem->Unsubscribe(EV_1f, this);
-    /* TODO v4 = ZNet::API::Inst();
-    ZNet::API::Dequeue(v4, this->field_170);*/
+    ZNet::API::Inst()->Dequeue(m_requestId);
 }
 void CriticalPowerCurve::StartThreadedCalculation(JobData *) {
     auto c = (CriticalPowerCurve *)DataRecorder::Instance()->GetComponent(RecorderComponent::T_CPC);
@@ -574,9 +576,7 @@ CriticalPowerCurve::CriticalPowerCurve(ZNet::NetworkService *net, Experimentatio
     *&this->m_ev_part.field_68 = 0i64;
     *&this->m_ev_part.field_70 = 0;
     *&this->m_ev_part.field_74 = 1065353216i64;
-    *&this->m_ev_part.field_C0 = 0i64;
-    this->m_ev_part.m_field_C8 = -1;
-    this->field_170 = 0i64;*/
+    this->m_ev_part.m_field_C8 = -1;*/
     ev->Subscribe(EV_RESET, this);
     ev->Subscribe(EV_1f, this);
 }

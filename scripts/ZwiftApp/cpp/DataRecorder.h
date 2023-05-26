@@ -69,7 +69,8 @@ struct CriticalPowerCurve : public RecorderComponent, EventObject { //0x188 byte
     std::vector<RideCPC> m_rideCPC;
     std::unordered_map<uint16_t, uint16_t> m_maxPowerAtInterval;
     uint64_t m_playerId = 0;
-    uint32_t m_field_64 = 0, m_field_60 = 0, m_field_5C = 0, m_cpIdMin = 0, m_cpIdMax = 0, m_cpIdOffset = 0;
+    uint32_t m_field_64 = 0, m_field_60 = 0, m_field_5C = 0, m_cpIdMin = 0, m_cpIdMax = 0, m_cpIdOffset = 0, m_maxWattsKey = 0;
+    ZNet::RequestId m_requestId = 0;
     float m_threadDoneTime = 0.0;
     bool m_field_C4 = false, m_threadCalcInProgress = false, m_immunToCheatFlag = false, m_isMale = true;
     CriticalPowerCurve(ZNet::NetworkService *net, Experimentation *exp, EventSystem *ev);
