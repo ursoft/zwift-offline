@@ -26,7 +26,7 @@ std::string_view NetworkRequestOutcomeToString(NetworkRequestOutcome code);
 void shutdown_zwift_network();
 template<class T>
 struct Optional {
-    T m_T = default();
+    T m_T = T();
     bool m_hasValue = false;
     void setJson(Json::Value *dest, const std::string &index, const std::function<std::string(const T&)> &f = std::function<std::string(const T &)>()) const {
         if (!m_hasValue) return;
@@ -231,6 +231,7 @@ namespace zwift_network {
     std::future<NetworkResponse<protobuf::ActivityList>> get_activities(int64_t profileId, const Optional<int64_t> &startsAfter, const Optional<int64_t> &startsBefore, bool fetchSnapshots);
     std::future<NetworkResponse<protobuf::PlayerProfile>> profile(int64_t profileId, bool bSocial);
     std::future<NetworkResponse<protobuf::SegmentResults>> subscribe_to_segment_and_get_leaderboard(int64_t sid);
+    std::future<NetworkResponse<protobuf::SegmentResults>> get_segment_jersey_leaders();
     uint64_t world_time();
 }
 NetworkRequestOutcome ZNETWORK_ClearPlayerPowerups();
@@ -279,10 +280,10 @@ namespace ZNet {
     };
     template<typename T> struct TOnReady { using type = std::function<void(const T &)>; };
     template<> struct TOnReady<void> { using type = std::function<void(void)>; };
-    struct IRPC {
+    struct RPCBase {
         virtual std::pair<NetworkRequestOutcome, bool> Post(bool blocking) = 0;
         virtual bool ShouldRemove(uint32_t dt) = 0;
-        virtual ~IRPC() {}
+        virtual ~RPCBase() {}
     };
     /* OMIT: used in analytics and campaigns only; template<typename T>
     struct NetworkFetcher<T> {
@@ -309,7 +310,7 @@ namespace ZNet {
             return v5 == 2;
         }
     };*/
-    template<typename T> struct RPC : public IRPC {
+    template<typename T> struct RPC : public RPCBase {
         std::function<std::future<NetworkResponse<T>>(void)> m_futureCreator;
         TOnReady<T>::type m_onSuccess;
         std::string_view m_parFuncName;
@@ -456,12 +457,12 @@ OMIT RequestId GetWorkout(const std::string const&,std::function<void (const std
     };
     struct API {
         std::mutex m_mutex;
-        std::unordered_map<RequestId, std::unique_ptr<IRPC>> m_map;
+        std::unordered_map<RequestId, std::unique_ptr<RPCBase>> m_map;
         uint64_t m_counter = 0;
         static API *Inst() { static API s_inst; return &s_inst; }
         template<typename T>
         RequestId Enqueue(std::function<std::future<NetworkResponse<T>>(void)> &&f, TOnReady<T>::type &&ready_f, Params *p) {
-            std::unique_ptr<IRPC> r;
+            std::unique_ptr<RPCBase> r;
             if (p->m_has_retry)
                 r.reset(new RetryableRPC<T>(std::move(f), std::move(ready_f), p));
             else
@@ -478,28 +479,36 @@ OMIT RequestId GetWorkout(const std::string const&,std::function<void (const std
             std::lock_guard l(m_mutex);
             return m_map.erase(req) > 0;
         }
-        void Blocking_Send(std::function<std::future<NetworkResponse<void>(void)>>, const Params &);
-        void GetStatus(RequestId);
-        void IsBusy();
-        void Update(uint32_t);
-        void WaitFor(RequestId);
+        //absent in PC? void Blocking_Send(const std::function<std::future<NetworkResponse<void>(void)>> &f, const Params &);
+        bool GetStatus(RequestId r) {
+            std::lock_guard l(m_mutex);
+            auto f = m_map.find(r);
+            if (f == m_map.end())
+                return false;
+            return true;
+        }
+        bool IsBusy() {
+            std::lock_guard l(m_mutex);
+            return !m_map.empty();
+        }
+        void Update(uint32_t dt);
     };
+    bool WaitForPendingRequests(const std::vector<RequestId> &vec, std::string_view sv);
     RequestId UpdateProfile(bool inGameFields, const protobuf::PlayerProfile &prof, bool udp, std::function<void(void)> &&f, Params *pParams);
     RequestId GetProfile(int64_t playerId, std::function<void(const protobuf::PlayerProfile &)> &&func, Params *pParams);
     RequestId GetProfiles(const std::unordered_set<int64_t> &ids, std::function<void (const protobuf::PlayerProfiles &)> &&f, Params *pParams);
-    /*
     RequestId DeleteActivity(int64_t, uint64_t, std::function<void (void)> &&f, std::function<void (Error)> &&ef);
     RequestId DownloadPlayback(const protobuf::PlaybackMetadata &proto, std::function<void (const protobuf::PlaybackData &)> &&f, std::function<void (Error)> &&ef);
     RequestId EnrollInCampaign(std::string &proto, std::function<void (const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
     RequestId FetchSegmentJerseyLeaders(std::function<void (const protobuf::SegmentResults)> &&f, std::function<void (Error)> &&ef);
-    RequestId GetAchievements(std::function<void (const protobuf::achievement::Achievements)> &&f, std::function<void (Error)> &&ef);
+    RequestId GetAchievements(std::function<void (const protobuf::Achievements &)> &&f, std::function<void (Error)> &&ef);
     RequestId GetActiveCampaigns(std::function<void (const protobuf::ListPublicActiveCampaignResponse &)> &&f, std::function<void (Error)> &&ef);
     RequestId GetActivities(int64_t, std::function<void (const protobuf::ActivityList &)> &&f, Params *pParams);
     RequestId GetCampaignRegistration(std::string &proto, std::function<void (const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
     RequestId GetCampaigns(std::function<void (const protobuf::ListCampaignRegistrationSummaryResponse &)> &&f, Params *pParams);
-    RequestId GetClubList(std::function<void (const protobuf::club::Clubs &)> &&f, Params *pParams);
+    RequestId GetClubList(std::function<void (const protobuf::Clubs &)> &&f, Params *pParams);
     RequestId GetDropInWorldList(std::function<void (const protobuf::DropInWorldList &)> &&f, Params *pParams);
-    RequestId GetFeatureVariant(const protobuf::experimentation::FeatureRequest &&, std::function<void (const protobuf::experimentation::FeatureResponse)> &&f, std::__ndk1<void ()(Error)> &&ef);
+    RequestId GetFeatureVariant(const protobuf::FeatureRequest &&, std::function<void (const protobuf::FeatureResponse)> &&f, std::function<void (Error)> &&ef);
     RequestId GetFollowees(int64_t, bool, std::function<void (const protobuf::PlayerSocialNetwork &)> &&f, Params *pParams);
     RequestId GetGroupEvent(int64_t, std::function<void (const protobuf::EventProtobuf &)> &&f, std::function<void (Error)> &&ef);
     RequestId GetMyPlaybackLatest(int64_t, uint64_t, uint64_t, std::function<void (const protobuf::PlaybackMetadata &)> &&f, std::function<void (Error)> &&ef);
@@ -511,16 +520,20 @@ OMIT RequestId GetWorkout(const std::string const&,std::function<void (const std
     RequestId GetProfile(std::string_view, std::function<void (const protobuf::PlayerProfile &)> &&f, Params *pParams);
     RequestId GetProgressInCampaign(std::string &proto, std::function<void (const protobuf::CampaignRegistrationDetailResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
     RequestId RegisterInCampaign(std::string &proto, std::function<void (const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
-    RequestId SaveActivity(const protobuf::Activity &&, bool, std::basic_string<char, protobuf::Activity &&::char_traits<char> &&f, protobuf::Activity &&::allocator<char>> &proto, protobuf::Activity &&::function<void ();(int64_t)id ov> &&f, std::basic_string<char, protobuf::Activity &&::char_traits<char> &&f, protobuf::Activity &&::allocator<char>> const&<void ()(Error)> &&ef);
-    RequestId SavePlayback(const protobuf::PlaybackData &proto, std::function<void (std::string &)> &&f, std::function<void (Error)> &&ef);
-    RequestId SaveSegmentResult(const protobuf::SegmentResult &proto, std::function<void (int64_t &)> &&f, std::function<void (Error)> &&ef);
-    RequestId SubscribeToRouteSegment(int64_t, std::function<void (const protobuf::SegmentResults)> &&f, std::function<void (Error)> &&ef);
-    RequestId ToString(NetworkRequestOutcome);
-    RequestId template<typename T> TryGet<T>(std::future<std::shared_ptr<NetworkResponse<void> const>> &);
-    RequestId UnlockAchievements(std::vector<int> &proto, std::function<void (void)> &&f, std::function<void (Error)> &&ef);
-    RequestId WaitForPendingRequests<std::vector<RequestId>>(std::vector<RequestId> &proto, std::string_view);
+    RequestId SaveActivity(const protobuf::Activity &, bool, const std::string &s, std::function<void (int64_t)> &&f, std::function<void (Error)> &&ef);
+    RequestId SavePlayback(const protobuf::PlaybackData &proto, std::function<void (const std::string &)> &&f, std::function<void (Error)> &&ef);
+    RequestId SaveSegmentResult(const protobuf::SegmentResult &proto, std::function<void (const int64_t &)> &&f, std::function<void (Error)> &&ef);
+    RequestId SubscribeToRouteSegment(int64_t, std::function<void (const protobuf::SegmentResults &)> &&f, std::function<void (Error)> &&ef);
+    RequestId UnlockAchievements(const std::vector<int> &proto, std::function<void (void)> &&f, std::function<void (Error)> &&ef);
     RequestId WithdrawFromCampaign(std::string &proto, std::function<void (const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
-*/
+    /* OMIT: analytics, campaign template<typename T>
+    NetworkResponse<T> TryGet(std::future<NetworkResponse<T>> &fut) {
+        if (fut.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            return fut.get();
+        } else {
+            ret[10] = 1; return ret;// NetworkResponse<T>{NRO_}
+        }
+    }*/
 }
 namespace uuid {
     static std::random_device              rd;

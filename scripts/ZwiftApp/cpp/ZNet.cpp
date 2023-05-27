@@ -2313,7 +2313,7 @@ struct RestServerRestInvoker { //0x70 bytes
             return HttpHelper::convertToVoidResponse(v9);
         }), true, false);
     }
-    std::future<NetworkResponse<int64_t>> saveActivity(const protobuf::Activity &act, bool uploadToStrava, const std::string &fitPath, const std::function<void(const NetworkResponse<int64_t> &)> &func) {
+    std::future<NetworkResponse<int64_t>> saveActivity(const protobuf::Activity &act, bool bFinalSave, const std::string &fitPath, const std::function<void(const NetworkResponse<int64_t> &)> &func) {
         return m_mgr->pushRequestTask(std::function<NetworkResponse<int64_t>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
             std::string url(this->m_url);
             url += "/api/profiles/"s + std::to_string(act.player_id()) + "/activities"s;
@@ -2321,7 +2321,7 @@ struct RestServerRestInvoker { //0x70 bytes
             std::unique_ptr<protobuf::Activity> actMutable;
             if (act.has_id())
                 url += "/"s + std::to_string(act.id());
-            if (uploadToStrava)
+            if (bFinalSave)
                 url += "?upload-to-strava=true"s;
             if (!act.has_fit() && fitPath.size()) {
                 NetworkingLogInfo("Activity Upload: load fit file from path %s", fitPath.c_str());
@@ -3959,7 +3959,12 @@ struct SegmentResultsRestInvoker { //0x30 bytes
             return HttpHelper::convertToResultResponse<protobuf::SegmentResults>(v9);
         }), true, false);
     }
-    /*absent in PC getSegmentJerseyLeaders() SegmentResults "Segment Jersey Leaders" */
+    std::future<NetworkResponse<protobuf::SegmentResults>> getSegmentJerseyLeaders() {
+        return m_mgr->pushRequestTask(std::function<NetworkResponse<protobuf::SegmentResults>(CurlHttpConnection *)>([=](CurlHttpConnection *conn) {
+            auto v9 = conn->performGet(m_url + "/leaders"s, AcceptHeader(ATH_PB), "Segment Jersey Leaders"s);
+            return HttpHelper::convertToResultResponse<protobuf::SegmentResults>(v9);
+        }), true, false);
+    }
 };
 struct PowerCurveRestInvoker { //0x30 bytes
     ZwiftHttpConnectionManager *m_mgr;
@@ -4066,7 +4071,7 @@ struct WorldAttributeStatistics { //0x90 bytes
     }
     //OMIT
 };
-struct LanExerciseDeviceService { //0x3B0 bytes
+struct LanExerciseDeviceService { //0x3B0 bytes LATER
     LanExerciseDeviceService(const std::string &zaVersion, uint16_t, int, int, int, int) {
         //TODO
     }
@@ -5021,7 +5026,7 @@ struct AuxiliaryController : public WorldIdListener { //0x105B8-16 bytes
         repeat_keep_alive(5);
     }
     void do_tcp_receive_encoded_message(uint32_t) {
-        //TODO
+        //not present
     }
     bool pop_phone_to_game_command(protobuf::PhoneToGameCommand *dest) {
         std::lock_guard l(m_mutex4);
@@ -6001,9 +6006,9 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         else
             return makeNetworkResponseFuture<void>(NRO_INVALID_ARGUMENT, "Invalid player id"s);
     }
-    std::future<NetworkResponse<int64_t>> saveActivity(const protobuf::Activity &act, bool uploadToStrava, const std::string &fitPath) {
+    std::future<NetworkResponse<int64_t>> saveActivity(const protobuf::Activity &act, bool bFinalSave, const std::string &fitPath) {
         InitializeCNLfirst(int64_t, m_restInvoker);
-        return m_restInvoker->saveActivity(act, uploadToStrava, fitPath, [this](const NetworkResponse<int64_t> &nr) {
+        return m_restInvoker->saveActivity(act, bFinalSave, fitPath, [this](const NetworkResponse<int64_t> &nr) {
             //OMIT if (!nr)
             //    TelemetryService::setActivityId();
         });
@@ -6128,6 +6133,9 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         InitializeCNLfirst(protobuf::DropInWorldList, m_relay);
         return m_relay->fetchDropInWorldList(true);
     }
+    std::future<NetworkResponse<protobuf::SegmentResults>> getSegmentJerseyLeaders() {
+        return m_srRi->getSegmentJerseyLeaders();
+    }
     std::list<ValidateProperty> parseValidationErrorMessage(const std::string &msg) {
         std::list<ValidateProperty> ret;
         size_t parsePos = 0;
@@ -6216,7 +6224,6 @@ void updateFollower(int64_t,int64_t,bool,protobuf::ProfileFollowStatus)
 void getFollowers(int64_t,bool)
 void getFollowers(int64_t,int64_t,bool)
 void getSegmentResult(int64_t)
-void getSegmentJerseyLeaders()
 void returnToHome()
 void resumeSubscription()
 void resetPassword(const std::string &)
@@ -6415,12 +6422,13 @@ std::future<NetworkResponse<protobuf::SegmentResults>> query_segment_results(int
     return g_networkClient->m_pImpl->querySegmentResults(serverRealm, segmentId, from, to, full);
 }
 std::future<NetworkResponse<protobuf::SegmentResults>> subscribe_to_segment_and_get_leaderboard(int64_t sid) { return g_networkClient->m_pImpl->subscribeToSegmentAndGetLeaderboard(sid); }
+std::future<NetworkResponse<protobuf::SegmentResults>> get_segment_jersey_leaders() { return g_networkClient->m_pImpl->getSegmentJerseyLeaders(); }
 std::future<NetworkResponse<protobuf::PlayerProfile>> profile(int64_t profileId, bool bSocial) { return g_networkClient->m_pImpl->profile(profileId, bSocial); }
 std::future<NetworkResponse<protobuf::ActivityList>> get_activities(int64_t profileId, const Optional<int64_t> &startsAfter, const Optional<int64_t> &startsBefore, bool fetchSnapshots) {
     return g_networkClient->m_pImpl->getActivities(profileId, startsAfter, startsBefore, fetchSnapshots);
 }
 std::future<NetworkResponse<void>> update_profile(bool inGameFields, const protobuf::PlayerProfile &prof, bool udp) { return g_networkClient->m_pImpl->updateProfile(inGameFields, prof, udp); }
-std::future<NetworkResponse<int64_t>> save_activity(const protobuf::Activity &act, bool uploadToStrava, const std::string &fitPath) { return g_networkClient->m_pImpl->saveActivity(act, uploadToStrava, fitPath); }
+std::future<NetworkResponse<int64_t>> save_activity(const protobuf::Activity &act, bool bFinalSave, const std::string &fitPath) { return g_networkClient->m_pImpl->saveActivity(act, bFinalSave, fitPath); }
 std::future<NetworkResponse<void>> remove_goal(int64_t playerId, int64_t goalId) { return g_networkClient->m_pImpl->removeGoal(playerId, goalId); }
 std::future<NetworkResponse<int64_t>> save_activity_image(int64_t profileId, const protobuf::ActivityImage &img, const std::string &imgPath) { return g_networkClient->m_pImpl->saveActivityImage(profileId, img, imgPath); }
 std::future<NetworkResponse<protobuf::PlayerProfiles>> get_event_subgroup_entrants(protobuf::EventParticipation ep, int64_t eventId, uint32_t limit) { return g_networkClient->m_pImpl->getEventSubgroupEntrants(ep, eventId, limit); }
@@ -6813,6 +6821,21 @@ std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double w_
     return zwift_network::create_race_result_entry(rq);
 }
 namespace ZNet {
+void API::Update(uint32_t dt) {
+    std::vector<std::pair<ZNet::RequestId, std::unique_ptr<ZNet::RPCBase>>> copy;
+    {
+        std::lock_guard l(m_mutex);
+        if (m_map.size())
+            copy.reserve(m_map.size());
+        for (auto &i : m_map)
+            if (i.second->ShouldRemove(dt))
+                copy.emplace_back(std::move(i));
+    }
+    for (auto &i : copy) {
+        /*auto v39 =*/ i.second->Post(false);
+        m_map.erase(i.first);
+    }
+}
 RequestId NetworkService::GetAllTimeBestEffortsPowerCurve(std::function<void(const protobuf::PowerCurveAggregationMsg &)> &&f, Params *pParams) {
     pParams->m_funcName = "GetBestEffortsPowerCurveAllTime";
     pParams->m_retry = RetryParams { .m_count = 3, .m_timeout = 2000 };
@@ -6848,6 +6871,207 @@ RequestId GetProfiles(const std::unordered_set<int64_t> &playerIDs, std::functio
     return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::PlayerProfiles>>(void)>([playerIDs]() {
         return zwift_network::profiles(playerIDs);
     }), std::move(f), pParams);
+}
+bool WaitForPendingRequests(const std::vector<RequestId> &vec, std::string_view sv) {
+    bool ret = true;
+    if (!sv.length())
+        sv = "Unknown";
+    auto inst = ZNet::API::Inst();
+    for (auto v6 : vec) {
+        //ZNet::API::GetInst()->WaitFor(v6); inlined
+        inst->m_mutex.lock();
+        auto f = inst->m_map.find(v6);
+        if (f != inst->m_map.end()) {
+            auto rid = f->first;
+            if (rid) {
+                auto v15 = f->second->Post(true);
+                inst->m_map.erase(f);
+                inst->m_mutex.unlock();
+                if (!v15.second || v15.first) {
+                    ret = false;
+                    int outcome = -1;
+                    if (v15.second)
+                        outcome = v15.first;
+                    LogTyped(LOG_ERROR, "[ZNet] RPC wait failure for [%s]! Outcome: %d", sv.data(), outcome);
+                }
+            } else {
+                zassert(!"[ZNet] RequestId is empty!");
+            }
+        } else {
+            inst->m_mutex.unlock();
+            ::Sleep(0);
+        }
+    }
+    return ret;
+}
+RequestId DeleteActivity(int64_t playerID, uint64_t actId, std::function<void(void)> &&f, std::function<void(Error)> &&ef) {
+    Params params{.m_funcName = "DeleteActivity", .m_onError = std::move(ef)};
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<void>>(void)>([playerID, actId]() {
+        return zwift_network::delete_activity(playerID, actId);
+    }), std::move(f), &params);
+}
+RequestId DownloadPlayback(const protobuf::PlaybackMetadata &proto, std::function<void(const protobuf::PlaybackData &)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "DownloadPlayback", .m_onError = std::move(ef), .m_retry{.m_count = 5, .m_timeout = 1000}, .m_has_retry = true };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::PlaybackData>>(void)>([proto]() {
+        return zwift_network::get_playback_data(proto);
+    }), std::move(f), &params);
+}
+RequestId EnrollInCampaign(std::string &proto, std::function<void(const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void(Error)> &&ef, Params *pParams) {
+    //OMIT
+    return 0;
+}
+RequestId FetchSegmentJerseyLeaders(std::function<void(const protobuf::SegmentResults)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "FetchJerseyLeaders", .m_onError = std::move(ef) };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::SegmentResults>>(void)>([]() {
+        return zwift_network::get_segment_jersey_leaders();
+    }), std::move(f), &params);
+}
+RequestId GetAchievements(std::function<void(const protobuf::Achievements &)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "GetAchievements", .m_onError = std::move(ef) };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::Achievements>>(void)>([]() {
+        return zwift_network::get_achievements();
+    }), std::move(f), &params);
+}
+RequestId GetActiveCampaigns(std::function<void(const protobuf::ListPublicActiveCampaignResponse &)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "GetActiveCampaigns", .m_onError = std::move(ef) };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::ListPublicActiveCampaignResponse>>(void)>([]() {
+        return zwift_network::get_active_campaigns();
+    }), std::move(f), &params);
+}
+RequestId GetActivities(int64_t profileId, std::function<void(const protobuf::ActivityList &)> &&f, Params *pParams) {
+    pParams->m_funcName = "GetActivities";
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::ActivityList>>(void)>([profileId]() {
+        Optional<int64_t> startsAfter, startsBefore;
+        return zwift_network::get_activities(profileId, startsAfter, startsBefore, false);
+    }), std::move(f), pParams);
+}
+RequestId GetCampaignRegistration(std::string &proto, std::function<void(const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void(Error)> &&ef, Params *pParams) {
+    //OMIT
+    return 0;
+}
+RequestId GetCampaigns(std::function<void(const protobuf::ListCampaignRegistrationSummaryResponse &)> &&f, Params *pParams) {
+    //OMIT
+    return 0;
+}
+RequestId GetClubList(std::function<void(const protobuf::Clubs &)> &&f, Params *pParams) {
+    pParams->m_funcName = "GetClubList";
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::Clubs>>(void)>([]() {
+        Optional<protobuf::Membership_Status> status;
+        Optional<int> start, limit;
+        return zwift_network::list_my_clubs(status, start, limit);
+    }), std::move(f), pParams);
+}
+RequestId GetDropInWorldList(std::function<void(const protobuf::DropInWorldList &)> &&f, Params *pParams) {
+    pParams->m_funcName = "GetDropInWorldList";
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::DropInWorldList>>(void)>([]() {
+        return zwift_network::fetch_drop_in_world_list();
+    }), std::move(f), pParams);
+}
+RequestId GetFeatureVariant(const protobuf::FeatureRequest &&proto, std::function<void(const protobuf::FeatureResponse)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "GetFeatureVariant", .m_onError = std::move(ef) };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::FeatureResponse>>(void)>([proto]() {
+        return zwift_network::get_feature_response(proto);
+    }), std::move(f), &params);
+}
+RequestId GetFollowees(int64_t profileId, bool follow, std::function<void(const protobuf::PlayerSocialNetwork &)> &&f, Params *pParams) {
+    pParams->m_funcName = "GetFollowees";
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::PlayerSocialNetwork>>(void)>([profileId, follow]() {
+        return zwift_network::get_followees(profileId, follow);
+    }), std::move(f), pParams);
+}
+RequestId GetGroupEvent(int64_t id, std::function<void(const protobuf::EventProtobuf &)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "GetGroupEvent", .m_onError = std::move(ef) };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::EventProtobuf>>(void)>([id]() {
+        return zwift_network::get_event(id);
+    }), std::move(f), &params);
+}
+RequestId GetMyPlaybackLatest(int64_t a2, uint64_t after, uint64_t before, std::function<void(const protobuf::PlaybackMetadata &)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "GetMyPlaybackLatest", .m_onError = std::move(ef), .m_retry{.m_count = 5, .m_timeout = 1000}, .m_has_retry = true };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::PlaybackMetadata>>(void)>([a2, after, before]() {
+        return zwift_network::get_my_playback_latest(a2, after, before);
+    }), std::move(f), &params);
+}
+RequestId GetMyPlaybackPr(int64_t a2, uint64_t after, uint64_t before, std::function<void(const protobuf::PlaybackMetadata &)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "GetMyPlaybackPr", .m_onError = std::move(ef), .m_retry{.m_count = 5, .m_timeout = 1000}, .m_has_retry = true };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::PlaybackMetadata>>(void)>([a2, after, before]() {
+        return zwift_network::get_my_playback_pr(a2, after, before);
+    }), std::move(f), &params);
+}
+RequestId GetMyPlaybacks(int64_t a2, std::function<void(const protobuf::PlaybackMetadataList &)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "GetMyPlaybackPr", .m_onError = std::move(ef) };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::PlaybackMetadataList>>(void)>([a2]() {
+        return zwift_network::get_my_playbacks(a2);
+    }), std::move(f), &params);
+}
+RequestId GetPlayerState(int64_t serverRealm, int64_t playerId, std::function<void(const protobuf::PlayerState &)> &&f, Params *pParams) {
+    pParams->m_funcName = "GetPlayerState";
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::PlayerState>>(void)>([serverRealm, playerId]() {
+        return zwift_network::latest_player_state(serverRealm, playerId);
+    }), std::move(f), pParams);
+}
+RequestId GetProfile(std::function<void(const protobuf::PlayerProfile &)> &&f, Params *pParams) {
+    //OMIT
+    return 0;
+}
+RequestId GetProfile(std::string &proto, std::function<void(const protobuf::PlayerProfile &)> &&f, Params *pParams) {
+    //OMIT
+    return 0;
+}
+RequestId GetProfile(std::string_view, std::function<void(const protobuf::PlayerProfile &)> &&f, Params *pParams) {
+    //OMIT
+    return 0;
+}
+RequestId GetProgressInCampaign(std::string &proto, std::function<void(const protobuf::CampaignRegistrationDetailResponse &)> &&f, std::function<void(Error)> &&ef, Params *pParams) {
+    //OMIT
+    return 0;
+}
+RequestId RegisterInCampaign(std::string &proto, std::function<void(const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void(Error)> &&ef, Params *pParams) {
+    //OMIT
+    return 0;
+}
+RequestId SaveActivity(const protobuf::Activity &proto, bool bFinalSave, const std::string &fitPath, std::function<void(int64_t)> &&f, std::function<void(Error)> &&ef) {
+    zassert(!ZU_IsInPreReleaseRestrictedMode(proto.course_id()) || proto.privacy() == protobuf::ActivityPrivacyType::PRIVATE);
+    Params params{ .m_funcName = "SaveActivity", .m_onError = std::move(ef) };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<int64_t>>(void)>([proto, bFinalSave, fitPath]() {
+        Log("ZNet::SaveActivity calling zwift_network::save_activity with {name: %s, bFinalSave: %s, fitFileNameToUpload: %s, fitFileNameShort: %s}",
+            proto.name().c_str(), bFinalSave ? "True" : "False", fitPath.c_str(), proto.fit_filename().c_str());
+        return zwift_network::save_activity(proto, bFinalSave, fitPath);
+    }), std::move(f), &params);
+}
+RequestId SavePlayback(const protobuf::PlaybackData &proto, std::function<void(const std::string &)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "SavePlayback", .m_onError = std::move(ef) };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<std::string>>(void)>([proto]() {
+        return zwift_network::save_playback(proto);
+    }), std::move(f), &params);
+}
+RequestId SaveSegmentResult(const protobuf::SegmentResult &proto, std::function<void(const int64_t &)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "SaveSegmentResult", .m_onError = std::move(ef) };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<int64_t>>(void)>([proto]() {
+        return zwift_network::save_segment_result(proto);
+    }), std::move(f), &params);
+}
+RequestId SubscribeToRouteSegment(int64_t id, std::function<void(const protobuf::SegmentResults &)> &&f, std::function<void(Error)> &&ef) {
+    Params params{ .m_funcName = "SubscribeToRouteSegment", .m_onError = std::move(ef) };
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::SegmentResults>>(void)>([id]() {
+        return zwift_network::subscribe_to_segment_and_get_leaderboard(id);
+    }), std::move(f), &params);
+}
+RequestId UnlockAchievements(const std::vector<int> &ach, std::function<void(void)> &&f, std::function<void(Error)> &&ef) {
+    if (ach.empty()) {
+        Log("ZNet::UnlockAchievements aborting - achievementIds is empty");
+        return 0;
+    }
+    Params params{ .m_funcName = "UnlockAchievements", .m_onError = std::move(ef) };
+    protobuf::AchievementUnlockRequest rq;
+    for (auto i : ach)
+        rq.add_unlocks()->set_id(i);
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<void>>(void)>([rq = std::move(rq)]() {
+        return zwift_network::unlock_achievements(rq);
+    }), std::move(f), &params);
+}
+RequestId WithdrawFromCampaign(std::string &proto, std::function<void(const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void(Error)> &&ef, Params *pParams) {
+    //OMIT
+    return 0;
 }
 };
 

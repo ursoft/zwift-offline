@@ -44,4 +44,7 @@ future/lib/total code(kb): 9068/7296/16364, badNames=37155; libs/total: 57%: 354
 future/lib/total code(kb): 8997/7367/16364, badNames=37100; libs/total: 57%: 35708/62119 - NetworkClientImpl 30%
 future/lib/total code(kb): 8959/7404/16364, badNames=37062; libs/total: 57%: 35846/62119 - NetworkClientImpl 70%
 future/lib/total code(kb): 8932/7432/16364, badNames=36989; libs/total: 57%: 35913/62119 - NetworkClientImpl 100%, NETWORK_* and DataRecorder 10%
-future/lib/total code(kb): 8888/7477/16365, badNames=36921; libs/total: 57%: 36025/62129 - NetworkService, RPCs
+future/lib/total code(kb): 8888/7477/16365, badNames=36921; libs/total: 57%: 36025/62129 - NetworkService & RPCs: 100%
+future/lib/total code(kb): 8818/7546/16365, badNames=36895; libs/total: 58%: 36253/62129 - ZNet: 100%
+
+NEXT: NETWORK_* DataRecorder
