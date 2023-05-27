@@ -148,7 +148,7 @@ void PlayerProfileCache::UpdateCache(float dt) {
                 }
             }
         } else {
-            auto mainBike = BikeManager::Instance()->m_mainBike;            
+            //auto mainBike = BikeManager::Instance()->m_mainBike;
             if (/*TODO (_QWORD *)&m_mainBike->gap13F8[248]*/ true) {
                 if (m_socialUpdTime) {
                     if (int(NetworkSyncedTimeGMT - m_socialUpdTime) > 86400) {

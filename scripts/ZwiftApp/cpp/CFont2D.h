@@ -51,8 +51,7 @@ struct CFont2D_cache { //192 bytes
     char gap[192];
 };
 enum RenderFlags { RF_CX_ISCENTER = 1, RF_CY_ISCENTER = 2, RF_CX_ISRIGHT = 4, RF_CY_ISTOP = 8 };
-class CFont2D {
-public:
+struct CFont2D {
     std::string      m_fileName;
     CFont2D_struc24  m_struc24x4[4];
     float            m_kern[LID_CNT];

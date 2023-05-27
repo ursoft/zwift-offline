@@ -50,7 +50,7 @@ float BikeEntity::GetRiderWeightKG(bool a2) {
     float ret;
     bool limitLow = true;
     if (m_playerIdTx < 0 && !m_field_806) {
-        ret = fmaxf(fabs(m_playerIdTx % 50) + 50.0f, 36.0f);
+        ret = fmaxf(fabsf(m_playerIdTx % 50) + 50.0f, 36.0f);
     } else {
         ret = 73.0f;
         if (m_profile.has_weight_in_grams()) {

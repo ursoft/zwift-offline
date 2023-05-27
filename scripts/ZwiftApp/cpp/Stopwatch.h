@@ -5,7 +5,7 @@ struct SteadyClock {
         assert(g_perfPeriod == 0.0); // second object???
         LARGE_INTEGER v1;
         BOOL result = QueryPerformanceFrequency(&v1);
-        assert(result);
+        assert(result); (void)result;
         g_perfPeriod = 1'000'000'000.0 / v1.LowPart;
     }
     uint64_t now() {

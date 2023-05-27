@@ -8,8 +8,8 @@ inline const char *g_GlobalMouseOverSID = "Play_SFX_UI_MOUSEOVER_1", *g_GlobalTo
 
 void AUDIO_Init();
 void AUDIO_Shutdown();
-class GameWorld;
-class Camera;
+struct GameWorld;
+struct Camera;
 void GAME_AudioUpdate(GameWorld *not_used, Camera *a2, float a3);
 void AUDIO_Event(const char *name, int a2, bool vital);
 void AUDIO_SetVariable(const char *name, float val);

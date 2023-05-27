@@ -1,5 +1,4 @@
 #pragma once
-class Weather {
-public:
+struct Weather {
     static void Initialize();
 };

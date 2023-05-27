@@ -281,7 +281,7 @@ message BLEAdvertisement {
     optional int32 f3 = 3; //enum <= 5
 }
 message PhoneToGameCommand {
-    required int32 seqno = 1;
+    required uint32 seqno = 1;
     optional PhoneToGameCommandType command = 2;
     optional int64 f3 = 3;
     optional string f4 = 4;
@@ -312,7 +312,7 @@ message PhoneToGame {
     optional float f7 = 7;
     optional float f8 = 8;
     optional double f9 = 9;
-    optional int32 seqno = 10;
+    optional uint32 seqno = 10;
 }
 enum BoostModeState_Type {
     BOOST1 = 1;

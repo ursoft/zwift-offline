@@ -1,7 +1,6 @@
 #pragma once
-class BLEModule : public EventObject {
+struct BLEModule : public EventObject {
     inline static std::unique_ptr<BLEModule> g_BLEModule;
-public:
     BLEModule(Experimentation *exp);
     static void Initialize(Experimentation *exp);
     static bool IsInitialized() { return g_BLEModule.get() != nullptr; }

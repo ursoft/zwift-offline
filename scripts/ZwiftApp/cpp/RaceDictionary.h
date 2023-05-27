@@ -1,6 +1,5 @@
 #pragma once
-class RaceDictionary {
-public:
+struct RaceDictionary {
     static RaceDictionary *Init();
     bool LoadFromData();
 };

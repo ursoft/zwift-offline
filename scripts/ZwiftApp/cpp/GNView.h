@@ -5,7 +5,7 @@ struct GNViewInitializeParams {
     int m_w, m_h;
     uint16_t m_field_10;
 };
-class GNView {
+struct GNView {
 public:
     GNView();
     ~GNView();

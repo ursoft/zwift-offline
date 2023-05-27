@@ -1,10 +1,8 @@
 #pragma once
-class VideoCaptureEvent {
-public:
+struct VideoCaptureEvent {
     static void OnDisabled();
 };
-class VideoCapture {
-public:
+struct VideoCapture {
     static void ShutdownVideoCapture();
     static void InitVideoCapture();
     inline static std::unique_ptr<VideoCapture> g_pVideoCapture;

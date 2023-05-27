@@ -51,23 +51,21 @@ enum EVENT_ID {
     EV_33 = 0x33,
 };
 typedef void (*EventCallback)(EVENT_ID, va_list);
-class EventSystem;
+struct EventSystem;
 struct PrivateEventV2 {
     int64_t m_eventId = 0;
 };
 inline PrivateEventV2 *g_currentPrivateEvent;
-class EventObject {
-public:
+struct EventObject {
     EventSystem *m_eventSystem;
     EventObject(EventSystem *e) : m_eventSystem(e) {}
     virtual void HandleEvent(EVENT_ID, va_list) = 0;
     virtual ~EventObject() {}
 };
-class EventSystem { //136 bytes
+struct EventSystem { //136 bytes
     static inline EventSystem *g_eventSystem;
     std::unordered_map<EVENT_ID, std::vector<EventCallback> > m_fsubs;
     std::unordered_map<EVENT_ID, std::vector<EventObject *> > m_osubs;
-public:
     EventSystem();
     static EventSystem *GetInst();
     void TriggerEvent(EVENT_ID e, int, ...);

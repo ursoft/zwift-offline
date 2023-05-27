@@ -31,7 +31,7 @@ UChar *ToUTF8(const char *src, UChar *dest, size_t length) {
         src_len = length - 1;
     }
     UErrorCode uc_err = U_ZERO_ERROR;
-    ucnv_toUChars(g_utfConverter, dest, length, src, src_len, &uc_err);
+    ucnv_toUChars(g_utfConverter, dest, (int32_t)length, src, (int32_t)src_len, &uc_err);
     if (uc_err > 0) {
         if (!g_ToUTF8_Conv_fail_logged) {
             g_ToUTF8_Conv_fail_logged = 1;
@@ -51,7 +51,7 @@ char *FromUTF8(UChar *src, char *dest, size_t length) {
     }
     memset(dest, 0, length);
     UErrorCode uc_err = U_ZERO_ERROR;
-    ucnv_fromUChars(g_utfConverter, dest, length, src, u_strlen(src), &uc_err);
+    ucnv_fromUChars(g_utfConverter, dest, (int32_t)length, src, u_strlen(src), &uc_err);
     if (uc_err > 0) {
         if (!g_FromUTF8_Conv_fail_logged) {
             g_FromUTF8_Conv_fail_logged = 1;

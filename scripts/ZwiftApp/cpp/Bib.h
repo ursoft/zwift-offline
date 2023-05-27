@@ -2,8 +2,7 @@
 struct BibInfo {
 
 };
-class Bib {
-public:
+struct Bib {
     void CalcScaleAndBias(VEC4 *, const VEC2 &, const VEC2 &);
     uint32_t GetBibShader();
     void GetDefaultInfo();

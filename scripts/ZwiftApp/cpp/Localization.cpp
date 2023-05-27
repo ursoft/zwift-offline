@@ -40,8 +40,8 @@ bool LOC_SetLanguageFromString(const char *lang, bool cb) {
 }
 void LOC_Init() {
     auto lange = g_UserConfigDoc.FindElement("ZWIFT\\CONFIG\\LANGUAGE", false);
-    const char *lang;
-    if (lange && (lang = lange->GetText())) {
+    const char *lang = lange ? lange->GetText() : nullptr;
+    if (lang) {
         LOC_SetLanguageFromString(lang, false);
     } else {
         const char *oslang = OS_GetLanguage();
@@ -163,13 +163,12 @@ void LOC_ProcessXmlDoc(tinyxml2::XMLDocument *doc, uint32_t fileNameCI) {
         }
     }
 }
-using namespace tinyxml2;
 bool LOC_Initialize(void *data, size_t length, uint32_t fileNameCI) {
     CONSOLE_AddCommand("lang", CMD_SetLanguage);
     bool ret = true;
     tinyxml2::XMLDocument v25;
     auto err = v25.Parse((const char *)data, length);
-    if (err != XML_SUCCESS)
+    if (err != tinyxml2::XML_SUCCESS)
         LogDebug("LOC_Initialize: unable to load langData (error: %d)", (int)err);
     else
         LOC_ProcessXmlDoc(&v25, fileNameCI);
@@ -180,8 +179,8 @@ bool LOC_Initialize(const char *fileName, uint32_t fileNameCI) {
     bool ret = true;
     tinyxml2::XMLDocument v34;
     auto err = v34.LoadFile(GAMEPATH(fileName));
-    if (err != XML_SUCCESS) {
-        if (err != XML_ERROR_FILE_NOT_FOUND && err != XML_ERROR_FILE_COULD_NOT_BE_OPENED && err != XML_ERROR_FILE_READ_ERROR)
+    if (err != tinyxml2::XML_SUCCESS) {
+        if (err != tinyxml2::XML_ERROR_FILE_NOT_FOUND && err != tinyxml2::XML_ERROR_FILE_COULD_NOT_BE_OPENED && err != tinyxml2::XML_ERROR_FILE_READ_ERROR)
             LogDebug("LOC_Initialize: unable to load %s (error: %d)", fileName, (int)err);
         ret = false;
     } else {

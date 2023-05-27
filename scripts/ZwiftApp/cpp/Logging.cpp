@@ -38,7 +38,6 @@ void LogSetSuppressedLogTypes(const std::vector<std::string> &supprLogs) {
     for (const auto &sup : supprLogs) {
         int logId = -1;
         if (1 != sscanf(sup.c_str(), "%d", &logId)) {
-            int cnt = 0;
             for (int cnt = 0; cnt < LOG_CNT; cnt++) {
                 if (g_LogTypes[cnt].m_name == sup) {
                     logId = cnt;
@@ -124,16 +123,16 @@ void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_l
                     case 'Ý': *dest++ = 'E'; break; case 'ý': *dest++ = 'e'; break;
                     case 'ß': *dest++ = 'J'; if (dest < destMax) *dest++ = 'A'; break;
                     case 'ÿ': *dest++ = 'j'; if (dest < destMax) *dest++ = 'a'; break;
-                    case '×': *dest++ = 'CH'; if (dest < destMax) *dest++ = 'H'; break;
-                    case '÷': *dest++ = 'ch'; if (dest < destMax) *dest++ = 'h'; break;
+                    case '×': *dest++ = 'C'; if (dest < destMax) *dest++ = 'H'; break;
+                    case '÷': *dest++ = 'c'; if (dest < destMax) *dest++ = 'h'; break;
                     case 'Ñ': *dest++ = 'S'; break; case 'ñ': *dest++ = 's'; break;
                     case 'Ì': *dest++ = 'M'; break; case 'ì': *dest++ = 'm'; break;
                     case 'È': *dest++ = 'I'; break; case 'è': *dest++ = 'i'; break;
                     case 'Ò': *dest++ = 'T'; break; case 'ò': *dest++ = 't'; break;
                     case 'Ü': *dest++ = '\''; break; case 'ü': *dest++ = '\''; break;
                     case 'Á': *dest++ = 'B'; break; case 'á': *dest++ = 'b'; break;
-                    case 'Þ': *dest++ = 'JU'; if (dest < destMax) *dest++ = 'U'; break;
-                    case 'þ': *dest++ = 'ju'; if (dest < destMax) *dest++ = 'u'; break;
+                    case 'Þ': *dest++ = 'J'; if (dest < destMax) *dest++ = 'U'; break;
+                    case 'þ': *dest++ = 'j'; if (dest < destMax) *dest++ = 'u'; break;
                 }
             }
             *dest = 0;

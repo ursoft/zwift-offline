@@ -1,8 +1,7 @@
 #pragma once
 enum GameHolidayType { GHT_CNT };
 enum HolidayFeatureType { HFT_CNT };
-class GameHolidayManager { //? bytes
-public:
+struct GameHolidayManager { //? bytes
     static GameHolidayManager *Instance();
     bool IsHoliday(GameHolidayType, bool);
     void GetAprilFoolsEventXpMultiplier();

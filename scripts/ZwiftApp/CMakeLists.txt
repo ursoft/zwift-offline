@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.24)
 project(ZwiftApp)
 
-add_compile_options(/nologo /bigobj)
+add_compile_options(/nologo /bigobj /W4 /WX /wd4100 /wd4244 /wd4389 /wd4324)
 include(cmake/thirdparty.cmake)
 
 add_executable(${PROJECT_NAME} WIN32)
-add_dependencies(${PROJECT_NAME} glfw decNumber)
+add_dependencies(${PROJECT_NAME} glfw) ## decNumber)
 
 FILE(GLOB PB_SRCS protobuf/*.proto)
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS 
@@ -36,7 +36,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
   ${Boost_INCLUDE_DIRS}
   ${CMAKE_NOESIS_DIR}/Include
   ${CMAKE_WWISE_DIR}/SDK/include
-  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368
+  #${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368
 )
 target_link_directories(${PROJECT_NAME} PRIVATE 
   ${CMAKE_NOESIS_DIR}/Lib/windows_x86_64
@@ -58,7 +58,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   OpenSSL::SSL OpenSSL::Crypto
   tinyxml2::tinyxml2
   ICU::uc ICU::dt ICU::in ICU::uc ICU::io
-  decNumber
+  #decNumber - looks like android used only
   jsoncpp_object jsoncpp_static JsonCpp::JsonCpp
   GTest::gtest
   unofficial::libsquish::squish

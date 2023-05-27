@@ -17,7 +17,7 @@ bool CFont2D::LoadFont(const char *name) {
             //memset(m_RGBAv1, 17, 4 * m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_height); //QUEST why not m_height * m_width ???
             //assert(m_info.m_fileHdrV1.m_width >= m_info.m_fileHdrV1.m_height);
             auto r = fread(m_RGBAv1, 1, cb, f);
-            assert(r == cb);
+            assert(r == cb); (void)r;
             LoadFontV1((uint8_t *)m_RGBAv1);
             m_info.m_field_190[33].m_field_4 *= 0.7f;
             result = true;
@@ -54,7 +54,7 @@ bool CFont2D::LoadFont(const char *name) {
                                     vect.push_back(m_glyphs[g].m_kernIdx);
                             }
                             if (codePoint == 33)
-                                m_glyphs[g].m_width *= 0.7;
+                                m_glyphs[g].m_width *= 0.7f;
                         }
                     }
                     char tname[MAX_PATH], *pDest = tname;
@@ -64,7 +64,7 @@ bool CFont2D::LoadFont(const char *name) {
                             break;
                         *pDest++ = *pSrc++;
                     }
-                    strcpy(pDest, "0.tga");
+                    strcpy_s(pDest, sizeof(tname) - (pDest - tname), "0.tga");
                     m_info.m_fileHdrV3.m_tex1 = GFX_CreateTextureFromTGAFile(tname, -1, true);
                     if (g_fontWShader == -1)
                         g_fontWShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
@@ -109,7 +109,7 @@ void CFont2D::LoadLanguageTextures(LOC_LANGS left) {
     while (*src) {
         if (*src == '.' || *src == '_') {
             *dest++ = '0' + m_texSuffix;
-            strcpy(dest, ".tga");
+            strcpy_s(dest, sizeof(tname) - (dest - tname), ".tga");
             break;
         }
         *dest++ = *src++;
@@ -690,7 +690,7 @@ void CFont2D::RenderWString(float cx, float cy, const UChar *text, uint32_t colo
                         auto pint = (uint32_t *)pflt;
                         pflt[0] = cx;
                         pflt[1] = v25;
-                        auto v33 = pflt + 7;
+                        //QUEST: is it OK? auto v33 = pflt + 7;
                         pint[2] = 0;
                         pint[3] = v39;
                         pflt[4] = g.m_field_4 + 0.001f;

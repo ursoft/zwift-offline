@@ -139,9 +139,8 @@ struct GUIKeyProcessor : public IKeyProcessor {
 struct GoKeyProcessor : public IKeyProcessor {
     bool ProcessKey(int, int) override;
 };
-class KeyProcessorStack {
+struct KeyProcessorStack {
     std::vector<IKeyProcessor *> m_data;
-public:
     //~KeyProcessorStack();
     //void RemoveAllKeyProcessors();
     //void Remove(IKeyProcessor *);
@@ -150,8 +149,7 @@ public:
     //void Pop();
     //void Find(IKeyProcessor const*,std::vector<IKeyProcessor*> &)
 };
-class ZwiftAppKeyProcessorManager {
-public:
+struct ZwiftAppKeyProcessorManager {
     GUIKeyProcessor   m_guiKP;
     GoKeyProcessor    m_goKP;
     KeyProcessorStack m_stack;

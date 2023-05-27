@@ -91,7 +91,7 @@ struct QueryStringBuilder : std::multimap<std::string, std::string> {
     std::string getString(bool needQuest) {
         int total = 0;
         for (const auto &i : *this)
-            total += i.first.length() + i.second.length() + 2;
+            total += int(i.first.length() + i.second.length() + 2);
         std::string ret;
         ret.reserve(total);
         if (needQuest)
@@ -150,7 +150,7 @@ struct MachineIdProviderFactory {
                 }
             }
             m_id = "1-" + uuid::generate_uuid_v4();
-            status = RegSetValueExA(hKey, lpValueName, 0, REG_SZ, (const BYTE *)m_id.c_str(), m_id.length() + 1);
+            status = RegSetValueExA(hKey, lpValueName, 0, REG_SZ, (const BYTE *)m_id.c_str(), DWORD(m_id.length() + 1));
             if (status) {
                 NetworkingLogError("Failed to set registry value \"%s\". [status: %d]", lpValueName, status);
             } else {
@@ -385,7 +385,7 @@ struct CurlHttpConnection {
     QueryResult performPutOrPost(bool put, const std::string &url, const ContentTypeHeader &cth, const std::string &payload, const AcceptHeader &ach, const std::string &putDescr, const std::string &postDescr, bool upload) { /*vptr[22]*/
         return put ? performPut(url, cth, payload, ach, putDescr, upload) : performPost(url, cth, payload, ach, postDescr, upload);
     }
-    std::string escapeUrl(const std::string &src) { /*vptr[23]*/ return curl_easy_escape(m_curl, src.c_str(), src.size()); }
+    std::string escapeUrl(const std::string &src) { /*vptr[23]*/ return curl_easy_escape(m_curl, src.c_str(), int(src.size())); }
 
     static int progressCallback(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow) {
         return *((bool *)clientp);
@@ -428,7 +428,6 @@ struct CurlHttpConnection {
             appendHeader(m_authHeader);
     }
     void appendHashHeader(const std::vector<char> &payload, const std::string &hash) {
-        int v32 = 0;
         std::vector<char> v35;
         v35.push_back(-61);
         v35.push_back(-72);
@@ -452,7 +451,7 @@ struct CurlHttpConnection {
         const std::string h("X-Zwift-Hash: ");
         appendHeader(h + xhash);
     }
-    QueryResult performRequest(const std::string &op, const std::string &url, const std::string &descr, int payloadSize) {
+    QueryResult performRequest(const std::string &op, const std::string &url, const std::string &descr, size_t payloadSize) {
         QueryResult ret;
         appendHeader(m_sidHeader);
         appendHeader(m_requestIdHdr);
@@ -564,16 +563,16 @@ struct HttpConnectionManager {
     std::mutex m_mutex;
     std::condition_variable m_conditionVar;
     std::vector<std::thread> m_pool;
-    int m_ncoTimeoutSec, m_ncoUploadTimeoutSec, m_nThreads;
+    uint32_t m_ncoTimeoutSec, m_ncoUploadTimeoutSec, m_nThreads;
     HttpRequestMode m_hrm;
     bool m_ncoSkipCertCheck;
-    HttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode hrm, int nThreads) :
+    HttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, uint32_t ncoTimeoutSec, uint32_t ncoUploadTimeoutSec, HttpRequestMode hrm, uint32_t nThreads) :
         m_curlf(curlf), m_certs(certs), m_ncoTimeoutSec(ncoTimeoutSec), m_ncoUploadTimeoutSec(ncoUploadTimeoutSec), m_hrm(hrm), m_nThreads(nThreads), m_ncoSkipCertCheck(ncoSkipCertCheck) {}
     ~HttpConnectionManager() {}
     virtual void worker(uint32_t nr) = 0;// { /*empty*/ }
     void startWorkers() {
         m_pool.reserve(m_nThreads);
-        for (auto i = 0; i < m_nThreads; ++i)
+        for (uint32_t i = 0; i < m_nThreads; ++i)
             m_pool.emplace_back([i, this]() { worker(i); });
     }
     void shutdown() {
@@ -586,7 +585,7 @@ struct HttpConnectionManager {
     void setUploadTimeout(uint64_t to) { std::lock_guard l(m_mutex); m_ncoUploadTimeoutSec = to; }
     void setTimeout(uint64_t to) { std::lock_guard l(m_mutex); m_ncoTimeoutSec = to; }
     void setThreadPoolSize(int val) {
-        int oldVal = m_nThreads;
+        auto oldVal = m_nThreads;
         { std::lock_guard l(m_mutex); m_nThreads = val; }
         if (oldVal) {
             m_conditionVar.notify_all();
@@ -599,7 +598,7 @@ struct HttpConnectionManager {
 struct GenericHttpConnectionManager : public HttpConnectionManager { //0x128 bytes
     using task_type = std::packaged_task<NetworkResponseBase(CurlHttpConnection *)>;
     std::queue<task_type> m_ptq;
-    GenericHttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode hrm) :
+    GenericHttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, uint32_t ncoTimeoutSec, uint32_t ncoUploadTimeoutSec, HttpRequestMode hrm) :
         HttpConnectionManager(curlf, certs, ncoSkipCertCheck, ncoTimeoutSec, ncoUploadTimeoutSec, hrm, 1) {}
     ~GenericHttpConnectionManager() { shutdown(); }
     void worker(uint32_t a2) override {
@@ -717,12 +716,12 @@ namespace base64 { //IDA: Base64Url, base64::
         std::vector<uint8_t> ret;
         const uint8_t *p = (uint8_t *)src.c_str() + offset;
         if (len < 0)
-            len = src.length();
+            len = int(src.length());
         int pad = len > 0 && (len % 4 || p[len - 1] == '=');
         const size_t L = ((len + 3) / 4 - pad) * 4;
         ret.resize(0);
         ret.reserve(L / 4 * 3 + pad);
-        for (size_t i = 0, j = 0; i < L; i += 4) {
+        for (size_t i = 0; i < L; i += 4) {
             int n = B64index[p[i]] << 18 | B64index[p[i + 1]] << 12 | B64index[p[i + 2]] << 6 | B64index[p[i + 3]];
             ret.push_back(n >> 16);
             ret.push_back(n >> 8 & 0xFF);
@@ -742,12 +741,12 @@ namespace base64 { //IDA: Base64Url, base64::
         protobuf_bytes ret;
         const uint8_t *p = (uint8_t *)src.c_str() + offset;
         if (len < 0)
-            len = src.length();
+            len = int(src.length());
         int pad = len > 0 && (len % 4 || p[len - 1] == '=');
         const size_t L = ((len + 3) / 4 - pad) * 4;
         ret.resize(0);
         ret.reserve(L / 4 * 3 + pad);
-        for (size_t i = 0, j = 0; i < L; i += 4) {
+        for (size_t i = 0; i < L; i += 4) {
             int n = B64index[p[i]] << 18 | B64index[p[i + 1]] << 12 | B64index[p[i + 2]] << 6 | B64index[p[i + 3]];
             ret += char(n >> 16);
             ret += char(n >> 8 & 0xFF);
@@ -827,9 +826,9 @@ namespace HttpHelper {
         return ret;
     }
     void protobufToCharVector(std::vector<char> *dest, const google::protobuf::MessageLite &src) {
-        auto size = src.ByteSize();
+        auto size = src.ByteSizeLong();
         dest->resize(size);
-        if (!src.SerializeToArray(dest->data(), size))
+        if (!src.SerializeToArray(dest->data(), int(size)))
             LogDebug("Failed to encode protobuf.");
     }
     template <class RET>
@@ -843,7 +842,7 @@ namespace HttpHelper {
             else
                 ret.m_msg = queryResult.m_msg;
         } else {
-            if (!ret.m_T.ParseFromArray(queryResult.m_T.data(), queryResult.m_T.size()))
+            if (!ret.m_T.ParseFromArray(queryResult.m_T.data(), int(queryResult.m_T.size())))
                 ret.storeError(NRO_PROTOBUF_FAILURE_TO_DECODE, "Failed to decode protobuf"s);
         }
         return ret;
@@ -891,7 +890,7 @@ namespace HttpHelper {
 };
 struct JsonWebToken : public NetworkResponseBase { //0x68 bytes
     std::string m_sub, m_sessionState, m_base64;
-    uint64_t m_exp = 0;
+    int64_t m_exp = 0;
     const std::string &asString() const { return m_base64; }
     const std::string &getSessionState() const { return m_sessionState; }
     const std::string &getSubject() const { return m_sub; }
@@ -916,7 +915,7 @@ struct JsonWebToken : public NetworkResponseBase { //0x68 bytes
             storeError(NRO_JSON_WEB_TOKEN_PARSING_ERROR, "Second separator not found"s);
             return false;
         }
-        if (parsePayload(base64::toBin(jwt, firstSep + 1, secondSep - firstSep - 1))) {
+        if (parsePayload(base64::toBin(jwt, int(firstSep + 1), int(secondSep - firstSep - 1)))) {
             m_base64 = jwt;
             return true;
         }
@@ -1354,7 +1353,7 @@ struct Codec {
         if (!len)
             return failM1("message too short"s, err);
         auto flags = *h;
-        auto retHlen = 1;
+        uint32_t retHlen = 1;
         if ((flags & 0xF0) == 0) {
             if (flags & 4) {
                 retHlen = 5;
@@ -1716,8 +1715,8 @@ struct WorldClockService { //0x2120 bytes
     uint64_t getWorldTime() /*vptr[2]*/ {
         if (!this->m_bInit)
             return 0;
-        auto steadyDelta = g_steadyClock.nowInMilliseconds() - this->m_worldClockOffset;
-        auto worldTime = this->m_worldTime;
+        auto steadyDelta = int64_t(g_steadyClock.nowInMilliseconds() - this->m_worldClockOffset);
+        auto worldTime = int64_t(this->m_worldTime);
         auto stable = (steadyDelta == worldTime);
         if (steadyDelta > worldTime) {
             while (true) {
@@ -1737,7 +1736,7 @@ struct WorldClockService { //0x2120 bytes
         return m_worldTime;
     }
     bool shouldSetClock() {
-        if ((1 << m_stab) & m_idx) {
+        if ((1ui64 << m_stab) & m_idx) {
             if (m_stab <= 9)
                 m_stab++;
             return true;
@@ -2617,7 +2616,7 @@ public:
 #define ZWIFT_FAST_STAT //OMIT all stat except vital
 struct UdpStatistics { //0x450 bytes
     struct PlayerStateInfo {
-        uint64_t m_id = 0, m_born = 0;
+        int64_t m_id = 0, m_born = 0;
         float m_x = 0.0f, m_z = 0.0f;
         bool isAged(uint64_t nt) { return nt - m_born >= 2000; }
         /* inlined bool isStarved(uint64_t a2) {
@@ -2628,7 +2627,8 @@ struct UdpStatistics { //0x450 bytes
     std::mutex m_mutex;
     std::vector<int64_t> m_field_390;
     std::vector<uint32_t> m_txSpeeds, m_txPowers, m_txCads, m_txHRs;
-    uint64_t m_latestFanViewedPlayerId = 0, m_ctsTraffic = 0, m_stcTraffic = 0, m_field_408 = 0, m_field_400 = -1, m_field_330 = 0, m_ctsLastTime = 0, m_field_1F0 = 0, m_field_1F8 = 0, m_field_208 = 0, m_field_328 = 0, m_field_280 = 0,
+    uint64_t m_latestFanViewedPlayerId = 0, m_ctsTraffic = 0, m_stcTraffic = 0, m_field_408 = 0, m_field_400 = (uint64_t)-1,
+        m_field_330 = 0, m_ctsLastTime = 0, m_field_1F0 = 0, m_field_1F8 = 0, m_field_208 = 0, m_field_328 = 0, m_field_280 = 0,
         m_group_id = 0, m_field_2C0 = 0, m_field_3F8 = 0;
     int64_t m_field_3E8 = 0, m_field_3E0 = 0x7FFFFFFFFFFFFFFFi64, m_field_3D8 = 0;
     LruCache<uint64_t, PlayerStateInfo> m_field_100{2500};
@@ -3091,10 +3091,10 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
             boost::system::error_code ec;
             m_udpSocket.shutdown(m_udpSocket.shutdown_both, ec);
             if (ec)
-                NetworkingLogWarn("Error shutting down UDP socket [%d] %s", ec.value(), ec.message());
+                NetworkingLogWarn("Error shutting down UDP socket [%d] %s", ec.value(), ec.message().c_str());
             m_udpSocket.close(ec);
             if (ec)
-                NetworkingLogWarn("Error closing UDP socket [%d] %s", ec.value(), ec.message());
+                NetworkingLogWarn("Error closing UDP socket [%d] %s", ec.value(), ec.message().c_str());
         }
     }
     bool resolveAndSetEndpoint(const std::string &host, uint16_t port) {
@@ -3103,7 +3103,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
         boost::system::error_code ec;
         boost::asio::ip::udp::resolver::iterator iter = resolver.resolve(query, ec);
         if (ec) {
-            NetworkingLogError("Error resolving UDP host %s:%d [%d] %s", host.c_str(), port, ec.value(), ec.message());
+            NetworkingLogError("Error resolving UDP host %s:%d [%d] %s", host.c_str(), port, ec.value(), ec.message().c_str());
             clearEndpoint();
             return false;
         }
@@ -3202,7 +3202,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
             auto v13 = decodeMessage(m_rxBuf, &count);
             if (v13) { // UdpClient::processDatagram inlined
                 auto stc = std::make_shared<protobuf::ServerToClient>();
-                if (count && stc->ParseFromArray(v13, count)) {
+                if (count && stc->ParseFromArray(v13, int(count))) {
                     ++m_stcRx;
                     handleServerToClient(stc);
                 } else {
@@ -3265,7 +3265,6 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
         }
     }
     void handleFanViewedPlayerChanges(uint64_t time, const protobuf::PlayerState &ps) {
-        int v29 = 0;
         if (this->m_field_15C) {
             auto LatestFanViewedPlayerId = m_us->getLatestFanViewedPlayerId();
             if (LatestFanViewedPlayerId != m_field_11F8) {
@@ -3341,7 +3340,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
                         NetworkingLogError("Failed to encode UDP CtS [%s].", this->m_strError.c_str());
                         return;
                     }
-                    ctsLen = this->m_encVector.size();
+                    ctsLen = uint32_t(this->m_encVector.size());
                     if (ctsLen > sizeof(m_txBuf))
                         return;
                     memmove(this->m_txBuf, &this->m_encVector[0], ctsLen); //TODO: single buffer is faster
@@ -3361,7 +3360,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
         });
     }
     NetworkRequestOutcome serializeToUdpMessage(const protobuf::ClientToServer &cts, uint32_t *len) {
-        auto payloadLen = cts.ByteSizeLong();
+        auto payloadLen = uint32_t(cts.ByteSizeLong());
         *len = payloadLen + 4;
         bool shouldPrependDontForwardByte = false;
         uint8_t *ptxBuf = m_txBuf;
@@ -3458,7 +3457,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
 struct WorldAttributeService { //0x270 bytes
     moodycamel::ReaderWriterQueue<protobuf::WorldAttribute> m_rwq;
     ServiceListeners<WorldAttributeServiceListener> m_lis;
-    uint64_t m_largestTime;
+    int64_t m_largestTime;
     WorldAttributeService() : m_rwq(100), m_largestTime(0) {
         /*TODO
           *(_QWORD *)&this->field_80[72] = 0i64;
@@ -3469,7 +3468,7 @@ struct WorldAttributeService { //0x270 bytes
     }
     void registerListener(WorldAttributeServiceListener *lis) { m_lis += lis; }
     void removeListener(WorldAttributeServiceListener *lis) { m_lis -= lis; }
-    uint64_t getLargestWorldAttributeTimestamp() { return m_largestTime; }
+    int64_t getLargestWorldAttributeTimestamp() { return m_largestTime; }
     void logWorldAttribute(const protobuf::WorldAttribute &wa, bool bDiscarded) {
         NetworkingLogDebug("%s [type=%d, ts=%llu, world=%lld, mapRev=%u, player=%lld xyz=(%d,%d,%d)]", 
             bDiscarded ? "Discarded world attribute" : "Received world attribute",
@@ -3550,7 +3549,7 @@ struct ProfileRequestDebouncer : public ProfileRequestLazyContext::PlayerIdProvi
                 m_dpStarted = false;
                 contextPromises->swap(m_mapPromises);
             }
-            int cnt = 0;
+            uint32_t cnt = 0;
             for (auto &i : *contextPromises) {
                 ret.insert(i.first);
                 if (++cnt >= m_cntLimit)
@@ -4204,6 +4203,7 @@ struct TcpAddressService {
     }
 };
 struct TcpClient {
+    moodycamel::ReaderWriterQueue<std::pair<uint64_t, std::shared_ptr<protobuf::ServerToClient>>> m_rwq;
     struct SegmentSubscription {
         std::promise<NetworkResponse<protobuf::SegmentResults>> *m_promise = nullptr;
         boost::asio::steady_timer m_timer1;
@@ -4233,7 +4233,6 @@ struct TcpClient {
     RelayServerRestInvoker *m_relay;
     SegmentResultsRestInvoker *m_segRes;
     NetworkClientImpl *m_ncli;
-    moodycamel::ReaderWriterQueue<std::pair<uint64_t, std::shared_ptr<protobuf::ServerToClient>>> m_rwq;
     std::string m_ip;
     EventLoop m_eventLoop;
     int64_t m_worldId = 0, m_port = 0;
@@ -4252,7 +4251,7 @@ struct TcpClient {
     uint32_t m_timeout1, m_timeout2, m_max_segm_subscrs = 3, m_ctsSeqNo = 1;
     bool m_shouldUseEncryption = false;
     TcpClient(GlobalState *gs, WorldClockService *wcs, HashSeedService *hss, WorldAttributeService *wat, RelayServerRestInvoker *relay, SegmentResultsRestInvoker *segRes, NetworkClientImpl *ncli, int t1 = 35000, int t2 = 5000) : 
-        m_gs(gs), m_wcs(wcs), m_hss(hss), m_wat(wat), m_relay(relay), m_segRes(segRes), m_ncli(ncli), m_rwq(100),
+        m_rwq(100), m_gs(gs), m_wcs(wcs), m_hss(hss), m_wat(wat), m_relay(relay), m_segRes(segRes), m_ncli(ncli), 
         m_tcpSocket(m_eventLoop.m_asioCtx, boost::asio::ip::tcp::v4()), 
         m_tcpConfigWaiter(m_eventLoop.m_asioCtx), m_asioTimer2(m_eventLoop.m_asioCtx),
         m_asioTimer3(m_eventLoop.m_asioCtx), m_asioTimer4(m_eventLoop.m_asioCtx), m_timeout1(t1), m_timeout2(t2) {
@@ -4455,9 +4454,9 @@ struct TcpClient {
                     //OMIT TcpStatistics::increaseEncryptionEncodeBufferTruncate(m_stat);
                     m_encodedMessage.resize(sizeLimit);
                 }
-                *(uint16_t *)pSignedMsg = htons(m_encodedMessage.size() - 2);
+                *(uint16_t *)pSignedMsg = htons((uint16_t)m_encodedMessage.size() - 2);
                 memmove(pSignedMsg + 2, m_encodedMessage.data() + 2, m_encodedMessage.size() - 2);
-                *pInOutLen = m_encodedMessage.size();
+                *pInOutLen = uint32_t(m_encodedMessage.size());
             } else {
                 //TcpStatistics::increaseEncryptionEncodeError(m_stat);
                 NetworkingLogError("Failed to encode TCP CtS [%s].", m_decodeError.c_str());
@@ -4501,8 +4500,8 @@ struct TcpClient {
     void sendClientToServer(TcpCommand cmd, protobuf::ClientToServer *pCts, const std::function<void()> &onSuccess, const std::function<void()> &onError) {
         pCts->set_seqno(m_ctsSeqNo++);
         auto ptx = m_txBuf1492;
-        auto ctsLen = pCts->ByteSizeLong();
-        *(uint16_t *)ptx = htons(ctsLen + 6);
+        auto ctsLen = uint32_t(pCts->ByteSizeLong());
+        *(uint16_t *)ptx = htons(uint16_t(ctsLen + 6));
         ptx[2] = 1;
         ptx[3] = cmd;
         uint32_t msglen = ctsLen + 8;
@@ -4744,7 +4743,7 @@ struct AuxiliaryController : public WorldIdListener { //0x105B8-16 bytes
                 }
                 m_commands.clear();
             }
-            auto len = gtp->protobuf::GameToPhone::ByteSizeLong();
+            auto len = uint32_t(gtp->protobuf::GameToPhone::ByteSizeLong());
             uint8_t *buf = (uint8_t *)malloc(len + 4);
             *(uint32_t *)buf = htonl(len);
             if (gtp->SerializeToArray(buf + 4, len)) {
@@ -4770,7 +4769,7 @@ struct AuxiliaryController : public WorldIdListener { //0x105B8-16 bytes
                     return;
                 }
                 free(buf);
-                len = encrypted.size();
+                len = uint32_t(encrypted.size());
                 *(uint32_t *)encrypted.data() = len - 4;
                 buf = (uint8_t *)malloc(len);
                 memmove(buf, encrypted.data(), len);
@@ -6842,6 +6841,13 @@ RequestId GetProfile(int64_t playerId, std::function<void(const protobuf::Player
 }
 RequestId NetworkService::GetProfile(int64_t playerId, std::function<void(const protobuf::PlayerProfile &)> &&func, Params *pParams) {
     return ZNet::GetProfile(playerId, std::move(func), pParams);
+}
+RequestId GetProfiles(const std::unordered_set<int64_t> &playerIDs, std::function<void(const protobuf::PlayerProfiles &)> &&f, Params *pParams) {
+    zassert(playerIDs.size() < MAX_IDS);
+    pParams->m_funcName = "GetProfiles";
+    return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::PlayerProfiles>>(void)>([playerIDs]() {
+        return zwift_network::profiles(playerIDs);
+    }), std::move(f), pParams);
 }
 };
 

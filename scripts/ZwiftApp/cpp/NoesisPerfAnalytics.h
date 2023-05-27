@@ -1,11 +1,9 @@
 #pragma once
-
 struct HomeScreenPerfProperty { //40 bytes
     char data[40] = {};
 };
-class NoesisPerfAnalytics { //2016 bytes
+struct NoesisPerfAnalytics { //2016 bytes
     void initFPS();
-public:
     static NoesisPerfAnalytics *Instance() { zassert(g_pPerfAnalytics);  return g_pPerfAnalytics; }
     static void Initialize(Experimentation *exp);
     NoesisPerfAnalytics(Experimentation *exp);

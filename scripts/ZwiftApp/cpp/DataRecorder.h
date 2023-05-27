@@ -99,11 +99,10 @@ struct CriticalPowerCurve : public RecorderComponent, EventObject { //0x188 byte
     const std::vector<DataPoint> &GetDataPoints() { return m_cpDataPoints; }
     void AddDataPoint(float val, float time) override;
 };
-class DataRecorder {
+struct DataRecorder {
     inline static std::unique_ptr<DataRecorder> g_DataRecorder;
     std::vector<RecorderComponent *> m_components;
     Grapher *m_graphers[6];
-public:
     Experimentation *m_exp;
     ZNet::NetworkService *m_net;
     EventSystem *m_ev;

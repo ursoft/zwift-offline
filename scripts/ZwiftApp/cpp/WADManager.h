@@ -32,14 +32,13 @@ struct WAD_HEADER {
     uint32_t m_compressed_size = 0;
     WAD_HEADER() { static_assert(256 == sizeof(WAD_HEADER)); }
 };
-class WADManager {
+struct WADManager {
     struct LoadedWad {
         uint32_t m_crc;
         time_t m_time;
         WAD_HEADER *m_wadHeader;
     };
     std::map<uint32_t, LoadedWad> m_wads; //name crc to struct
-public:
     void LoadWADFile(const char *name);
     WAD_FILE_HEADER *GetWadFileHeaderByItemName(const char *pItemPathName, WAD_ASSET_TYPE type, time_t *t);
     void DeleteAllWadFiles();

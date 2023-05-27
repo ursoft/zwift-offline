@@ -76,10 +76,10 @@ tinyxml2::XMLElement *XMLDoc::CreateElement(tinyxml2::XMLNode *root, const std::
     return root->ToElement();
 }
 tinyxml2::XMLElement *XMLDoc::CreateNewElement(tinyxml2::XMLNode *root, const std::vector<std::string> &path, bool a4) {
-    for (const auto &i : path) {
+    /*for (const auto &i : path) {
         if (a4) {}
         //TODO
-    }
+    }*/
     return root->ToElement();
 }
 tinyxml2::XMLElement *XMLDoc::FindFirstElement(tinyxml2::XMLNode *from, int pidx, const std::vector<std::string> &path) {
@@ -153,9 +153,10 @@ tinyxml2::XMLElement *XMLDoc::FindNextMatchingElement(tinyxml2::XMLNode *from, i
     }
     return nullptr;
 }
+#if 0
 static int str_compare(std::string &s1, const char *s2) {
-    int s2_len = strlen(s2), s1_len = (int)s1.length();
-    int min_len = std::min(s1_len, s2_len);
+    auto s2_len = strlen(s2), s1_len = (int)s1.length();
+    auto min_len = std::min(s1_len, s2_len);
     int ret = memcmp(s1.c_str(), s2, min_len);
     if (!ret) { //eq
         if (s1_len >= s2_len)
@@ -165,6 +166,7 @@ static int str_compare(std::string &s1, const char *s2) {
     }
     return ret;
 }
+#endif
 tinyxml2::XMLElement *XMLDoc::FindNextElement(const char *path, bool replaceRoot, bool enableCreate) {
     tinyxml2::XMLElement *ret = nullptr, *nextElement = nullptr;
     std::string          spath(path);
@@ -176,7 +178,7 @@ tinyxml2::XMLElement *XMLDoc::FindNextElement(const char *path, bool replaceRoot
         if (m_map.contains(pathCRC)) {
 //LABEL_17:
             auto from_map = this->m_map[pathCRC];
-            nextElement = FindNextMatchingElement(from_map, pp.size() - 1, pp, false);
+            nextElement = FindNextMatchingElement(from_map, int(pp.size() - 1), pp, false);
             if (!nextElement) {
                 if (!enableCreate)
                     return nullptr; //52

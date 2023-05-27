@@ -1,5 +1,4 @@
 #pragma once
-class IoCPP {
-public:
+struct IoCPP {
     static void Set(IoCPP *val);
 };

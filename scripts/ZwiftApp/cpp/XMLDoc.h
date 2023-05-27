@@ -1,11 +1,10 @@
 #pragma once
-class XMLDoc { //1736 bytes
+struct XMLDoc { //1736 bytes
     tinyxml2::XMLDocument m_tiny_doc;
     std::string m_root_name;
     std::map<uint32_t, tinyxml2::XMLElement *> m_map;
     char m_path[MAX_PATH] = {};
     bool m_loadResult = false;
-public:
     XMLDoc();
     ~XMLDoc();
     void AddCStr(const char *, const char *);

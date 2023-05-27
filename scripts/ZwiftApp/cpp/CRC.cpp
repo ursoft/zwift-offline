@@ -1,5 +1,4 @@
 #include "CRC.h"
-
 const uint32_t g_crc32Table[256] = {
     0, 0x77073096, 0xEE0E612C, 0x990951BA, 0x76DC419, 0x706AF48F,
     0xE963A535, 0x9E6495A3, 0xEDB8832, 0x79DCB8A4, 0xE0D5E91E,
@@ -95,7 +94,7 @@ uint32_t SIG_CalcCaseInsensitiveSignature(const char *str) {
 }
 bool CCRC32::FileCRC(const char *name, uint32_t *dest, uint64_t block) {
     bool ret = false;
-    *dest = -1;
+    *dest = (uint32_t)-1;
     auto f = fopen(name, "rb");
     if (f) {
         auto mem = (uint8_t *)malloc(block);
@@ -122,12 +121,12 @@ uint32_t CCRC32::FileCRC(const char *name) {
     if (FileCRC(name, &ret, 0x100000uLL))
         return ret;
     else
-        return -1;
+        return (uint32_t)-1;
 }
 uint32_t CCRC32::FullCRC(const uint8_t *buf, uint64_t sz) {
     if (!sz)
         return 0;
-    uint32_t v3 = -1;
+    auto v3 = (uint32_t)-1;
     do {
         auto v4 = *buf++;
         --sz;

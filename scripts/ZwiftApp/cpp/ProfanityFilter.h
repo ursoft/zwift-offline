@@ -1,5 +1,4 @@
 #pragma once
-class ProfanityFilter {
-public:
+struct ProfanityFilter {
     static void LoadProfanityList();
 };

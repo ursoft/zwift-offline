@@ -1,9 +1,8 @@
 #pragma once
-class EventSystem;
+struct EventSystem;
 enum EVENT_ID;
-class CrashReporting { //432 bytes, not implemented
+struct CrashReporting { //432 bytes, OMIT
     static inline std::unique_ptr<CrashReporting> g_CrashReportingUPtr;
-public:
     CrashReporting(EventSystem *ptr);
     void HandleEvent(EVENT_ID e, va_list va);
     ~CrashReporting();

@@ -1,6 +1,5 @@
 #pragma once
-class Powerups {
-public:
+struct Powerups {
     Powerups();
     static inline std::unique_ptr<Powerups> g_pPowerups;
 };

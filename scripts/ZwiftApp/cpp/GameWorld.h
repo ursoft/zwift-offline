@@ -1,8 +1,6 @@
 #pragma once
-
 enum WorldIDs { WID_0, WID_1, WID_2 }; //TODO
-
-class GameWorld { //0x28 bytes
+struct GameWorld { //0x28 bytes
     WorldIDs m_WorldID;
 public:
     struct WorldDef { //0x30 bytes
@@ -18,7 +16,6 @@ public:
     float GetSeaLevel();
     static void LoadWorldsData();
 };
-
 inline int g_WORLD_COUNT;
 inline float g_WorldTime;
 inline GameWorld *g_pGameWorld;

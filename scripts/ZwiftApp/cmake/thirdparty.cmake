@@ -37,16 +37,16 @@ ExternalProject_Add(glfw
 )
 
 #decNumber (not sure it is used here)
-include(FetchContent)
-FetchContent_Declare(decNumber
-  GIT_REPOSITORY https://github.com/dnotq/decNumber.git
-  SOURCE_DIR     ${CMAKE_CURRENT_BINARY_DIR}/decNumber
-  GIT_TAG        8852ef5b4339d611f493e94a791f3543b6ee81cd
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND ""
-  INSTALL_COMMAND ""
-)
-FetchContent_MakeAvailable(decNumber)
+##include(FetchContent)
+##FetchContent_Declare(decNumber
+##  GIT_REPOSITORY https://github.com/dnotq/decNumber.git
+##  SOURCE_DIR     ${CMAKE_CURRENT_BINARY_DIR}/decNumber
+##  GIT_TAG        8852ef5b4339d611f493e94a791f3543b6ee81cd
+##  CONFIGURE_COMMAND ""
+##  BUILD_COMMAND ""
+##  INSTALL_COMMAND ""
+##)
+##FetchContent_MakeAvailable(decNumber)
 
 find_package(CURL CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
@@ -58,7 +58,7 @@ find_package(GLEW REQUIRED)
 find_package(unofficial-libsquish CONFIG REQUIRED)
 find_package(xxHash CONFIG REQUIRED)
 
-add_library(decNumber STATIC
+##add_library(decNumber STATIC
 #  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decimal64.h
 #  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decimal64.c
 #  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decimal32.h
@@ -72,15 +72,15 @@ add_library(decNumber STATIC
 #  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decPacked.h
 #  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decPacked.c
 #  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decNumberLocal.h
-  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decNumber.h
-  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decNumber.c
+##  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decNumber.h
+##  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decNumber.c
 #  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decDouble.h
 #  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decDouble.c
-  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decDPD.h
-  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decContext.h
-  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decContext.c
-)
+##  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decDPD.h
+##  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decContext.h
+##  ${CMAKE_CURRENT_BINARY_DIR}/decNumber/decNumber-icu-368/decContext.c
+##)
 
-target_compile_definitions(decNumber PUBLIC DECNUMDIGITS=34 DECPMAX=34 DECSTRING=45)
-set_property(TARGET decNumber PROPERTY
-  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+##target_compile_definitions(decNumber PUBLIC DECNUMDIGITS=34 DECPMAX=34 DECSTRING=45)
+##set_property(TARGET decNumber PROPERTY
+##  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

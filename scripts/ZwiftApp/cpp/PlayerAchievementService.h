@@ -1,6 +1,6 @@
 #pragma once
 enum Achievement { ACH_CNT = 512 };
-class PlayerAchievementService : public EventObject {
+struct PlayerAchievementService : public EventObject {
     uint64_t m_ridemask;
     uint32_t m_lastPeriodEnd, m_repeatPeriod;
     bool m_changeFlag;
@@ -8,11 +8,10 @@ class PlayerAchievementService : public EventObject {
     enum AchSaveLoadState { SLS_INITIAL = 0, SLS_INPROCESS = 1, SLS_DONE = 2, SLS_FAILED = 3 };
     AchSaveLoadState m_stateLoad, m_stateSave;
     uint8_t m_bitField[ACH_CNT / 8];
-public:
     static void Initialize(EventSystem *ev);
     PlayerAchievementService(EventSystem *ev);
 
-    bool DidRideNDaysAgo(int n) { return m_ridemask & (1 << n); }
+    bool DidRideNDaysAgo(int n) { return m_ridemask & (1ui64 << n); }
     void HandleEvent(EVENT_ID, va_list) override;
     void HandleLogout();
     bool HasAchievement(Achievement a) { return m_bitField[a / 8] & (1 << (a & 7)); }

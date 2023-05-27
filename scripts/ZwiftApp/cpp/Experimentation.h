@@ -27,7 +27,7 @@ template<class T> struct FeatureValue {
     T m_val;
     bool m_filled = false;
 };
-class ZwiftDispatcher { //size=8
+struct ZwiftDispatcher { //size=8
     char data[8];
 public:
     ZwiftDispatcher();
@@ -91,15 +91,13 @@ struct ZNetAdapter {
     protobuf::FeatureRequest *FormFeatureRequest(UserAttributes *ua);
 };
 inline ZNetAdapter g_znetAdapter;
-class Experimentation : public EventObject { //sizeof=0x1E48; vtblExperimentation+0=DTR
+struct Experimentation : public EventObject { //sizeof=0x1E48; vtblExperimentation+0=DTR
     FeatureStateMachine m_fsms[FID_CNT];
     UserAttributes m_userAttributes;
     ZNetAdapter *m_pNA;
     std::vector<FeatureID> m_ids;
     static inline std::unique_ptr<Experimentation> g_ExperimentationUPtr;
-public:
     Experimentation(ZNetAdapter *, EventSystem *ev);
-
     void HandleEvent(EVENT_ID e, va_list args) override; //vtblEvent
     virtual ~Experimentation() { /* TODO */ }                                        //vtblExp+0
     ExpIsEnabledResult IsEnabled(FeatureID id, const FeatureCallback &func);         //vtblExp+1
@@ -120,15 +118,13 @@ public:
 };
 struct ZFeature { /*TODO*/ };
 inline ZFeature gPlayerHighlight, gHoloEffect;
-class ZFeatureManager { //0x40 bytes
+struct ZFeatureManager { //0x40 bytes
     inline static std::unique_ptr<ZFeatureManager> g_FeatureManager;
-public:
     ZFeatureManager() { /*TODO*/ }
     static void Initialize() { g_FeatureManager.reset(new ZFeatureManager()); }
     static bool IsInitialized() { return g_FeatureManager.get() != nullptr; }
     static ZFeatureManager *Instance() { zassert(g_FeatureManager.get() != nullptr); return g_FeatureManager.get(); }
     static void Shutdown() { g_FeatureManager.reset(); }
-
     void AddFeature(ZFeature *) { /*TODO*/ }
     void Find(const ZFeature &, std::vector<ZFeature *> &) { /*TODO*/ }
     void LoadConfig() { /*TODO*/ }

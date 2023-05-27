@@ -1,5 +1,6 @@
 #include "ZwiftApp.h"
 //#define ZCURL_DEBUG
+#ifdef ZCURL_DEBUG
 static void dump(const char *text, FILE *stream, unsigned char *ptr, size_t size) {
     size_t i;
     size_t c;
@@ -55,6 +56,7 @@ static int curl_trace(CURL *handle, curl_infotype type, char *data, size_t size,
     dump(text, stderr, (unsigned char *)data, size);
     return 0;
 }
+#endif
 std::deque<Downloader::CompletedFile>::iterator Downloader::FindCompleted(const std::string &path) {
     std::deque<CompletedFile>::iterator it = m_filesCompleted.begin();
     for (; it != m_filesCompleted.end(); it++)
@@ -172,7 +174,6 @@ size_t Downloader::CurlWriteData(char *ptr, size_t size, size_t nmemb, void *use
     sprintf_s(Source, "Downloader::CurlWriteData(): 1st of buffer=%d, size=%d, count=%d, file=%p\n", *ptr, (int)size, (int)nmemb, userdata);
     strcpy_s(debugDestination, Source);
     auto   total_size = size * nmemb;
-    size_t i = 0;
     if (total_size >= 6 && !memcmp(ptr, "<html>", 6) && strstr_s(ptr, std::min(52ULL, total_size), "404 Not Found", 13))
         return 0;
     FILE *f = (FILE *)userdata;
@@ -207,7 +208,7 @@ size_t Downloader::GetUserDownloadsPath(char *downDir) {
         }
     } else {
         GetModuleFileNameA(nullptr, downDir, sizeof(downDir));
-        int last = strlen(downDir) - 1;
+        int last = (int)strlen(downDir) - 1;
         while (last >= 0 && downDir[last] != '\\') last--;
         downDir[last + 1] = 0; //slash included or null-term
         return last + 1;
@@ -215,18 +216,18 @@ size_t Downloader::GetUserDownloadsPath(char *downDir) {
 }
 size_t SubstringPos(const char *path, size_t path_len, size_t offset, const char *down, size_t downDirLen) {
     if (downDirLen > path_len || offset > path_len - downDirLen)
-        return -1;
+        return (size_t)-1;
     if (!downDirLen)
         return offset;
     auto chd = *down;
     auto fnd = (char *)memchr(&path[offset], chd, path_len - downDirLen + 1 - offset);
     if (!fnd)
-        return -1;
+        return (size_t)-1;
     auto v9 = &path[path_len - downDirLen];
     while (memcmp(fnd, down, downDirLen)) {
         fnd = (char *)memchr(fnd + 1, chd, v9 - fnd);
         if (!fnd)
-            return -1;
+            return (size_t)-1;
     }
     return fnd - path;
 }
@@ -322,10 +323,10 @@ void Downloader::Update() {
                     cur->m_FILE = 0i64;
                     auto fullname = m_locp + cur->m_name;
                     if (cur->m_checksumWant == -1) {
-                        cur->m_checksumGot = -1;
+                        cur->m_checksumGot = (uint32_t)-1;
                         Log("Downloader: \"%s\" downloaded successfully (manifest checksum not provided, i.e. -1).\n", fullname.c_str());
                     } else {
-                        cur->m_checksumGot = -1;
+                        cur->m_checksumGot = (uint32_t)-1;
                         uint32_t tmpcrc;
                         if (CCRC32::FileCRC(fullname.c_str(), &tmpcrc, cur->m_expectedLength))
                             cur->m_checksumGot = tmpcrc;
@@ -534,7 +535,7 @@ TEST(SmokeTest, DISABLED_SchMap) {
     g_mDownloader.SetLocalPath(downloadPath);
     g_mDownloader.SetServerURLPath("https://cdn.zwift.com/gameassets/");
     std::string file("MapSchedule_v2.xml"), fullFile(downloadPath + file);
-    g_mDownloader.Download(file, 0LL, Downloader::m_noFileTime, -1, GAME_onFinishedDownloadingMapSchedule);
+    g_mDownloader.Download(file, 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
     while (!g_mDownloader.CompletedSuccessfully(fullFile)) {
         g_mDownloader.Update();
     }

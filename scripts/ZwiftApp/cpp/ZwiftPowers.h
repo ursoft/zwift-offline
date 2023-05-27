@@ -1,6 +1,5 @@
 #pragma once
-class ZwiftPowers { //24 bytes
-public:
+struct ZwiftPowers { //24 bytes
     void AddOptionalTrainerProfile();
     void Destroy();
     void GetCappedPower(const char *);

@@ -4,10 +4,9 @@ struct GNSceneCreateParams {
     void *m_field_10;
     float m_field_18, m_field_1C, m_field_20, m_field_24, m_field_28, m_field_2C;
 };
-class GNView;
+struct GNView;
 struct GNSceneSSR {};
-class GNScene {
-public:
+struct GNScene {
     void AddLight(uint32_t);
     void AddModel(uint32_t);
     void BeginFrame();

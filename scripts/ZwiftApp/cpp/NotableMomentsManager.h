@@ -1,15 +1,12 @@
 #pragma once
 struct NotableMoment {};
 struct NotableMomentType {};
-class NotableMomentsManager { //984 bytes
-public:
+struct NotableMomentsManager { //984 bytes
     NotableMomentsManager();
     static void Init();
-
     bool IsMomentNotableEnoughForServer(const NotableMoment &);
     bool IsMomentNotableEnoughForServer(const NotableMomentType &);
     bool IsMomentNotableEnoughForGame(const NotableMoment &);
-
     void OnNotableMoment_OnEntitlementGranted(VEC3, int);
     void OnNotableMoment(NOTABLEMOMENT_TYPE, VEC3, uint64_t, uint64_t, double);
     void OnNotableMoment_NewPR(VEC3, int, const char *, float, float, void *);

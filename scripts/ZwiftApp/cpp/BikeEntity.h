@@ -1,7 +1,6 @@
 #pragma once
 using ZSPORT = protobuf::Sport;
-class VirtualBikeComputer {
-public:
+struct VirtualBikeComputer {
     float GetDistance(UnitType ut, bool) { /*TODO*/ return 0.0; }
     void SetTireSize(uint32_t tireCirc) { m_tireCirc = tireCirc; }
     uint64_t m_lastPower = 0;
@@ -16,8 +15,7 @@ struct Entity {
     virtual const VEC3 &GetPosition() { return m_pos; }
 };
 struct SaveGame;
-class BikeEntity : public Entity {
-public:
+struct BikeEntity : public Entity {
     BikeEntity();
     int64_t m_playerIdTx = 0, m_curEventId = 0;
     VirtualBikeComputer *m_bc = nullptr;

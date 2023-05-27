@@ -1,6 +1,5 @@
 #pragma once
-class SaveActivityService { //0x128 bytes
-public:
+struct SaveActivityService { //0x128 bytes
     SaveActivityService(XMLDoc *doc, Experimentation *exp, EventSystem *ev);
     static void Shutdown();
     static bool IsInitialized() { return g_SaveActivityServicePtr.get() != nullptr; }

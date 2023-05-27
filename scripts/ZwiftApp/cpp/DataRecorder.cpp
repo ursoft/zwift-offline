@@ -58,7 +58,7 @@ float DataRecorder::ExpensiveCalculateTSS() {
     return tss;
 }
 float DataRecorder::ExpensiveCalculateTSS_EstimatedPower(const std::vector<float> &src) {
-    int num = src.size();
+    auto num = (int)src.size();
     if (!num)
         return 0.0f;
     auto v5 = (float *)malloc(num * sizeof(float));
@@ -156,7 +156,6 @@ void RecorderComponent::Update(float) {
     if (bc->m_bool) {
         if (m_type == T_1 || !bc->m_bool1) {
             float val = 0.0f;
-            VEC3 v14;
             int fpclass;
             if (m_nextPointTime <= 0.0f) {
                 switch (m_type) {
@@ -292,11 +291,11 @@ float RecorderComponent::GetBestTimeAverage(float dur) {
         return 0.0f;
     auto sum = 0.0f;
     auto ptr = m_dataPoints.data();
-    for (int i = 0; i < needCount; i++)
+    for (uint32_t i = 0; i < needCount; i++)
         sum += (*ptr++).m_data[0];
     ptr = m_dataPoints.data();
     auto maxSum = sum;
-    for (int i = needCount - m_dataPoints.size(); i > 0; i--) {
+    for (uint32_t i = needCount - (uint32_t)m_dataPoints.size(); i > 0; i--) {
         sum = sum - ptr->m_data[0] + (ptr + needCount)->m_data[0];
         ptr++;
         if (sum > maxSum)
@@ -495,7 +494,7 @@ bool CriticalPowerCurve::Save() {
     sprintf_s(pathName, "%suser%lld\\", pathName, m_playerId);
     CreateDirectoryA(pathName, nullptr);
     bool err = false;
-    for (int cpId = m_cpIdMin; cpId < m_cpIdMax; ++cpId) {
+    for (auto cpId = m_cpIdMin; cpId < m_cpIdMax; ++cpId) {
         errno = 0;
         sprintf_s(buf, "%scp2_%d", pathName, cpId + m_cpIdOffset);
         auto f = fopen(buf, "wb");

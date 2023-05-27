@@ -1,7 +1,6 @@
 #pragma once
-class FitnessDeviceManager {
+struct FitnessDeviceManager {
 public:
     static void TrainerSetSimGrade(float v);
     static void Initialize();
 };
-

@@ -19,13 +19,11 @@ void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void 
 void LogInitialize();
 typedef void (*LogWriteHandler)(LOG_LEVEL level, LOG_TYPE ty, const char *msg);
 void SetLogWriteHandler(LogWriteHandler h);
-class GameAssertHandler {
+struct GameAssertHandler {
     static inline bool s_disableAbort;
-public:
     static void Initialize();
     static void Shutdown();
     static void DisableAbort() { s_disableAbort = true; }
-
     bool BeforeAbort(const char *cond, const char *file, unsigned line, PVOID *BackTrace, int nframes);
     void Abort();
     //static void CheckOnceFlag(const char *, int);
@@ -36,11 +34,10 @@ public:
     //static void PushContext(const char *, zu::Value &&);
     //static void SetOnceFlag(const char *, int);
 };
-class ZwiftAssert {
+struct ZwiftAssert {
     static inline std::mutex        g_abortMutex;
     static inline thread_local bool g_abortProcessing;
     static inline GameAssertHandler *g_abortListener;
-public:
     static void SetHandler(GameAssertHandler *ptr) { if (!g_abortProcessing) g_abortListener = ptr; }
     static void Abort();
     static bool BeforeAbort(const char *cond, const char *file, unsigned line);

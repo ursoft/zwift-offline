@@ -1,5 +1,5 @@
 #pragma once
-class BillboardInfoDatabase {
+struct BillboardInfoDatabase {
 public:
     void LoadBillboardInfoDatabase();
     ~BillboardInfoDatabase();
@@ -8,7 +8,7 @@ public:
     void DestroyBillboardInfoDatabase();
 };
 inline BillboardInfoDatabase g_BillboardInfo;
-class ShrubHelperInfoDatabase {
+struct ShrubHelperInfoDatabase {
 public:
     void LoadShrubHelperInfoDatabase();
     ~ShrubHelperInfoDatabase();
@@ -16,7 +16,7 @@ public:
     const char *GetShrubHelperInfoWithGDEName(const std::string &);
 };
 inline ShrubHelperInfoDatabase g_ShrubHelperInfo;
-class RegionsDatabase {
+struct RegionsDatabase {
 public:
     static void LoadRegionsDatabase();
     void ParseRegionAttributes(tinyxml2::XMLElement *, const std::string &);

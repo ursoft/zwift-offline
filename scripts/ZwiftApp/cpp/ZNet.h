@@ -258,6 +258,7 @@ struct NetworkClient {
 };
 namespace ZNet {
     using RequestId = uint64_t;
+    inline static const size_t MAX_IDS = 100;
     struct Error {
         Error(std::string_view msg, NetworkRequestOutcome netReqOutcome) : m_msg(msg), m_netReqOutcome(netReqOutcome), m_hasNetReqOutcome(true) {}
         Error(std::string_view msg) : m_msg(msg) {}
@@ -404,7 +405,7 @@ LABEL_57:
             }
             return ret;
         }
-        const NetworkResponse<T> &PeekAtResponse() {
+        NetworkResponse<T> PeekAtResponse() {
             return this->m_future.get();
         }
         bool ShouldRemove(uint32_t dt) override {
@@ -438,9 +439,8 @@ LABEL_57:
         }
         ~RetryableRPC() {}
     };
-    class NetworkService {
+    struct NetworkService {
         inline static std::unique_ptr<NetworkService> g_NetworkService;
-    public:
         NetworkService() {}
         ~NetworkService() {} //vptr[0][0]
         static void Initialize() { g_NetworkService.reset(new NetworkService()); }
@@ -486,40 +486,40 @@ OMIT RequestId GetWorkout(const std::string const&,std::function<void (const std
     };
     RequestId UpdateProfile(bool inGameFields, const protobuf::PlayerProfile &prof, bool udp, std::function<void(void)> &&f, Params *pParams);
     RequestId GetProfile(int64_t playerId, std::function<void(const protobuf::PlayerProfile &)> &&func, Params *pParams);
+    RequestId GetProfiles(const std::unordered_set<int64_t> &ids, std::function<void (const protobuf::PlayerProfiles &)> &&f, Params *pParams);
     /*
-void DeleteActivity(long long,ulong,std::function<void ()(void)>,std::function<void ()(Error)>);
-void DownloadPlayback(protobuf::playback::PlaybackMetadata const&,std::function<void ()(protobuf::playback::PlaybackData const&)>,std::function<void ()(Error)>);
-void EnrollInCampaign(std::string const&,std::function<void ()(protobuf::campaign::CampaignRegistrationResponse const&)>,std::function<void ()(Error)>,Params);
-void FetchSegmentJerseyLeaders(std::function<void ()(protobuf::SegmentResults)>,std::function<void ()(Error)>);
-void GetAchievements(std::function<void ()(protobuf::achievement::Achievements)>,std::function<void ()(Error)>);
-void GetActiveCampaigns(std::function<void ()(protobuf::campaign::ListPublicActiveCampaignResponse const&)>,std::function<void ()(Error)>);
-void GetActivities(long long,std::function<void ()(protobuf::ActivityList const&)>,Params);
-void GetCampaignRegistration(std::string const&,std::function<void ()(protobuf::campaign::CampaignRegistrationResponse const&)>,std::function<void ()(Error)>,Params);
-void GetCampaigns(std::function<void ()(protobuf::campaign::ListCampaignRegistrationSummaryResponse const&)>,Params);
-void GetClubList(std::function<void ()(protobuf::club::Clubs const&)>,Params);
-void GetDropInWorldList(std::function<void ()(protobuf::DropInWorldList const&)>,Params);
-void GetFeatureVariant(protobuf::experimentation::FeatureRequest &&,std::function<void ()(protobuf::experimentation::FeatureResponse)>,std::__ndk1<void ()(Error)>);
-void GetFollowees(long,bool,std::function<void ()(protobuf::PlayerSocialNetwork const&)>,Params);
-void GetGroupEvent(long long,std::function<void ()(protobuf::EventProtobuf const&)>,std::function<void ()(Error)>);
-void GetMyPlaybackLatest(long long,ulong long,ulong long,std::function<void ()(protobuf::playback::PlaybackMetadata const&)>,std::function<void ()(Error)>);
-void GetMyPlaybackPr(long long,ulong long,ulong long,std::function<void ()(protobuf::playback::PlaybackMetadata const&)>,std::function<void ()(Error)>);
-void GetMyPlaybacks(long long,std::function<void ()(protobuf::playback::PlaybackMetadataList const&)>,std::function<void ()(Error)>);
-void GetPlayerState(long,long long,std::function<void ()(protobuf::PlayerState const&)>,Params);
-void GetProfile(std::function<void ()(protobuf::PlayerProfile const&)>,Params);
-void GetProfile(std::string const&,std::function<void ()(protobuf::PlayerProfile const&)>,Params);
-void GetProfile(std::string_view,std::function<void ()(protobuf::PlayerProfile const&)>,Params);
-void GetProfiles(std::unordered_set<long> const&,std::function<void ()(protobuf::PlayerProfiles const&)>,Params);
-void GetProgressInCampaign(std::string const&,std::function<void ()(protobuf::campaign::CampaignRegistrationDetailResponse const&)>,std::function<void ()(Error)>,Params);
-void RegisterInCampaign(std::string const&,std::function<void ()(protobuf::campaign::CampaignRegistrationResponse const&)>,std::function<void ()(Error)>,Params);
-void SaveActivity(protobuf::Activity &&,bool,std::basic_string<char,protobuf::Activity &&::char_traits<char>,protobuf::Activity &&::allocator<char>> const&,protobuf::Activity &&::function<void ();(long)id ov>,std::basic_string<char,protobuf::Activity &&::char_traits<char>,protobuf::Activity &&::allocator<char>> const&<void ()(Error)>);
-void SavePlayback(protobuf::playback::PlaybackData const&,std::function<void ()(std::string const&)>,std::function<void ()(Error)>);
-void SaveSegmentResult(protobuf::SegmentResult const&,std::function<void ()(long const&)>,std::function<void ()(Error)>);
-void SubscribeToRouteSegment(long long,std::function<void ()(protobuf::SegmentResults)>,std::function<void ()(Error)>);
-void ToString(zwift_network::NetworkRequestOutcome);
-void template<typename T> TryGet<T>(std::future<std::shared_ptr<zwift_network::NetworkResponse<void> const>> &);
-void UnlockAchievements(std::vector<int> const&,std::function<void ()(void)>,std::function<void ()(Error)>);
-void WaitForPendingRequests<std::vector<RequestId>>(std::vector<RequestId> const&,std::string_view);
-void WithdrawFromCampaign(std::string const&,std::function<void ()(protobuf::campaign::CampaignRegistrationResponse const&)>,std::function<void ()(Error)>,Params);
+    RequestId DeleteActivity(int64_t, uint64_t, std::function<void (void)> &&f, std::function<void (Error)> &&ef);
+    RequestId DownloadPlayback(const protobuf::PlaybackMetadata &proto, std::function<void (const protobuf::PlaybackData &)> &&f, std::function<void (Error)> &&ef);
+    RequestId EnrollInCampaign(std::string &proto, std::function<void (const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
+    RequestId FetchSegmentJerseyLeaders(std::function<void (const protobuf::SegmentResults)> &&f, std::function<void (Error)> &&ef);
+    RequestId GetAchievements(std::function<void (const protobuf::achievement::Achievements)> &&f, std::function<void (Error)> &&ef);
+    RequestId GetActiveCampaigns(std::function<void (const protobuf::ListPublicActiveCampaignResponse &)> &&f, std::function<void (Error)> &&ef);
+    RequestId GetActivities(int64_t, std::function<void (const protobuf::ActivityList &)> &&f, Params *pParams);
+    RequestId GetCampaignRegistration(std::string &proto, std::function<void (const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
+    RequestId GetCampaigns(std::function<void (const protobuf::ListCampaignRegistrationSummaryResponse &)> &&f, Params *pParams);
+    RequestId GetClubList(std::function<void (const protobuf::club::Clubs &)> &&f, Params *pParams);
+    RequestId GetDropInWorldList(std::function<void (const protobuf::DropInWorldList &)> &&f, Params *pParams);
+    RequestId GetFeatureVariant(const protobuf::experimentation::FeatureRequest &&, std::function<void (const protobuf::experimentation::FeatureResponse)> &&f, std::__ndk1<void ()(Error)> &&ef);
+    RequestId GetFollowees(int64_t, bool, std::function<void (const protobuf::PlayerSocialNetwork &)> &&f, Params *pParams);
+    RequestId GetGroupEvent(int64_t, std::function<void (const protobuf::EventProtobuf &)> &&f, std::function<void (Error)> &&ef);
+    RequestId GetMyPlaybackLatest(int64_t, uint64_t, uint64_t, std::function<void (const protobuf::PlaybackMetadata &)> &&f, std::function<void (Error)> &&ef);
+    RequestId GetMyPlaybackPr(int64_t, uint64_t, uint64_t, std::function<void (const protobuf::PlaybackMetadata &)> &&f, std::function<void (Error)> &&ef);
+    RequestId GetMyPlaybacks(int64_t, std::function<void (const protobuf::PlaybackMetadataList &)> &&f, std::function<void (Error)> &&ef);
+    RequestId GetPlayerState(int64_t, int64_t, std::function<void (const protobuf::PlayerState &)> &&f, Params *pParams);
+    RequestId GetProfile(std::function<void (const protobuf::PlayerProfile &)> &&f, Params *pParams);
+    RequestId GetProfile(std::string &proto, std::function<void (const protobuf::PlayerProfile &)> &&f, Params *pParams);
+    RequestId GetProfile(std::string_view, std::function<void (const protobuf::PlayerProfile &)> &&f, Params *pParams);
+    RequestId GetProgressInCampaign(std::string &proto, std::function<void (const protobuf::CampaignRegistrationDetailResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
+    RequestId RegisterInCampaign(std::string &proto, std::function<void (const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
+    RequestId SaveActivity(const protobuf::Activity &&, bool, std::basic_string<char, protobuf::Activity &&::char_traits<char> &&f, protobuf::Activity &&::allocator<char>> &proto, protobuf::Activity &&::function<void ();(int64_t)id ov> &&f, std::basic_string<char, protobuf::Activity &&::char_traits<char> &&f, protobuf::Activity &&::allocator<char>> const&<void ()(Error)> &&ef);
+    RequestId SavePlayback(const protobuf::PlaybackData &proto, std::function<void (std::string &)> &&f, std::function<void (Error)> &&ef);
+    RequestId SaveSegmentResult(const protobuf::SegmentResult &proto, std::function<void (int64_t &)> &&f, std::function<void (Error)> &&ef);
+    RequestId SubscribeToRouteSegment(int64_t, std::function<void (const protobuf::SegmentResults)> &&f, std::function<void (Error)> &&ef);
+    RequestId ToString(NetworkRequestOutcome);
+    RequestId template<typename T> TryGet<T>(std::future<std::shared_ptr<NetworkResponse<void> const>> &);
+    RequestId UnlockAchievements(std::vector<int> &proto, std::function<void (void)> &&f, std::function<void (Error)> &&ef);
+    RequestId WaitForPendingRequests<std::vector<RequestId>>(std::vector<RequestId> &proto, std::string_view);
+    RequestId WithdrawFromCampaign(std::string &proto, std::function<void (const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
 */
 }
 namespace uuid {

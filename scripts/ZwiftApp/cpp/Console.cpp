@@ -55,7 +55,7 @@ bool COMMAND_RunCommandsFromFile(const char *name) {
     return true;
 }
 void StripPaddedSpaces(std::string *dest, const std::string &src) {
-    auto srcSize = src.size();
+    auto srcSize = (int)src.size();
     if (srcSize) {
         int i = 0, j = srcSize - 1;
         for (; i < srcSize; ++i)
@@ -111,7 +111,7 @@ void FindCommands(std::vector<ConsoleCommandFuncs *> *dest, const std::string &n
 }
 bool COMMAND_RunCommand(const char *cmd) {
     while (isspace(*cmd)) ++cmd;
-    int         i = strlen(cmd);
+    auto i = strlen(cmd);
     while (i > 0 && isspace(cmd[i - 1])) i--;
     std::string scmd(cmd, i), name, params;
     SplitCommand(scmd, &name, &params, ' ');
@@ -123,7 +123,7 @@ bool COMMAND_RunCommand(const char *cmd) {
     } else if (foundCommands.size() > 1) {
         int bestDiff = -1;
         for (auto f : foundCommands) {
-            auto diff = f->m_name.size() - name.size();
+            auto diff = abs(int(f->m_name.size() - name.size()));
             if (diff < bestDiff) {
                 bestDiff = diff;
                 selFunc = f;
@@ -743,7 +743,7 @@ void CONSOLE_PrepareAutocomplete(const char *cmd) {
     }
 }
 void CONSOLE_KeyPress(int codePoint, int keyModifiers) {
-    auto cmdLen = strlen(g_consoleCommand);
+    auto cmdLen = (int)strlen(g_consoleCommand);
     int  scrollDelta = 0;
     switch (codePoint) {
         case GLFW_KEY_ESCAPE:
@@ -880,7 +880,7 @@ void CONSOLE_Draw(float atY, float dt) {
                 CONSOLE_DrawPar(g_Console, str, &v6, lc, LogGetLineType(lc + scrollLogPos));
         }
         float firstLinePrinted = lc + scrollLogPos;
-        GFX_Draw2DQuad(0.0f, g_Console.m_cmdY, 1280.0f, 1.0f, -1, false);
+        GFX_Draw2DQuad(0.0f, g_Console.m_cmdY, 1280.0f, 1.0f, (uint32_t)-1, false);
         //scrollBarTop, scrollBarHeight=0..g_Console.m_cmdY
         float scrollBarTop = firstLinePrinted / LogGetLineCount() * g_Console.m_cmdY, scrollBarHeight = (lastLinePrinted - firstLinePrinted + 1) / LogGetLineCount() * g_Console.m_cmdY;
         GFX_Draw2DQuad(1274.0f, scrollBarTop, 6.0f, scrollBarHeight, 0xFFFFFF00, false);
@@ -901,7 +901,7 @@ bool CMD_PlayWemLocal(const char *par) {
     char cd[MAX_PATH + 1];
     cd[0] = 0;
     if (GetCurrentDirectoryA(sizeof(cd) - 1, cd)) {
-        auto v2 = sprintf(g_cmdPlayFileName, "%s/data/%s", cd, par);
+        sprintf(g_cmdPlayFileName, "%s/data/%s", cd, par);
         for (auto &s : g_cmdPlayFileName)
             if (!s) break; else if (s == '/') s = '\\';
         AUDIO_PlayFlatFile(g_cmdPlayFileName, 0.0f);

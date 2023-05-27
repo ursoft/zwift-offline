@@ -39,12 +39,11 @@ void MouseButtonCallback(GLFWwindow *, int, int, int) {
 }
 void KeyCallback(GLFWwindow *, int key, int scanCode, int action, int mods) {
     //URSOFT FIX (anti-bouncing algo)
-    static int      lastTime = timeGetTime(), lastMod = -1;
-    static uint32_t lastCodePoint = -1, waiting = 300;
-    auto            nowTime = timeGetTime();
+    static int lastTime = timeGetTime(), lastMod = -1, lastCodePoint = -1, waiting = 300;
+    auto       nowTime = timeGetTime();
     if (nowTime - lastTime > 300)
         waiting = 300;
-    if (lastCodePoint == key && lastMod == mods && nowTime - lastTime < waiting)
+    if (lastCodePoint == key && lastMod == mods && int(nowTime - lastTime) < waiting)
         return;
     if (lastCodePoint == key && lastMod == mods) {
         if (waiting == 300)
@@ -203,7 +202,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         g_mDownloader.SetLocalPath(downloadPath);
     }
     g_mDownloader.SetServerURLPath("https://cdn.zwift.com/gameassets/");
-    g_mDownloader.Download("MapSchedule_v2.xml", 0LL, Downloader::m_noFileTime, -1, GAME_onFinishedDownloadingMapSchedule);
+    g_mDownloader.Download("MapSchedule_v2.xml", 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
     //OMIT: check GFX driver if no "<data>\Zwift\olddriver.ok" exist
     g_pDownloader->Update();
     ZMUTEX_SystemInitialize();
@@ -529,8 +528,8 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     GUI_Initialize(/*make_sound,*/ !g_IsOnProductionServer);
     GUI_SetDefaultFont(&g_GiantFontW);
     ZWIFT_UpdateLoading(nullptr, false);
-    g_vegetationWind[0] = 1.0;
-    g_vegetationWind[3] = 0.2;
+    g_vegetationWind[0] = 1.0f;
+    g_vegetationWind[3] = 0.2f;
     GameShaders::LoadAll();
     g_SimpleShaderHandle = GFX_CreateShaderFromFile("SimpleShader", -1);
     g_WorldNoLightingHandle = GFX_CreateShaderFromFile("gde_nolighting", -1);
@@ -744,7 +743,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         g_LargeFontW.SetHeadAndBaseLines(14.0, 20.0);
         HUD_UpdateChatFont();
         g_LargeFontW.SetScaleAndKerning(0.6f, 0.887f);
-        g_LargeFontW.SetLanguageKerningScalar(LID_CHINESE, 1.3);
+        g_LargeFontW.SetLanguageKerningScalar(LID_CHINESE, 1.3f);
         g_ButterflyTexture = GFX_CreateTextureFromTGAFile("blue_butterfly.tga", -1, true);
         g_RedButterflyTexture = GFX_CreateTextureFromTGAFile("white_butterfly.tga", -1, true);
         g_MonarchTexture = GFX_CreateTextureFromTGAFile("monarch.tga", -1, true);
@@ -803,7 +802,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         if (!UI_DialogPointer(UID_CONNECTION_NOTIFICATIONS))
             UI_CreateDialog(UID_CONNECTION_NOTIFICATIONS, nullptr, nullptr);
         ZWIFT_UpdateLoading(nullptr, false);
-        auto     ltd = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", -1, true);
+        auto     ltd = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", (uint32_t)-1, true);
         uint64_t Power;
         if (ltd != -1 && (Power = ZwiftPowers::GetInst()->GetPower(ltd)) != 0) {
             BikeManager::Instance()->m_mainBike->m_bc->m_lastPower = Power;
@@ -837,7 +836,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         GAME_LoadLevel(worldCfg);
         AccessoryManager::CreateSegmentJerseys();
         DetermineNoesisFeatureFlags();
-        bool v423 = false; //TODO
+        //bool v423 = false; //TODO
         if (options[TOKEN].arg) {
             Log("Got an access token");
             g_startupFlowStateParam = options[TOKEN].arg;
@@ -850,7 +849,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         ZSF_SwitchState(g_gameStartupFlowState, g_startupFlowStateParam);
         ZWIFT_UpdateLoading(u"Ride On.", true);
         ANTRECEIVER_PostConnect();
-        auto TotalLoadTimeInSeconds = (timeGetTime() - startTime) * 0.001;
+        auto TotalLoadTimeInSeconds = (timeGetTime() - startTime) * 0.001; (void)TotalLoadTimeInSeconds;
         if (parse.error()) {
             //GameDictionary::Create(); - what for???
             ZwiftExit(0);

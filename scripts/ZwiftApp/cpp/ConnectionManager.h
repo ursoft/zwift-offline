@@ -1,5 +1,5 @@
 #pragma once
-class ConnectionManager { // 0x138 bytes
+struct ConnectionManager { // 0x138 bytes
 public:
     ConnectionManager();
     ~ConnectionManager();

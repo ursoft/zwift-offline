@@ -1,10 +1,8 @@
 #pragma once
-class GroupEvent { //39 bytes
-public:
-
+struct GroupEvent { //39 bytes
+    //TODO
 };
-class GroupEvents {
-public:
+struct GroupEvents {
     static std::vector<GroupEvent> g_GroupEvents;
     static void Initialize(Experimentation *exp);
     static void Shutdown();

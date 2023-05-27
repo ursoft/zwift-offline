@@ -1,4 +1,6 @@
 #pragma once
+#define _CRT_SECURE_NO_WARNINGS
+#define OPENSSL_API_COMPAT 0x10100000L
 #define NOMINMAX
 //#define AK_USE_UWP_API
 #ifdef NDEBUG
@@ -41,9 +43,9 @@
 #include <zlib.h>
 #include <tinyxml2.h>
 #include <curl/curl.h>
-extern "C" {
+/*extern "C" {
 #include <decNumber.h>
-}
+}*/
 #include <unicode/utypes.h>
 #include <unicode/ustring.h>
 #include <unicode/ucnv.h>
@@ -55,4 +57,4 @@ extern "C" {
 #include <json/json.h>
 #include <gtest/gtest.h>
 
-using namespace std::string_literals;
+using std::string_literals::operator""s;

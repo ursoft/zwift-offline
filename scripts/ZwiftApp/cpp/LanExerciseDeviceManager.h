@@ -1,6 +1,5 @@
 #pragma once
-class LanExerciseDeviceManager { //1 byte
-public:
+struct LanExerciseDeviceManager { //1 byte
     LanExerciseDeviceManager() {}
     static void Initialize();
 };

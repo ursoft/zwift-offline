@@ -1,7 +1,6 @@
 #pragma once
-class Downloader {
+struct Downloader {
     std::string m_locp, m_urlp;
-public:
     struct CurrentFile;
     struct PendingFile {
         PendingFile() {}

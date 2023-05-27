@@ -1,6 +1,5 @@
 #pragma once
-class SteeringModule {
-public:
+struct SteeringModule {
     static SteeringModule *Self();
     void Init(BikeEntity *mb);
 };

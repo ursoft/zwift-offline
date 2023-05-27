@@ -179,7 +179,7 @@ bool CMD_PlayWemLocal(const char *);
 
 //non-zwift: console redirection (useful for debugging and unit testing)
 namespace non_zwift {
-class ConsoleHandler {
+struct ConsoleHandler {
     bool m_releaseNeed;
 public:
     ConsoleHandler(int16_t minLength);

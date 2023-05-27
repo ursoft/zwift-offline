@@ -180,7 +180,7 @@ void AUDIO_Shutdown() {
         if (hFindFile != INVALID_HANDLE_VALUE) {
             do {
                 if (FindFileData.cFileName[0] != '.' && (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
-                    strcpy(broadcastsPath + bcPathLen, FindFileData.cFileName);
+                    strcpy_s(broadcastsPath + bcPathLen, _countof(broadcastsPath) - bcPathLen, FindFileData.cFileName);
                     DeleteFileA(broadcastsPath);
                 }
             } while (FindNextFileA(hFindFile, &FindFileData));
@@ -230,7 +230,7 @@ wchar_t *FileName2AkName(const char *name) {
             break;
     UChar buf[1024];
     if (end > name) {
-        u_uastrncpy(buf, name, end - name);
+        u_uastrncpy(buf, name, int32_t(end - name));
         buf[end - name] = 0;
         g_pLowLevelIO->AddBasePath((AkOSChar *)buf);
     }

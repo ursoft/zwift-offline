@@ -8,10 +8,10 @@ bool GFX_Initialize() {
     g_bFullScreen = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\FULLSCREEN", 0, true) != 0;
     auto WINWIDTH = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\WINWIDTH", 0, true);
     auto WINHEIGHT = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\WINHEIGHT", 0, true);
-    auto PREFERRED_MONITOR = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\PREFERRED_MONITOR", -1, true);
+    auto PREFERRED_MONITOR = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\PREFERRED_MONITOR", (uint32_t)-1, true);
     auto VSYNC = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\VSYNC", 1, true);
-    auto GPU = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\GPU", -1, true);
-    auto GFX_TIER = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\GFX_TIER", -1, true);
+    auto GPU = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\GPU", (uint32_t)-1, true);
+    auto GFX_TIER = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\GFX_TIER", (uint32_t)-1, true);
     Log("Initializing graphics window of size %d x %d", WINWIDTH, WINHEIGHT);
     GFX_InitializeParams gip{};
     gip.WINWIDTH = WINWIDTH;
@@ -40,7 +40,7 @@ bool GFX_Initialize() {
     }
     g_view_h = g_height;
     g_view_y = 0.0;
-    auto perf_flags = g_UserConfigDoc.GetU32("PERF", -1, true);
+    auto perf_flags = g_UserConfigDoc.GetU32("PERF", (uint32_t)-1, true);
     if (perf_flags != -1)
         GFX_AddPerformanceFlags(perf_flags);
     return true;
@@ -158,10 +158,10 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
         glfwGetWindowFrameSize(g_mainWindow, &left, &top, &right, &bottom);
         glfwSetWindowSize(g_mainWindow, tryw - left - right, tryh - top - bottom);
     }
-    GLenum err = glewInit();
-    if (GLEW_OK != err) {
+    GLenum gerr = glewInit();
+    if (GLEW_OK != gerr) {
         char buf[128];
-        sprintf(buf, "glewInit returned: %d", (int)err);
+        sprintf(buf, "glewInit returned: %d", (int)gerr);
         Log(buf);
         MsgBoxAndExit(buf);
     }
@@ -286,7 +286,7 @@ bool GFXAPI_Initialize(const GFX_InitializeParams &gip) {
 void GFXAPI_UnloadTexture(int handle) {
     auto &id = g_Textures[handle].m_glid;
     glDeleteTextures(1, &id);
-    id = -1;
+    id = (uint32_t)-1;
 }
 void GFX_Internal_UnloadTexture(int handle, TEX_STATE s) {
     GFXAPI_UnloadTexture(handle);
@@ -537,8 +537,8 @@ int GFXAPI_CreateShaderFromZDataFile(const GFX_CreateShaderParams &s, int handle
     auto pFileHdrV = g_WADManager.GetWadFileHeaderByItemName(zvsh + 5, WAD_ASSET_TYPE::SHADER, &touchV);
     auto pFileHdrF = g_WADManager.GetWadFileHeaderByItemName(zfsh + 5, WAD_ASSET_TYPE::SHADER, &touchF);
     std::vector<byte> V, F;
-    ZData *zdVsh, *zdFsh;
-    ZDataFile *dataFileV, *dataFileF;
+    ZData *zdVsh = nullptr, *zdFsh = nullptr;
+    ZDataFile *dataFileV = nullptr, *dataFileF = nullptr;
     if (pFileHdrV && pFileHdrF && touchV != -1 && touchF != -1) {
         if (GFXAPI_ParseShaderFromZData(V, &dataFileV, &dummy, &zdVsh, pFileHdrV->FirstChar(), pFileHdrV->m_fileLength, s, false) < 0)
             return ret;
@@ -678,7 +678,7 @@ void GFX_Internal_fixupShaderAddresses(GFX_ShaderPair *pShader) {
     for (auto &i : pShader->m_field_16C)
         i = 0x80000000;
     glUseProgram(0);
-    g_pGFX_CurrentStates->m_shader = -1;
+    g_pGFX_CurrentStates->m_shader = (uint32_t)-1;
 }
 typedef std::chrono::high_resolution_clock Clock;
 typedef std::chrono::milliseconds ms;
@@ -735,7 +735,7 @@ bool GFX_UseCachedShader(GFX_ShaderPair *curShader, const char *fn) {
     uint32_t i = 0;
     for (auto san : g_ShaderAttributeNames)
         glBindAttribLocation(curShader->m_program, i++, san);
-    glProgramBinary(curShader->m_program, binaryFormat, binary, binaryLength);
+    glProgramBinary(curShader->m_program, binaryFormat, binary, GLsizei(binaryLength));
     free(binary);
     glGetProgramiv(curShader->m_program, GL_LINK_STATUS, &success);
     if (!success) {
@@ -1913,8 +1913,8 @@ void GFX_PopStates() {
                 GFX_UnsetShader();
                 GFX_SetShader(sh);
             }
-            g_pGFX_CurrentStates->m_bits = -1;
-            g_pGFX_CurrentStates->m_hasRegTypes = -1;
+            g_pGFX_CurrentStates->m_bits = (uint32_t)-1;
+            g_pGFX_CurrentStates->m_hasRegTypes = (uint32_t)-1;
             g_pGFX_CurrentStates->m_shader = 0;
             g_pGFX_CurrentStates->m_vaIdx = 0;
             for (uint32_t j = 0; j < GFX_GetCaps().max_v_attribs; j++)
@@ -2228,7 +2228,7 @@ void GFX_UnsetShader() {
     g_pCurrentShader = 0;
     g_CurrentShaderHandle = -1;
     glUseProgram(0); //GFXAPI_UnsetShader
-    g_pGFX_CurrentStates->m_shader = -1;
+    g_pGFX_CurrentStates->m_shader = (uint32_t)-1;
 }
 void GFXAPI_SetShader(int sh) {
     glUseProgram(g_Shaders[sh].m_program);
@@ -2411,13 +2411,13 @@ void GFX_StateBlock::SetUniform(const GFX_RegisterRef &ref, const MATRIX44 &m, u
     m_hasRegTypes |= (1ull << (int)ref.m_ty);
 }
 void GFX_StateBlock::Reset() {
-    m_bits = -1;
+    m_bits = (uint32_t)-1;
     m_cullIdx2 = GFC_NONE;
     m_alphaBlend2 = 0;
     m_blendFunc2 = { GBO_FUNC_ADD, GB_FALSE, GB_TRUE, GB_FALSE };
     m_attrData = 0;
     m_VAO = 0;
-    m_indexBuffer = m_vertex = m_shader = -1;
+    m_indexBuffer = m_vertex = m_shader = (uint32_t)-1;
     m_vaIdx = 0;
     m_field_A8 = 0i64;
     m_actTex = GL_TEXTURE0;
@@ -2425,7 +2425,7 @@ void GFX_StateBlock::Reset() {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_arrBuf = 0;
     }
-    m_hasRegTypes = -1;
+    m_hasRegTypes = (uint32_t)-1;
     m_shaderMAT4ARRAY;
 }
 const uint32_t g_GFX_VertexFormat_size[GVF_CNT] = { 0, 4, 4, 4, 4, 1, 2, 3 };
@@ -3082,7 +3082,7 @@ int GFX_Internal_LoadTextureFromTGAFile(const char *name, int handle) {
                     else
                         h = -1;
                     if (h >= 0) {
-                        g_Textures[h].m_name = strdup(name);
+                        g_Textures[h].m_name = _strdup(name);
                         g_Textures[h].m_nameSCRC = SIG_CalcCaseSensitiveSignature(name);
                     }
                 }
@@ -3127,7 +3127,7 @@ int GFX_Internal_LoadTextureFromTGAFile(const char *name, int handle) {
                 else
                     handle = -1;
                 if (handle != -1) {
-                    g_Textures[handle].m_name = strdup(name);
+                    g_Textures[handle].m_name = _strdup(name);
                     g_Textures[handle].m_nameSCRC = SIG_CalcCaseSensitiveSignature(name);
                 }
             }
@@ -3254,7 +3254,7 @@ int GFX_Internal_LoadTextureFromTGAXFile(const char *name, int handle) {
                     ++g_nTexturesLoaded;
                 else
                     return -1;
-                g_Textures[handle].m_name = strdup(name);
+                g_Textures[handle].m_name = _strdup(name);
                 g_Textures[handle].m_nameSCRC = SIG_CalcCaseSensitiveSignature(name);
             }
             auto nSkipMipCount = g_nSkipMipCount;
@@ -3280,9 +3280,9 @@ int GFX_CreateTextureFromTGAX(uint8_t *data, int handle) {
         else
             return -1;
     }
-    const TGAX_HEADER *h = (const TGAX_HEADER *)data;
-    uint16_t max_width = h->wWidth;
-    uint16_t max_height = h->wHeight;
+    const TGAX_HEADER *hdr = (const TGAX_HEADER *)data;
+    uint16_t max_width = hdr->wWidth;
+    uint16_t max_height = hdr->wHeight;
     int div = 0;
     while ((max_width >> div) > 4) ++div;
     int   nSkipMipCount = g_nSkipMipCount;
@@ -3306,7 +3306,7 @@ int GFX_CreateTextureFromTGAX(uint8_t *data, int handle) {
     auto tdata = data + sizeof(TGAX_HEADER);
     int size_divider = 0;
     unsigned tdata_len, tdata_mult = 16, fmt_idx = 6;
-    if (h->wType == 24) {
+    if (hdr->wType == 24) {
         tdata_mult = 8;
         fmt_idx = 5;
     }
@@ -3413,8 +3413,7 @@ void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE ty, int baseVertex, uint32_t cnt, GF
     }
 }
 void GFX_Translate(const VEC3 &v) {
-    auto v1 = 4;
-    auto v2 = &g_MatrixContext.m_matrix->m_data[3];
+    auto v2 = &g_MatrixContext.m_matrix->m_data[3]; (void)v2;
     for (int i = 0; i < 4; i++) {
         g_MatrixContext.m_matrix->m_data[3].m_data[i] += v.m_data[1] * g_MatrixContext.m_matrix->m_data[1].m_data[i]
             + v.m_data[0] * g_MatrixContext.m_matrix->m_data[0].m_data[i] + v.m_data[2] * g_MatrixContext.m_matrix->m_data[2].m_data[i];

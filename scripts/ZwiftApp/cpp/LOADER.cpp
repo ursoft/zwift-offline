@@ -6,7 +6,7 @@ void GDE_PackIndices(uint32_t **dest, int offset, T *src, unsigned int numIndice
     (*dest)++;
     **dest = offset + *src;
     (*dest)++;
-    for (int i = 0; i < numIndices; i++) {
+    for (uint32_t i = 0; i < numIndices; i++) {
         **dest = offset + src[i];
         (*dest)++;
     }
@@ -217,7 +217,7 @@ void LOADER_LoadGdeFileAnim(GDE_Header_360 *file, GDE_Material *pAnim, int *texs
     }
     pAnim->m_field_150 = nullptr;
     for (int i = 0; i < _countof(pAnim->m_texIdx); i++)
-        pAnim->m_texGlid[0] = ((unsigned)pAnim->m_texIdx[i] >= file->m_texturesCnt) ? -1 : texs[pAnim->m_texIdx[i]];
+        pAnim->m_texGlid[0] = ((uint32_t)pAnim->m_texIdx[i] >= file->m_texturesCnt) ? -1 : texs[pAnim->m_texIdx[i]];
     for (int i = 0; i < _countof(pAnim->m_pUsage); i++) {
         ShiftPointer(&pAnim->m_pUsage->m_pConstantParams, file);
         ShiftPointer(&pAnim->m_pUsage->m_somePtr, file);
@@ -281,7 +281,7 @@ int GDE_OptimizeLod(uint32_t a1, uint32_t lodMax) {
     return std::min(a1, lodMax - 1);
 }
 void GDE_CopyMeshItemData0(GDE_MeshItemData0 *dest, GDE_MeshItemData0 *src, uint32_t cnt, VEC3 *mn, VEC3 *mx) {
-    for (int i = 0; i < cnt; i++) {
+    for (uint32_t i = 0; i < cnt; i++) {
         *dest = *src;
         dest->m_field_1B = 0;
         dest->m_field_1F = 0;
@@ -296,7 +296,7 @@ void GDE_CopyMeshItemData0(GDE_MeshItemData0 *dest, GDE_MeshItemData0 *src, uint
     }
 }
 void GDE_CopyMeshItemData1(GDE_MeshItemData1 *dest, GDE_MeshItemData1 *src, uint32_t cnt, VEC3 *mn, VEC3 *mx) {
-    for (int i = 0; i < cnt; i++) {
+    for (uint32_t i = 0; i < cnt; i++) {
         *dest = *src;
         dest->m_field_23 = 0;
         dest->m_field_27 = 0;
@@ -311,7 +311,7 @@ void GDE_CopyMeshItemData1(GDE_MeshItemData1 *dest, GDE_MeshItemData1 *src, uint
     }
 }
 void GDE_CopyMeshItemData2(GDE_MeshItemData2 *dest, GDE_MeshItemData2 *src, uint32_t cnt, VEC3 *mn, VEC3 *mx) {
-    for (int i = 0; i < cnt; i++) {
+    for (uint32_t i = 0; i < cnt; i++) {
         *dest = *src;
         dest->m_field_23 = 0;
         dest->m_field_27 = 0;
@@ -326,7 +326,7 @@ void GDE_CopyMeshItemData2(GDE_MeshItemData2 *dest, GDE_MeshItemData2 *src, uint
     }
 }
 void GDE_CopyMeshItemData3(GDE_MeshItemData3 *dest, GDE_MeshItemData3 *src, uint32_t cnt, VEC3 *mn, VEC3 *mx) {
-    for (int i = 0; i < cnt; i++) {
+    for (uint32_t i = 0; i < cnt; i++) {
         *dest = *src;
         dest->m_field_2B = 0;
         dest->m_field_27 = 0;
@@ -371,11 +371,11 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
     auto destTextures = headerCopy->m_textures;
     auto srcTextures = file->m_textures;
     int texHandles[_countof(g_textureToHandleTable)];
-    for (int t = 0; t < file->m_texturesCnt; t++) {
+    for (uint32_t t = 0; t < file->m_texturesCnt; t++) {
         if (srcTextures[t].m_name) {
             memmove(destTextures + t, srcTextures + t, sizeof(GDE_Tex));
             ShiftPointer(&srcTextures[t].m_name, file);
-            destTextures[t].m_name = strdup(srcTextures[t].m_name);
+            destTextures[t].m_name = _strdup(srcTextures[t].m_name);
             auto v38 = strstr(destTextures[t].m_name, "YorkShire\\Textures");
             if (v38)
                 v38[4] = 's';
@@ -391,7 +391,7 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
                 auto tgaHandle = GFX_CreateTextureFromTGAFile(destTextures[t].m_name, -1, true);
                 if (tgaHandle == -1) {
                     const char *tgaAltName = nullptr;
-                    int destNameLen = strlen(destTextures[t].m_name);
+                    int destNameLen = (int)strlen(destTextures[t].m_name);
                     if (destNameLen > 0) {
                         auto destName = destTextures[t].m_name;
                         const char *dch = destName + destNameLen;
@@ -414,7 +414,7 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
             }
         }
     }
-    for (int uIdx = 0; uIdx < file->m_materialsCnt; ++uIdx) {
+    for (uint32_t uIdx = 0; uIdx < file->m_materialsCnt; ++uIdx) {
         auto uSrc = file->m_materials + uIdx, uDest = headerCopy->m_materials + uIdx;
         LOADER_LoadGdeFileAnim(file, uSrc, texHandles);
         *uDest = *uSrc;
@@ -599,7 +599,7 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
     auto &res = g_ENG_InstanceResources[handle];
     res.m_gdeFile = headerCopy;
     if (res.m_gdeName == nullptr) {
-        res.m_gdeName = strdup(name);
+        res.m_gdeName = _strdup(name);
         res.m_gdeNameCRC = SIG_CalcCaseSensitiveSignature(name);
     }
     res.m_isSkin = false;
@@ -629,7 +629,7 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
     zassert(file->m_texturesCnt < _countof(g_textureToHandleTable));
     auto srcTextures = file->m_textures;
     int texHandles[_countof(g_textureToHandleTable)];
-    for (int t = 0; t < file->m_texturesCnt; t++) {
+    for (uint32_t t = 0; t < file->m_texturesCnt; t++) {
         if (srcTextures[t].m_name) {
             ShiftPointer(&srcTextures[t].m_name, file);
             auto v38 = strstr(srcTextures[t].m_name, "YorkShire\\Textures");
@@ -647,7 +647,7 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
                 auto tgaHandle = GFX_CreateTextureFromTGAFile(srcTextures[t].m_name, -1, true);
                 if (tgaHandle == -1) {
                     const char *tgaAltName = nullptr;
-                    int srcNameLen = strlen(srcTextures[t].m_name);
+                    int srcNameLen = int(strlen(srcTextures[t].m_name));
                     if (srcNameLen > 0) {
                         auto destName = srcTextures[t].m_name;
                         const char *dch = destName + srcNameLen;
@@ -670,7 +670,7 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
             }
         }
     }
-    for (int uIdx = 0; uIdx < file->m_materialsCnt; ++uIdx)
+    for (uint32_t uIdx = 0; uIdx < file->m_materialsCnt; ++uIdx)
         LOADER_LoadGdeFileAnim(file, file->m_materials + uIdx, texHandles);
     LOADER_LoadGdeFileRuntime(file, nullptr);
     uint32_t lod = 0, checkedInstCnt = 0;
@@ -750,7 +750,6 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
                     GDE_MeshItemData2 *p2;
                     GDE_MeshItemData3 *p3;
                     GDE_MeshItemData4_file *p4;
-                    uint32_t *color;
                     switch (meshItem.m_itemKind) {
                     case 0:
                         p0 = (GDE_MeshItemData0 *)meshItem.m_pVerts + vi;
@@ -811,7 +810,7 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
                                 vbo++; vbi++;
                             }
                         }
-                        GFX_CreateVertexBuffer(&meshItem.m_vbHandle, vbSize, vbDest);
+                        GFX_CreateVertexBuffer(&meshItem.m_vbHandle, uint32_t(vbSize), vbDest);
                         free(vbDest);
                     } else if (meshItem.m_itemKind == 1) {
                         auto vbSize = sizeof(GDE_MeshItemData1) * totalVerts;
@@ -825,7 +824,7 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
                                 vbo++; vbi++;
                             }
                         }
-                        GFX_CreateVertexBuffer(&meshItem.m_vbHandle, vbSize, vbDest);
+                        GFX_CreateVertexBuffer(&meshItem.m_vbHandle, uint32_t(vbSize), vbDest);
                         free(vbDest);
                     } else if (meshItem.m_itemKind == 2) {
                         static_assert(sizeof(GDE_MeshItemData2_ext) == 48);
@@ -841,7 +840,7 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
                                 vbo++; vbi++;
                             }
                         }
-                        GFX_CreateVertexBuffer(&meshItem.m_vbHandle, vbSize, vbDest);
+                        GFX_CreateVertexBuffer(&meshItem.m_vbHandle, uint32_t(vbSize), vbDest);
                         free(vbDest);
                     } else if (meshItem.m_itemKind == 3) {
                         auto vbSize = sizeof(GDE_MeshItemData3) * totalVerts;
@@ -855,7 +854,7 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
                                 vbo++; vbi++;
                             }
                         }
-                        GFX_CreateVertexBuffer(&meshItem.m_vbHandle, vbSize, vbDest);
+                        GFX_CreateVertexBuffer(&meshItem.m_vbHandle, uint32_t(vbSize), vbDest);
                         free(vbDest);
                     } else { //4
                         auto vbi = (GDE_MeshItemData4_file *)meshItem.m_pVerts;
@@ -869,7 +868,7 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
                                 vbo++; vbi++;
                             }
                         }
-                        GFX_CreateVertexBuffer(&meshItem.m_vbHandle, vbSize, vbDest);
+                        GFX_CreateVertexBuffer(&meshItem.m_vbHandle, uint32_t(vbSize), vbDest);
                         free(vbDest);
                     }
                 }
@@ -929,7 +928,7 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
     auto &res = g_ENG_InstanceResources[handle];
     res.m_gdeFile = file;
     if (res.m_gdeName == nullptr) {
-        res.m_gdeName = strdup(name);
+        res.m_gdeName = _strdup(name);
         res.m_gdeNameCRC = SIG_CalcCaseSensitiveSignature(name);
     }
     res.m_isSkin = false;
@@ -999,9 +998,9 @@ void LOADER_UnloadGdeFile(int handle) {
         static_assert(sizeof(GDE_SkinVB_Item) == 96);
         if (mesh) {
             if (obj.m_heapUsed) {
-                for (auto i = 0; i < gdeFile->m_texturesCnt; ++i)
+                for (uint32_t i = 0; i < gdeFile->m_texturesCnt; ++i)
                     free(gdeFile->m_textures[i].m_name);
-                for (auto j = 0; j < gdeFile->m_materialsCnt; ++j) {
+                for (uint32_t j = 0; j < gdeFile->m_materialsCnt; ++j) {
                     auto p0 = gdeFile->m_materials[j].m_pAnimators->m_field_0;
                     if (p0) {
                         free(p0->m_arr1);
@@ -1049,9 +1048,9 @@ void LOADER_UnloadGdeFile(int handle) {
         bool needFree = false;
         if (mesh->m_data[0].m_instancesCount == 1) {
             needFree = 1;
-            for (int m = 0; m < gdeFile->m_texturesCnt; ++m)
+            for (uint32_t m = 0; m < gdeFile->m_texturesCnt; ++m)
                 free(gdeFile->m_textures[m].m_name);
-            for (int n = 0; n < gdeFile->m_materialsCnt; ++n) {
+            for (uint32_t n = 0; n < gdeFile->m_materialsCnt; ++n) {
                 auto ptr = gdeFile->m_materials[n].m_pAnimators;
                 free(ptr->m_field_0);
                 free(ptr->m_pArr1);
@@ -1240,11 +1239,11 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, char *name, uint32_t f
     }
     int texHandles[_countof(g_textureToHandleTable)];
     auto srcTextures = file->m_textures, destTextures = headerCopy->m_textures;
-    for (int t = 0; t < file->m_texturesCnt; t++) {
+    for (uint32_t t = 0; t < file->m_texturesCnt; t++) {
         if (srcTextures[t].m_name) {
             memmove(destTextures + t, srcTextures + t, sizeof(GDE_Tex));
             ShiftPointer(&srcTextures[t].m_name, file);
-            destTextures[t].m_name = strdup(srcTextures[t].m_name);
+            destTextures[t].m_name = _strdup(srcTextures[t].m_name);
             if (!destTextures[t].m_name) {
                 LogTyped(LOG_ERROR, "Out of memory (filename)!");
                 return -1;
@@ -1261,7 +1260,7 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, char *name, uint32_t f
                 auto tgaHandle = GFX_CreateTextureFromTGAFile(destTextures[t].m_name, -1, true);
                 if (tgaHandle == -1) {
                     const char *tgaAltName = nullptr;
-                    int destNameLen = strlen(destTextures[t].m_name);
+                    int destNameLen = int(strlen(destTextures[t].m_name));
                     if (destNameLen > 0) {
                         auto destName = destTextures[t].m_name;
                         const char *dch = destName + destNameLen;
@@ -1284,7 +1283,7 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, char *name, uint32_t f
             }
         }
     }
-    for (int uIdx = 0; uIdx < file->m_materialsCnt; ++uIdx) {
+    for (uint32_t uIdx = 0; uIdx < file->m_materialsCnt; ++uIdx) {
         auto uSrc = file->m_materials + uIdx, uDest = headerCopy->m_materials + uIdx;
         LOADER_LoadGdeFileAnim(file, uSrc, texHandles);
         *uDest = *uSrc;
@@ -1396,7 +1395,7 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, char *name, uint32_t f
             auto &obj = g_ENG_InstanceResources[handle];
             obj.m_gdeFile = headerCopy;
             if (!obj.m_gdeName) {
-                obj.m_gdeName = strdup(name);
+                obj.m_gdeName = _strdup(name);
                 if (!obj.m_gdeName) {
                     LogTyped(LOG_ERROR, "Out of memory! (sourceFilename)");
                     return -1;

@@ -1,6 +1,5 @@
 #pragma once
-class Sky {
-public:
+struct Sky {
     static void Initialize();
     void Create(const char *, uint64_t);
     void DefGetName(int);

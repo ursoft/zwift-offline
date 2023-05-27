@@ -1,6 +1,5 @@
 #pragma once
-class CachedProfile { //72 bytes(A), 88 (Win)
-public:
+struct CachedProfile { //72 bytes(A), 88 (Win)
     uint32_t m_trp_id = 0; //training plan hash
     std::string m_str0, m_str20;
     uint64_t m_trp_start = 0, m_trp_end = 0; // training plan start/end
@@ -10,14 +9,13 @@ public:
     //void Set(const CachedProfile &);
     //void Set(const std::string &, const std::string &, uint32_t, uint64_t, uint64_t);
 };
-class PlayerProfileCache : public EventObject { //72 bytes
+struct PlayerProfileCache : public EventObject { //72 bytes
     inline static std::unique_ptr<PlayerProfileCache> g_pPlayerProfileCache;
     std::list<CachedProfile *> m_list;
     bool m_socialActual = false;
     uint64_t m_socialUpdTime = 0;
     float m_secsUntilSocialUpdate;
     static void DeallocatePlayerCacheList(std::list<CachedProfile *> *);
-public:
     PlayerProfileCache(EventSystem *);
     static void Shutdown() { g_pPlayerProfileCache.reset(); }
     static PlayerProfileCache *Instance() { zassert(g_pPlayerProfileCache.get() != nullptr); return g_pPlayerProfileCache.get(); }
@@ -33,10 +31,9 @@ public:
     void TestCache();
     void UpdateCache(float utim);
 };
-class BikeEntity;
-class PrivateAttributesHelper {
+struct BikeEntity;
+struct PrivateAttributesHelper {
     BikeEntity *m_be;
-public:
     PrivateAttributesHelper(BikeEntity *be) : m_be(be) {}
     bool ClearValue(const char *name);
     bool ClearValue(uint32_t nameCrc);

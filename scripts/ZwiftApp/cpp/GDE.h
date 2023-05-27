@@ -36,7 +36,7 @@ struct GDE_RuntimeItem { //0x98 (152) bytes
 };
 struct VEC3B { 
     int8_t m_data[3]; 
-    VEC3B &operator=(const VEC3 &src) { m_data[0] = 127.0 * src.m_data[0]; m_data[1] = 127.0 * src.m_data[1]; m_data[2] = 127.0 * src.m_data[2]; return *this; }
+    VEC3B &operator=(const VEC3 &src) { m_data[0] = int8_t(127.0 * src.m_data[0]); m_data[1] = int8_t(127.0 * src.m_data[1]); m_data[2] = int8_t(127.0 * src.m_data[2]); return *this; }
 };
 enum GdeStat { GS_VB_CLUST = 2, GS_VERT_BUF = 4, GS_SKIN = 6 };
 struct GDE_MeshItemData0 { //36 bytes
@@ -203,7 +203,8 @@ struct GDE_Mesh_SKIN { //0x108 (264) bytes, GMK_SKIN
     char gap[12];
 };
 struct GDE_Mesh_VERT_BUF { //0x1F8 (504) bytes
-    uint32_t m_version, m_lodMax;
+    uint32_t m_version;
+    int32_t m_lodMax;
     GDE_Mesh_VERT_BUFi m_data[6];
     VEC4 m_bounds;
 };
@@ -330,9 +331,9 @@ enum GDE_MeshKind : uint32_t { GMK_VB_CLUSTER = 0x1000'0000, GMK_SKIN = 0x1000'0
 struct GDE_Header_360 { //0x70 bytes
     uint32_t m_ver;
     GDE_MeshKind m_meshKind;
-    int m_materialsCnt;
-    int m_texturesCnt;
-    int m_shadersCnt;
+    uint32_t m_materialsCnt;
+    uint32_t m_texturesCnt;
+    uint32_t m_shadersCnt;
     int field_14;
     GDE_Material *m_materials;
     GDE_Tex *m_textures;
@@ -356,7 +357,7 @@ struct InstanceResource { //72 bytes
     uint8_t field_1B;
     int field_1C;
     char *m_gdeName;
-    int m_gdeNameCRC;
+    uint32_t m_gdeNameCRC;
     char field_2C;
     char field_2D;
     char field_2E;

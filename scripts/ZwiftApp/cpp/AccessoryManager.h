@@ -1,5 +1,5 @@
 #pragma once
-class AccessoryManager {
+struct AccessoryManager {
 public:
     static void InitAllAccessories();
     static void CreateSegmentJerseys();
