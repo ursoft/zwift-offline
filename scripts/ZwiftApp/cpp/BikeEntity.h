@@ -5,7 +5,7 @@ struct VirtualBikeComputer {
     void SetTireSize(uint32_t tireCirc) { m_tireCirc = tireCirc; }
     uint64_t m_lastPower = 0;
     uint32_t m_tireCirc = 2105, m_powerSmoothing = 1, m_field_118 = 0, m_field_128 = 0;
-    float m_distance = 0.0f, m_field_178 = 0.0f, m_field_19C = 0.0f, m_field_188 = 0.0f, m_field_18C = 0.0f, m_field_198 = 0.0f, m_field_1E0 = 0.0f, m_sensor_f2 = 0.0f, m_total_smth = 0.0f, 
+    float m_distance = 0.0f, m_power = 0.0f, m_field_19C = 0.0f, m_field_188 = 0.0f, m_field_18C = 0.0f, m_field_198 = 0.0f, m_field_1E0 = 0.0f, m_sensor_f2 = 0.0f, m_total_smth = 0.0f, 
         m_heart_f2 = 0.0f;
     protobuf::Sport m_sport = protobuf::CYCLING;
     bool m_bool = false, m_bool1 = false;
@@ -17,7 +17,7 @@ struct Entity {
 struct SaveGame;
 struct BikeEntity : public Entity {
     BikeEntity();
-    int64_t m_playerIdTx = 0, m_curEventId = 0;
+    int64_t m_playerIdTx = 0, m_curEventId = 0, m_cheatBits = 0;
     VirtualBikeComputer *m_bc = nullptr;
     protobuf::PlayerProfile m_profile;
     SaveGame *m_pSaveGame = nullptr;
@@ -25,7 +25,8 @@ struct BikeEntity : public Entity {
     uint32_t m_race_f14 = 0, m_fwGdeSignature = 0, m_rwGdeSignature = 0, m_yellowJersey = 0;
     int32_t m_skillWKG = -1;
     float m_field_59C = 0.0f, m_field_5A0 = 1.0f;
-    bool m_writable = false, m_field_C98 = false, m_race_f15 = false, m_race_f16 = false, m_sensor_f11 = false, m_field_806 = false;
+    bool m_writable = false, m_field_C98 = false, m_race_f15 = false, m_race_f16 = false, m_sensor_f11 = false, m_field_806 = false,
+        m_immuneFromCheating = false, m_boolCheatSmth = false;
     void SaveProfile(bool, bool);
     bool IsPacerBot() { return m_profile.player_type() == protobuf::PlayerType::PACER_BOT; }
     int64_t GetEventID();

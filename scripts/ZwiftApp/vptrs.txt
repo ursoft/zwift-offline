@@ -67,3 +67,15 @@ NetworkClientImpl
 [0,  0] NetworkClientImpl__handleDisconnectRequested
 [1,  8] handleWorldAndMapRevisionChanged
 [2, 16] dtr
+
+CriticalPowerCurve
+[0,  0] dtr
+[1,  8] RecorderComponent::Init
+[2, 16] CriticalPowerCurve::Update
+[3, 24] CriticalPowerCurve::InitializeDrawData
+[4, 32] CriticalPowerCurve::GetBestTimeAverage
+[5, 40] CriticalPowerCurve::Reset
+[6, 48] CriticalPowerCurve::GetDataPoints
+[7, 56] RecorderComponent::GetDataPointsVEC3
+[8, 64] CriticalPowerCurve::AddDataPoint
+[9, 72] RecorderComponent::AddDataPointVEC3

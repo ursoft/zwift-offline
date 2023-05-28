@@ -6271,6 +6271,9 @@ void NetworkClient::globalInitialize() { curl_global_init(CURL_GLOBAL_ALL); }
 void NetworkClient::globalCleanup() { curl_global_cleanup(); }
 void NetworkClient::initialize(const std::string &server, const std::string &certs, const std::string &version) { m_pImpl->initialize(server, certs, version); }
 NetworkRequestOutcome ZNETWORK_ClearPlayerPowerups() { return g_networkClient->m_pImpl->sendClearPowerUpCommand(); }
+void ZNETWORK_BroadcastLocalPlayerFlagged(PLAYER_FLAGGED_REASONS) {
+    //TODO
+}
 namespace zwift_network {
 NetworkRequestOutcome send_image_to_mobile_app(const std::string &pathName, const std::string &imgName) {
     auto aux = g_networkClient->m_pImpl->m_aux;

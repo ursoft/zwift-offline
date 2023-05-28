@@ -46,5 +46,6 @@ future/lib/total code(kb): 8959/7404/16364, badNames=37062; libs/total: 57%: 358
 future/lib/total code(kb): 8932/7432/16364, badNames=36989; libs/total: 57%: 35913/62119 - NetworkClientImpl 100%, NETWORK_* and DataRecorder 10%
 future/lib/total code(kb): 8888/7477/16365, badNames=36921; libs/total: 57%: 36025/62129 - NetworkService & RPCs: 100%
 future/lib/total code(kb): 8818/7546/16365, badNames=36895; libs/total: 58%: 36253/62129 - ZNet: 100%
+future/lib/total code(kb): 8810/7555/16365, badNames=36895; libs/total: 58%: 36265/62129 - DataRecorder 95%
 
-NEXT: NETWORK_* DataRecorder
+NEXT: NETWORK_*, CNL unit tests, BLE & ANT, GFX

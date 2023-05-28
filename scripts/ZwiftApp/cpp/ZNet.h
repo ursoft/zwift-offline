@@ -568,7 +568,7 @@ namespace uuid {
         return ss.str();
     }
 }
-enum PLAYER_FLAGGED_REASONS { PFR_CNT };
+enum PLAYER_FLAGGED_REASONS { PFR_FLIER = 1, PFR_HARASSER = 2, PFR_POTTY_MOUTH = 3, PFR_SANDBAGGER = 4, PFR_CNT };
 void ZNETWORK_BroadcastLocalPlayerFlagged(PLAYER_FLAGGED_REASONS);
 enum RIDELEADER_ACTION { RLA_CNT };
 void ZNETWORK_BroadcastRideLeaderAction(RIDELEADER_ACTION, uint32_t, uint64_t);

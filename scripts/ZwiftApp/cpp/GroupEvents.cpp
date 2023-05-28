@@ -17,3 +17,7 @@ void GroupEvents::Shutdown() {
         (*(void(__fastcall **)(__int64 *, __int128 *))(v25 + 40))(v22, &v46);
     }*/
 }
+void *GroupEvents::FindSubgroupEvent(int64_t id) {
+    //TODO
+    return nullptr;
+}

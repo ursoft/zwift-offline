@@ -1,14 +1,16 @@
 #pragma once
-using DataPoint = VEC2;
+struct DataPoint {
+    float m_val = 0.0f, m_time = 0.0f;
+};
 struct DataPointVEC3 {
-    VEC3 m_val;
-    float m_time;
+    VEC3 m_val{};
+    float m_time = 0.0f;
 };
 struct RecorderComponent { //0x98 bytes
     float m_valMax = 0.0f, m_valMin = 1e15f, m_startTime = 0.0f, m_field_84 = 0.0f, m_period = 60.0f, m_timeBetweenPoints = 1.0f, m_curTime = 0.0f, m_valMax_init, m_valMin_init, m_nextPointTime = 0.0f, m_maxTime = 0.0f;
     VEC3 m_v3max, m_v3min, m_v3max_init, m_v3min_init;
     enum TYPE { T_0 = 0, T_1 = 1, T_2 = 2, T_3 = 3, T_4 = 4, T_DISTANCE = 5, T_6 = 6, T_CPC = 7, T_8 = 8, T_9 = 9 } m_type;
-    enum TIME_PERIOD { TP_0 };
+    enum TIME_PERIOD { TP_NOT_SET = -1, TP_5S, TP_MINUTE, TP_5MIN, TP_HOUR, TP_CNT };
     std::vector<DataPoint> m_dataPoints;
     std::vector<DataPointVEC3> m_dataPointsVec3;
     bool m_b1 = true, m_res0 = true;
@@ -62,32 +64,37 @@ struct RideCPC { //32 bytes
     std::vector<DataPoint> m_data;
 };
 struct JobData;
+inline float g_CPCCheatTimeScale = 1.0f;
 struct CriticalPowerCurve : public RecorderComponent, EventObject { //0x188 bytes
     ZNet::NetworkService *m_net;
     Experimentation *m_exp;
     std::vector<DataPoint> m_cpDataPoints;
     std::vector<RideCPC> m_rideCPC;
+    std::vector<float> m_normMPO;
     std::unordered_map<uint16_t, uint16_t> m_maxPowerAtInterval;
     uint64_t m_playerId = 0;
-    uint32_t m_field_64 = 0, m_field_60 = 0, m_field_5C = 0, m_cpIdMin = 0, m_cpIdMax = 0, m_cpIdOffset = 0, m_maxWattsKey = 0;
+    uint32_t m_field_60 = 0, m_field_5C = 0, m_field_68 = 0, m_cpIdMin = 0, m_cpIdMax = 0, m_cpIdOffset = 0, m_maxWattsKey = 0;
+    int m_field_64 = 0, m_flierBits = 0, m_sandBits = 0;
+    TIME_PERIOD m_timePeriod = TP_NOT_SET;
+    float m_sandbaggerCoeff = 1.0;
     ZNet::RequestId m_requestId = 0;
-    float m_threadDoneTime = 0.0;
-    bool m_field_C4 = false, m_threadCalcInProgress = false, m_immunToCheatFlag = false, m_isMale = true;
+    float m_lastSearchTime = 0.0;
+    bool m_loaded = false, m_threadCalcInProgress = false, m_immunToCheatFlag = false, m_isMale = true;
     CriticalPowerCurve(ZNet::NetworkService *net, Experimentation *exp, EventSystem *ev);
-    ~CriticalPowerCurve();
-    static void StartThreadedCalculation(JobData *);
-    void SearchCriticalPowerInCurrentRide();
+    ~CriticalPowerCurve(); //vptr[0]
+    static int StartThreadedCalculation(JobData *);
+    //void SearchCriticalPowerInCurrentRide(); inlined
     void SearchCriticalPower(uint16_t, uint16_t, uint16_t, uint32_t);
     bool Save();
     void SandbaggerWarning(const float *, float, float);
     void LoggedIn(const protobuf::PlayerProfile &, int32_t);
     void Load();
     uint16_t GetServerMeanMaximalPowerAtInterval(uint16_t interval);
-    void GetServerMeanMaximalPower(std::vector<DataPoint> &, bool);
+    void GetServerMeanMaximalPower(std::vector<DataPoint> *, bool);
     float GetMaxPowerOutputTiers(uint32_t sel);
     static void DoneThreadedCalculation(int32_t, JobData *);
-    void AntiSandbaggingCheck(AntiSandbaggingParams *ptr);
-    void AntiCheatingCheck();
+    //void AntiSandbaggingCheck(AntiSandbaggingParams *ptr); inlined
+    //void AntiCheatingCheck(); inlined
     void PrepareForNextRide();
     void Reset();
     void UpdateServerBestPowerCurve();

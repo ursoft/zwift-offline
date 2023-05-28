@@ -1,6 +1,8 @@
 #pragma once
 enum EVENT_ID {
     EV_SLIPPING_ON = 0x0,
+    EV_FLIER = 0x1,
+    EV_SANDBAGGER = 0x2,
     EV_SLIPPING_OFF = 0x3,
     EV_SENS_DATA = 0x4,
     EVENT_ID_5 = 0x5,

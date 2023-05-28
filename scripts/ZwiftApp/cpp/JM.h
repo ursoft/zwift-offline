@@ -1,7 +1,10 @@
 #pragma once
-enum JobType { JT_CNT };
-enum JobPriority { JP_CNT };
-struct JobData {};
+enum JobType { JT_CPC = 2, JT_CNT };
+enum JobPriority { JP_NORMAL };
+struct JobData {
+    int m_size; //in bytes
+    //payload here
+};
 void JM_AddJob(int (*)(JobData *), JobData *, JobType, void (*)(int, JobData *), JobPriority);
 void JM_BeginAddJobs();
 void JM_BlockOnJobTypeComplete(JobType, bool);
