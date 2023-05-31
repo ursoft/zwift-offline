@@ -1,4 +1,5 @@
 #pragma once
+inline int32_t HUD_flagIcons;
 void HUD_UpdateChatFont();
 //void HUD_CheckCulling(zwift::protobuf::EventCulling, uint64_t, uint64_t, uint64_t, uint64_t);
 void HUD_ClearPowerups();
@@ -18,7 +19,7 @@ void HUD_EndStandardHUD();
 void HUD_EndTTHUD();
 void HUD_GeneratePlayerIcon(BikeEntity *, float, float, float, uint32_t, uint32_t, int);
 void HUD_GetCurrentNotification();
-void HUD_GetFlagTextureFromISO3166(uint32_t, bool);
+int HUD_GetFlagTextureFromISO3166(uint32_t countryCode, bool);
 void HUD_GetPlayerHRZoneColor(float);
 void HUD_GetPowerHRCadenceDimensionValues();
 void HUD_GetPowerHRCadencePositionValues();
@@ -43,7 +44,8 @@ void HUD_GiveXP(uint32_t);
 void HUD_Initialize();
 void HUD_IsDisplayingIntersectionOption();
 void HUD_LeaderboardWasUsed();
-//void HUD_Notify(const char *, float, HUD_NotificationType, int, uint32_t, float, long long);
+enum HUD_NotificationType { HNT_RIDEON_RX = 4 };
+void HUD_Notify(const char *msg, float a2, HUD_NotificationType nt, int texture, uint32_t not_used1, float not_used2, int64_t playerId);
 void HUD_OnEscape();
 void HUD_PostUIRender();
 void HUD_PrepareForPlayerIcons();

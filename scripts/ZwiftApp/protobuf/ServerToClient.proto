@@ -38,7 +38,7 @@ message ServerToClient {
     optional bool has_simult_login = 20; //UdpClient::disconnectionRequested due to simultaneous login (1); OR simultaneous login ceased (0)
     optional PlayerSummaries player_summaries = 21; //tag426
     // 22 absent
-    optional EventSubgroupPlacements ev_subgroup_ps = 23; //tag442
+    optional EventSubgroupPlacements race_placements = 23; //tag442
     optional UdpConfig udp_config = 24; //tag450
     optional UdpConfigVOD udp_config_vod_1 = 25; //tag458
     optional ExpungeReason expunge_reason = 26; //tag464 UdpClient::receivedExpungeReason

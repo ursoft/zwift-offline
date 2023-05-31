@@ -254,9 +254,10 @@ message LateJoinInformation {
     optional uint32 lj_f7 = 7; //64 on wire
 }
 message PlayerRouteDistance {
-    required int32 player_id = 1;        //BikeManager::FindBikeWithNetworkID
+    required int32 player_id = 1;
     optional float distance_covered = 2; //not sure
-    optional int32 millisec_to_leader = 3; // ZNETWORK_INTERNAL_ProcessPlayerPackets
+    optional int32 millisec_to_leader = 3;
+    optional int32 event_pos = 4;
 }
 message EventSubgroupPlacements {
     required int32 position = 1; //UdpStatistics::registerFanViewLatestPlayerStateInfo

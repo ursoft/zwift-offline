@@ -43,7 +43,6 @@ void CheckEnvironment() {
     MessageBoxA(nullptr, "Could not run Update process. Zwift may not be up to date.", lpCaption, MB_ICONERROR);
     CloseHandle(Toolhelp32Snapshot);
 }
-struct zwiftUpdateContext {};
 void doFrameWorldID(zwiftUpdateContext *ptr);
 //TODO: __declspec(thread) - see tls0_dtr (GameAssertHandler::PushContext), TlsCallbackDtr
 //TODO: global variables ctrs/dtrs: _initterm, some_global_ctr

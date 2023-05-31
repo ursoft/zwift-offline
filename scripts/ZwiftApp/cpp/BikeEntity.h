@@ -1,10 +1,60 @@
 #pragma once
 using ZSPORT = protobuf::Sport;
+struct RouteComputer {
+    uint64_t m_selRoute = 0;
+    int m_field_10 = 0, m_field_18 = 0;
+    /*RouteComputer::CheckRouteLapProgress(void)
+RouteComputer::DestroyDynamicArches(void)
+RouteComputer::EstimateHCPPosTimeForward(float,float,uint *)
+RouteComputer::FilloutRouteRecordData(RouteFinishData &)
+RouteComputer::FindFutureRoadBasedOnRoute(int &,int,int,double,bool,VirtualBikeComputer::ZSPORT,int &,bool &,double &,IntersectionMarkerEntity **)
+RouteComputer::FindNextDecisionForGivenRoad(int &,int,VirtualBikeComputer::ZSPORT)
+RouteComputer::FixLoopingRouteHRC(void)
+RouteComputer::FlipRoute(void)
+RouteComputer::GetClosestHCheckpoint(VEC3 const&,bool)
+RouteComputer::GetClosestHCheckpointTime(VEC3 const&,bool)
+RouteComputer::GetClosestHCheckpointToHCheckpoint(uint,bool)
+RouteComputer::GetCompletionPct(bool,int)
+RouteComputer::GetCurrentDecision(VirtualBikeComputer::ZSPORT)
+RouteComputer::GetDecisionAt(VirtualBikeComputer::ZSPORT,int)
+RouteComputer::GetEventBranchDecision(int,VirtualBikeComputer::ZSPORT,Route const*)
+RouteComputer::GetLeadInPct(int)
+RouteComputer::GetNextHRCOnRoad(uint)
+RouteComputer::GetPosAtCheckpointTime(float)
+RouteComputer::GetSelectedRoute(void)
+RouteComputer::GetSelectedRouteHash(void)
+RouteComputer::GetTotalDistanceOfCurrentRoute(int const&)
+RouteComputer::HitCheckpointCount(void)
+RouteComputer::InitialiseRouteProgress(void)
+RouteComputer::IsOnLeadin(void)
+RouteComputer::IsRoutePerfectLoop(void)
+RouteComputer::OnCompletedRoute(Route *)
+RouteComputer::OnValidRoute(void)
+RouteComputer::ProjectAlongRoute(VEC3,float,bool,bool *,double *,int *)
+RouteComputer::Reset(void)
+RouteComputer::ResetCheckpoints(void)
+RouteComputer::ResetRoutePlayerTrackers(void)
+RouteComputer::RetrieveNextDecision(Route const*,int &,int &,bool &)
+RouteComputer::RouteComputer(BikeEntity *,int)
+RouteComputer::SetDecisionStateToOffroute(void)
+RouteComputer::SetRoute(Route *,bool,bool,std::string const&)
+RouteComputer::SetRouteProgressTimeout(float)
+RouteComputer::SetValidRouteProgress(bool)
+RouteComputer::ShowRouteProgress(void)
+RouteComputer::ShowingRouteCompleted(void)
+RouteComputer::SpawnDynamicArch(int,double,ArchAsset const&)
+RouteComputer::Update(float)
+RouteComputer::UpdateCheckpointState(void)
+RouteComputer::UpdateDecisionState(VirtualBikeComputer::ZSPORT)
+RouteComputer::UpdateRouteProgressTimeout(float)
+RouteComputer::~RouteComputer()*/
+};
 struct VirtualBikeComputer {
     float GetDistance(UnitType ut, bool) { /*TODO*/ return 0.0; }
     void SetTireSize(uint32_t tireCirc) { m_tireCirc = tireCirc; }
     uint64_t m_lastPower = 0;
     uint32_t m_tireCirc = 2105, m_powerSmoothing = 1, m_field_118 = 0, m_field_128 = 0;
+    int32_t m_field_1E8 = 0;
     float m_distance = 0.0f, m_power = 0.0f, m_field_19C = 0.0f, m_field_188 = 0.0f, m_field_18C = 0.0f, m_field_198 = 0.0f, m_field_1E0 = 0.0f, m_sensor_f2 = 0.0f, m_total_smth = 0.0f, 
         m_heart_f2 = 0.0f;
     protobuf::Sport m_sport = protobuf::CYCLING;
@@ -15,18 +65,30 @@ struct Entity {
     virtual const VEC3 &GetPosition() { return m_pos; }
 };
 struct SaveGame;
-struct BikeEntity : public Entity {
+struct BikeEntity : public Entity { //0x1948 bytes
+    struct RideOnAnim { //0x30 bytes
+        float m_f0 = 0.0f, m_f1 = 0.0f, m_f2 = 500.0f, m_f3 = 0.0f;
+        float m_f4 = 0.001f, m_f5 = 0.0f, m_f6 = -18.0f, m_f7 = 0.0f;
+        int64_t m_fromPlayerId;
+        bool m_field_28 = false, m_field_29 = false;
+    };
     BikeEntity();
     int64_t m_playerIdTx = 0, m_curEventId = 0, m_cheatBits = 0;
     VirtualBikeComputer *m_bc = nullptr;
     protobuf::PlayerProfile m_profile;
     SaveGame *m_pSaveGame = nullptr;
+    RouteComputer *m_routeComp = nullptr;
     PrivateAttributesHelper m_pah;
+    std::list<RideOnAnim> m_rxRideonsList;
+    int m_rxRideons = 0;
+    float m_field_AA8 = 0.0;
+    int32_t m_field_AAC = 0;
     uint32_t m_race_f14 = 0, m_fwGdeSignature = 0, m_rwGdeSignature = 0, m_yellowJersey = 0;
-    int32_t m_skillWKG = -1;
+    protobuf::POWERUP_TYPE m_pendPU = protobuf::POWERUP_NONE;
+    int32_t m_skillWKG = -1, m_x = 0, m_y_alt = 0, m_z = 0, m_eventPos = 0, m_field_11DC = 0, m_msToLeader = 0;
     float m_field_59C = 0.0f, m_field_5A0 = 1.0f;
     bool m_writable = false, m_field_C98 = false, m_race_f15 = false, m_race_f16 = false, m_sensor_f11 = false, m_field_806 = false,
-        m_immuneFromCheating = false, m_boolCheatSmth = false;
+        m_immuneFromCheating = false, m_boolCheatSmth = false, m_joinedWorld = false, m_field_488 = false;
     void SaveProfile(bool, bool);
     bool IsPacerBot() { return m_profile.player_type() == protobuf::PlayerType::PACER_BOT; }
     int64_t GetEventID();
@@ -38,10 +100,13 @@ struct BikeEntity : public Entity {
     bool GetShouldUseSkillLevel();
     float GetSkillLevelWKG();
     float GetRiderWeightKG(bool a2);
+    void RequestProfileFromServer();
+    void GiveRideOn(int64_t fromPlayerId);
+
     /* TODO:
 void ~BikeEntity();
 void WakeupAnim(void);
-void UpdateWhileSleeping(zwift::context::UpdateContext &,float);
+void UpdateWhileSleeping(zwiftUpdateContext &,float);
 void UpdateWheelRot(float);
 void UpdateVisualLean(float,float,float);
 void UpdateTimeNearRiders(float);
@@ -54,7 +119,7 @@ void UpdateRoadStyle(float);
 void UpdateRoadContactElev(float,bool);
 void UpdateRideOns(void);
 void UpdateRideOnAnimations(float);
-void UpdateRenderingMask(zwift::context::UpdateContext &);
+void UpdateRenderingMask(zwiftUpdateContext &);
 void UpdatePowerups(float);
 void UpdatePowerupDrawState(float);
 void UpdatePositionCommon(float,float);
@@ -74,7 +139,7 @@ void UpdateBikeOverrides(long);
 void UpdateAttachmentData(void);
 void UpdateAnimation(float);
 void UpdateAnimFileMap(void);
-void Update(zwift::context::UpdateContext &,float);
+void Update(zwiftUpdateContext &,float);
 void Update(float);
 void UnlockDigitalEntitlements(void);
 void ToggleHolidayBikeIDOverride(bool);
@@ -82,9 +147,9 @@ void TeleportToStart(RoadSegment const&,double);
 void SwitchRoadBasedOnTime(void);
 void SteerTowardsTarget(float);
 void StateSnapshot_Valid(void);
-void StateSnapshot_Restore(zwift::context::UpdateContext &);
+void StateSnapshot_Restore(zwiftUpdateContext &);
 void StateSnapshot_Restore(void);
-void StateSnapshot_Make(zwift::context::UpdateContext &);
+void StateSnapshot_Make(zwiftUpdateContext &);
 void StateSnapshot_Make(void);
 void SpeedBasedYawAdjustment(float &,float);
 void ShouldRenderPowerupWheels(void);
@@ -117,7 +182,7 @@ void SetBranchingPreference(IntersectionOption::PREFERENCE);
 void SetBikeOverride(uint);
 void SetAIYaw(float,float,float,bool);
 void SetAI(std::string,bool,int,int,bool,uint,int,bool,uint,uint,uint,uint,int,bool,uint,bool,bool,uint,bool,bool,uint,uint,uint,uint,uint,uint,int,uint,uint,bool,float);
-void SendPlayerState(long,zwift::protobuf::PlayerState const&);
+void SendPlayerState(long,protobuf::PlayerState const&);
 void SelectRoadBasedOnPreference(IntersectionMarkerEntity *,float);
 void SearchFutureRoad(int);
 void SearchForNearbyRoad(int);
@@ -132,7 +197,6 @@ void ResetCollisionFlags(void);
 void ResetBikeIDOverrideCache(void);
 void ResetBikeForNewSession(void);
 void ResetBikeForNewLevel(bool,bool,Route const*);
-void RequestProfileFromServer(void);
 void RenderPartnerCrown(MATRIX44 const*,VEC4,int);
 void RenderLateralCollisionEffect(bool);
 void RenderCassette(GDE_Header_360 *,int,bool,VEC4);
@@ -142,26 +206,26 @@ void Render(void);
 void RegisterTurnSignalParticles(void);
 void RegisterTailLightParticles(void);
 void RandomSelectRoad(std::vector<IntersectionOption *> *,IntersectionMarkerEntity *);
-void ProcessPlayerState(zwift::context::UpdateContext &,zwift::protobuf::PlayerState const&,float);
+void ProcessPlayerState(zwiftUpdateContext &,protobuf::PlayerState const&,float);
 void PreRender(void);
 void PostBloomRender(void);
 void PositionInTTEventPaddock(int,VEC3,float,bool,int,bool);
 void PositionInEventPaddock(int,VEC3,float,int,int,bool,int);
-void PlayerProfileUpdate(zwift::protobuf::PlayerProfile const&,bool);
+void PlayerProfileUpdate(protobuf::PlayerProfile const&,bool);
 void PlayerCalcAim(float);
-void PlayerBikeLimitedProfileUpdate(zwift::protobuf::PlayerProfile const&);
-void PlayerBikeFullProfileUpdate(zwift::protobuf::PlayerProfile const&);
+void PlayerBikeLimitedProfileUpdate(protobuf::PlayerProfile const&);
+void PlayerBikeFullProfileUpdate(protobuf::PlayerProfile const&);
 void PerformUTurn(void);
 void PerformAction(BikeEntity::USER_ACTION);
 void OneTimeXpToDropsConversion(bool);
 void OneTimePowerUserLevelingSelection(void);
 void OneTimeNewAccessoriesUnlock(void);
 void OnWake(void);
-void OnSleep(zwift::context::UpdateContext &);
+void OnSleep(zwiftUpdateContext &);
 void OnRoadCalcAim(float);
 void OnCalculateETAJobFinished(int,JobData *);
 void OffRoadCalcAim(float);
-void NetworkedBikeProfileUpdate(zwift::protobuf::PlayerProfile const&);
+void NetworkedBikeProfileUpdate(protobuf::PlayerProfile const&);
 void NetworkDelayRoadCalcAim(float);
 void NearbyRiderPathVoting(float);
 void MoveLoiteringPlayer(float);
@@ -189,7 +253,6 @@ void InterpolateSplineDistance(void);
 void InitializeBike(void);
 void InitAnim(void);
 void HasLocalRiderDelayedPacket(void);
-void GiveRideOn(long long);
 void GivePowerUp(POWERUP_TYPE);
 void GetWKG(void);
 void GetVRHeadPosition(void);
@@ -245,7 +308,7 @@ void DoFirstTime(bool);
 void DoCalculateETAJob(JobData *);
 void DidGetRideOnFrom(long long);
 void DestroyLights(void);
-void CreateNewPacket(zwift::context::UpdateContext &,float);
+void CreateNewPacket(zwiftUpdateContext &,float);
 void CreateNamePlate(bool);
 void CreateLights(void);
 void CreateBikeMatrix(void);

@@ -308,7 +308,7 @@ message PhoneToGame {
     optional float f3 = 3;
     optional float f4 = 4;
     optional float f5 = 5;
-    optional float f6 = 6;
+    optional float phone_rot = 6;
     optional float f7 = 7;
     optional float f8 = 8;
     optional double f9 = 9;
@@ -362,15 +362,15 @@ message GameToPhoneCommand {
     required uint32 seqno = 1;
     optional GameToPhoneCommandType type = 2;
     optional uint32 powerup_id = 3;
-    optional string f4 = 4;
+    optional string loc_name = 4;
     //5 is absent
-    optional string f6 = 6;
+    optional string color = 6;
     optional uint32 powerup_param = 7;
     optional uint32 f8 = 8;
     optional uint32 f9 = 9;
     optional string f10 = 10;
     optional string f11 = 11;
-    optional string f12 = 12;
+    optional string mask = 12; //0xffffff - or 2nd color
     optional bool f13 = 13;
     optional bytes img_bits = 14;
     optional string img_name = 15;
@@ -552,7 +552,7 @@ enum GamePacket_EventSubgroupLabel {
     E = 5;
 }
 message GamePacket {
-    optional int32 f1 = 1;
+    required GamePacket_Type type = 1;
     optional SportsDataRequest sports_data_request = 2;
     optional SportsDataResponse sports_data_response = 3;
     optional GameSessionInfo game_session_info = 4;

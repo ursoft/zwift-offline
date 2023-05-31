@@ -5157,7 +5157,7 @@ struct AuxiliaryController : public WorldIdListener { //0x105B8-16 bytes
                 pDestMot->m_ptg_f3 = ptg.f3();
                 pDestMot->m_ptg_f4 = ptg.f4();
                 pDestMot->m_ptg_f5 = ptg.f5();
-                pDestMot->m_ptg_f6 = ptg.f6();
+                pDestMot->m_phoneRot = ptg.phone_rot();
                 pDestMot->m_ptg_f7 = ptg.f7();
                 pDestMot->m_ptg_f8 = ptg.f8();
                 pDestMot->m_ptg_f9 = m_max_ptg_f9;
@@ -5309,12 +5309,12 @@ struct AuxiliaryController : public WorldIdListener { //0x105B8-16 bytes
         gtp.set_world_id(m_worldId);
         send_game_to_phone(&gtp);
     }
-    void send_set_power_up_command(const std::string &a2, const std::string &a3, const std::string &a4, int powerupId) {
+    void send_set_power_up_command(const std::string &locName, const std::string &color, const std::string &mask, int powerupId) {
         protobuf::GameToPhoneCommand gtpc;
         gtpc.set_type(protobuf::GAME_TO_PHONE_SET_POWER_UP);
-        gtpc.set_f4(a2);
-        gtpc.set_f6(a3);
-        gtpc.set_f12(a4);
+        gtpc.set_loc_name(locName);
+        gtpc.set_color(color);
+        gtpc.set_mask(mask);
         gtpc.set_powerup_id(powerupId);
         std::lock_guard l(m_mutex3);
         m_seqNoCmd++;
@@ -6271,8 +6271,379 @@ void NetworkClient::globalInitialize() { curl_global_init(CURL_GLOBAL_ALL); }
 void NetworkClient::globalCleanup() { curl_global_cleanup(); }
 void NetworkClient::initialize(const std::string &server, const std::string &certs, const std::string &version) { m_pImpl->initialize(server, certs, version); }
 NetworkRequestOutcome ZNETWORK_ClearPlayerPowerups() { return g_networkClient->m_pImpl->sendClearPowerUpCommand(); }
-void ZNETWORK_BroadcastLocalPlayerFlagged(PLAYER_FLAGGED_REASONS) {
+time_t g_lastBroadcastLocalPlayerFlagged, g_CachedWorldTime;
+std::future<NetworkResponse<int64_t>> g_BroadcastLocalPlayerFlaggedFuture;
+struct BroadcastLocalPlayerFlagged { //32 bytes
+    uint16_t m_ver, m_len;
+    int64_t m_playerId;
+    double m_worldTimeSec;
+    PLAYER_FLAGGED_REASONS m_pfr;
+    /*char field_1C;
+    char field_1D;
+    char field_1E;
+    char field_1F;*/
+};
+void ZNETWORK_BroadcastLocalPlayerFlagged(PLAYER_FLAGGED_REASONS pfr) {
+    auto t_now = _time64(nullptr);
+    if (t_now - g_lastBroadcastLocalPlayerFlagged >= 600) {
+        g_lastBroadcastLocalPlayerFlagged = t_now;
+        protobuf::WorldAttribute wa_proto;
+        wa_proto.set_wa_type(protobuf::WAT_FLAG);
+        wa_proto.set_world_time_expire(g_CachedWorldTime + 3'600'000);
+        BroadcastLocalPlayerFlagged v11{ sizeof(v11) - 4, 1, BikeManager::Instance()->m_mainBike->m_playerIdTx, g_CachedWorldTime * 0.001, pfr};
+        static_assert(sizeof(v11) == 32);
+        wa_proto.set_payload((char *)&v11, sizeof(v11));
+        g_BroadcastLocalPlayerFlaggedFuture = zwift_network::save_world_attribute(wa_proto);
+    }
+}
+std::map<int64_t, bool> g_sessionRideonsGivenTo; //playerId->rideOn given
+std::vector<int64_t> g_sessionRideonsFrom;
+std::vector<protobuf::RideOn> g_sessionRideonsRx;
+int g_ZNETWORK_Stats[8], g_totalRideonsGiven;
+int64_t g_lastRideonTarget, g_lastRideonDebounce;
+time_t g_magicLeaderboardBirthday;
+uint32_t g_lastPlayerStateTime, g_playerStatesCnt;
+void ZNETWORK_ResetSessionData() {
+    g_sessionRideonsGivenTo.clear();
+    g_sessionRideonsRx.clear();
+    //OMIT *g_ZNETWORK_Stats = 0i64;
+    g_lastPlayerStateTime = 0;
+    g_playerStatesCnt = 0;
+    //OMIT *&g_ZNETWORK_Stats[4] = 0i64;
+}
+int g_currentPhonePowerupID;
+void ZNETWORK_GivePlayerPowerup(protobuf::POWERUP_TYPE ty) {
+    g_currentPhonePowerupID = 1 + (int)ty;
+    std::string clr;
+    const char *loc;
+    switch (ty) {
+    case protobuf::LIGHTNESS:
+        clr = "0x9ECC11"s;
+        loc = "LOC_POWERUP_FEATHERWEIGHT_NAME_UPPER";
+        break;
+    case protobuf::DRAFTBOOST:
+        clr = "0x1192CC"s;
+        loc = "LOC_POWERUP_DRAFT_BOOST_NAME_UPPER";
+        break;
+    case protobuf::UNDRAFTABLE:
+        clr = "0xB07F46"s;
+        loc = "LOC_POWERUP_UNDRAFTABLE_NAME_UPPER";
+        break;
+    case protobuf::AERO:
+        clr = "0x1BF4FF"s;
+        loc = "LOC_POWERUP_AERO_BOOST_NAME_UPPER";
+        break;
+    case protobuf::NINJA:
+        clr = "0x1B1B1B"s;
+        loc = "LOC_POWERUP_NINJA_NAME_UPPER";
+        break;
+    case protobuf::STEAMROLLER:
+        clr = "0x6600CC"s;
+        loc = "LOC_POWERUP_STEAMROLLER_NAME_UPPER";
+        break;
+    case protobuf::ANVIL:
+        clr = "0x585858"s;
+        loc = "LOC_POWERUP_ANVIL_NAME_UPPER";
+        break;
+    default:
+        return;
+    }
+    zwift_network::send_set_power_up_command(GetText(loc), clr, "0xffffff"s, g_currentPhonePowerupID);
+}
+void ZNETWORK_INTERNAL_HandleLateJoinRequest(const ZNETWORK_LateJoinRequest &eljr, const VEC3 &pos) {
     //TODO
+}
+int g_GameMode;
+std::future<NetworkResponse<int64_t>> g_BroadcastLateJoinReturnCode;
+void ZNETWORK_RespondToLateJoinRequest(int64_t lateJoinPlayerId) {
+    auto bk = BikeManager::Instance()->m_mainBike;
+    if (lateJoinPlayerId != bk->m_playerIdTx && (g_GameMode & 0x10) && g_subscriptionMode != SM_INACTIVE) {
+        // OMIT AnalyticsHelper::IncrementLogoutCounter "Game - Latejoin - Sent responses"
+        protobuf::WorldAttribute v28;
+        v28.set_wa_type(protobuf::WAT_LATE);
+        v28.set_world_time_expire(g_CachedWorldTime + 10000);
+        v28.set_x(bk->m_x);
+        v28.set_y_altitude(bk->m_y_alt);
+        v28.set_z(bk->m_z);
+        v28.set_importance(5'000'000);
+        v28.set_rel_id(lateJoinPlayerId);
+        static_assert(sizeof(ZNETWORK_LateJoinResponse) == 0x28);
+        ZNETWORK_LateJoinResponse v19{ .m_ver = 2, .m_len = sizeof(ZNETWORK_LateJoinResponse) - 4, .m_field_4 = 2, .m_playerId = bk->m_playerIdTx, .m_lateJoinPlayerId = lateJoinPlayerId, .m_field_20 = bk->m_bc->m_field_1E8 };
+        if (bk->m_routeComp && bk->m_routeComp->m_selRoute) { // RouteComputer::GetSelectedRoute
+            v19.m_field_18 = bk->m_routeComp->m_field_18; //oldnapalm guess: road ID and road(spline) time
+            v19.m_field_1C = bk->m_routeComp->m_field_10;
+        }
+        v28.set_payload((char *)&v19, sizeof(ZNETWORK_LateJoinResponse));
+        Log("GroupEvents: late-join: respond: [%d] -> [%d]  (%d, %d)", lateJoinPlayerId, bk->m_playerIdTx, v19.m_field_18, v19.m_field_1C);
+        g_BroadcastLateJoinReturnCode = zwift_network::save_world_attribute(v28);
+    }
+}
+double g_accumulatedTime;
+int g_timeUntilNextSubscrModeCheck;
+float g_delayed_latejoin_time = -1.0, g_ptg_f7 = 0.0f, g_ptg_f8 = 0.0f, g_ptg_f9 = 0.0f, g_delayed_RouteHash_time, g_phoneRotation;
+ZNETWORK_LateJoinRequest g_lateJoinRequest;
+int64_t g_RouteHashTargetID;
+bool g_pairToPhone, g_WasPairedToAux, g_SelectedAuxSampleHR, g_SelectedAuxSampleWRS;
+void ZNETWORK_Update(float dt) {
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    static uint32_t g_lastUpdate = timeGetTime();
+    auto Time = timeGetTime();
+    auto v4 = Time - g_lastUpdate;
+    ZNet::API::Inst()->Update(v4);
+    g_accumulatedTime += ((Time - g_lastUpdate) * 0.001f);
+    g_lastUpdate = Time;
+    g_CachedWorldTime = zwift_network::world_time();
+    auto v9 = g_timeUntilNextSubscrModeCheck - (dt * 1000.0);
+    if (v9 > 1000)
+        v9 = 1000;
+    g_timeUntilNextSubscrModeCheck = v9;
+    if (v9 <= 0) {
+        g_subscriptionMode = ZNETWORK_CalculateSubscriptionMode();
+        g_timeUntilNextSubscrModeCheck = 1000;
+    }
+    if (g_delayed_latejoin_time > 0.0f) {
+        g_delayed_latejoin_time -= dt;
+        if (g_delayed_latejoin_time <= 0.0f) {
+            g_delayed_latejoin_time = -1.0;
+            ZNETWORK_LateJoinRequest v102 = g_lateJoinRequest;
+            VEC3 v89{};
+            v102 = g_lateJoinRequest;
+            ZNETWORK_INTERNAL_HandleLateJoinRequest(v102, v89);
+        }
+    }
+    if (g_delayed_RouteHash_time > 0.0f) {
+        g_delayed_RouteHash_time -= dt;
+        if (g_delayed_RouteHash_time - dt <= 0.0f) {
+            g_delayed_RouteHash_time = -1.0f;
+            ZNETWORK_SendRouteHashRequest(g_RouteHashTargetID);
+        }
+    }
+    if (zwift_network::is_paired_to_phone()) {
+        if (!g_pairToPhone) {
+            if (mainBike) {
+                auto v13 = mainBike->m_pendPU;
+                if (v13 == protobuf::POWERUP_NONE)
+                    zwift_network::send_activate_power_up_command(g_currentPhonePowerupID, 0);
+                else
+                    ZNETWORK_GivePlayerPowerup(v13);
+                ZML_SendGameSessionInfo();
+            }
+            /* TODO
+            if (FitnessDeviceManager::m_pSelectedHRDevice && *FitnessDeviceManager::m_pSelectedHRDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedHRDevice[2].field_0[120] == 1)
+                FitnessDeviceManager::m_pSelectedHRDevice->Pair(true);
+            if (FitnessDeviceManager::m_pSelectedPowerDevice && *FitnessDeviceManager::m_pSelectedPowerDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedPowerDevice[2].field_0[120] == 1)
+                FitnessDeviceManager::m_pSelectedPowerDevice->Pair(true);
+            if (FitnessDeviceManager::m_pSelectedSpeedDevice && *FitnessDeviceManager::m_pSelectedSpeedDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedSpeedDevice[2].field_0[120] == 1)
+                FitnessDeviceManager::m_pSelectedSpeedDevice->Pair(true);
+            if (FitnessDeviceManager::m_pSelectedCadenceDevice && *FitnessDeviceManager::m_pSelectedCadenceDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedCadenceDevice[2].field_0[120] == 1)
+                FitnessDeviceManager::m_pSelectedCadenceDevice->Pair(true);
+            if (FitnessDeviceManager::m_pSelectedControllableTrainerDevice && *FitnessDeviceManager::m_pSelectedControllableTrainerDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedControllableTrainerDevice[2].field_0[120] == 1)
+                FitnessDeviceManager::m_pSelectedControllableTrainerDevice->Pair(true);
+            if (FitnessDeviceManager::m_pSelectedSteeringDevice && *FitnessDeviceManager::m_pSelectedSteeringDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedSteeringDevice[2].field_0[120] == 1)
+                FitnessDeviceManager::m_pSelectedSteeringDevice->Pair(true);
+            if (FitnessDeviceManager::m_pSelectedBrakingDevice && *FitnessDeviceManager::m_pSelectedBrakingDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedBrakingDevice[2].field_0[120] == 1)
+                FitnessDeviceManager::m_pSelectedBrakingDevice->Pair(true);
+            if (FitnessDeviceManager::m_pSelectedRunSpeedDevice && *FitnessDeviceManager::m_pSelectedRunSpeedDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedRunSpeedDevice[2].field_0[120] == 1)
+                FitnessDeviceManager::m_pSelectedRunSpeedDevice->Pair(true);
+            if (FitnessDeviceManager::m_pSelectedRunCadenceDevice && *FitnessDeviceManager::m_pSelectedRunCadenceDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedRunCadenceDevice[2].field_0[120] == 1)
+                FitnessDeviceManager::m_pSelectedRunCadenceDevice->Pair(true);*/
+            if (g_WasPairedToAux) {                  // ZML_RestoreAuxPairing
+                ZML_StartAuxPairing();
+                ZML_SendAuxPairingSelection(g_SelectedAuxSampleHR, protobuf::HEART_RATE);
+                ZML_SendAuxPairingSelection(g_SelectedAuxSampleWRS, protobuf::WALK_RUN_SPEED);
+                ZML_EndAuxPairing();
+            }
+            if (!HasPairedToZML()) {
+                auto sg = mainBike->GetSaveGame();// SaveFirstPairingToZML
+                auto sig = SIG_CalcCaseInsensitiveSignature("rode_with_zml");
+                static_assert(sizeof(GenericTrackingData) == 16);
+                sg->SetTrackingData(sig, GenericTrackingData(1, sig));
+                sg->m_field_1E1 = true;
+                mainBike->SaveProfile(false, false); // SaveFirstPairingToZML }
+            }
+            for (auto &i : BikeManager::Instance()->m_field_9D08)
+                i->m_field_488 = 0;
+        }
+        g_pairToPhone = true;
+    } else {
+        g_pairToPhone = false;
+    }
+    zwift_network::Motion v105;
+    if (zwift_network::motion_data(&v105)) {
+        if (g_ptg_f9 > 0.0f) {
+            g_phoneRotation = -v105.m_phoneRot;
+            if (fabsf(g_phoneRotation) < 0.01f)
+                g_phoneRotation = 0.0f;
+            g_ptg_f7 = v105.m_ptg_f7;
+            if (fabsf(g_ptg_f7) < 0.01f)
+                g_ptg_f7 = 0.0f;
+            g_ptg_f8 = v105.m_ptg_f8;
+            if (fabs(g_ptg_f8) < 0.01f)
+                g_ptg_f8 = 0.0;
+        }
+        g_ptg_f9 = v105.m_ptg_f9;
+    }
+    protobuf::WorldAttribute v90;                                   // ZNETWORK_INTERNAL_ProcessGlobalMessages
+    if (ZNETWORK_IsLoggedIn()) 
+        while (zwift_network::pop_world_attribute(&v90))
+            ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(v90);
+    int64_t updatedPlayerId;
+    while (zwift_network::pop_player_id_with_updated_profile(&updatedPlayerId) && updatedPlayerId) {
+        auto v32 = BikeManager::Instance()->FindBikeWithNetworkID(updatedPlayerId, false);
+        if (v32)
+            v32->RequestProfileFromServer();
+    }
+    ZNETWORK_INTERNAL_ProcessPhoneInput();
+    ZNETWORK_INTERNAL_ProcessPlayerPackets();
+    ZNETWORK_INTERNAL_ProcessUpcomingWorkouts();
+    //OMIT ANALYTICS_InGameEvent();
+    for (auto &i : g_Leaderboards.m_srwList) {
+        if (i.m_hasFuture && i.m_future.valid() && std::future_status::ready == i.m_future.wait_for(std::chrono::seconds(0))) {
+            auto res = i.m_future.get();
+            if (res.m_errCode) {
+                LogTyped(LOG_NETWORK, "LEADERBOARDS: Local Player request failed for results for segment hash %d", i.m_hash);
+                LogTyped(LOG_NETWORK, "LEADERBOARDS: ERROR: \"%s\" (Outcome: %d) querying Local Player results", res.m_errCode, res.m_msg.c_str());
+                i.m_hasFuture = false;
+            } else {
+                for (auto &sr : res.m_T.segment_results()) {
+                    std::list<protobuf::SegmentResult>::iterator improvedPlace;
+                    bool improved = false, known = false;
+                    if (!i.m_srList1.empty()) {
+                        for (auto i1 = i.m_srList1.begin(); i1 != i.m_srList1.end(); ++i1) {
+                            if (sr.world_time() == i1->world_time())
+                                known = true;
+                            if (!improved  && sr.elapsed_ms() < i1->elapsed_ms()) {
+                                improved = true;
+                                improvedPlace = i1;
+                            }
+                        }
+                    } 
+                    if (!known) {
+                        ZML_SendSegmentLeaderboardResult(protobuf::THIRTY_DAY, sr);
+                        /*TODO v60 = &v36->field_90;
+                        v61 = v36->field_90._Myfirst;
+                        v62 = v61[1];
+                        *&v94 = v62;
+                        DWORD2(v94) = 0;
+                        v63 = v61;
+                        if (!v62->field_0[25])
+                        {
+                            do
+                            {
+                                *&v94 = v62;
+                                if (*&v62->field_0[32] >= 1)
+                                {
+                                    DWORD2(v94) = 1;
+                                    v63 = v62;
+                                    v62 = *v62->field_0;
+                                } else
+                                {
+                                    DWORD2(v94) = 0;
+                                    v62 = *&v62->field_0[16];
+                                }
+                            } while (!v62->field_0[25]);
+                            p_m_srList1 = srList1;
+                        }
+                        if (*(v63 + 25) || v63[4] > 1)
+                        {
+                            if (v60->_Mylast == 0x555555555555555i64)
+                                std::vector<void *>::_Xlen();
+                            v95 = v60;
+                            v96 = 0i64;
+                            v64 = operator new(0x30ui64);
+                            v64[4] = 1;
+                            *(v64 + 40) = 0;
+                            *v64 = v61;
+                            v64[1] = v61;
+                            v64[2] = v61;
+                            *(v64 + 12) = 0;
+                            v96 = 0i64;
+                            v97 = v94;
+                            json_stuff_30(v60, &v97, v64);
+                        }*/
+                        if (improved)
+                            i.m_srList1.insert(improvedPlace, sr);
+                        else
+                            i.m_srList1.push_back(sr);
+                    }
+                }
+                i.m_hasFuture = true;
+                i.m_field_21 = true;
+            }
+        }
+    }
+}
+int g_nPhantomRidesOnReceived;
+void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttribute &wa) {
+    auto ignoreGod = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\IGNOREGODMESSAGES", 0, true); (void)ignoreGod;
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    switch (wa.wa_type()) {
+    case protobuf::WAT_LEAVE:
+        return;
+    case protobuf::WAT_RELOGIN: {
+        protobuf::PlayerLeftWorld plw;
+        if (plw.ParseFromString(wa.payload())) {
+            if (plw.another_login() && plw.player_id() == mainBike->m_playerIdTx) {
+                if (!g_CachedWorldTime || g_CachedWorldTime - wa.world_time_born() > 300000)
+                    return;
+                mainBike->m_joinedWorld = false;
+                LogTyped(LOG_NETWORK, "You were forced out of the world by another log-in");
+            }
+            g_Leaderboards.UserLeftWorld(plw.player_id());
+            if (mainBike->m_profile.player_type() == protobuf::PACER_BOT)
+                PacerBotSweatOMeter::Instance()->RemoveFollower(plw.player_id());
+        }}
+        return;
+    case protobuf::WAT_RIDE_ON: {
+        if (wa.world_time_expire() - wa.world_time_born() > 86'400'000) {
+            ++g_nPhantomRidesOnReceived;
+            return;
+        }
+        Log("Ride on received");
+        protobuf::RideOn rio;
+        if (rio.ParseFromString(wa.payload()) && std::find(g_sessionRideonsFrom.begin(), g_sessionRideonsFrom.end(), rio.player_id()) == g_sessionRideonsFrom.end()) {
+            g_sessionRideonsRx.push_back(rio);
+            ZML_RequestEffectPlay(protobuf::RECEIVED_RIDE_ON, true, true);
+            if (g_tweakArray[TWI_MINIMALUI].IntValue()) { // HUD_GiveRideOn inlined
+                auto suf = GetText("LOC_SAYS_RIDE_ON");
+                char buf[0x400];
+                if (rio.first_name().empty())
+                    sprintf_s(buf, sizeof(buf), "%s %s", rio.last_name().c_str(), suf);
+                else
+                    sprintf_s(buf, sizeof(buf), "%c.%s %s", rio.first_name()[0], rio.last_name().c_str(), suf);
+                auto flagTex = HUD_GetFlagTextureFromISO3166(rio.country_code(), true);
+                if (flagTex == HUD_flagIcons)
+                    flagTex = -1;
+                HUD_Notify(buf, 6.0f, HNT_RIDEON_RX, flagTex, 0 /*not used*/, 0.0f/*not used*/, rio.player_id());
+            }
+            mainBike->GiveRideOn(rio.player_id());
+            g_sessionRideonsFrom.push_back(rio.player_id());
+            g_pNotableMomentsMgr.OnNotableMoment(protobuf::NMT_RIDEON_INT, { (float)mainBike->m_x, (float)mainBike->m_y_alt, (float)mainBike->m_z }, rio.player_id(), 0, 0.0);
+        }}
+        return;
+        //TODO
+    default:
+        LogTyped(LOG_NETWORK, "Unhandled world message type %d", wa.wa_type());
+    }
+}
+std::future<NetworkResponse<int64_t>> g_CreateActivityRideonFuture;
+void ZNETWORK_GiveRideOn(int64_t playerTo, bool a2) {
+    auto f = g_sessionRideonsGivenTo.find(playerTo);
+    if (f == g_sessionRideonsGivenTo.end() || f->second == false /*not sure*/) {
+        Log("Total Ride Ons Given: %d", ++g_totalRideonsGiven);
+        if (!a2) {
+            auto mainBike = BikeManager::Instance()->m_mainBike;
+            if (mainBike) {
+                g_CreateActivityRideonFuture = zwift_network::create_activity_ride_on(mainBike->m_playerIdTx, playerTo);
+                //OMIT ++g_ZNETWORK_Stats[3];
+            }
+        }
+        g_sessionRideonsGivenTo[playerTo] = true;
+        g_lastRideonTarget = playerTo;
+        LARGE_INTEGER pc;
+        QueryPerformanceCounter(&pc);
+        g_lastRideonDebounce = pc.QuadPart + 3000;
+    }
 }
 namespace zwift_network {
 NetworkRequestOutcome send_image_to_mobile_app(const std::string &pathName, const std::string &imgName) {
@@ -6282,11 +6653,11 @@ NetworkRequestOutcome send_image_to_mobile_app(const std::string &pathName, cons
     aux->send_image_to_mobile_app(pathName, imgName);
     return NRO_OK;
 }
-NetworkRequestOutcome send_set_power_up_command(const std::string &a2, const std::string &a3, const std::string &a4, int puId) {
+NetworkRequestOutcome send_set_power_up_command(const std::string &locName, const std::string &color, const std::string &mask, int puId) {
     auto aux = g_networkClient->m_pImpl->m_aux;
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
-    aux->send_set_power_up_command(a2, a3, a4, puId);
+    aux->send_set_power_up_command(locName, color, mask, puId);
     return NRO_OK;
 }
 NetworkRequestOutcome send_rider_list_entries(const std::list<protobuf::RiderListEntry> &list) {
@@ -6345,7 +6716,7 @@ NetworkRequestOutcome send_ble_peripheral_request(const protobuf::BLEPeripheralR
     aux->send_ble_peripheral_request(rq);
     return NRO_OK;
 }
-NetworkRequestOutcome setTeleportingAllowed(bool a) {
+NetworkRequestOutcome set_teleporting_allowed(bool a) {
     if (!g_networkClient->m_pImpl->m_aux)
         return NRO_NO_PLAYER_ID_YET;
     g_networkClient->m_pImpl->m_aux->m_teleportAllowed = a;
@@ -6375,7 +6746,7 @@ std::string to_iso_8601(time_t dt) { return DateTime{ dt }.toIso8601String(); }
 std::future<NetworkResponse<protobuf::DropInWorldList>> fetch_drop_in_world_list() { return g_networkClient->m_pImpl->fetchDropInWorldList(); }
 std::list<ValidateProperty> parse_validation_error_message(const std::string &msg) { return g_networkClient->m_pImpl->parseValidationErrorMessage(msg); }
 std::future<NetworkResponse<protobuf::DropInWorldList>> fetch_worlds_counts_and_capacities() { return g_networkClient->m_pImpl->fetchWorldsCountsAndCapacities(); }
-bool isPairedToPhone() {
+bool is_paired_to_phone() {
     auto m_aux = g_networkClient->m_pImpl->m_aux;
     return m_aux && m_aux->m_connectedOK && m_aux->m_lastStatus;
 }
@@ -6529,7 +6900,6 @@ void shutdown_zwift_network() {
     NetworkClient::globalCleanup();
 }
 uint64_t g_serverTime;
-double g_accumulatedTime;
 uint64_t ZNETWORK_GetNetworkSyncedTimeGMT() {
     static const double bc = 9.223372036854776e18;
     if (!g_serverTime)
@@ -6548,8 +6918,6 @@ bool ZNETWORK_IsLoggedIn() {
     }
     return false;
 }
-int g_ZNETWORK_Stats[8];
-time_t g_lastPlayerStateTime, g_magicLeaderboardBirthday;
 void ZNETWORK_Initialize() {
     auto server = g_UserConfigDoc.GetCStr("ZWIFT\\CONFIG\\SERVER_URL", "https://us-or-rly101.zwift.com", false);
     g_IsOnProductionServer = (strstr(server, "us-or-rly101") != nullptr);
@@ -6712,7 +7080,7 @@ void TcpClient::processPayload(uint64_t len) {
                 handleTcpConfig(stc.tcp_config());
             }
             processSubscribedSegment(stc); //QUEST я передвинул перед m_rwq.emplace, чтобы объект был еще тут - надеюсь, не повлияет
-            if (stc.has_ev_subgroup_ps())
+            if (stc.has_race_placements())
                 m_rwq.emplace(wcs_time, std::make_shared<protobuf::ServerToClient>(std::move(stc)));
         } else {
             //OMIT TcpStatistics::increaseParseErrorCount_0((_Mtx_t)this->m_stat);
@@ -6721,7 +7089,6 @@ void TcpClient::processPayload(uint64_t len) {
     }
 }
 int g_segmentCnt;
-Leaderboards g_Leaderboards;
 SegmentResultsWrapper *ZNETWORK_RegisterSegmentID(int64_t hash, TimingArchEntity *tae /*= nullptr*/) {
     ++g_segmentCnt;
     Log("Registered segment %d with hash id %lld", g_segmentCnt, hash);
@@ -6823,6 +7190,135 @@ std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double w_
     crit->set_bta_20h((int)bta_20h);
     return zwift_network::create_race_result_entry(rq);
 }
+int32_t g_ServerReportedPlayerCount, g_currentEventTotalRiders;
+bool g_ServerReportedRacePlacements;
+void ZNETWORK_INTERNAL_ProcessPlayerPackets() {
+    std::shared_ptr<protobuf::ServerToClient> stc;
+    auto bikeManager = BikeManager::Instance();
+    while (zwift_network::pop_server_to_client(stc)) {
+        auto pStc = stc.get();// pStc = stc[0];
+        if (pStc->has_zwifters())
+            g_ServerReportedPlayerCount = pStc->zwifters();
+        if (pStc->has_race_placements()) {
+            g_ServerReportedRacePlacements = 1;
+            auto &ess = pStc->race_placements();
+            g_currentEventTotalRiders = ess.event_total_riders();
+            auto pos = ess.position();
+            auto bni = ess.bike_network_id();
+            auto mainBike = bikeManager->m_mainBike;
+            auto pBni = (ess.bike_network_id() && bni != mainBike->m_playerIdTx) ? bikeManager->FindBikeWithNetworkID(bni, true) : mainBike;
+            if (pBni) {
+                pBni->m_field_11DC = 0;
+                pBni->m_eventPos = pos;
+                if (ess.has_millisec_to_leader())
+                    pBni->m_msToLeader = ess.millisec_to_leader();
+            }
+            if (ess.player_rd5_size()) {
+                for (auto &v15 : ess.player_rd5()) {
+                    auto v17 = bikeManager->FindBikeWithNetworkID(v15.player_id(), false);
+                    if (v17) {
+                        v17->m_field_11DC = 0;
+                        v17->m_eventPos = v15.event_pos();
+                        if (v15.has_millisec_to_leader())
+                            v17->m_msToLeader = v15.millisec_to_leader();
+                    }
+                }
+            } else {
+                int v19 = 1;
+                for (auto &v23 : ess.player_rd1()) {
+                    auto v17 = bikeManager->FindBikeWithNetworkID(v23.player_id(), false);
+                    if (v17) {
+                        v17->m_field_11DC = 0;
+                        v17->m_eventPos = v19;
+                        if (v23.has_millisec_to_leader())
+                            v17->m_msToLeader = v23.millisec_to_leader();
+                    }
+                    ++v19;
+                }
+                int v26 = pos - 1;
+                for (auto &v31 : ess.event_rider_positions()) {
+                    BikeEntity *bk1 = nullptr;
+                    if (!v31.player_id() || v31.player_id() == mainBike->m_playerIdTx) {
+                        bk1 = mainBike;
+                    } else {
+                        for (auto pbe : bikeManager->m_field_9D08)
+                            if (pbe->m_playerIdTx == v31.player_id()) {
+                                bk1 = pbe;
+                                break;
+                            }
+                        for (auto pbe : bikeManager->m_field_9CD8)
+                            if (pbe->m_playerIdTx == v31.player_id()) {
+                                bk1 = pbe;
+                                break;
+                            }
+                    }
+                    if (bk1) {
+                        bk1->m_field_11DC = 0;
+                        bk1->m_eventPos = v26;
+                        if (v31.has_millisec_to_leader())
+                            bk1->m_msToLeader = v31.millisec_to_leader();
+                    }
+                    --v26;
+                }
+                int v42 = pos + 1;
+                for (auto &v47 : ess.player_rd4()) {
+                    BikeEntity *bk2 = nullptr;
+                    if (!v47.player_id() || v47.player_id() == mainBike->m_playerIdTx) {
+                        bk2 = mainBike;
+                    } else {
+                        for (auto pbe : bikeManager->m_field_9D08)
+                            if (pbe->m_playerIdTx == v47.player_id()) {
+                                bk2 = pbe;
+                                break;
+                            }
+                        for (auto pbe : bikeManager->m_field_9CD8)
+                            if (pbe->m_playerIdTx == v47.player_id()) {
+                                bk2 = pbe;
+                                break;
+                            }
+                    }
+                    if (bk2) {
+                        bk2->m_field_11DC = 0;
+                        bk2->m_eventPos = v42;
+                        if (v47.has_millisec_to_leader())
+                            bk2->m_msToLeader = v47.millisec_to_leader();
+                    }
+                    ++v42;
+                }
+            }
+        }
+        g_playerStatesCnt += pStc->states1_size();
+        zwiftUpdateContext zuc{};
+        for (auto &pst : pStc->states1())
+            bikeManager->ProcessPlayerState(&zuc, pst);
+    }
+}
+void ZNETWORK_JoinWorld(int64_t serverRealm, bool enableTeleport) {
+    zwift_network::set_teleporting_allowed(enableTeleport); //QUEST: not present in PC, optimized?
+    LogTyped(LOG_NETWORK, "Joining world %ld", serverRealm);
+    auto f = zwift_network::fetch_drop_in_world_list().get();
+    if (f.m_errCode) {
+        LogTyped(LOG_NETWORK, "Problem getting the list of worlds [%d] %s", f.m_errCode, f.m_msg.c_str());
+    } else {
+        LogTyped(LOG_NETWORK, "Got the list of worlds");
+        g_lastPlayerStateTime = timeGetTime();
+        g_CurrentServerRealmID = serverRealm;
+        int v6 = 5;
+        for (auto &i : g_Leaderboards.m_srwList)
+            i.m_time = (timeGetTime() + 2000 * v6++);
+        BikeManager::Instance()->m_mainBike->m_joinedWorld = true;
+        Leaderboards::FetchJerseyLeadersForAllSegments();
+    }
+}
+void ZNETWORK_SendRouteHashRequest(int64_t) {
+    //TODO
+}
+void ZNETWORK_INTERNAL_ProcessUpcomingWorkouts() {
+    //TODO
+}
+void ZNETWORK_INTERNAL_ProcessPhoneInput() {
+    //TODO
+}
 namespace ZNet {
 void API::Update(uint32_t dt) {
     std::vector<std::pair<ZNet::RequestId, std::unique_ptr<ZNet::RPCBase>>> copy;
@@ -6923,7 +7419,7 @@ RequestId EnrollInCampaign(std::string &proto, std::function<void(const protobuf
     //OMIT
     return 0;
 }
-RequestId FetchSegmentJerseyLeaders(std::function<void(const protobuf::SegmentResults)> &&f, std::function<void(Error)> &&ef) {
+RequestId FetchSegmentJerseyLeaders(std::function<void(const protobuf::SegmentResults &)> &&f, std::function<void(Error)> &&ef) {
     Params params{ .m_funcName = "FetchJerseyLeaders", .m_onError = std::move(ef) };
     return ZNet::API::Inst()->Enqueue(std::function<std::future<NetworkResponse<protobuf::SegmentResults>>(void)>([]() {
         return zwift_network::get_segment_jersey_leaders();

@@ -34,11 +34,11 @@ bool BikeEntity::GetShouldUseSkillLevel() {
     if (s != protobuf::CYCLING)
         return m_pah.GetIntValue("HasSetRunningPaces", 0) != 0;
     else
-        return GetSaveGame()->GetTrackingData(SIG_CalcCaseSensitiveSignature("UseSkillLevelCycling"), 0) != 0;
+        return GetSaveGame()->GetTrackingData(SIG_CalcCaseSensitiveSignature("UseSkillLevelCycling"), GenericTrackingData()).m_val.i != 0;
 }
 float BikeEntity::GetSkillLevelWKG() {
     if (m_skillWKG == -1) {
-        auto lev = std::clamp(GetSaveGame()->GetTrackingData(SIG_CalcCaseSensitiveSignature("CyclingSkillLevel"), 2), 0, 2);
+        auto lev = std::clamp(GetSaveGame()->GetTrackingData(SIG_CalcCaseSensitiveSignature("CyclingSkillLevel"), 2).m_val.i, 0, 2);
         if (lev > 2)
             lev = 2;
         m_skillWKG = lev;
@@ -72,4 +72,14 @@ float BikeEntity::GetRiderWeightKG(bool a2) {
     if (a2)
         return (ret + m_field_59C) * m_field_5A0;
     return ret;
+}
+void BikeEntity::RequestProfileFromServer() {
+    //TODO
+}
+void BikeEntity::GiveRideOn(int64_t fromPlayerId) {
+    static_assert(sizeof(RideOnAnim) == 0x30);
+    ++m_rxRideons;
+    m_rxRideonsList.emplace_back(RideOnAnim{.m_fromPlayerId = fromPlayerId });
+    m_field_AA8 += 15.0f;
+    m_field_AAC = 0x4000'0000;
 }

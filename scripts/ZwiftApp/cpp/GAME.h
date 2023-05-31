@@ -137,7 +137,7 @@ void GAME_SwitchLevel(int);
 //void GAME_TakeScreenshot(const GAME_Screenshot &, ScreenshotContent);
 void GAME_TakeScreenshotThisFrame();
 void GAME_UnloadLevel(int);
-//void GAME_Update(zwift::context::UpdateContext &, float)
+//void GAME_Update(zwiftUpdateContext &, float)
 void GAME_UpdateViewProjMatrices();
 void GAME_UserExit(bool);
 /*void GAME_glue_RunningPRs_EarlyWarning::OnBrokePR(bool, BestTimeForDistanceEntry *)

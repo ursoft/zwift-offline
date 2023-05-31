@@ -134,12 +134,12 @@ namespace zwift_network {
         float m_ptg_f3 = 0.0f;
         float m_ptg_f4 = 0.0f;
         float m_ptg_f5 = 0.0f;
-        float m_ptg_f6 = 0.0f;
+        float m_phoneRot = 0.0f;
         float m_ptg_f7 = 0.0f;
         float m_ptg_f8 = 0.0f;
         double m_ptg_f9 = 0.0;
     };
-    bool isPairedToPhone();
+    bool is_paired_to_phone();
     bool pop_phone_to_game_command(protobuf::PhoneToGameCommand *pDest);
     bool pop_player_id_with_updated_profile(int64_t *ret);
     NetworkRequestOutcome send_ble_peripheral_request(const protobuf::BLEPeripheralRequest &rq);
@@ -149,7 +149,7 @@ namespace zwift_network {
     NetworkRequestOutcome send_mobile_alert(const protobuf::MobileAlert &ma);
     NetworkRequestOutcome send_mobile_alert_cancel_command(const protobuf::MobileAlert &ma);
     NetworkRequestOutcome send_player_profile(const protobuf::PlayerProfile &pp);
-    NetworkRequestOutcome send_set_power_up_command(const std::string &a2, const std::string &a3, const std::string &a4, int puId);
+    NetworkRequestOutcome send_set_power_up_command(const std::string &locName, const std::string &color, const std::string &mask, int puId);
     NetworkRequestOutcome send_social_player_action(const protobuf::SocialPlayerAction &spa);
     NetworkRequestOutcome send_rider_list_entries(const std::list<protobuf::RiderListEntry> &list);
     bool pop_world_attribute(protobuf::WorldAttribute *dest);
@@ -234,7 +234,6 @@ namespace zwift_network {
     std::future<NetworkResponse<protobuf::SegmentResults>> get_segment_jersey_leaders();
     uint64_t world_time();
 }
-NetworkRequestOutcome ZNETWORK_ClearPlayerPowerups();
 struct ProfileRequestLazyContext {
     struct PlayerIdProvider {
         virtual std::unordered_set<int64_t> getPlayerIds(uint32_t key) = 0;
@@ -500,7 +499,7 @@ OMIT RequestId GetWorkout(const std::string const&,std::function<void (const std
     RequestId DeleteActivity(int64_t, uint64_t, std::function<void (void)> &&f, std::function<void (Error)> &&ef);
     RequestId DownloadPlayback(const protobuf::PlaybackMetadata &proto, std::function<void (const protobuf::PlaybackData &)> &&f, std::function<void (Error)> &&ef);
     RequestId EnrollInCampaign(std::string &proto, std::function<void (const protobuf::CampaignRegistrationResponse &)> &&f, std::function<void (Error)> &&ef, Params *pParams);
-    RequestId FetchSegmentJerseyLeaders(std::function<void (const protobuf::SegmentResults)> &&f, std::function<void (Error)> &&ef);
+    RequestId FetchSegmentJerseyLeaders(std::function<void (const protobuf::SegmentResults &)> &&f, std::function<void (Error)> &&ef);
     RequestId GetAchievements(std::function<void (const protobuf::Achievements &)> &&f, std::function<void (Error)> &&ef);
     RequestId GetActiveCampaigns(std::function<void (const protobuf::ListPublicActiveCampaignResponse &)> &&f, std::function<void (Error)> &&ef);
     RequestId GetActivities(int64_t, std::function<void (const protobuf::ActivityList &)> &&f, Params *pParams);
@@ -568,6 +567,7 @@ namespace uuid {
         return ss.str();
     }
 }
+NetworkRequestOutcome ZNETWORK_ClearPlayerPowerups();
 enum PLAYER_FLAGGED_REASONS { PFR_FLIER = 1, PFR_HARASSER = 2, PFR_POTTY_MOUTH = 3, PFR_SANDBAGGER = 4, PFR_CNT };
 void ZNETWORK_BroadcastLocalPlayerFlagged(PLAYER_FLAGGED_REASONS);
 enum RIDELEADER_ACTION { RLA_CNT };
@@ -576,8 +576,19 @@ struct ZNETWORK_RouteHashRequest {
     //TODO
 };
 void ZNETWORK_INTERNAL_HandleRouteHashRequest(const ZNETWORK_RouteHashRequest &);
-enum ZNETWORK_LateJoinRequest { LJR_CNT };
-void ZNETWORK_INTERNAL_HandleLateJoinRequest(ZNETWORK_LateJoinRequest, const VEC3 &);
+struct ZNETWORK_LateJoinRequest { //0x28 bytes
+    uint16_t m_ver, m_len;
+    bool m_field_4; //or byte, then 3 byte-gap
+    int64_t m_lateJoinPlayerId, m_playerId, field_18, field_20;
+};
+struct ZNETWORK_LateJoinResponse { //0x28 bytes - maybe, = ZNETWORK_LateJoinRequest
+    uint16_t m_ver, m_len;
+    uint8_t m_field_4;
+    //then 4 byte-gap
+    int64_t m_playerId, m_lateJoinPlayerId;
+    int m_field_18, m_field_1C, m_field_20; //then 4 byte-gap
+};
+void ZNETWORK_INTERNAL_HandleLateJoinRequest(const ZNETWORK_LateJoinRequest &ljr, const VEC3 &pos);
 void ZNETWORK_INTERNAL_DelayLateJoinResponse(ZNETWORK_LateJoinRequest);
 struct ZNETWORK_PacePartnerInfo {
     //TODO
@@ -634,9 +645,12 @@ void ZNETWORK_IsInRaceEvent();
 void ZNETWORK_IsInGroupWorkoutEvent();
 void ZNETWORK_ReducedFlagging(int64_t);
 void ZNETWORK_GetWeightedFlags(int64_t);
-void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttribute *);
+void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttribute &);
 void ZNETWORK_GetReceivedRideOnFromUsers();
 void ZNETWORK_INTERNAL_ProcessGlobalMessages();
+struct zwiftUpdateContext { //0x38 bytes
+    //TODO
+};
 void ZNETWORK_Update(float);
 void ZNETWORK_INTERNAL_UpdateSubscriptionCache(float);
 void ZNETWORK_ActivatePlayerPowerup(uint32_t);
@@ -685,7 +699,7 @@ void ZNETWORK_InitializeNetworkSyncedGMT(int64_t);
 void ZNETWORK_GetNetworkSyncedDateTimeGMT();
 void ZNETWORK_GetActivities();
 void ZNETWORK_LastRideOnReceivedFromPlayerId();
-void ZNETWORK_GiveRideOn(int64_t, bool);
+void ZNETWORK_GiveRideOn(int64_t playerTo, bool);
 void ZNETWORK_HasGivenRideOnToPlayer(int64_t);
 void ZNETWORK_ResetTotalRideOnsGiven();
 void ZNETWORK_TotalRideOnsGiven();
@@ -694,22 +708,8 @@ void ZNETWORK_GetServerNickname(int32_t);
 void ZNETWORK_GetOAuthClient();
 void ZNETWORK_UpdateDropInWorldsStatus();
 void ZNETWORK_GetDropInWorlds();
-struct TimingArchEntity {
-    //TODO
-};
-struct SegmentResultsPair : public std::list<std::pair<protobuf::SegmentResult, protobuf::SegmentResult>> {
-    TimingArchEntity *m_tae;
-};
-struct SegmentResultsWrapper { //0x140 bytes
-    int64_t m_hash;
-    protobuf::SegmentResults m_srs;
-    std::list<protobuf::SegmentResult> m_srList1, m_srList2;
-    SegmentResultsPair m_srpList;
-    //TODO field_50
-};
-struct Leaderboards { //0x68 bytes
-    std::list<SegmentResultsWrapper> m_srwList;
-};
+struct SegmentResultsWrapper;
+struct TimingArchEntity;
 SegmentResultsWrapper *ZNETWORK_RegisterSegmentID(int64_t hash, TimingArchEntity *tae = nullptr);
 void ZNETWORK_Shutdown();
 uint64_t ZNETWORK_GetNetworkSyncedTimeGMT();
