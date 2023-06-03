@@ -16,17 +16,24 @@ struct SegmentResultsWrapper { //0x140 bytes
     std::future<NetworkResponse<protobuf::SegmentResults>> m_future;
     uint64_t m_gap;
 };
+struct BadGuyInfo {
+    int64_t m_playerId;
+    double m_worldTimeSec;
+    float m_timeToLive;
+    //not used int field_14;
+};
 struct Leaderboards { //0x68 bytes
     std::list<SegmentResultsWrapper> m_srwList;
+    std::list<BadGuyInfo> m_sandbaggers, m_cheaters;
     static void FetchJerseyLeadersForAllSegments();
     void SaveUserSegmentPR(int64_t playerId, int64_t segmentId, double wtSec, float elapsedSec, float avg_power, bool isMale, protobuf::PowerType powTy, uint32_t weightGrams, const std::string &firstName, const std::string &lastName, uint64_t eventId);
     void UserLeftWorld(int64_t playerId);
+    void FlagSandbagger(int64_t id, double, float);
+    void FlagCheater(int64_t id, double, float);
 } inline g_Leaderboards;
 /*
 Leaderboards::FetchPlayerSegmentData(long,long long)
 Leaderboards::FindUserResult(std::list<zwift::protobuf::SegmentResult> *,long long)
-Leaderboards::FlagCheater(long long,double,float)
-Leaderboards::FlagSandbagger(long long,double,float)
 Leaderboards::GetSegmentData(long long)
 Leaderboards::GetSegmentLeaderChanges(long long)
 Leaderboards::GetSegmentResultsLocalPlayer(long long)

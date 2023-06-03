@@ -83,3 +83,63 @@ void BikeEntity::GiveRideOn(int64_t fromPlayerId) {
     m_field_AA8 += 15.0f;
     m_field_AAC = 0x4000'0000;
 }
+void BikeEntity::PerformAction(protobuf::UserBikeAction act) {
+    auto v4 = m_field_13C;
+    const char *rideon[2][3] = { { "Play_VOX_Biker_M_RIDEON_01", "Play_VOX_Biker_M_RIDEON_02", "Play_VOX_Biker_M_RIDEON_03" }, { "Play_VOX_Biker_F_RIDEON_01", "Play_VOX_Biker_F_RIDEON_02", "Play_VOX_Biker_F_RIDEON_03" } };
+    const char *hammer[2][3] = { { "Play_VOX_Biker_M_HAMMERTIME_01", "Play_VOX_Biker_M_HAMMERTIME_02", "Play_VOX_Biker_M_HAMMERTIME_03" }, { "Play_VOX_Biker_F_HAMMERTIME_01", "Play_VOX_Biker_F_HAMMERTIME_02", "Play_VOX_Biker_F_HAMMERTIME_03" } };
+    const char *nice[2][3] = { { "Play_VOX_Biker_M_NICE_01", "Play_VOX_Biker_M_NICE_02", "Play_VOX_Biker_M_NICE_03" }, { "Play_VOX_Biker_F_NICE_01", "Play_VOX_Biker_F_NICE_02", "Play_VOX_Biker_F_NICE_03" } };
+    const char *bring[2][3] = { { "Play_VOX_Biker_M_BRINGIT_01", "Play_VOX_Biker_M_BRINGIT_02", "Play_VOX_Biker_M_BRINGIT_03" }, { "Play_VOX_Biker_F_BRINGIT_01", "Play_VOX_Biker_F_BRINGIT_02", "Play_VOX_Biker_F_BRINGIT_03" } };
+    const char *toast[2][3] = { { "Play_VOX_Biker_M_IMTOAST_01", "Play_VOX_Biker_M_IMTOAST_02", nullptr }, { "Play_VOX_Biker_F_IMTOAST_01", "Play_VOX_Biker_F_IMTOAST_02", "Play_VOX_Biker_F_IMTOAST_03" } };
+    switch (act) {
+    case protobuf::UBA_ELBOW:
+        m_field_3D4 = 3;
+        m_field_3D8 = m_field_3D9 = false;
+        return;
+    case protobuf::UBA_WAVE:
+        m_field_3D4 = 1;
+        m_field_3D8 = m_field_3D9 = false;
+        return;
+    case protobuf::UBA_02:
+        m_field_3D4 = 2;
+        m_field_3D8 = m_field_3D9 = false;
+        return;
+    case protobuf::UBA_RIDEON:
+        AUDIO_Event(rideon[m_profile.body_type() & 1][rand() % 3], v4, false);
+        break;
+    case protobuf::UBA_HAMMER:
+        AUDIO_Event(hammer[m_profile.body_type() & 1][rand() % 3], v4, false);
+        break;
+    case protobuf::UBA_NICE:
+        AUDIO_Event(nice[m_profile.body_type() & 1][rand() % 3], v4, false);
+        break;
+    case protobuf::UBA_BRING_IT:
+        AUDIO_Event(bring[m_profile.body_type() & 1][rand() % 3], v4, false);
+        break;
+    case protobuf::UBA_TOAST:
+        AUDIO_Event(toast[m_profile.body_type() & 1][rand() % (2 + m_profile.body_type() & 1)], v4, false);
+        break;
+    case protobuf::UBA_BELL:
+        AUDIO_Event("Play_SFX_BikeBell", v4, false);
+        break;
+    case protobuf::UBA_HOLIDAY_WAVE:
+        switch (m_field_3CC) {
+        case 0: case 1: case 2: case 3: case 4: case 6: case 0xF:
+            m_field_3D4 = 15;
+            m_field_3D8 = m_field_3D9 = false;
+            break;
+        case 5: case 9: case 0xE:
+            m_field_3D4 = 14;
+            m_field_3D8 = m_field_3D9 = false;
+            break;
+        case 7: case 8: case 0x10:
+            m_field_3D4 = 16;
+            m_field_3D8 = m_field_3D9 = false;
+            break;
+        default:
+            return;
+        }
+        break;
+    default:
+        return;
+    }
+}

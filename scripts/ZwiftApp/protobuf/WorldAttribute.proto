@@ -19,7 +19,7 @@ enum WA_TYPE {
     WAT_PRI_M = 104; //PrivateMessage
     WAT_SR    = 105; //proto::SegmentResult
     WAT_FLAG = 106;  //Leaderboards::FlagSandbagger / Leaderboards::FlagCheater
-    WAT_NONE = 107;  //does nothing
+    WAT_BC_PROMPT = 107;  //EventSystem::TriggerEvent(EV_BC_PROMPT)
     WAT_RLA = 108;   //ZNETWORK_BroadcastRideLeaderAction
     WAT_GE = 109;    //GroupEvents::UserSignedup / GroupEvents::UserRegistered
     WAT_NM = 110;    //notable moment + Play_Magic_Whoosh_Deep_Sparkle

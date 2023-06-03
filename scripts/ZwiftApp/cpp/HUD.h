@@ -49,8 +49,8 @@ void HUD_Notify(const char *msg, float a2, HUD_NotificationType nt, int texture,
 void HUD_OnEscape();
 void HUD_PostUIRender();
 void HUD_PrepareForPlayerIcons();
-//void HUD_PushSPA(zwift::protobuf::SocialPlayerAction, VEC3, float);
-//void HUD_PushTextMessage(ZNETWORK_TextMessage);
+void HUD_PushSPA(const protobuf::SocialPlayerAction &, const VEC3 &, float = 500.0f);
+void HUD_PushTextMessage(const ZNETWORK_TextMessage &msg);
 void HUD_RefreshText();
 //void HUD_RegisterTimingArchCallback(TimingArchEntity *, float);
 //void HUD_RegisterTopBarCallback(void (*);(float, float, float, float, void *);, float, void *);

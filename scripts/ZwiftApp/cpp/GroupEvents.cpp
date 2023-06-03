@@ -17,7 +17,36 @@ void GroupEvents::Shutdown() {
         (*(void(__fastcall **)(__int64 *, __int128 *))(v25 + 40))(v22, &v46);
     }*/
 }
-void *GroupEvents::FindSubgroupEvent(int64_t id) {
+GroupEvents::SubgroupState *GroupEvents::FindSubgroupEvent(int64_t id) {
+    //TODO
+    return nullptr;
+}
+bool GroupEvents::GetCurrentEvent(int64_t id) {
+    //TODO
+    return false;
+}
+void GroupEvents::OnWorldAttribute(const protobuf::WorldAttribute &wa) {
+    //TODO
+}
+void GroupEvents::ReportUserResult(const protobuf::SegmentResult &) {
+    //TODO
+}
+void GroupEvents::Subgroup_AddEntrantToRegistrants(SubgroupState *, int64_t, double, bool) {
+    //TODO
+}
+void GroupEvents::Subgroup_AddEntrantToSignups(SubgroupState *, int64_t, double, bool) {
+    //TODO
+}
+void PrivateEventsManagerV2::GetPrivateEvents() {
+    //TODO
+}
+void ReportUserResult(const protobuf::SegmentResult &) {
+    //TODO
+}
+void PrivateEventV2::ReportUserResult(const protobuf::SegmentResult &) {
+    //TODO
+}
+GroupEvents::Rules *GroupEvents::SubgroupState::GetRules() {
     //TODO
     return nullptr;
 }

@@ -64,13 +64,16 @@ const char *g_dialogNames[UI_DIALOGS_CNT] = {"UID_NONE",
 "UID_DELETE_ACCOUNT",
 "UID_BLOCKER",
 "UID_NEXT_UP_TRAINING_PLAN" };
-void *UI_DialogPointer(UI_DIALOGS d) {
-    //TODO
+UI_DropInDialog *UI_DialogPointer(UI_DIALOGS d) {
+    //TODO dynamic_cast
     return nullptr;
 }
 void UI_CreateDialog(UI_DIALOGS, void *, void *) {
     //TODO
 }
 void UI_CloseDialog(UI_DIALOGS d) {
+    //TODO
+}
+void UI_DropInDialog::RefreshGroupList() {
     //TODO
 }

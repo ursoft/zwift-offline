@@ -35,3 +35,9 @@ void Leaderboards::UserLeftWorld(int64_t playerId) {
         }
     }
 }
+void Leaderboards::FlagSandbagger(int64_t id, double, float) {
+    //TODO
+}
+void Leaderboards::FlagCheater(int64_t id, double, float) {
+    //TODO
+}

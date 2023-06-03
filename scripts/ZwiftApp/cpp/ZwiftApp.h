@@ -32,6 +32,7 @@
 #include "Zfiles.pb.h"
 #include "Aggregation.pb.h"
 using protobuf_bytes = std::string; //it is better for Google to make it a vector, but...
+using NOTABLEMOMENT_TYPE = protobuf::NotableMomentType; //not sure
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
@@ -49,6 +50,7 @@ using protobuf_bytes = std::string; //it is better for Google to make it a vecto
 #include "Logging.h"
 #include "GameCritical.h"
 #include "ZMutex.h"
+#include "Entity.h"
 #include "ZNoesis.h"
 #include "UI_Dialogs.h"
 #include "Console.h"

@@ -50,7 +50,7 @@ struct SaveGame {
     void GetUnseenEntitlementsCount(void);
     GenericTrackingData GetTrackingData(uint32_t hash, const GenericTrackingData &def);
     void GetTempPromo(const char *);
-    void GetSystemDateTime(bool);
+    static uint64_t GetSystemDateTime();
     void GetDateNDaysFromDate(DateTime, int);
     void FinalizeSave(uint32_t *);
     void CountDaysBetweenDates(DateTime, DateTime);

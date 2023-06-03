@@ -1,6 +1,12 @@
 #pragma once
 struct VEC4 { float m_data[4]; };
-struct VEC3 { float m_data[3]; };
+struct VEC3 {
+    float m_data[3];
+    float lenSquared() { return m_data[0] * m_data[0] + m_data[1] * m_data[1] + m_data[2] * m_data[2]; }
+    float len() { return sqrt(lenSquared()); }
+};
+inline VEC3 operator-(const VEC3 &a, const VEC3 &b) { return VEC3{a.m_data[0] - b.m_data[0], a.m_data[1] - b.m_data[1], a.m_data[2] - b.m_data[2] }; }
+inline VEC3 operator+(const VEC3 &a, const VEC3 &b) { return VEC3{a.m_data[0] + b.m_data[0], a.m_data[1] + b.m_data[1], a.m_data[2] + b.m_data[2] }; }
 struct VEC2 { float m_data[2]; };
 struct MATRIX44 { VEC4 m_data[4]; };
 struct MATRIX43 { VEC4 m_data[3]; };

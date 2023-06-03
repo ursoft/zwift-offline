@@ -79,3 +79,15 @@ CriticalPowerCurve
 [7, 56] RecorderComponent::GetDataPointsVEC3
 [8, 64] CriticalPowerCurve::AddDataPoint
 [9, 72] RecorderComponent::AddDataPointVEC3
+
+BikeEntity
+[0,  0] BikeEntity_dtr
+[1,  8] ret 0 Entity::HandleEvent(EVENT_ID,std::__va_list)
+[2, 16] Entity::GetPosition
+[3, 24] Entity::NetworkUpdate
+[4, 32] Entity::Initialize(tinyxml2::XMLElement const*)
+[5, 40] 
+[6, 48] 
+[7, 56] 
+[8, 64] 
+[9, 72] 

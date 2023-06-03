@@ -54,10 +54,6 @@ enum EVENT_ID {
 };
 typedef void (*EventCallback)(EVENT_ID, va_list);
 struct EventSystem;
-struct PrivateEventV2 {
-    int64_t m_eventId = 0;
-};
-inline PrivateEventV2 *g_currentPrivateEvent;
 struct EventObject {
     EventSystem *m_eventSystem;
     EventObject(EventSystem *e) : m_eventSystem(e) {}

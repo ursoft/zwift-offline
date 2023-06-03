@@ -18,3 +18,21 @@ bool GUI_Key(int a1, int a2) {
     //TODO
     return true;
 }
+void GUI_CreateTwoButtonsDialog(const char *, const char *, const char *, const char *, const char *, float, std::function<void(UI_TwoButtonsDialog::DIALOG_RESULTS)>, float, float, bool, float, bool) {
+    //TODO
+}
+void GUI_CreateTwoButtonsDialog(const char *, const char *, const char *, const char *, const char *, float, void (*)(UI_TwoButtonsDialog::DIALOG_RESULTS), float, float, bool, float, bool) {
+    //TODO
+}
+void GUI_CreateTwoButtonsDialog(const char *, const char *, const char *, int, const char *, float, void (*)(UI_TwoButtonsDialog::DIALOG_RESULTS), float, float, bool, float, bool) {
+    //TODO
+}
+void GUI_CreateTwoButtonsDialog(float, float, const char *, const char *, const char *, const char *, float, float, void (*)(UI_TwoButtonsDialog::DIALOG_RESULTS)) {
+    //TODO
+}
+void GUI_CreateTwoButtonsDialogWithHyperlink(const char *, void (*)(void *), const char *, const char *, const char *, const char *, const char *, float, void (*)(UI_TwoButtonsDialog::DIALOG_RESULTS), float, float, bool, float, bool) {
+    //TODO
+}
+void kickCallback(UI_TwoButtonsDialog::DIALOG_RESULTS dr) {
+    //TODO
+}

@@ -55,10 +55,15 @@ struct PacerBotSweatOMeter { //0x140 bytes
     void CalculatePacePartnerRanges() {
         //TODO
     }
+    void UpdateDistanceRanges(float, int64_t, ZNETWORK_PacePartnerInfo::BroadcastState) {
+        //TODO
+    }
+    void AdjustPacePartnerRanges(const ZNETWORK_PacePartnerInfo &) {
+        //TODO
+    }
     /* TODO:
 ActivityRange(float)
 AddFollower(long long)
-AdjustPacePartnerRanges(ZNETWORK_PacePartnerInfo)
 Broadcast_Update(void)
 CheckForFollowingDistance(void)
 DetectAndResetIfDifferentDirection(BikeEntity const*,BikeEntity const*)
@@ -76,9 +81,8 @@ OutOfActivity(float)
 OutOfRange(void)
 ReadData(PacerBotSweatOMeter::HalloweenPacerBot,bool,long long)
 SendPacePartnerPeriodBroadcast(float)
-SendStatusToPacePartner(PacerBotSweatOMeter::BroadcastState)
+SendStatusToPacePartner(ZNETWORK_PacePartnerInfo::BroadcastState)
 SetBotInfo(long long)
-UpdateDistanceRanges(float,long long,PacerBotSweatOMeter::BroadcastState)
 UpdateDropsInfoList(std::string const&,std::string const&)
 UpdateDropsMultiplier(float)
 UpdateFollowerCount(ulong)

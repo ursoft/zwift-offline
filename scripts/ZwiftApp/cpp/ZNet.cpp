@@ -6370,11 +6370,11 @@ void ZNETWORK_RespondToLateJoinRequest(int64_t lateJoinPlayerId) {
         static_assert(sizeof(ZNETWORK_LateJoinResponse) == 0x28);
         ZNETWORK_LateJoinResponse v19{ .m_ver = 2, .m_len = sizeof(ZNETWORK_LateJoinResponse) - 4, .m_field_4 = 2, .m_playerId = bk->m_playerIdTx, .m_lateJoinPlayerId = lateJoinPlayerId, .m_field_20 = bk->m_bc->m_field_1E8 };
         if (bk->m_routeComp && bk->m_routeComp->m_selRoute) { // RouteComputer::GetSelectedRoute
-            v19.m_field_18 = bk->m_routeComp->m_field_18; //oldnapalm guess: road ID and road(spline) time
+            v19.m_decisionIndex = bk->m_routeComp->m_decisionIndex; //oldnapalm guess: road ID and road(spline) time
             v19.m_field_1C = bk->m_routeComp->m_field_10;
         }
         v28.set_payload((char *)&v19, sizeof(ZNETWORK_LateJoinResponse));
-        Log("GroupEvents: late-join: respond: [%d] -> [%d]  (%d, %d)", lateJoinPlayerId, bk->m_playerIdTx, v19.m_field_18, v19.m_field_1C);
+        Log("GroupEvents: late-join: respond: [%d] -> [%d]  (%d, %d)", lateJoinPlayerId, bk->m_playerIdTx, v19.m_decisionIndex, v19.m_field_1C);
         g_BroadcastLateJoinReturnCode = zwift_network::save_world_attribute(v28);
     }
 }
@@ -6573,10 +6573,13 @@ void ZNETWORK_Update(float dt) {
         }
     }
 }
-int g_nPhantomRidesOnReceived;
+int g_nPhantomRidesOnReceived, g_FlaggedAsPottyMouth, g_FlaggedAsHarasser, g_FlaggedAsFlier, g_currentEventTotalRiders;
+float g_sandbaggerPenaltyScale;
+uint32_t g_routehashCt;
 void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttribute &wa) {
     auto ignoreGod = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\IGNOREGODMESSAGES", 0, true); (void)ignoreGod;
-    auto mainBike = BikeManager::Instance()->m_mainBike;
+    auto mgr = BikeManager::Instance();
+    auto mainBike = mgr->m_mainBike;
     switch (wa.wa_type()) {
     case protobuf::WAT_LEAVE:
         return;
@@ -6621,9 +6624,397 @@ void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttrib
             g_pNotableMomentsMgr.OnNotableMoment(protobuf::NMT_RIDEON_INT, { (float)mainBike->m_x, (float)mainBike->m_y_alt, (float)mainBike->m_z }, rio.player_id(), 0, 0.0);
         }}
         return;
-        //TODO
+    case protobuf::WAT_SPA: {
+        protobuf::SocialPlayerAction spa;
+        if (spa.ParseFromString(wa.payload())) {
+            if (spa.spa_type() != protobuf::SOCIAL_TEXT_MESSAGE && spa.spa_type() != protobuf::SOCIAL_FLAG)
+                return;
+            auto bk = mgr->FindBikeWithNetworkID(spa.player_id(), false);
+            auto curLead = gGroupEventsActive_CurrentLeader;
+            if (g_currentPrivateEvent && g_currentPrivateEvent->m_leaderId) // GroupEvents::GetCurrentLeader
+                curLead = g_currentPrivateEvent->m_leaderId;
+            bool isLeader = curLead == spa.player_id();
+            if (spa.spa_type() == protobuf::SOCIAL_TEXT_MESSAGE) {
+                if (ProfanityFilter::PlayerOldEnoughToMessage() || isLeader || gGroupEventsActive_CurrentSweeper == spa.player_id()) {
+                    VEC3 pos{};
+                    if (bk)
+                        pos = mainBike->GetPosition();
+                    else
+                        if (wa.has_x()) {
+                            pos.m_data[0] = wa.x();
+                            pos.m_data[1] = wa.y_altitude();
+                            pos.m_data[2] = wa.z();
+                        }
+                    if (g_UserConfigDoc.GetBool("ZWIFT\\CONFIG\\SHOWGROUPMSGS", true, true) && spa.message().size())
+                        HUD_PushSPA(spa, pos);
+                }
+            } else if (spa.spa_type() == protobuf::SOCIAL_FLAG && spa.to_player_id() == mainBike->m_playerIdTx) {
+                auto testerAdminWeight = ((bk && (bk->m_profile.f104() == 3)) || isLeader) ? 3 : 1;
+                switch (spa.flag_type()) {
+                case protobuf::FLAG_TYPE_BAD_LANGUAGE:
+                    g_FlaggedAsPottyMouth += testerAdminWeight;
+                    if (g_FlaggedAsHarasser + g_FlaggedAsPottyMouth >= 4 && !GroupEvents::GetCurrentEvent(spa.event_subgroup()))
+                        ZNETWORK_FlagLocalPlayer(PFR_HARASSER);
+                    break;
+                case protobuf::FLAG_TYPE_HARASSMENT:
+                    g_FlaggedAsHarasser += testerAdminWeight;
+                    if (g_FlaggedAsPottyMouth + g_FlaggedAsHarasser >= 4 && !GroupEvents::GetCurrentEvent(spa.event_subgroup()))
+                        ZNETWORK_FlagLocalPlayer(PFR_POTTY_MOUTH);
+                    break;
+                case protobuf::FLAG_TYPE_FLIER:
+                    g_FlaggedAsFlier += testerAdminWeight;
+                    if (g_FlaggedAsFlier >= 25 || (g_FlaggedAsFlier >= 10 && g_FlaggedAsFlier >= (g_currentEventTotalRiders * 0.05f)))
+                        ZNETWORK_FlagLocalPlayer(PFR_FLIER);
+                    break;
+                }
+            }
+        }}
+        return;
+    case protobuf::WAT_EVENT:
+    case protobuf::WAT_JOIN_E:
+    case protobuf::WAT_LEFT_E:
+        GroupEvents::OnWorldAttribute(wa);
+        return;
+    case protobuf::WAT_RQ_PROF:
+        if (!mainBike || wa.world_time_expire() <= g_CachedWorldTime || (mainBike->m_playerIdTx < 0 && !mainBike->m_field_806))
+            return;
+        mainBike->RequestProfileFromServer();
+        Log("ZwiftNetwork player profile update request for networkId: %d", mainBike->m_playerIdTx);
+        return;
+    case protobuf::WAT_INV_W: {
+        if (wa.rel_id() != mainBike->m_playerIdTx) // PrivateEventsManagerV2::ReceiveInvitationWorldAttribute
+            return;
+        protobuf::EventInviteProto v199;
+        v199.ParseFromString(wa.payload());
+        Log("Received a meetup invitation notification");
+        g_PrivateEvents.m_field_DC = true;
+        g_PrivateEvents.m_field_DD = false;
+        g_PrivateEvents.m_field_DE = false;
+        g_PrivateEvents.GetPrivateEvents();
+        auto d = UI_DialogPointer(UID_DROP_IN);
+        if (d)
+            d->RefreshGroupList();
+        return;
+    }
+    case protobuf::WAT_KICKED:
+        Log("kick me");
+        GUI_CreateTwoButtonsDialog(GetText("LOC_GOT_IT_TITLE"), nullptr, GetText("LOC_KICKED_TITLE"), GetText("LOC_KICKED_CONTENT"), "", 30.0f, kickCallback, 600.0f, 180.0f, false, 0.0f, false);
+        return;
+    case protobuf::WAT_WTIME:
+        if (ignoreGod)
+            return;
+        g_WorldTime = *(float *)wa.payload().c_str();
+        return;
+    case protobuf::WAT_RTIME: {
+        if (ignoreGod)
+            return;
+        auto em = EntityManager::GetInst();
+        auto b = (BlimpEntity *)em->FindFirstEntityOfType(Entity::ET_BLIMP);
+        if (b) {
+            auto rt = fmod(*(double *)wa.payload().c_str(), 1.0);
+            b->SetRoadTime(rt);
+        }
+        return;
+    }
+    case protobuf::WAT_B_ACT:
+        if (wa.has_world_time_expire()) {
+            struct watBact { int64_t id; protobuf::UserBikeAction uba; } *pba = (watBact *)wa.payload().c_str();
+            auto v103 = mgr->FindBikeWithNetworkID(pba->id, false);
+            if (v103 && v103 != mainBike)
+                v103->PerformAction(pba->uba);
+        } else {
+            LogTyped(LOG_NETWORK, "Non-expiring user action found");
+        }
+        return;
+    case protobuf::WAT_GRP_M: {
+        auto wgm = (ZNETWORK_TextMessage *)wa.payload().c_str();
+        if (g_UserConfigDoc.GetBool("ZWIFT\\CONFIG\\SHOWGROUPMSGS", true, true)) {
+            auto bk = mgr->FindBikeWithNetworkID(wgm->m_srcProfileId, false);
+            VEC3 dv = mainBike->GetPosition() - (bk ? bk->GetPosition() : wgm->m_msgPos);
+            if (dv.lenSquared() < wgm->m_msgRadius * wgm->m_msgRadius) {
+                wgm->m_msg[1022] = 0;
+                wgm->m_msg[1023] = 0;
+                HUD_PushTextMessage(*wgm);
+            }
+        } else {
+            LogTyped(LOG_NETWORK, "Filtered area message due to user prefs");
+        }}
+        return;
+    case protobuf::WAT_PRI_M: {
+        auto wgm = (ZNETWORK_TextMessage *)wa.payload().c_str();
+        if (wgm->m_destProfileId != mainBike->m_playerIdTx)
+            return;
+        wgm->m_msg[1022] = 0;
+        wgm->m_msg[1023] = 0;
+        LogTyped(LOG_NETWORK, "Received private message from %d (%s)", int(wgm->m_srcProfileId), wgm->m_msg);
+        HUD_PushTextMessage(*wgm);
+        //OMIT ++g_ZNETWORK_Stats[2];
+        return;
+    }
+    case protobuf::WAT_SR: {
+        protobuf::SegmentResult sr;
+        sr.ParseFromString(wa.payload());
+        double world_time_s = sr.world_time() * 0.001;
+        bool male = true;
+        if (sr.has_is_male())
+            male = sr.is_male();
+        if (sr.segment_id() != 1 || !sr.event_subgroup_id()) {
+            auto elapsed_s = sr.elapsed_ms() * 0.001f;
+            g_Leaderboards.SaveUserSegmentPR(sr.player_id(), sr.segment_id(), world_time_s, elapsed_s, sr.avg_power(), male, sr.power_source_model(), sr.weight_in_grams(), sr.first_name(), sr.last_name(), sr.event_subgroup_id());
+        } else {
+            if (GroupEvents::FindSubgroupEvent(sr.event_subgroup_id()))
+                GroupEvents::ReportUserResult(sr);
+            else
+                PrivateEventV2::ReportUserResult(sr);
+        }
+        return;
+    }
+    case protobuf::WAT_FLAG: {
+        auto flag = (BroadcastLocalPlayerFlagged *)wa.payload().c_str();
+        if (flag->m_len != sizeof(*flag) - 4)
+            return;
+        if (flag->m_ver == 1) {
+            Log("User %lld flagged", flag->m_playerId);
+            if (flag->m_pfr == PFR_SANDBAGGER) {
+                if (mainBike) { // Leaderboards::FlagSandbagger
+                    auto fb = mgr->FindBikeWithNetworkID(flag->m_playerId, true);
+                    if (fb && !fb->m_immuneFromCheating) {
+                        g_Leaderboards.m_sandbaggers.emplace_back(BadGuyInfo{ flag->m_playerId, flag->m_worldTimeSec, 3600.0 });
+                        fb->m_isSandbagger = true;
+                        if (mainBike->m_playerIdTx == flag->m_playerId)
+                            mainBike->m_isSandbagger = true;
+                        auto c = (CriticalPowerCurve *)DataRecorder::Instance()->GetComponent(RecorderComponent::T_CPC);
+                        if (c && c->m_sandbaggerCoeff < 1.0f && c->m_sandbaggerCoeff > 0.0f)
+                            g_sandbaggerPenaltyScale = c->m_sandbaggerCoeff;
+                    }
+                }
+            } else if (mainBike) { // Leaderboards::FlagCheater
+                auto fb = mgr->FindBikeWithNetworkID(flag->m_playerId, true);
+                if (fb && !fb->m_immuneFromCheating) {
+                    g_Leaderboards.m_cheaters.emplace_back(BadGuyInfo{ flag->m_playerId, flag->m_worldTimeSec, 3600.0 });
+                    fb->m_isCheater = 1;
+                    if (mainBike->m_playerIdTx == flag->m_playerId)
+                        mainBike->m_isCheater = true;
+                }
+            }
+        } else {
+            Log("Received invalid user flagged message. Wrong version (%d)", flag->m_ver);
+        }}
+        return;
+    case protobuf::WAT_BC_PROMPT: {
+        auto bcp = (WebEventStartMsg *)wa.payload().c_str();
+        if (bcp->m_len != sizeof(WebEventStartMsg) - 4)
+            return;
+        if (bcp->m_ver == 1)
+            EventSystem::GetInst()->TriggerEvent(EV_BC_PROMPT, 1, &bcp);
+        else
+            Log("Received invalid web event start message. Wrong version (%d)", bcp->m_ver);
+        return;
+    }
+    case protobuf::WAT_RLA: { //ZNETWORK_BroadcastRideLeaderAction
+        static_assert(sizeof(BroadcastRideLeaderAction) == 0x68);
+        auto brla = (BroadcastRideLeaderAction *)wa.payload().c_str();
+        if (brla->m_len != sizeof(BroadcastRideLeaderAction) - 4 || brla->m_ver != 1)
+            return;
+        switch (brla->m_rideLeaderAction) {
+        case BroadcastRideLeaderAction::RLA_1: case BroadcastRideLeaderAction::RLA_2: case BroadcastRideLeaderAction::RLA_3: case BroadcastRideLeaderAction::RLA_4:
+            RideLeaderActions_add(brla->m_a1, brla->m_leaderId, brla->m_a3, wa.world_time_expire());
+            break;
+        case BroadcastRideLeaderAction::RLA_6:
+            for (auto i : g_RideLeaderActions) {
+                if (i->m_a1 == brla->m_a1) {
+                    if (i->m_leaderId == brla->m_leaderId) {
+                        if (brla->m_a3 > i->m_a3) {
+                            i->m_leaderId = 0;
+                            i->m_a3 = brla->m_a3;
+                            i->m_world_time_expire = wa.world_time_expire();
+                        }
+                    }
+                    break;
+                }
+            }
+            break;
+        default:
+            break;
+        }}
+        return;
+    case protobuf::WAT_GE: {
+        static_assert(sizeof(GroupEvents::EntrantRaw) == 0x28);
+        static_assert(sizeof(GroupEvents::Entrant) == 0x20);
+        auto entr = (GroupEvents::EntrantRaw *)wa.payload().c_str();
+        if (entr->m_len != sizeof(GroupEvents::EntrantRaw) - 4 || entr->m_ver != 1) {
+            auto ge = GroupEvents::FindSubgroupEvent(entr->m_sgEventId); // GroupEvents::UserSignedup
+            if (entr->m_isSignUp) {
+                if (ge) {
+                    GroupEvents::Subgroup_AddEntrantToSignups(ge, entr->m_field_8, entr->m_field_20, entr->m_field_19);
+                    return;
+                }
+                g_SignupList_Orphan.emplace_back(*entr);
+            } else { // GroupEvents::UserRegistered
+                if (ge) {
+                    GroupEvents::Subgroup_AddEntrantToRegistrants(ge, entr->m_field_8, entr->m_field_20, entr->m_field_19);
+                    return;
+                }
+                g_RegistrantList_Orphan.emplace_back(*entr);
+            }
+        } else {
+            Log("Received invalid entrant message. Wrong version (%d) or size (%d)" /*fixed by URSOFT, was 'invalid user flagged message'*/, entr->m_ver, entr->m_len);
+        }
+        return;
+    }
+    case protobuf::WAT_NM: {
+        struct nm { 
+            int16_t m_ver, m_len;
+            int64_t m_playerIdTx;
+            uint64_t field_10;
+            NOTABLEMOMENT_TYPE m_nmt;
+            int32_t m_field_1C;
+            char gap20[4];
+            float m_field_24;
+            uint64_t field_28;
+        } *pnm = (nm *)wa.payload().c_str();
+        static_assert(sizeof(nm) == 48);
+        if (pnm->m_len == 44 && pnm->m_ver == 1) {
+            if (pnm->m_playerIdTx != mainBike->m_playerIdTx) {
+                auto bk = mgr->FindBikeWithNetworkID(pnm->m_playerIdTx, false);
+                if (bk)
+                    ConfettiComponent::SpawnPersonalConfetti(bk, pnm->m_nmt, pnm->m_field_24, pnm->m_field_1C);
+            }
+        } else {
+            Log("Received invalid notable moment message. Wrong version (%d) or size (%d)", pnm->m_ver, pnm->m_len);
+        }}
+        return;
+    case protobuf::WAT_LATE: {
+        ZNETWORK_LateJoinRequest *ljr = (ZNETWORK_LateJoinRequest *)wa.payload().c_str();
+        static_assert(sizeof(ZNETWORK_LateJoinRequest) == 40);
+        if (ljr->m_len == 36 && ljr->m_playerId == mainBike->m_playerIdTx)
+            ZNETWORK_INTERNAL_HandleLateJoinRequest(*ljr, VEC3{(float)wa.x(), (float)wa.y_altitude(), (float)wa.z()});
+    }
+        return;
+    case protobuf::WAT_RH: {
+        struct rh {
+            int16_t m_ver, m_len;
+            char m_kind;
+            int64_t m_otherPlayerId, m_playerIdTx;
+            uint32_t m_routeHash, m_decisionIndex;
+        } *prh = (rh *)wa.payload().c_str();
+        static_assert(sizeof(rh) == 32);
+        if (prh->m_len != 36 || prh->m_playerIdTx != mainBike->m_playerIdTx)
+            return;
+        Log("Handle RouteHash request...");
+        if (prh->m_kind == 1) {
+            ZNETWORK_RespondToRouteHashRequest(prh->m_otherPlayerId);
+            Log("Responded to RouteHash request");
+        } else if (prh->m_kind == 2) {
+            g_delayed_RouteHash_time = -1.0;
+            g_routehashCt = 0;
+            if (g_RouteHashTargetID == prh->m_otherPlayerId) {
+                assert(prh->m_ver == 2);
+                Log("RouteHash: received response! %u, %u", prh->m_routeHash, prh->m_decisionIndex);
+                if (mainBike) {
+                    auto routeComp = mainBike->m_routeComp;    // VirtualBikeComputer::RouteHashSet
+                    if (routeComp) {
+                        if (!RouteComputer::g_strDefault)
+                            RouteComputer::g_strDefault = new RouteManager();
+                        auto v178 = RouteComputer::g_strDefault->GetRoute(prh->m_routeHash);
+                        routeComp->SetRoute(v178, false, false, "default"s);
+                        routeComp->SetDecisionStateToOffroute();
+                        routeComp->m_decisionIndex = prh->m_decisionIndex;
+                        Log("Forced decision index to %d", prh->m_decisionIndex);
+                    }
+                }
+            } else {
+                Log("RouteHash: received response, but it's from the wrong target...");
+            }
+        } else {
+            Log("Unknown RouteHash command");
+        }}
+        return;
+    case protobuf::WAT_STATS: {
+        auto st = (ZNETWORK_GRFenceRiderStats *)wa.payload().c_str();
+        static_assert(sizeof(ZNETWORK_GRFenceRiderStats) == 32);
+        if (st->m_len == sizeof(ZNETWORK_GRFenceRiderStats) - 4)
+            mainBike->m_grFenceComponent->OnReceiveRiderStats(*st);
+        else
+            LogTyped(LOG_WARNING, "[ZwiftNetwork] GLOBAL_MESSAGE_TYPE_RIDER_FENCE_STATS received but has invalid header!");
+    }
+        return;
+    case protobuf::WAT_FENCE: {
+        auto fc = (ZNETWORK_GRFenceConfig *)wa.payload().c_str();
+        static_assert(sizeof(ZNETWORK_GRFenceConfig) == 48);
+        if (fc->m_len == sizeof(ZNETWORK_GRFenceConfig) - 4) { // GroupRideFence::Component::OnReceiveFenceConfig
+            mainBike->m_grFenceComponent->m_ver = fc->m_ver;
+            mainBike->m_grFenceComponent->m_len = fc->m_len;
+            if (fc->m_ver <= 1) {
+                if (mainBike->m_grFenceComponent->m_field_128 == fc->m_field_8 && !mainBike->m_grFenceComponent->IsFenceGenerator()) {
+                    mainBike->m_grFenceComponent->m_field_150 = 0;
+                    //TODO mainBike->m_grFenceComponent->field_30 = fc->field_10;
+                    mainBike->m_grFenceComponent->m_field_40 = fc->m_field_20;
+                    mainBike->m_grFenceComponent->m_bool2C = fc->m_field_2C;
+                    mainBike->m_grFenceComponent->m_field_144 = fc->m_field_28;
+                }
+            } else {
+                mainBike->m_grFenceComponent->m_bool2C = false;
+                LogTyped(LOG_WARNING, "Incompatible Group Ride Fence API between clients! Client: %d, Leader: %d. Disabling fence on this client.", 1, fc->m_ver);
+            }
+        } else {
+            LogTyped(LOG_WARNING, "[ZwiftNetwork] GLOBAL_MESSAGE_TYPE_GRFENCE_CONFIG received but has invalid header!");
+        }
+    }
+        return;
+    case protobuf::WAT_BN_GE: {
+        struct bn_ge {
+            int16_t m_ver, m_len;
+            char m_data[4];
+            int64_t m_key, m_eventId;
+            int m_val;
+            char m_data2[12];
+        } *pbn = (bn_ge *)wa.payload().c_str();
+        static_assert(sizeof(bn_ge) == 40);
+        if (mainBike && pbn->m_len == sizeof(bn_ge) - 4 && pbn->m_ver == 1) {
+            auto e = mainBike->GetEventID();
+            if (e && e == pbn->m_eventId) {
+                auto sg = GroupEvents::FindSubgroupEvent(e);
+                if (sg)
+                    sg->m_map[pbn->m_key] = pbn->m_val;
+            }
+        }
+    }
+    return;
+    case protobuf::WAT_PPI: {
+        auto ppi = (ZNETWORK_PacePartnerInfo *)wa.payload().c_str();
+        static_assert(sizeof(ZNETWORK_PacePartnerInfo) == 32);
+        if (ppi->m_len == sizeof(ZNETWORK_PacePartnerInfo) - 4 && ppi->m_ver == 1 && (g_GameMode & 0x34 /*TODO*/) == 0) { // ZNETWORK_INTERNAL_HandlePacePartnerInfo
+            auto isBot = mainBike && mainBike->m_profile.player_type() == protobuf::PACER_BOT; // ZNETWORK_INTERNAL_HandlePacePartnerInfo
+            switch (ppi->m_bcs) {
+            case ZNETWORK_PacePartnerInfo::BS_2: case ZNETWORK_PacePartnerInfo::BS_5:
+                if (!isBot)
+                    PacerBotSweatOMeter::Instance()->UpdateDistanceRanges(ppi->m_float, *(int64_t *)ppi, ppi->m_bcs);
+                break;
+            case ZNETWORK_PacePartnerInfo::BS_1: case ZNETWORK_PacePartnerInfo::BS_10:
+                if (isBot)
+                    PacerBotSweatOMeter::Instance()->AdjustPacePartnerRanges(*ppi);
+                break;
+            }
+        }
+    }
+        return;
     default:
         LogTyped(LOG_NETWORK, "Unhandled world message type %d", wa.wa_type());
+    }
+}
+void ZNETWORK_RespondToRouteHashRequest(int64_t) {
+    //TODO
+}
+void RideLeaderActions_add(int64_t a1, int64_t leaderId, int64_t a3, uint64_t world_time_expire) {
+    g_RideLeaderActions.push_back(new RideLeaderActionInfo{a1, leaderId, a3, world_time_expire});
+}
+void ZNETWORK_FlagLocalPlayer(PLAYER_FLAGGED_REASONS pfr, bool changeCheatBits /*= true*/) {
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    if (mainBike && !mainBike->m_boolCheatSmth && !mainBike->m_immuneFromCheating) {
+        ZNETWORK_BroadcastLocalPlayerFlagged(pfr);
+        if (changeCheatBits)
+            mainBike->m_cheatBits |= 2;
     }
 }
 std::future<NetworkResponse<int64_t>> g_CreateActivityRideonFuture;
@@ -7142,8 +7533,8 @@ std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double w_
     protobuf::RaceResultEntrySaveRequest rq;
     rq.set_late_join(lj);
     rq.set_f14(pBike->m_race_f14);
-    rq.set_f15(pBike->m_race_f15);
-    rq.set_f16(pBike->m_race_f16);
+    rq.set_is_cheater(pBike->m_isCheater);
+    rq.set_is_sandbagger(pBike->m_isSandbagger);
     auto data = rq.mutable_data();
     data->set_activity_id(g_ActivityID);
     data->set_sport(pBike->m_bc->m_sport);
@@ -7190,7 +7581,7 @@ std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double w_
     crit->set_bta_20h((int)bta_20h);
     return zwift_network::create_race_result_entry(rq);
 }
-int32_t g_ServerReportedPlayerCount, g_currentEventTotalRiders;
+int32_t g_ServerReportedPlayerCount;
 bool g_ServerReportedRacePlacements;
 void ZNETWORK_INTERNAL_ProcessPlayerPackets() {
     std::shared_ptr<protobuf::ServerToClient> stc;

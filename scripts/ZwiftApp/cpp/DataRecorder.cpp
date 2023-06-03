@@ -338,7 +338,7 @@ float CriticalPowerCurve::GetBestTimeAverage(float period, float resultTimeSec) 
     return 0.0f;
 }
 struct JobDataCPC : JobData {
-    char m_hasPowerRqs;
+    bool m_hasPowerRqs;
     float m_powerRqs[4];
     float m_eventCPCCheatTimeScale;
 } g_cpcJobData;
@@ -362,13 +362,13 @@ void CriticalPowerCurve::Update(float dt) {
                     auto EventID = bk->GetEventID();
                     if (EventID) {
                         auto v9 = GroupEvents::FindSubgroupEvent(EventID);
-                        if (v9 /* TODO  && *(v9 + 408) == 8 && *(sub_7FF778AA4B60(v9) + 296) != 0.0 &&
-                            (*GroupEvents::SubgroupState::GetRules(v9) & 0x2000000000i64) != 0*/) {
-                            g_cpcJobData.m_hasPowerRqs = 1;
+                        if (v9 && v9->m_field_198 == 8 /* TODO  && *(sub_7FF778AA4B60(v9) + 296) != 0.0*/ &&
+                            v9->GetRules()->m_mask & GroupEvents::Rules::GERM_PWR_CHECK) {
+                            g_cpcJobData.m_hasPowerRqs = true;
                             g_cpcJobData.m_eventCPCCheatTimeScale = 1.234f; /*TODO *(sub_7FF778AA4B60(v9) + 296);
                             v13 = 0i64;
                             do {
-                                *(&g_cpcJobData.m_powerRqs + v13) = *(GroupEvents::SubgroupState::GetRules(v9) + v13 + 287);
+                                *(&g_cpcJobData.m_powerRqs + v13) = v9->GetRules()->m_mask + v13 + 287);
                                 v13 += 4i64;
                             } while (v13 < 16);*/
                         }

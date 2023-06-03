@@ -47,5 +47,6 @@ future/lib/total code(kb): 8932/7432/16364, badNames=36989; libs/total: 57%: 359
 future/lib/total code(kb): 8888/7477/16365, badNames=36921; libs/total: 57%: 36025/62129 - NetworkService & RPCs: 100%
 future/lib/total code(kb): 8818/7546/16365, badNames=36895; libs/total: 58%: 36253/62129 - ZNet: 100%
 future/lib/total code(kb): 8810/7555/16365, badNames=36895; libs/total: 58%: 36265/62129 - DataRecorder 95%
+future/lib/total code(kb): 8776/7588/16364, badNames=36770; libs/total: 58%: 36345/62107 - ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute
 
 NEXT: NETWORK_*, CNL unit tests, BLE & ANT, GFX
