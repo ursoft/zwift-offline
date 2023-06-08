@@ -43,9 +43,10 @@
 #include <zlib.h>
 #include <tinyxml2.h>
 #include <curl/curl.h>
-/*extern "C" {
-#include <decNumber.h>
-}*/
+extern "C" {
+//#include <decNumber.h>
+void __libm_sse2_sincosf_(float, float *, float *);
+}
 #include <unicode/utypes.h>
 #include <unicode/ustring.h>
 #include <unicode/ucnv.h>

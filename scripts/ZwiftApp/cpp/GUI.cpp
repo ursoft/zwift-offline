@@ -36,3 +36,11 @@ void GUI_CreateTwoButtonsDialogWithHyperlink(const char *, void (*)(void *), con
 void kickCallback(UI_TwoButtonsDialog::DIALOG_RESULTS dr) {
     //TODO
 }
+void GUI_EditBox::SetText(char const *) { /*TODO*/ }
+void GUI_EditBox::SetText(const std::string &) { /*TODO*/ }
+void GUI_EditBox::SetText(const UChar *) { /*TODO*/ }
+void GUI_EditBox::SetTextBuffer(const UChar *) { /*TODO*/ }
+void GUI_EditBox::SetCaretPosition(int, int) { /*TODO*/ }
+void GUI_TakeFocus(GUI_Obj *) {
+    //todo
+}

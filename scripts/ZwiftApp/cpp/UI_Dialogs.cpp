@@ -64,7 +64,7 @@ const char *g_dialogNames[UI_DIALOGS_CNT] = {"UID_NONE",
 "UID_DELETE_ACCOUNT",
 "UID_BLOCKER",
 "UID_NEXT_UP_TRAINING_PLAN" };
-UI_DropInDialog *UI_DialogPointer(UI_DIALOGS d) {
+GUI_Obj *UI_DialogPointer(UI_DIALOGS d) {
     //TODO dynamic_cast
     return nullptr;
 }
@@ -76,4 +76,21 @@ void UI_CloseDialog(UI_DIALOGS d) {
 }
 void UI_DropInDialog::RefreshGroupList() {
     //TODO
+}
+void UI_QuitDialog::FinalizeDontSaveAndQuit(/*void **/) {
+    //TODO
+}
+void UI_IOS_QuitScreen::OnSavePressed(void *quitDialog) {
+    //TODO
+}
+void Zwift_EndSession(bool bShutdown);
+void OnQuit(UI_QuitDialog::DIALOG_RESULTS a1) {
+    UI_CloseDialog(UID_QUIT);
+    if (a1) {
+        //OMIT crashReport
+    } else {
+        Zwift_EndSession(g_bShutdown);
+        if (!g_bShutdown)
+            ZSF_SwitchState(ZSF_c, nullptr);
+    }
 }

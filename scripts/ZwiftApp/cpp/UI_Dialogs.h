@@ -67,7 +67,7 @@ enum UI_DIALOGS {
     UID_NEXT_UP_TRAINING_PLAN,
     UI_DIALOGS_CNT
 };
-struct UI_DropInDialog {
+struct UI_DropInDialog : public GUI_Obj {
     void RefreshGroupList();
 /*
     void BuildData(void);
@@ -129,8 +129,60 @@ struct UI_DropInDialog {
     void onPairingContainerPressed(void *);
     void ~UI_DropInDialog()*/;
 };
-UI_DropInDialog *UI_DialogPointer(UI_DIALOGS);
+GUI_Obj *UI_DialogPointer(UI_DIALOGS);
 void UI_CreateDialog(UI_DIALOGS, void *, void *);
-inline void *g_pDialogs[UI_DIALOGS_CNT];
+inline GUI_Obj *g_pDialogs[UI_DIALOGS_CNT];
 inline bool UI_IsDialogOfTypeOpen(UI_DIALOGS d) { return g_pDialogs[d] != nullptr; }
 void UI_CloseDialog(UI_DIALOGS d);
+struct UI_QuitDialog : public GUI_Obj {
+    enum DIALOG_RESULTS { DR_OK /*TODO*/ };
+    GUI_EditBox *m_editBox;
+    void (*m_onCancel)(int64_t) = nullptr;
+    inline static bool s_bQuitFromZC;
+    void FinalizeDontSaveAndQuit(/*void **/);
+    /*
+UI_QuitDialog::BuildData(void)
+UI_QuitDialog::CheckBoxInFocus(GUI_Obj *)
+UI_QuitDialog::Checked(GUI_CheckBox *,bool,void *)
+UI_QuitDialog::GetDefaultHeight(void)
+UI_QuitDialog::GetDefaultWidth(void)
+UI_QuitDialog::InitWidget(void)
+UI_QuitDialog::IsReturnToDropInEnabled(bool)
+UI_QuitDialog::OnButtonCancel(void *)
+UI_QuitDialog::OnButtonDontSaveAndQuit(void *)
+UI_QuitDialog::OnButtonLocalSaveAndReturn(void *)
+UI_QuitDialog::OnButtonSaveAndQuit(void *)
+UI_QuitDialog::OnConfirmDontSaveAndQuit(MessageBoxResults)
+UI_QuitDialog::OnKey(int,int)
+UI_QuitDialog::OnMouseDown(float,float)
+UI_QuitDialog::OnMouseMove(float,float)
+UI_QuitDialog::OnMouseUp(float,float)
+UI_QuitDialog::OnPrivacyPressed(void *)
+UI_QuitDialog::Render(void)
+UI_QuitDialog::RenderPrivacyButton(GUI_Button *)
+UI_QuitDialog::RenderServices(GUI_Image *,float,float,float,float,void *)
+UI_QuitDialog::UI_QuitDialog(float,float,void (*)(UI_QuitDialog::DIALOG_RESULTS))
+UI_QuitDialog::Update(float)
+UI_QuitDialog::~UI_QuitDialog()*/
+};
+void OnQuit(UI_QuitDialog::DIALOG_RESULTS);
+struct UI_IOS_QuitScreen : public GUI_Obj {
+    static void OnSavePressed(void *quitDialog);
+    /*UI_IOS_QuitScreen::EditBoxInFocus(GUI_Obj *)
+UI_IOS_QuitScreen::EditDone(char const*,GUI_Obj *)
+UI_IOS_QuitScreen::InitializePartnerConnections(void)
+UI_IOS_QuitScreen::KeyDelete(char const*,GUI_Obj *)
+UI_IOS_QuitScreen::KeyInput(char const*,GUI_Obj *)
+UI_IOS_QuitScreen::OnCancelPressed(void *)
+UI_IOS_QuitScreen::OnConfirmDontSaveAndQuit(MessageBoxResults)
+UI_IOS_QuitScreen::OnDiscardConfirmed(void *)
+UI_IOS_QuitScreen::OnDiscardPressed(void *)
+UI_IOS_QuitScreen::OnLocalSaveAndReturnPressed(void *)
+UI_IOS_QuitScreen::OnPrivacyPressed(void *)
+UI_IOS_QuitScreen::Render(void)
+UI_IOS_QuitScreen::SetPrivacy(UI_IOS_QuitScreen::PRIVACY_SETTING)
+UI_IOS_QuitScreen::SetShouldPlayTutorial(void)
+UI_IOS_QuitScreen::UI_IOS_QuitScreen(void (*)(UI_IOS_QuitScreen::DIALOG_RESULTS))
+UI_IOS_QuitScreen::Update(float)
+UI_IOS_QuitScreen::~UI_IOS_QuitScreen()*/
+};

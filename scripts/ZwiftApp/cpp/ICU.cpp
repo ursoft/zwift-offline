@@ -41,7 +41,32 @@ UChar *ToUTF8(const char *src, UChar *dest, size_t length) {
     }
     return dest;
 }
-char *FromUTF8(UChar *src, char *dest, size_t length) {
+TempUTF16 *TempUTF16::GetWritable() {
+    TempUTF16 *ret = this;
+    if (m_wrCounter)
+        ret = nullptr;
+    ++m_wrCounter;
+    return ret;
+}
+bool g_FromUTF8_NullFail_loggedSafe, g_FromUTF8_BufAlready_loggedSafe;
+char *SafeFromUTF8(const UChar *src, TempUTF16 *dest) {
+    if (!src) {
+        if (!g_FromUTF8_NullFail_loggedSafe) {
+            g_FromUTF8_NullFail_loggedSafe = true;
+            LogTyped(LOG_ERROR, "SAFE-FROM-UTF8--Passing null as the source text");
+        }
+        return nullptr;
+    }
+    dest = dest->GetWritable();
+    if (dest)
+        return FromUTF8(src, (char *)dest, sizeof(dest->m_chars));
+    if (!g_FromUTF8_BufAlready_loggedSafe) {
+        g_FromUTF8_BufAlready_loggedSafe = true;
+        LogTyped(LOG_ERROR, "SAFE-FROM-UTF8--Temp buffer already written");
+    }
+    return nullptr;
+}
+char *FromUTF8(const UChar *src, char *dest, size_t length) {
     if (!src) {
         if (!g_FromUTF8_NullFail_logged) {
             g_FromUTF8_NullFail_logged = 1;

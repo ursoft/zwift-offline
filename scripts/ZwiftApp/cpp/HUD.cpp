@@ -21,3 +21,6 @@ void HUD_PushSPA(const protobuf::SocialPlayerAction &, const VEC3 &, float /*= 5
 void HUD_PushTextMessage(const ZNETWORK_TextMessage &msg) {
     //TODO
 }
+void HUDToggle::ShowHUD(bool, bool) {
+    //TODO
+}

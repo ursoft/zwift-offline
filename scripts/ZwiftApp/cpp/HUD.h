@@ -88,3 +88,20 @@ void HUD_UpdateNotifications(float);
 void HUD_UpdateRouteUI(float, bool);
 void HUD_cbDrawPacerBotDropMeterUI(float, float, float, float, void *);
 void HUD_cbDrawRouteCompletionUI(float, float, float, float, void *);
+struct HUDToggle {
+    static void ShowHUD(bool, bool);
+    /*HUDToggle::HandleMenuButton(void)
+HUDToggle::IsEnabled(void)
+HUDToggle::IsHintShowing(void)
+HUDToggle::IsSuspended(void)
+HUDToggle::RenderHintText(float,char const*)
+HUDToggle::Reset(void)
+HUDToggle::SetSkipIntro(long long)
+HUDToggle::ShouldSkipIntro(long long)
+HUDToggle::ShowHint(bool)
+HUDToggle::ShowIntro(bool)
+HUDToggle::ToggleHUD(void)
+HUDToggle::Update(float)
+HUDToggle::UpdateKeyPress(float,float &)
+HUDToggle::~HUDToggle()*/
+};

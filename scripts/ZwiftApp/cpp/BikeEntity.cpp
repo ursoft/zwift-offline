@@ -1,4 +1,7 @@
 #include "ZwiftApp.h"
+void BikeEntity::AdjustRandomXZ() {
+    //TODO
+}
 BikeEntity::BikeEntity() : m_pah(this) {
     //TODO
     m_bc = new VirtualBikeComputer(); //delme
@@ -6,7 +9,6 @@ BikeEntity::BikeEntity() : m_pah(this) {
 void BikeEntity::SaveProfile(bool, bool) {
     //TODO
 }
-int64_t g_GroupEventsActive_CurrentEventId;
 int64_t BikeEntity::GetEventID() {
     if (m_field_C98) {
         if (g_currentPrivateEvent)
@@ -74,6 +76,12 @@ float BikeEntity::GetRiderWeightKG(bool a2) {
     return ret;
 }
 void BikeEntity::RequestProfileFromServer() {
+    //TODO
+}
+void BikeEntity::ClearPowerups() {
+    //TODO
+}
+void BikeEntity::Respawn(int segment, double a2, bool a3, bool a4) {
     //TODO
 }
 void BikeEntity::GiveRideOn(int64_t fromPlayerId) {

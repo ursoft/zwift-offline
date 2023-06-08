@@ -48,5 +48,6 @@ future/lib/total code(kb): 8888/7477/16365, badNames=36921; libs/total: 57%: 360
 future/lib/total code(kb): 8818/7546/16365, badNames=36895; libs/total: 58%: 36253/62129 - ZNet: 100%
 future/lib/total code(kb): 8810/7555/16365, badNames=36895; libs/total: 58%: 36265/62129 - DataRecorder 95%
 future/lib/total code(kb): 8776/7588/16364, badNames=36770; libs/total: 58%: 36345/62107 - ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute
+future/lib/total code(kb): 8756/7608/16364, badNames=36640; libs/total: 58%: 36395/62107 - ZNETWORK_INTERNAL_ProcessPhoneInput 50%
 
 NEXT: NETWORK_*, CNL unit tests, BLE & ANT, GFX

@@ -570,38 +570,59 @@ namespace uuid {
 NetworkRequestOutcome ZNETWORK_ClearPlayerPowerups();
 enum PLAYER_FLAGGED_REASONS { PFR_FLIER = 1, PFR_HARASSER = 2, PFR_POTTY_MOUTH = 3, PFR_SANDBAGGER = 4, PFR_CNT };
 void ZNETWORK_BroadcastLocalPlayerFlagged(PLAYER_FLAGGED_REASONS);
-enum RIDELEADER_ACTION { RLA_CNT };
-void ZNETWORK_BroadcastRideLeaderAction(RIDELEADER_ACTION, uint32_t, uint64_t);
+enum RideLeaderAction : int { RLA_1 = 1, RLA_2 = 2, RLA_3 = 3, RLA_4 = 4, RLA_5 = 5, RLA_6 = 6 };
+void ZNETWORK_BroadcastRideLeaderAction(RideLeaderAction, uint32_t, int64_t);
 struct ZNETWORK_RouteHashRequest {
     //TODO
+};
+struct ZNETWORK_RouteHashResponse {
+    int16_t m_ver, m_len;
+    char m_kind, field_5, field_6, field_7;
+    int64_t m_otherPlayerId, m_playerIdTx;
+    uint32_t m_routeHash, m_decisionIndex;
 };
 void ZNETWORK_INTERNAL_HandleRouteHashRequest(const ZNETWORK_RouteHashRequest &);
 struct ZNETWORK_LateJoinRequest { //0x28 bytes
     uint16_t m_ver, m_len;
-    bool m_field_4; //or byte, then 3 byte-gap
-    int64_t m_lateJoinPlayerId, m_playerId, field_18, field_20;
+    enum cmd { LJC_1 = 1, LJC_2 = 2 };
+    cmd m_cmd;
+    int64_t m_lateJoinPlayerId, m_playerId;
+    int32_t m_decisionIndex, m_cb_a3;
+    uint32_t m_cb_a4;
 };
 struct ZNETWORK_GRFenceRiderStats { //0x20 bytes
     uint16_t m_ver, m_len;
-    char data[28]; //TODO
+    int field_4;
+    uint64_t m_field_8;
+    int64_t m_playerIdTx;
+    bool m_field_18, m_field_19;
+    int16_t field_1A[2];
+    int16_t field_1E;
 };
 struct ZNETWORK_GRFenceConfig { //48 bytes
     uint16_t m_ver, m_len;
+    int field_4;
     uint64_t m_field_8;
-    char field_10[16];
-    uint32_t m_field_20, field_24;
-    int m_field_28;
+    float m_field_10, m_field_14, m_field_18, m_field_1C, m_field_20;
+    uint32_t m_field_24, m_field_28;
     bool m_field_2C;
-    char field_2D;
-    char field_2E;
-    char field_2F;
+    char field_2D[3];
+};
+struct ZNETWORK_BibNumberForGroupEvent {
+    int16_t m_ver, m_len;
+    char m_data[4];
+    int64_t m_key, m_eventId;
+    uint32_t m_val, m_1C;
+    double m_wt_sec;
 };
 struct ZNETWORK_PacePartnerInfo { //32 bytes
-    uint16_t m_ver, m_len, gap[2];
-    char data[16];
+    int64_t m_playerIdTx, m_playerId;
+    uint16_t m_ver, m_len;
     float m_float;
-    enum BroadcastState : int { BS_1, BS_2, BS_5, BS_10 };
+    enum BroadcastState : int16_t { BS_1 = 1, BS_2 = 2, BS_5 = 5, BS_10 = 10 };
     BroadcastState m_bcs;
+    uint16_t field_1A = 0;
+    int field_1C = 0;
 };
 struct ZNETWORK_LateJoinResponse { //0x28 bytes - maybe, = ZNETWORK_LateJoinRequest
     uint16_t m_ver, m_len;
@@ -615,7 +636,7 @@ void ZNETWORK_INTERNAL_DelayLateJoinResponse(ZNETWORK_LateJoinRequest);
 struct ZNETWORK_TextMessage { //128*9+48=1200 bytes
     VEC3 m_msgPos;
     float m_msgRadius;
-    int64_t m_srcProfileId, m_destProfileId, m_xxx[2];
+    int64_t m_srcProfileId, m_destProfileId, m_worldTime, m_xxx;
     char m_msg[1024]; //not sure, looks like 2-bytes char, but sent to printf as %s
     char field_430[128]; //not sure
 };
@@ -623,14 +644,23 @@ struct WebEventStartMsg { //0x308 bytes
     uint16_t m_ver, m_len;
 };
 struct BroadcastRideLeaderAction { //0x68 bytes
-    enum RideLeaderAction : int { RLA_1 = 1, RLA_2 = 2, RLA_3 = 3, RLA_4 = 4, RLA_5 = 5, RLA_6 = 6 };
     int16_t m_ver, m_len;
-    int64_t m_leaderId, m_a3, m_a1;
+    int64_t m_leaderId, m_worldTime, m_a1;
     RideLeaderAction m_rideLeaderAction;
     char field_24[68];
 };
+struct BroadcastLocalPlayerNotableMoment {
+    int16_t m_ver, m_len;
+    int64_t m_playerIdTx;
+    int64_t m_worldTime;
+    NOTABLEMOMENT_TYPE m_nmt;
+    uint32_t m_field_1C;
+    int gap20;
+    float m_field_24;
+    uint64_t field_28;
+};
 struct RideLeaderActionInfo { //0x20 bytes
-    int64_t m_a1, m_leaderId, m_a3;
+    int64_t m_a1, m_leaderId, m_worldTime;
     uint64_t m_world_time_expire;
 };
 inline std::list<RideLeaderActionInfo *> g_RideLeaderActions;
@@ -652,22 +682,22 @@ void ZNETWORK_RacePlacementsAvailable();
 void ZNETWORK_RacePlacementTotalRiders();
 void ZNETWORK_GetTotalPlayerCount();
 void ZNETWORK_INTERNAL_ProcessPlayerPackets();
-void ZNETWORK_BroadcastGRFenceStats(uint64_t, int64_t, bool, bool, uint32_t);
+void ZNETWORK_BroadcastGRFenceStats(uint64_t, int64_t, bool, bool /*, uint32_t*/);
 void ZNETWORK_BroadcastGRFenceConfig(uint64_t, uint32_t, float, float, float, float, float, uint32_t, uint32_t, bool);
-void ZNETWORK_BroadcastLocalPlayerNotableMoment(NOTABLEMOMENT_TYPE, uint32_t, uint32_t, float, float);
+void ZNETWORK_BroadcastLocalPlayerNotableMoment(NOTABLEMOMENT_TYPE, uint32_t, uint32_t, float);
 void ZNETWORK_BroadcastRegisterForGroupEvent(uint64_t, uint32_t, bool, bool);
-void ZNETWORK_BroadcastBibNumberForGroupEvent(uint64_t, uint32_t, uint32_t);
+void ZNETWORK_BroadcastBibNumberForGroupEvent(int64_t, uint32_t, uint32_t);
 void ZNETWORK_SendPacePartnerInfo(int64_t, uint16_t, float, uint32_t);
-void ZNETWORK_BroadcastAreaText(int64_t, const uint16_t *, VEC3, float);
+void ZNETWORK_BroadcastAreaText(int64_t, const UChar *, const VEC3 &, float);
 void ZNETWORK_GetSubscriptionMode();
 void ZNETWORK_SendRouteHashRequest(int64_t);
 void ZNETWORK_RespondToRouteHashRequest(int64_t);
 void ZNETWORK_INTERNAL_HandleDelayedRouteHashResponse(float);
 void ZNETWORK_ClearLateJoinRequest();
-void ZNETWORK_SendLateJoinRequest(int64_t, void (*)(int64_t, int32_t, int32_t, uint32_t, VEC3));
+void ZNETWORK_SendLateJoinRequest(int64_t);
 void ZNETWORK_RespondToLateJoinRequest(int64_t);
 void ZNETWORK_INTERNAL_HandleDelayedLateJoinResponse(float);
-void ZNETWORK_SendSPA(protobuf::SocialPlayerAction, const VEC3 &, float, uint64_t);
+void ZNETWORK_SendSPA(protobuf::SocialPlayerAction *, const VEC3 &, float, uint64_t);
 void ZNETWORK_SendPlayerFlag(int64_t, int64_t, protobuf::SocialFlagType);
 void ZNETWORK_GetUpcomingWorkouts();
 void ZNETWORK_INTERNAL_ProcessPendingWorkouts();

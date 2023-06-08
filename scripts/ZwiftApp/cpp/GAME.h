@@ -87,8 +87,30 @@ void GAME_JoinPendingEvent();
 void GAME_KillAllTutorials();
 void GAME_LoadFinishLineMesh(int &);
 void GAME_LoadLevel(int);
-void GAME_MaxStoredScreenshots();
-void GAME_NumberStoredScreenshots();
+inline int g_NumberOfAutoStravaScreenshotsTaken, g_NumberOfJerseryScreenshotsRequested, g_screenShotCounter;
+inline enum ScreenshotSource { SCS_NONE = 0, SCS_USER_TRIGGERED = 1, SCS_USER_TRIGGERED_COMPANION_APP = 2, SCS_TIMER_TRIGGERED = 3, SCS_STOCK = 4, SCS_CNT } g_lastScreenshotSource;
+struct QueuedScreenshotUpload { //16 bytes
+    //TODO
+};
+inline std::vector<QueuedScreenshotUpload> g_screenShotsQueued;
+struct GAME_Screenshot { //1400 bytes
+    enum ContentKind { CK_CLEAN = 1, CK_DIRTY = 2 };
+    struct Content { //648 bytes
+        char m_pathName[260]{}, m_imageName[260]{};
+        //TODO: ctr - all other = 0 (not all 648 bytes are filled through ctr, but before ctr memset is also called)
+        int m_field_208 = -1, m_width = 0, m_height = 0;
+        std::string m_field_210;
+    } m_contents[2]; //looks like 1st is clean and 2nd with overlays (?)
+    std::function<void(GAME_Screenshot *gsc)> m_func;
+    const char *m_soundName = nullptr;
+    uint8_t m_useContentKinds = 0;
+    ScreenshotSource m_ss = SCS_NONE;
+    bool m_field_518 = false, m_field_519 = false; //up to 51f=false (usage not found yet)
+    bool m_field_528 = true, m_field_570 = false, m_isJpg = false;
+};
+inline GAME_Screenshot g_screenshotPool[20];
+inline int GAME_MaxStoredScreenshots() { return _countof(g_screenshotPool); }
+inline int GAME_NumberStoredScreenshots() { return g_screenShotCounter; }
 void GAME_OnEventEnd();
 void GAME_OnMemoryWarning();
 //void GAME_OnStartedAGroupEvent(GroupEvents::SubgroupState *);
@@ -97,7 +119,6 @@ void GAME_PlacePlayerAtStartGate(uint32_t, int64_t, uint32_t);
 void GAME_PlayerActivatePowerup();
 //void GAME_PlayerPassedFinish(TimingArchEntity *)
 void GAME_ProcessInputComponents();
-//void GAME_QueueScreenshot(GAME_ScreenshotParams const &)
 void GAME_QuitGroupEvent();
 void GAME_ReEnableAllScreenshots();
 void GAME_RemoveEventLineupPromptDialog();
@@ -112,8 +133,20 @@ void GAME_RestoreSavedStateSnapshot();
 void GAME_SaveStateSnapshot(bool);
 void GAME_SaveStockImage(uint32_t, int, int64_t);
 void GAME_SaveStockImage_Finish();
-//void GAME_ScreenshotParams::Default(ScreenshotSource);
-//void GAME_ScreenshotParams::GAME_ScreenshotParams(GAME_ScreenshotParams const &);
+struct GAME_ScreenshotParams {
+    GAME_ScreenshotParams(ScreenshotSource ss) : m_ss(ss) {}
+    std::function<void (GAME_Screenshot *gsc)> m_func;
+    std::string m_activityName;
+    GAME_Screenshot *m_gameScreenshot = nullptr;
+    const char *m_soundName = "Play_SFX_CAMERASNAP";
+    int64_t m_field_58 = 0, m_field_60 = -1;
+    ScreenshotSource m_ss;
+    uint8_t m_useContentKinds = GAME_Screenshot::CK_CLEAN | GAME_Screenshot::CK_DIRTY;
+    bool m_isJpg = true, m_field_3 = true, m_field_4 = true, m_field_88 = true;
+};
+inline float g_PostFX_GetScreenFlashTime;
+inline GAME_Screenshot *g_screenshotInProgress;
+int GAME_QueueScreenshot(const GAME_ScreenshotParams &);
 void GAME_SetBrakingAvailable(bool);
 //void GAME_SetChangeTrainerEffectSignal(std::weak_ptr<UI_Refactor::ChangeTrainerEffectSignal>);
 void GAME_SetMode(EGameMode);
@@ -145,3 +178,4 @@ void GAME_glue_RunningPRs_to_Leaderboards::HandleEvent(EVENT_ID, std::__va_list)
 void GAME_glue_RunningPRs_to_Leaderboards::OnBrokePR(bool, BestTimeForDistanceEntry *)
 void GAME_glue_RunningPRs_to_Leaderboards::~GAME_glue_RunningPRs_to_Leaderboards()*/
 void INTERNAL_GAME_ChangedGameMode();
+void TriggerLocalPlayerAction(BikeEntity::USER_ACTION);

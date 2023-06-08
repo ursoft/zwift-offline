@@ -1,5 +1,5 @@
 #pragma once
-inline int64_t gGroupEventsActive_CurrentLeader, gGroupEventsActive_CurrentSweeper;
+inline int64_t gGroupEventsActive_CurrentLeader, gGroupEventsActive_CurrentSweeper, g_GroupEventsActive_BroadcastEventId;
 struct PrivateEventV2 { //0x108 bytes
     int64_t m_eventId = 0, m_leaderId = 0;
     static void ReportUserResult(const protobuf::SegmentResult &);
@@ -137,15 +137,16 @@ struct GroupEvents {
     };
     struct EntrantRaw { //0x28 bytes
         uint16_t m_ver, m_len;
-        uint64_t m_field_8;
-        int64_t m_sgEventId;
+        char field_4[4];
+        int64_t m_playerIdTx, m_sgEventId;
         bool  m_isSignUp, m_field_19;
-        double m_field_20;
+        char field_1A[6];
+        double m_wt_sec;
     };
     struct Entrant { //0x20 bytes
-        Entrant(const EntrantRaw &src) : m_field8(src.m_field_8), m_field20(src.m_field_20), m_field19(src.m_field_19), m_sgEventId(src.m_sgEventId) {}
-        uint64_t m_field8 = 0;
-        double m_field20 = 0.0;
+        Entrant(const EntrantRaw &src) : m_playerIdTx(src.m_playerIdTx), m_wt_sec(src.m_wt_sec), m_field19(src.m_field_19), m_sgEventId(src.m_sgEventId) {}
+        uint64_t m_playerIdTx = 0;
+        double m_wt_sec = 0.0;
         bool m_field19 = false, m_field_11 = false;
         int64_t m_sgEventId = 0;
     };

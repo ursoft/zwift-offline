@@ -5,3 +5,6 @@ void FitnessDeviceManager::TrainerSetSimGrade(float v) {
 void FitnessDeviceManager::Initialize() {
     /*TODO*/
 }
+void FitnessDeviceManager::SetInitialRotationZC() {
+    /*TODO*/
+}

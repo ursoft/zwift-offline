@@ -3,6 +3,7 @@ struct Entity {
     enum EType { ET_BLIMP = 4, ET_CNT = 0x33 };
     VEC3 m_pos{};
     virtual const VEC3 &GetPosition() { return m_pos; }
+    void SetPos(const VEC3 &pos) { m_pos = pos; }
 };
 struct BlimpEntity : public Entity {
     double m_roadTime = 0.0;

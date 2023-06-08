@@ -1,80 +1,5 @@
 #pragma once
 using ZSPORT = protobuf::Sport;
-struct Route {
-    //TODO
-};
-struct RouteManager {
-    Route *GetRoute(uint32_t hash) {
-        //TODO
-        return nullptr;
-    }
-/*RouteManager::CurateRouteCheckpoints(void)
-RouteManager::FindRoutesByRoadInfo(int,double,bool,std::vector<Route *> *)
-RouteManager::GetCheckPoints(uint)
-RouteManager::GetDecisions(uint)
-RouteManager::GetInst(void)
-RouteManager::GetName(uint)
-RouteManager::GetRoute(char const*)
-RouteManager::LoadRoute(char const*,int)
-RouteManager::LoadRoutesForWorld(RouteComputer *,int,bool)
-RouteManager::MeasureCpDistanceIntoRouteInMeters(Route *,float *,float *,float *,float *)
-RouteManager::ParseCheckpoints(tinyxml2::XMLElement *,Route const*,std::vector<RouteCheckpoint> *,bool &)
-RouteManager::RouteManager(void)*/
-};
-struct RouteComputer {
-    static inline RouteManager *g_strDefault;
-    uint64_t m_selRoute = 0;
-    int m_field_10 = 0, m_decisionIndex = 0;
-    void SetRoute(Route *, bool, bool, const std::string &) {
-        //TODO
-    }
-    void SetDecisionStateToOffroute() {
-        //TODO
-    }
-    /*RouteComputer::CheckRouteLapProgress(void)
-RouteComputer::DestroyDynamicArches(void)
-RouteComputer::EstimateHCPPosTimeForward(float,float,uint *)
-RouteComputer::FilloutRouteRecordData(RouteFinishData &)
-RouteComputer::FindFutureRoadBasedOnRoute(int &,int,int,double,bool,VirtualBikeComputer::ZSPORT,int &,bool &,double &,IntersectionMarkerEntity **)
-RouteComputer::FindNextDecisionForGivenRoad(int &,int,VirtualBikeComputer::ZSPORT)
-RouteComputer::FixLoopingRouteHRC(void)
-RouteComputer::FlipRoute(void)
-RouteComputer::GetClosestHCheckpoint(VEC3 const&,bool)
-RouteComputer::GetClosestHCheckpointTime(VEC3 const&,bool)
-RouteComputer::GetClosestHCheckpointToHCheckpoint(uint,bool)
-RouteComputer::GetCompletionPct(bool,int)
-RouteComputer::GetCurrentDecision(VirtualBikeComputer::ZSPORT)
-RouteComputer::GetDecisionAt(VirtualBikeComputer::ZSPORT,int)
-RouteComputer::GetEventBranchDecision(int,VirtualBikeComputer::ZSPORT,Route const*)
-RouteComputer::GetLeadInPct(int)
-RouteComputer::GetNextHRCOnRoad(uint)
-RouteComputer::GetPosAtCheckpointTime(float)
-RouteComputer::GetSelectedRoute(void)
-RouteComputer::GetSelectedRouteHash(void)
-RouteComputer::GetTotalDistanceOfCurrentRoute(int const&)
-RouteComputer::HitCheckpointCount(void)
-RouteComputer::InitialiseRouteProgress(void)
-RouteComputer::IsOnLeadin(void)
-RouteComputer::IsRoutePerfectLoop(void)
-RouteComputer::OnCompletedRoute(Route *)
-RouteComputer::OnValidRoute(void)
-RouteComputer::ProjectAlongRoute(VEC3,float,bool,bool *,double *,int *)
-RouteComputer::Reset(void)
-RouteComputer::ResetCheckpoints(void)
-RouteComputer::ResetRoutePlayerTrackers(void)
-RouteComputer::RetrieveNextDecision(Route const*,int &,int &,bool &)
-RouteComputer::RouteComputer(BikeEntity *,int)
-RouteComputer::SetRouteProgressTimeout(float)
-RouteComputer::SetValidRouteProgress(bool)
-RouteComputer::ShowRouteProgress(void)
-RouteComputer::ShowingRouteCompleted(void)
-RouteComputer::SpawnDynamicArch(int,double,ArchAsset const&)
-RouteComputer::Update(float)
-RouteComputer::UpdateCheckpointState(void)
-RouteComputer::UpdateDecisionState(VirtualBikeComputer::ZSPORT)
-RouteComputer::UpdateRouteProgressTimeout(float)
-RouteComputer::~RouteComputer()*/
-};
 struct VirtualBikeComputer {
     float GetDistance(UnitType ut, bool) { /*TODO*/ return 0.0; }
     void SetTireSize(uint32_t tireCirc) { m_tireCirc = tireCirc; }
@@ -84,7 +9,7 @@ struct VirtualBikeComputer {
     float m_distance = 0.0f, m_power = 0.0f, m_field_19C = 0.0f, m_field_188 = 0.0f, m_field_18C = 0.0f, m_field_198 = 0.0f, m_field_1E0 = 0.0f, m_sensor_f2 = 0.0f, m_total_smth = 0.0f, 
         m_heart_f2 = 0.0f;
     protobuf::Sport m_sport = protobuf::CYCLING;
-    bool m_bool = false, m_bool1 = false;
+    bool m_bool = false, m_bool1 = false, m_workoutPaused = false;
 };
 struct SaveGame;
 struct ConfettiComponent {
@@ -100,6 +25,46 @@ Update(BikeEntity &, zwift::context::UpdateContext &, float)
 UpdateWhileSleeping(BikeEntity &, float, zwift::context::UpdateContext &, float)
 UpdateWhileSleeping(BikeEntity &, float, zwift::context::UpdateContext &, float)
 ~ConfettiComponent()*/
+struct Heading {
+    float m_cos;
+    int32_t m_heading2;
+    float m_sin, m_angleRad;
+    Heading() {
+        m_cos = 1.0f;
+        m_heading2 = 0;
+        m_sin = -0.0f; //QUEST: what for
+        m_angleRad = 0.0f;
+    }
+    void SetDir(float a2, float a3) {
+        auto v4 = atan2f(a3, a2);
+        SetRadians(-v4);
+    }
+    void SetDir(const VEC3 &a2) { SetDir(a2.m_data[2], a2.m_data[0]); }
+    float GetRadians() { return m_angleRad; }
+    static float doNorm(float rad) {
+        if (rad < -3.1416f)
+            return rad + 6.2832f;
+        else if (rad >= 3.1416f)
+            return rad - 6.2832f;
+        return rad;
+    }
+    static float NormalizeRadians(float rad) { return doNorm(fmodf(rad, 6.2832f)); }
+    void SetRadians(float rad) {
+        m_angleRad = NormalizeRadians(rad);
+        float sinx;
+        __libm_sse2_sincosf_(m_angleRad, &sinx, &m_cos);
+        m_heading2 = 0;
+        m_sin = -sinx;
+    }
+    static float InterpolateRadians(float a2, float a3, float a4) {
+        float v7 = NormalizeRadians(a2);
+        float v9 = NormalizeRadians(a3);
+        float d = doNorm(v9 - v7);
+        float result = a4 * d + v7;
+        return NormalizeRadians(result);
+    }
+    /* Heading::GetDir(void) - not implemented in Android */
+};
 struct GroupRideFence {
     struct Component {
         //TODO
@@ -130,6 +95,9 @@ struct GroupRideFence {
         bool IsFenceGenerator() {
             //TODO
             return false;
+        }
+        void ToggleFenceLeaderUI() {
+            //TODO
         }
     };
     //TODO
@@ -170,7 +138,6 @@ GroupRideFence::Component::ReportUserKickedByFence(void)
 GroupRideFence::Component::ShouldDrawFenceOnMinimap(void)
 GroupRideFence::Component::ShouldShowFenceActionButton(void)
 GroupRideFence::Component::ShouldShowGeneratorUI(void)
-GroupRideFence::Component::ToggleFenceLeaderUI(void)
 GroupRideFence::Component::Update(ulong long,float)
 GroupRideFence::Component::UpdateCulling(void)
 GroupRideFence::Component::UpdateEventParams(void)
@@ -202,21 +169,27 @@ struct BikeEntity : public Entity { //0x1948 bytes
     BikeEntity();
     int64_t m_playerIdTx = 0, m_curEventId = 0, m_cheatBits = 0;
     VirtualBikeComputer *m_bc = nullptr;
+    RoadSegment *m_road = nullptr;
     protobuf::PlayerProfile m_profile;
     SaveGame *m_pSaveGame = nullptr;
     RouteComputer *m_routeComp = nullptr;
     PrivateAttributesHelper m_pah;
     std::list<RideOnAnim> m_rxRideonsList;
     GroupRideFence::Component *m_grFenceComponent = nullptr;
-    int m_rxRideons = 0;
-    float m_field_AA8 = 0.0;
+    EbikeBoost *m_eboost = nullptr;
+    double m_field_888 = 0.0;
+    Heading m_heading;
+    VEC3 m_teleportPos{};
+    int m_rxRideons = 0, m_field_1814 = -1 /*not sure*/, m_field_B8 = 0, m_field_8F0 = 0, m_field_940 = 0;
+    float m_field_AA8 = 0.0f, m_field_8EC = 0.0f;
     int32_t m_field_AAC = 0, m_field_3D4 = 0 /*enum*/, m_field_3CC = 0 /*enum*/, m_field_13C = 0;
     uint32_t m_race_f14 = 0, m_fwGdeSignature = 0, m_rwGdeSignature = 0, m_yellowJersey = 0;
     protobuf::POWERUP_TYPE m_pendPU = protobuf::POWERUP_NONE;
-    int32_t m_skillWKG = -1, m_x = 0, m_y_alt = 0, m_z = 0, m_eventPos = 0, m_field_11DC = 0, m_msToLeader = 0;
+    int32_t m_skillWKG = -1, m_eventPos = 0, m_field_11DC = 0, m_msToLeader = 0;
     float m_field_59C = 0.0f, m_field_5A0 = 1.0f;
     bool m_writable = false, m_field_C98 = false, m_isCheater = false, m_isSandbagger = false, m_sensor_f11 = false, m_field_806 = false,
-        m_immuneFromCheating = false, m_boolCheatSmth = false, m_joinedWorld = false, m_field_488 = false, m_field_3D8 = false, m_field_3D9 = false;
+        m_immuneFromCheating = false, m_boolCheatSmth = false, m_joinedWorld = false, m_field_488 = false, m_field_3D8 = false, m_field_3D9 = false,
+        m_field_8B8 = false;
     void SaveProfile(bool, bool);
     bool IsPacerBot() { return m_profile.player_type() == protobuf::PlayerType::PACER_BOT; }
     int64_t GetEventID();
@@ -230,8 +203,11 @@ struct BikeEntity : public Entity { //0x1948 bytes
     float GetRiderWeightKG(bool a2);
     void RequestProfileFromServer();
     void GiveRideOn(int64_t fromPlayerId);
-    enum USER_ACTION { UA_0, UA_1, UA_2, UA_RIDEON, UA_HAMMERTIME, UA_NICE, UA_BRINGIT, UA_TOAST, UA_BELL, AU_9 };
+    enum USER_ACTION { UA_ELBOW, UA_WAVE, UA_2, UA_RIDEON, UA_HAMMERTIME, UA_NICE, UA_BRINGIT, UA_TOAST, UA_BELL, UA_9 };
     void PerformAction(protobuf::UserBikeAction);
+    void ClearPowerups();
+    void Respawn(int segment, double a2, bool a3, bool a4);
+    void AdjustRandomXZ(/*float*/);
     /* TODO:
 void ~BikeEntity();
 void WakeupAnim(void);
@@ -318,7 +294,6 @@ void SearchForNearbyRoad(int);
 void SaveProfile(bool,bool);
 void RoadOverbound(void);
 void RidingPosition(void);
-void Respawn(int,double,bool,bool);
 void ResetSplineDistance(float);
 void ResetRoadDirVec(void);
 void ResetProximity(void);
@@ -440,7 +415,6 @@ void CreateNewPacket(zwiftUpdateContext &,float);
 void CreateNamePlate(bool);
 void CreateLights(void);
 void CreateBikeMatrix(void);
-void ClearPowerups(void);
 void CleanupProximity(void);
 void CheckOnboardProgress(BikeEntity::ONBOARD_CARD);
 void CheckHolidayProgress(void);
@@ -454,9 +428,10 @@ void BikeAnimCallback(AnimTuning_Event *,void *);
 void AutoSelectRoad(IntersectionMarkerEntity *,float);
 void ApplyHeadingClamps(float,float &,float &);
 void AdjustSideways(float);
-void AdjustRandomXZ(float);
 void AdjustJoinPosition(float,float);
 void AdjustForward(float);
 void ActivatePowerUp(void);
 void AccumulateProximity(BikeEntity const&)    */;
 };
+
+inline int64_t g_GroupEventsActive_CurrentEventId;

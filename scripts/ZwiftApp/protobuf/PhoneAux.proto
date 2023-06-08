@@ -283,14 +283,14 @@ message BLEAdvertisement {
 message PhoneToGameCommand {
     required uint32 seqno = 1;
     optional PhoneToGameCommandType command = 2;
-    optional int64 f3 = 3;
-    optional string f4 = 4;
-    optional int64 f5 = 5;
+    optional int64 rel_id = 3; //playerId for JOIN_ANOTHER_PLAYER, but 32-bit only
+    optional string activity_title = 4;
+    optional int64 request_profile_id = 5;
     optional string f6 = 6;
     optional int64 f7 = 7;
     optional int32 f8 = 8;
     optional uint32 f9 = 9;
-    optional uint32 command_copy = 10;
+    optional uint32 custom_button = 10;
     optional SocialPlayerAction f11 = 11;
     // no 12
     optional MobileAlertResponse f13 = 13;

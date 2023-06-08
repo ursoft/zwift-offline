@@ -7,6 +7,8 @@ void ZML_SendSegmentLeaderboardResult(protobuf::LeaderboardType ty, const protob
 bool HasPairedToZML();
 void ZML_SendRemoveSegmentLeaderboardResultLive(const protobuf::SegmentResult &);
 void ZML_RequestEffectPlay(protobuf::EffectRequest_Effect ef, bool, bool);
+void ZML_HandleCustomButton(uint32_t);
+void ZML_ReceivedWorkoutAction(protobuf::WorkoutActionRequest_Type);
 /*INTERNAL_ZML_GamePacketSportFromGameSport(VirtualBikeComputer::ZSPORT)
 ZML_ActBusy(void)
 ZML_DetonateRideOnBomb(void)
@@ -16,13 +18,11 @@ ZML_EndAuxPairing(void)
 ZML_ForceResendingWorkoutInfo(void)
 ZML_GetButtonSceheme(void)
 ZML_GetGameMajorMinorVersion(void)
-ZML_HandleCustomButton(uint)
 ZML_IsConnected(void)
 ZML_Meetup_NotifyInvitationReceived(void)
 ZML_Meetup_NotifyJoined(ulong long)
 ZML_PromptExitGame(void)
 ZML_ReceivedClientAction(zwift::protobuf::ClientAction)
-ZML_ReceivedWorkoutAction(zwift::protobuf::WorkoutActionRequest_Type)
 ZML_ResetAuxPairing(void)
 ZML_ResetContextSync(void)
 ZML_ResetSteeringCallBack(UI_TwoButtonsDialog::DIALOG_RESULTS)

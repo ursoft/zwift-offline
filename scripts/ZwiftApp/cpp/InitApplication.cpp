@@ -62,18 +62,12 @@ void KeyCallback(GLFWwindow *, int key, int scanCode, int action, int mods) {
             CONSOLE_KeyFilter(key, mods);
 }
 bool g_ResetLastSaveTime, g_onceEndSession = true;
-int g_NumberOfAutoStravaScreenshotsTaken, g_NumberOfJerseryScreenshotsRequested, g_screenShotCounter;
-enum PHOTO_UPLOAD { PU_NONE = 0, PU_USER_TRIGGERED = 1, PU_USER_TRIGGERED_COMPANION_APP = 2, PU_TIMER_TRIGGERED = 3, PU_STOCK = 4, PU_CNT } g_photoUploadKind;
-struct ScreenShot {
-    //TODO
-};
-std::vector<ScreenShot> g_screenShots;
 void Zwift_EndSession(bool bShutdown) {
     g_ResetLastSaveTime = true;
     GAME_ResetScreenshotsForActivity();
-    g_screenShots.clear();
+    g_screenShotsQueued.clear();
     g_screenShotCounter = 0;
-    g_photoUploadKind = PU_NONE;
+    g_lastScreenshotSource = SCS_NONE;
     g_NumberOfAutoStravaScreenshotsTaken = 0;
     g_NumberOfJerseryScreenshotsRequested = 0;
     auto mainBike = BikeManager::Instance()->m_mainBike;
@@ -91,16 +85,6 @@ void Zwift_EndSession(bool bShutdown) {
     if (g_onceEndSession) {
         g_onceEndSession = false;
         glfwSetWindowShouldClose(g_mainWindow, 1);
-    }
-}
-void OnQuit(int a1) {
-    UI_CloseDialog(UID_QUIT);
-    if (a1) {
-        //OMIT crashReport
-    } else {
-        Zwift_EndSession(g_bShutdown);
-        if (!g_bShutdown)
-            ZSF_SwitchState(ZSF_c, nullptr);
     }
 }
 void WindowCloseCallback(GLFWwindow *) {
