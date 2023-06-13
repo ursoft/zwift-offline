@@ -2,6 +2,9 @@
 struct Entity {
     enum EType { ET_BLIMP = 4, ET_CNT = 0x33 };
     VEC3 m_pos{};
+    int64_t m_playerIdTx = 0;
+    int m_field_B8 = 0;
+    bool m_field_C98 = false;
     virtual const VEC3 &GetPosition() { return m_pos; }
     void SetPos(const VEC3 &pos) { m_pos = pos; }
 };

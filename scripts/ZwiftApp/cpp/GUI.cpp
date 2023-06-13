@@ -42,5 +42,11 @@ void GUI_EditBox::SetText(const UChar *) { /*TODO*/ }
 void GUI_EditBox::SetTextBuffer(const UChar *) { /*TODO*/ }
 void GUI_EditBox::SetCaretPosition(int, int) { /*TODO*/ }
 void GUI_TakeFocus(GUI_Obj *) {
-    //todo
+    //TODO
+}
+void UI_FriendsList::FanView(BikeEntity *be, bool) {
+    //TODO
+}
+void UI_GroupEventChat::AddChatMessage(const UChar *, const UChar *, int64_t, bool) {
+    //TODO
 }

@@ -41,3 +41,7 @@ void Leaderboards::FlagSandbagger(int64_t id, double, float) {
 void Leaderboards::FlagCheater(int64_t id, double, float) {
     //TODO
 }
+void Leaderboards::SetPlayerSegmentResult(protobuf::SegmentResult *sr, int64_t playerIdTx, int64_t segmentId, double wtSec, float durSec, float avgPower, bool isMale, protobuf::PowerType pty,
+    uint32_t grams, const char *, const char *, uint64_t eventId, float avgHr, int64_t actId) {
+    //TODO
+}

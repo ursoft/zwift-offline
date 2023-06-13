@@ -62,6 +62,41 @@ GUI_Obj::SetupScissoringRespectingParent(void)
 GUI_Obj::Update(float)
 GUI_Obj::~GUI_Obj()
 */ };
+struct UI_GroupEventChat {
+    bool m_field_72 = false;
+    static inline UI_GroupEventChat *g_GroupChat;
+    void AddChatMessage(const UChar *, const UChar *, int64_t, bool);
+    /*::
+    UI_GroupEventChat::AddCustomMessage(ushort const *, uint, ushort const *, uint, uint, uint, CFont2D::FontAlignment, int)
+    UI_GroupEventChat::AddNotification(ushort const *, bool)
+    UI_GroupEventChat::BuildData(void)
+    UI_GroupEventChat::ClearHistory(void)
+    UI_GroupEventChat::ClearMessages(void)
+    UI_GroupEventChat::DnButtonClicked(void)
+    UI_GroupEventChat::EditBoxInFocus(GUI_Obj *)
+    UI_GroupEventChat::EditDone(char const *, GUI_Obj *)
+    UI_GroupEventChat::KeyDelete(char const *, GUI_Obj *)
+    UI_GroupEventChat::KeyInput(char const *, GUI_Obj *)
+    UI_GroupEventChat::OnKey(int, int)
+    UI_GroupEventChat::OnMouseDown(float, float)
+    UI_GroupEventChat::OnMouseMove(float, float)
+    UI_GroupEventChat::OnMouseUp(float, float)
+    UI_GroupEventChat::OnMouseWheel(int, float, float)
+    UI_GroupEventChat::OnRulesViewButton(void *)
+    UI_GroupEventChat::OnUserJoin(BikeEntity *)
+    UI_GroupEventChat::PageDown(void)
+    UI_GroupEventChat::PageUp(void)
+    UI_GroupEventChat::Render(void)
+    UI_GroupEventChat::RenderHeader(int, char const *, char const *, int, float, float, int, int, int, char const *, zwift::protobuf::EventPaceType, UI_GroupEventChat::EventLengthType, uint)
+    UI_GroupEventChat::RenderNotificationBar(void)
+    UI_GroupEventChat::ScrollTo(float, bool)
+    UI_GroupEventChat::SendChat(ushort const *)
+    UI_GroupEventChat::UI_GroupEventChat(void)
+    UI_GroupEventChat::UpbuttonClicked(void)
+    UI_GroupEventChat::Update(float)
+    UI_GroupEventChat::UpdateNotificationBar(float)
+    UI_GroupEventChat::~UI_GroupEventChat() */ 
+};
 struct GUI_EditBox {
     void SetText(char const *);
     void SetText(const std::string &);
@@ -868,6 +903,35 @@ GUI_ZwiftShop::sPurchaseButtonRenderer(GUI_Button *)
 GUI_ZwiftShop::~GUI_ZwiftShop()
 */
 struct UI_FriendsList { //1280 bytes
-    bool m_changeCamera = false;
+    bool m_changeCamera = false, m_fanView = false;
+    void FanView(BikeEntity *be, bool);
+    /*UI_FriendsList::AddToFriendlist(BikeEntity *,BikeEntity *,std::vector<friendsListBike> &,float)
+UI_FriendsList::AutoFanView(bool)
+UI_FriendsList::GetDisplayName(RiderName *,friendsListBike const*,bool)
+UI_FriendsList::GetFocusBikeRideonButton(void)
+UI_FriendsList::Hover(GUI_Obj *,uint,void *)
+UI_FriendsList::IsActive(void)
+UI_FriendsList::IsInFanView(void)
+UI_FriendsList::ListBoxEscaped(GUI_Obj *)
+UI_FriendsList::ListBoxInFocus(GUI_Obj *)
+UI_FriendsList::ListBoxOutFocus(GUI_Obj *)
+UI_FriendsList::ObserveRandomPerson(bool,int)
+UI_FriendsList::OnKey(int,int)
+UI_FriendsList::OnMouseDown(float,float)
+UI_FriendsList::OnSwipe(int,VEC2,VEC2,float,float)
+UI_FriendsList::RemovePassingRiders(void)
+UI_FriendsList::Render(void)
+UI_FriendsList::ResetBotFollowTime(void)
+UI_FriendsList::Selected(GUI_Obj *,uint,void *)
+UI_FriendsList::SendFollowData(std::optional<ulong>)
+UI_FriendsList::SendFriendlistToPhone(void)
+UI_FriendsList::SetDisabled(bool)
+UI_FriendsList::SetNearestPacerBot(void)
+UI_FriendsList::UI_FriendsList(void)
+UI_FriendsList::Update(float)
+UI_FriendsList::UpdateBotFollowTime(friendsListBike const&)
+UI_FriendsList::UpdateNearbyPacerBotList(friendsListBike const&)
+UI_FriendsList::rideonButtonPressed(void *,void *,float,float)
+UI_FriendsList::~UI_FriendsList()*/
 };
 inline UI_FriendsList *g_friendsListGUIObj;

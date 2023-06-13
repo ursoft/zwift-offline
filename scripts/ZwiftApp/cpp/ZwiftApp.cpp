@@ -49,9 +49,10 @@ void doFrameWorldID(zwiftUpdateContext *ptr);
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd) {
     non_zwift::ConsoleHandler nz_ch(1024);
     bool testsResult = true;
-    if (auto ut = getenv("ZWIFT_UT"); ut && *ut == '1')
+    bool testsOnly = strstr(lpCmdLine, "--gtest_also_run_disabled_tests") != nullptr;
+    if (auto ut = getenv("ZWIFT_UT"); testsOnly || (ut && *ut == '1'))
         testsResult = nz_ch.LaunchUnitTests(__argc, __argv);
-    if (auto zg = getenv("ZWIFT_GAME"); zg != nullptr && *zg == '0')
+    if (auto zg = getenv("ZWIFT_GAME"); testsOnly || (zg != nullptr && *zg == '0'))
         return testsResult ? 0 : 1;
     CheckEnvironment();
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);

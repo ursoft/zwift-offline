@@ -436,6 +436,7 @@ struct RouteComputer {
     void SetDecisionStateToOffroute() {
         //TODO
     }
+    static void FlipRoute(BikeEntity *be);
     /*RouteComputer::CheckRouteLapProgress(void)
 RouteComputer::DestroyDynamicArches(void)
 RouteComputer::EstimateHCPPosTimeForward(float,float,uint *)
@@ -443,7 +444,6 @@ RouteComputer::FilloutRouteRecordData(RouteFinishData &)
 RouteComputer::FindFutureRoadBasedOnRoute(int &,int,int,double,bool,VirtualBikeComputer::ZSPORT,int &,bool &,double &,IntersectionMarkerEntity **)
 RouteComputer::FindNextDecisionForGivenRoad(int &,int,VirtualBikeComputer::ZSPORT)
 RouteComputer::FixLoopingRouteHRC(void)
-RouteComputer::FlipRoute(void)
 RouteComputer::GetClosestHCheckpoint(VEC3 const&,bool)
 RouteComputer::GetClosestHCheckpointTime(VEC3 const&,bool)
 RouteComputer::GetClosestHCheckpointToHCheckpoint(uint,bool)

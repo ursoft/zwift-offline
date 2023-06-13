@@ -3704,4 +3704,6 @@ TEST(SmokeTest, DISABLED_ShaderCacheGrow) {
     g_gfxShaderModel = 4;
     g_BlurShaderHandle = GFX_CreateShaderFromFile("Blur", -1);
     EXPECT_TRUE(g_BlurShaderHandle != -1);
+    glfwTerminate();
+    g_mainWindow = nullptr;
 }

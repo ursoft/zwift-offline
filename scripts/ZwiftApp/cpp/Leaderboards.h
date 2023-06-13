@@ -25,11 +25,14 @@ struct BadGuyInfo {
 struct Leaderboards { //0x68 bytes
     std::list<SegmentResultsWrapper> m_srwList;
     std::list<BadGuyInfo> m_sandbaggers, m_cheaters;
+    std::vector<ZNet::RequestId> m_segSaveReqs;
     static void FetchJerseyLeadersForAllSegments();
     void SaveUserSegmentPR(int64_t playerId, int64_t segmentId, double wtSec, float elapsedSec, float avg_power, bool isMale, protobuf::PowerType powTy, uint32_t weightGrams, const std::string &firstName, const std::string &lastName, uint64_t eventId);
     void UserLeftWorld(int64_t playerId);
     void FlagSandbagger(int64_t id, double, float);
     void FlagCheater(int64_t id, double, float);
+    static void SetPlayerSegmentResult(protobuf::SegmentResult *sr, int64_t playerIdTx, int64_t segmentId, double wtSec, float durSec, float avgPower, bool isMale, protobuf::PowerType pty,
+        uint32_t grams, const char *, const char *, uint64_t eventId, float avgHr, int64_t actId);
 } inline g_Leaderboards;
 /*
 Leaderboards::FetchPlayerSegmentData(long,long long)
@@ -45,7 +48,6 @@ Leaderboards::Leaderboards(void)
 Leaderboards::QueueSegmentLeaderChange(long long,zwift::protobuf::SegmentResult,zwift::protobuf::SegmentResult)
 Leaderboards::RegisterLocalPlayersSegmentResult(long long,double,float,float,bool,float,ulong long)
 Leaderboards::ReportPlayerSegmentResult(long long,double,float,float,bool,bool,ulong long)
-Leaderboards::SetPlayerSegmentResult(zwift::protobuf::SegmentResult &,long long,long long,double,float,float,bool,zwift::protobuf::PowerType,uint,char const*,char const*,ulong long,float,long long)
 Leaderboards::Update(long long)
 Leaderboards::UpdateJerseys(Entity *)
 Leaderboards::~Leaderboards()

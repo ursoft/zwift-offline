@@ -1,5 +1,5 @@
 #pragma once
-inline int64_t gGroupEventsActive_CurrentLeader, gGroupEventsActive_CurrentSweeper, g_GroupEventsActive_BroadcastEventId;
+inline int64_t g_GroupEventsActive_CurrentLeader, g_GroupEventsActive_CurrentSweeper, g_GroupEventsActive_BroadcastEventId;
 struct PrivateEventV2 { //0x108 bytes
     int64_t m_eventId = 0, m_leaderId = 0;
     static void ReportUserResult(const protobuf::SegmentResult &);
@@ -159,7 +159,7 @@ struct GroupEvents {
     static void ReportUserResult(const protobuf::SegmentResult &);
     static void Subgroup_AddEntrantToRegistrants(SubgroupState *, int64_t, double, bool);
     static void Subgroup_AddEntrantToSignups(SubgroupState *, int64_t, double, bool);
-
+    static int64_t GetCurrentBroadcastId_ex();
         /*GroupEvents::AddAdditionalAnalyticsOnEventFinish(std::vector<std::string> *)
 GroupEvents::ApplyPhysicsRules(GroupEvents::Rules)
 GroupEvents::CheckSubgroupFutures(void)
@@ -175,7 +175,6 @@ GroupEvents::FindSubgroupEvent(void)
 GroupEvents::FindSubgroupEventServerRealmId(long)
 GroupEvents::GetBikeOverride(GroupEvents::SubgroupState *)
 GroupEvents::GetBikeWheelsOverride(GroupEvents::SubgroupState *)
-GroupEvents::GetCurrentBroadcastId(void)
 GroupEvents::GetCurrentEventId(void)
 GroupEvents::GetCurrentLeader(void)
 GroupEvents::GetCurrentSweeper(void)

@@ -37,6 +37,16 @@ void GroupEvents::Subgroup_AddEntrantToRegistrants(SubgroupState *, int64_t, dou
 void GroupEvents::Subgroup_AddEntrantToSignups(SubgroupState *, int64_t, double, bool) {
     //TODO
 }
+int64_t GroupEvents::GetCurrentBroadcastId_ex() {
+    auto ret  = g_GroupEventsActive_BroadcastEventId;
+    if (!ret) {
+        if (g_currentPrivateEvent)
+            ret = g_currentPrivateEvent->m_eventId;
+        else
+            ret = 0;
+    }
+    return ret;
+}
 void PrivateEventsManagerV2::GetPrivateEvents() {
     //TODO
 }

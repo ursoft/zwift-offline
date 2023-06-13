@@ -19,12 +19,12 @@ Camera::Update(float,float)
 Camera::UpdateFreeRideCamera(float)
 Camera::UpdateLocalCameraOffsets(float)*/
     virtual ~Camera() {}
-    Camera(BikeEntity *bike, CAMTYPE ty) : m_type(ty) {
-        if (bike) {
-            if (bike->m_field_B8 == 1) {
+    Camera(Entity *e, CAMTYPE ty) : m_type(ty) {
+        if (e) {
+            if (e->m_field_B8 == 1) {
                 m_playerId = 0;
-                if (!bike->m_field_C98)
-                    m_playerId = bike->m_playerIdTx;
+                if (!e->m_field_C98)
+                    m_playerId = e->m_playerIdTx;
             } else {
                 zassert(0);
             }

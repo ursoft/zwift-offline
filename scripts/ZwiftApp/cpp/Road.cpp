@@ -15,3 +15,6 @@ VEC3 RoadSegment::CalculateRoadPositionAtTime(double, bool) {
     //TODO
     return VEC3();
 }
+void RouteComputer::FlipRoute(BikeEntity *be) {
+    //TODO
+}

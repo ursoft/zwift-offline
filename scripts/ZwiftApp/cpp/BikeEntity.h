@@ -159,6 +159,10 @@ GroupRideFence::Status::ShouldEnforceFence(void)
 GroupRideFence::operator!=(GroupRideFence::RoadPoint const&,GroupRideFence::RoadPoint const&)
 GroupRideFence::operator==(GroupRideFence::RoadPoint const&,GroupRideFence::RoadPoint const&)*/
 };
+struct IncomingPlayerStateComponent {
+    protobuf::PlayerState m_pbState;
+    protobuf::PowerType m_pty = protobuf::PT_VIRTUAL;
+};
 struct BikeEntity : public Entity { //0x1948 bytes
     struct RideOnAnim { //0x30 bytes
         float m_f0 = 0.0f, m_f1 = 0.0f, m_f2 = 500.0f, m_f3 = 0.0f;
@@ -167,8 +171,9 @@ struct BikeEntity : public Entity { //0x1948 bytes
         bool m_field_28 = false, m_field_29 = false;
     };
     BikeEntity();
-    int64_t m_playerIdTx = 0, m_curEventId = 0, m_cheatBits = 0;
+    int64_t m_curEventId = 0, m_cheatBits = 0;
     VirtualBikeComputer *m_bc = nullptr;
+    IncomingPlayerStateComponent *m_ipsc = nullptr;
     RoadSegment *m_road = nullptr;
     protobuf::PlayerProfile m_profile;
     SaveGame *m_pSaveGame = nullptr;
@@ -180,16 +185,17 @@ struct BikeEntity : public Entity { //0x1948 bytes
     double m_field_888 = 0.0;
     Heading m_heading;
     VEC3 m_teleportPos{};
-    int m_rxRideons = 0, m_field_1814 = -1 /*not sure*/, m_field_B8 = 0, m_field_8F0 = 0, m_field_940 = 0;
+    UChar m_uname[824/2]; //TODO: really not too big
+    int m_rxRideons = 0, m_field_1814 = -1 /*not sure*/, m_field_8F0 = 0, m_field_940 = 0;
     float m_field_AA8 = 0.0f, m_field_8EC = 0.0f;
     int32_t m_field_AAC = 0, m_field_3D4 = 0 /*enum*/, m_field_3CC = 0 /*enum*/, m_field_13C = 0;
     uint32_t m_race_f14 = 0, m_fwGdeSignature = 0, m_rwGdeSignature = 0, m_yellowJersey = 0;
     protobuf::POWERUP_TYPE m_pendPU = protobuf::POWERUP_NONE;
     int32_t m_skillWKG = -1, m_eventPos = 0, m_field_11DC = 0, m_msToLeader = 0;
     float m_field_59C = 0.0f, m_field_5A0 = 1.0f;
-    bool m_writable = false, m_field_C98 = false, m_isCheater = false, m_isSandbagger = false, m_sensor_f11 = false, m_field_806 = false,
+    bool m_writable = false, m_isCheater = false, m_isSandbagger = false, m_sensor_f11 = false, m_field_806 = false,
         m_immuneFromCheating = false, m_boolCheatSmth = false, m_joinedWorld = false, m_field_488 = false, m_field_3D8 = false, m_field_3D9 = false,
-        m_field_8B8 = false;
+        m_field_8B8 = false, m_field_CC1 = false;
     void SaveProfile(bool, bool);
     bool IsPacerBot() { return m_profile.player_type() == protobuf::PlayerType::PACER_BOT; }
     int64_t GetEventID();
@@ -208,6 +214,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
     void ClearPowerups();
     void Respawn(int segment, double a2, bool a3, bool a4);
     void AdjustRandomXZ(/*float*/);
+    void ActivatePowerUp();
     /* TODO:
 void ~BikeEntity();
 void WakeupAnim(void);
@@ -430,7 +437,6 @@ void ApplyHeadingClamps(float,float &,float &);
 void AdjustSideways(float);
 void AdjustJoinPosition(float,float);
 void AdjustForward(float);
-void ActivatePowerUp(void);
 void AccumulateProximity(BikeEntity const&)    */;
 };
 

@@ -179,3 +179,9 @@ void ZML_HandleCustomButton(uint32_t but) {
         }
     }
 }
+void ZML_ReceivedClientAction(const protobuf::ClientAction &) {
+    //TODO
+}
+void ZML_DetonateRideOnBomb() {
+    //TODO
+}

@@ -132,7 +132,7 @@ Camera *CameraManager::GetSelectedCamera() {
     //TODO
     return nullptr;
 }
-Camera *CameraManager::CreateCamera(Entity *, CAMTYPE) {
+Camera *CameraManager::CreateCamera(Entity *e, CAMTYPE ty) {
     //TODO
-    return nullptr;
+    return new Camera(e, ty);
 }

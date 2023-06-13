@@ -286,20 +286,20 @@ message PhoneToGameCommand {
     optional int64 rel_id = 3; //playerId for JOIN_ANOTHER_PLAYER, but 32-bit only
     optional string activity_title = 4;
     optional int64 request_profile_id = 5;
-    optional string f6 = 6;
-    optional int64 f7 = 7;
-    optional int32 f8 = 8;
+    optional string msg = 6;
+    optional int64 player_msg_dst = 7;
+    optional int32 api_ver = 8;
     optional uint32 f9 = 9;
     optional uint32 custom_button = 10;
-    optional SocialPlayerAction f11 = 11;
+    optional SocialPlayerAction spa = 11;
     // no 12
-    optional MobileAlertResponse f13 = 13;
+    optional MobileAlertResponse alert_resp = 13;
     // no 14-17
-    optional BLEPeripheralResponse f18 = 18;
+    optional BLEPeripheralResponse ble_resp = 18;
     optional int64 player_id = 19;
     optional string f20 = 20;
-    optional bytes f21 = 21;
-    optional BLEAdvertisement f22 = 22;
+    optional bytes game_packet = 21;
+    optional BLEAdvertisement ble_adv = 22;
     optional uint32 f23 = 23;
 }
 message PhoneToGame {
@@ -394,7 +394,7 @@ message SportsDataResponse {
     repeated uint32 sds_f4 = 4; //enum <= 2
     repeated uint32 sds_f5 = 5; //enum <= 2
     repeated uint32 sds_f6 = 6; //enum <= 2
-    optional SportsDataSample m_sample = 7;
+    optional SportsDataSample sample = 7;
     optional uint32 m_f8 = 8; //enum <= 2
     optional uint32 m_f9 = 9; //enum
 }

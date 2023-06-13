@@ -9,7 +9,7 @@ enum EVENT_ID {
     EV_BC_PROMPT = 0x6,
     EV_ROUTE_COMPLETE = 0x7,
     EV_SESSION_END = 0x8,
-    EV_9 = 0x9,
+    EV_ZCA_ALERT_RESP = 0x9,
     EV_PHONE_1A = 0xA,
     EV_WRK_CH = 0xB,
     EV_WRK_ABANDON = 0xC,

@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //UT Coverage: 28%, 50/180
 enum ProfileProperties { PP_EMAIL, PP_PASSWORD, PP_FIRST_NAME, PP_LAST_NAME };
 enum ValidateProperty {
     VP_OK = 0, VP_PARSE_ERROR, VP_EMAIL_REQ = 2, VP_EMAIL_WRONG_LEN = 3, VP_EMAIL_SHORT = 4, VP_EMAIL_LONG = 5, VP_EMAIL_FORMAT = 6,
@@ -570,18 +570,14 @@ namespace uuid {
 NetworkRequestOutcome ZNETWORK_ClearPlayerPowerups();
 enum PLAYER_FLAGGED_REASONS { PFR_FLIER = 1, PFR_HARASSER = 2, PFR_POTTY_MOUTH = 3, PFR_SANDBAGGER = 4, PFR_CNT };
 void ZNETWORK_BroadcastLocalPlayerFlagged(PLAYER_FLAGGED_REASONS);
-enum RideLeaderAction : int { RLA_1 = 1, RLA_2 = 2, RLA_3 = 3, RLA_4 = 4, RLA_5 = 5, RLA_6 = 6 };
-void ZNETWORK_BroadcastRideLeaderAction(RideLeaderAction, uint32_t, int64_t);
+enum RideLeaderAction : int { RLA_1 = 1 /*SaveGame::TryPromoCode, GAME_QuitGroupEvent*/, RLA_2 = 2, RLA_3 = 3, RLA_4 = 4, RLA_5 = 5, RLA_6 = 6 /*GAME_QuitGroupEvent*/ };
+void ZNETWORK_BroadcastRideLeaderAction(RideLeaderAction, uint32_t, uint64_t);
 struct ZNETWORK_RouteHashRequest {
-    //TODO
-};
-struct ZNETWORK_RouteHashResponse {
     int16_t m_ver, m_len;
     char m_kind, field_5, field_6, field_7;
     int64_t m_otherPlayerId, m_playerIdTx;
     uint32_t m_routeHash, m_decisionIndex;
 };
-void ZNETWORK_INTERNAL_HandleRouteHashRequest(const ZNETWORK_RouteHashRequest &);
 struct ZNETWORK_LateJoinRequest { //0x28 bytes
     uint16_t m_ver, m_len;
     enum cmd { LJC_1 = 1, LJC_2 = 2 };
@@ -631,13 +627,11 @@ struct ZNETWORK_LateJoinResponse { //0x28 bytes - maybe, = ZNETWORK_LateJoinRequ
     int64_t m_playerId, m_lateJoinPlayerId;
     int m_decisionIndex, m_field_1C, m_field_20; //then 4 byte-gap
 };
-void ZNETWORK_INTERNAL_HandleLateJoinRequest(const ZNETWORK_LateJoinRequest &ljr, const VEC3 &pos);
-void ZNETWORK_INTERNAL_DelayLateJoinResponse(ZNETWORK_LateJoinRequest);
 struct ZNETWORK_TextMessage { //128*9+48=1200 bytes
     VEC3 m_msgPos;
     float m_msgRadius;
     int64_t m_srcProfileId, m_destProfileId, m_worldTime, m_xxx;
-    char m_msg[1024]; //not sure, looks like 2-bytes char, but sent to printf as %s
+    UChar m_msg[512]; //not sure, looks like 2-bytes char, but sent to printf as %s
     char field_430[128]; //not sure
 };
 struct WebEventStartMsg { //0x308 bytes
@@ -645,14 +639,16 @@ struct WebEventStartMsg { //0x308 bytes
 };
 struct BroadcastRideLeaderAction { //0x68 bytes
     int16_t m_ver, m_len;
-    int64_t m_leaderId, m_worldTime, m_a1;
+    int64_t m_leaderId;
+    time_t m_worldTime;
+    uint64_t m_eventId;
     RideLeaderAction m_rideLeaderAction;
     char field_24[68];
 };
 struct BroadcastLocalPlayerNotableMoment {
     int16_t m_ver, m_len;
     int64_t m_playerIdTx;
-    int64_t m_worldTime;
+    time_t m_worldTime;
     NOTABLEMOMENT_TYPE m_nmt;
     uint32_t m_field_1C;
     int gap20;
@@ -660,27 +656,37 @@ struct BroadcastLocalPlayerNotableMoment {
     uint64_t field_28;
 };
 struct RideLeaderActionInfo { //0x20 bytes
-    int64_t m_a1, m_leaderId, m_worldTime;
-    uint64_t m_world_time_expire;
+    uint64_t m_eventId;
+    int64_t m_leaderId;
+    time_t m_worldTime, m_worldTimeExpire;
 };
 inline std::list<RideLeaderActionInfo *> g_RideLeaderActions;
-void RideLeaderActions_add(int64_t a1, int64_t leaderId, int64_t a3, uint64_t world_time_expire);
-void ZNETWORK_INTERNAL_HandlePacePartnerInfo(const ZNETWORK_PacePartnerInfo &);
+void ZNETWORK_RegisterRideLeader(uint64_t eventId, int64_t leaderId, time_t world_time, time_t world_time_expire);
+//inlined void ZNETWORK_INTERNAL_HandlePacePartnerInfo(const ZNETWORK_PacePartnerInfo &);
 void ZNETWORK_FlagLocalPlayer(PLAYER_FLAGGED_REASONS, bool = true);
-void ZNETWORK_SetPreferredNetwork(int32_t, int32_t);
-void ZNETWORK_GetPreferredNetwork();
-void ZNETWORK_INTERNAL_GetHoursToAdd();
-void ZNETWORK_GetServerCount();
-void ZNETWORK_INTERNAL_Log(const char *);
-void ZNETWORK_IsOnProductionServer();
-void ZNETWORK_GetServerURL(int32_t);
-void ZNETWORK_ShutdownLogging();
-void ZNETWORK_RestoreLogging();
-void ZNETWORK_GetAnalytics(uint32_t *, uint32_t *, uint32_t *);
-void ZNETWORK_UpdateRiderList(std::list<protobuf::RiderListEntry> &);
-void ZNETWORK_RacePlacementsAvailable();
-void ZNETWORK_RacePlacementTotalRiders();
-void ZNETWORK_GetTotalPlayerCount();
+//android-only? void ZNETWORK_SetPreferredNetwork(int32_t, int32_t);
+//android-only? void ZNETWORK_GetPreferredNetwork();
+//android-only? void ZNETWORK_INTERNAL_GetHoursToAdd();
+inline int  ZNETWORK_GetServerCount() { return 6; } //android-only and/or inlined?
+//simplified void ZNETWORK_INTERNAL_Log(const char *);
+//android-only? void ZNETWORK_IsOnProductionServer();
+void ZNETWORK_Initialize();
+//android-only? void ZNETWORK_GetServerURL(int32_t);
+//simplified void ZNETWORK_ShutdownLogging();
+//simplified void ZNETWORK_RestoreLogging();
+//OMIT void ZNETWORK_GetAnalytics(uint32_t *, uint32_t *, uint32_t *);
+//inlined void ZNETWORK_INTERNAL_HandleRouteHashRequest(const ZNETWORK_RouteHashRequest &);
+void ZNETWORK_INTERNAL_HandleLateJoinRequest(const ZNETWORK_LateJoinRequest &ljr, const VEC3 &pos);
+//inlined void ZNETWORK_INTERNAL_DelayLateJoinResponse(ZNETWORK_LateJoinRequest);
+//inlined to {UI_FriendsList::SendFriendlistToPhone} void ZNETWORK_UpdateRiderList(std::list<protobuf::RiderListEntry> &);
+inline int g_nPhantomRidesOnReceived, g_FlaggedAsPottyMouth, g_FlaggedAsHarasser, g_FlaggedAsFlier, g_currentEventTotalRiders;
+inline float g_sandbaggerPenaltyScale;
+inline uint32_t g_routehashCt;
+inline int32_t g_ServerReportedPlayerCount;
+inline bool g_ServerReportedRacePlacements;
+inline bool ZNETWORK_RacePlacementsAvailable() { return g_ServerReportedRacePlacements; }
+inline int ZNETWORK_RacePlacementTotalRiders() { return g_currentEventTotalRiders; }
+inline int32_t ZNETWORK_GetTotalPlayerCount() { return g_ServerReportedPlayerCount; }
 void ZNETWORK_INTERNAL_ProcessPlayerPackets();
 void ZNETWORK_BroadcastGRFenceStats(uint64_t, int64_t, bool, bool /*, uint32_t*/);
 void ZNETWORK_BroadcastGRFenceConfig(uint64_t, uint32_t, float, float, float, float, float, uint32_t, uint32_t, bool);
@@ -689,71 +695,6 @@ void ZNETWORK_BroadcastRegisterForGroupEvent(uint64_t, uint32_t, bool, bool);
 void ZNETWORK_BroadcastBibNumberForGroupEvent(int64_t, uint32_t, uint32_t);
 void ZNETWORK_SendPacePartnerInfo(int64_t, uint16_t, float, uint32_t);
 void ZNETWORK_BroadcastAreaText(int64_t, const UChar *, const VEC3 &, float);
-void ZNETWORK_GetSubscriptionMode();
-void ZNETWORK_SendRouteHashRequest(int64_t);
-void ZNETWORK_RespondToRouteHashRequest(int64_t);
-void ZNETWORK_INTERNAL_HandleDelayedRouteHashResponse(float);
-void ZNETWORK_ClearLateJoinRequest();
-void ZNETWORK_SendLateJoinRequest(int64_t);
-void ZNETWORK_RespondToLateJoinRequest(int64_t);
-void ZNETWORK_INTERNAL_HandleDelayedLateJoinResponse(float);
-void ZNETWORK_SendSPA(protobuf::SocialPlayerAction *, const VEC3 &, float, uint64_t);
-void ZNETWORK_SendPlayerFlag(int64_t, int64_t, protobuf::SocialFlagType);
-void ZNETWORK_GetUpcomingWorkouts();
-void ZNETWORK_INTERNAL_ProcessPendingWorkouts();
-void ZNETWORK_INTERNAL_ProcessUpcomingWorkouts();
-inline void ZNETWORK_UpdatePlayerEntitlement() { /*OMIT*/ }
-void ZNETWORK_CalculateThenGetSubscriptionMode();
-void ZNETWORK_GiveRideOnToSomebodyElse(int64_t);
-void ZNETWORK_SendPrivateText(int64_t, int64_t, const uint16_t *);
-void ZNETWORK_INTERNAL_ProcessPhoneInput();
-void ZNETWORK_INTERNAL_ProcessProfileUpdates();
-void ZNETWORK_INTERNAL_ProcessMotionData();
-void ZNETWORK_RegisterRideLeader(uint64_t, int64_t, uint64_t, uint64_t);
-void ZNETWORK_UnRegisterRideLeader(uint64_t, int64_t, uint64_t, uint64_t);
-void ZNETWORK_INTERNAL_CalcSig(int64_t);
-void ZNETWORK_IsInRaceEvent();
-void ZNETWORK_IsInGroupWorkoutEvent();
-void ZNETWORK_ReducedFlagging(int64_t);
-void ZNETWORK_GetWeightedFlags(int64_t);
-void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttribute &);
-void ZNETWORK_GetReceivedRideOnFromUsers();
-void ZNETWORK_INTERNAL_ProcessGlobalMessages();
-struct zwiftUpdateContext { //0x38 bytes
-    //TODO
-};
-void ZNETWORK_Update(float);
-void ZNETWORK_INTERNAL_UpdateSubscriptionCache(float);
-void ZNETWORK_ActivatePlayerPowerup(uint32_t);
-void ZNETWORK_GivePlayerPowerup(protobuf::POWERUP_TYPE);
-void ZNETWORK_RegisterLocalPlayersSegmentResult(int64_t, float, float, bool, float);
-void ZNETWORK_RegisterLocalPlayersSegmentResult(int64_t, double, float, float, bool, float);
-struct RouteFinishData {
-    uint64_t m_eventId = 0, m_world_time = 0, m_elapsed_ms = 0;
-    float m_avg_power = 0.0f, m_max_power = 0.0f, m_avg_hr = 0.0f, m_max_hr = 0.0f, m_calories = 0.0;
-    uint32_t m_routeHash = 0, m_height_in_cm = 0, m_weight_in_grams = 0, m_ftp = 0;
-    protobuf::Sport m_sport = protobuf::CYCLING;
-    protobuf::PlayerType m_player_type = protobuf::NORMAL;
-    bool m_isMale = true, m_powerMeter = false, m_steering = false;
-};
-inline int64_t g_CurrentServerRealmID, g_ActivityID;
-void ZNETWORK_RegisterLocalPlayersRouteResult(const RouteFinishData &rfd);
-void ZNETWORK_INTERNAL_GetCPValues(float *, float *, float *, float *, float);
-struct BikeEntity;
-std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double time, float duration, BikeEntity *pBike, bool lj, float a6);
-void ZNETWORK_JoinWorld(int64_t, bool);
-void ZNETWORK_ResetSessionData();
-void ZNETWORK_INTERNAL_IsPEZwiftTrial(const protobuf::ProfileEntitlement &);
-void ZNETWORK_INTERNAL_IsPEBlockedForPlatform(const protobuf::ProfileEntitlement &);
-void ZNETWORK_GetNextUnusedRideEntitlement(protobuf::ProfileEntitlement *);
-void ZNETWORK_UnlockDigitalEntitlements();
-void ZNETWORK_INTERNAL_GetCurrentEntitlement(protobuf::ProfileEntitlement *);
-void ZNETWORK_GetCurrentEntitlement(protobuf::ProfileEntitlement *);
-void ZNETWORK_GetNextTrialStartDate();
-void ZNETWORK_IsOnNewTrialSystem(const protobuf::ProfileEntitlement *);
-inline const char *ZNETWORK_GetPromoNameOfCurrentRideEntitlement() { return "Ursoft premium"; }
-void ZNETWORK_GetPromoNameOfNextRideEntitlement();
-void ZNETWORK_SubscribedFromApple();
 enum SubscriptionMode {
     SM_UNDEFINED = 0x0,
     SM_TRIAL = 0x1,
@@ -765,27 +706,90 @@ inline SubscriptionMode g_subscriptionMode;
 inline SubscriptionMode ZNETWORK_CalculateSubscriptionMode() { /*OMIT*/ return SM_NAMED_SRC; }
 inline float ZNETWORK_GetTrialKMLeft() { return 100000.0f; }
 inline int ZNETWORK_GetSubscriptionDaysLeft() { return -1; }
-void ZNETWORK_HasPromoAvailable();
-void ZNETWORK_InitializeNetworkSyncedGMT(int64_t);
-void ZNETWORK_GetNetworkSyncedDateTimeGMT();
-void ZNETWORK_GetActivities();
-void ZNETWORK_LastRideOnReceivedFromPlayerId();
-void ZNETWORK_GiveRideOn(int64_t playerTo, bool);
-void ZNETWORK_HasGivenRideOnToPlayer(int64_t);
-void ZNETWORK_ResetTotalRideOnsGiven();
-void ZNETWORK_TotalRideOnsGiven();
-void ZNETWORK_ReceivedRideOns();
-void ZNETWORK_GetServerNickname(int32_t);
-void ZNETWORK_GetOAuthClient();
-void ZNETWORK_UpdateDropInWorldsStatus();
-void ZNETWORK_GetDropInWorlds();
+inline SubscriptionMode ZNETWORK_GetSubscriptionMode() { return g_subscriptionMode; }
+void ZNETWORK_SendRouteHashRequest(int64_t toPlayerId);
+void ZNETWORK_RespondToRouteHashRequest(int64_t);
+void ZNETWORK_SendLateJoinRequest(int64_t);
+void ZNETWORK_RespondToLateJoinRequest(int64_t);
+void ZNETWORK_SendSPA(protobuf::SocialPlayerAction *, const VEC3 &, float, uint64_t);
+void ZNETWORK_SendPlayerFlag(int64_t, int64_t, protobuf::SocialFlagType);
+inline void ZNETWORK_UpdatePlayerEntitlement() { /*OMIT*/ }
+inline SubscriptionMode ZNETWORK_CalculateThenGetSubscriptionMode() { return g_subscriptionMode; }
+void ZNETWORK_SendPrivateText(int64_t, int64_t, const UChar *);
+void ZNETWORK_INTERNAL_ProcessPhoneInput();
+void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttribute &);
+struct zwiftUpdateContext { //0x38 bytes
+    //TODO
+};
+void ZNETWORK_Update(float);
+bool ZNETWORK_IsLoggedIn();
+void ZNETWORK_GivePlayerPowerup(protobuf::POWERUP_TYPE);
 struct SegmentResultsWrapper;
 struct TimingArchEntity;
 SegmentResultsWrapper *ZNETWORK_RegisterSegmentID(int64_t hash, TimingArchEntity *tae = nullptr);
 void ZNETWORK_Shutdown();
 uint64_t ZNETWORK_GetNetworkSyncedTimeGMT();
-bool ZNETWORK_IsLoggedIn();
-void ZNETWORK_Initialize();
+struct RouteFinishData {
+    uint64_t m_eventId = 0, m_world_time = 0, m_elapsed_ms = 0;
+    float m_avg_power = 0.0f, m_max_power = 0.0f, m_avg_hr = 0.0f, m_max_hr = 0.0f, m_calories = 0.0;
+    uint32_t m_routeHash = 0, m_height_in_cm = 0, m_weight_in_grams = 0, m_ftp = 0;
+    protobuf::Sport m_sport = protobuf::CYCLING;
+    protobuf::PlayerType m_player_type = protobuf::NORMAL;
+    bool m_isMale = true, m_powerMeter = false, m_steering = false;
+};
+inline int64_t g_CurrentServerRealmID, g_ActivityID;
+void ZNETWORK_RegisterLocalPlayersRouteResult(const RouteFinishData &rfd);
+//inlined void ZNETWORK_INTERNAL_GetCPValues(float *, float *, float *, float *, float);
+struct BikeEntity;
+std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double time, float duration, BikeEntity *pBike, bool lj, float a6);
+void ZNETWORK_JoinWorld(int64_t, bool);
+void ZNETWORK_ResetSessionData();
+inline const char *ZNETWORK_GetPromoNameOfCurrentRideEntitlement() { return "Ursoft premium"; }
+inline const char *ZNETWORK_GetPromoNameOfNextRideEntitlement() { return "Ursoft platinum"; }
+void ZNETWORK_GiveRideOn(int64_t playerTo, bool);
+//inlined void ZNETWORK_INTERNAL_IsPEZwiftTrial(const protobuf::ProfileEntitlement &);
+//inlined void ZNETWORK_INTERNAL_IsPEBlockedForPlatform(const protobuf::ProfileEntitlement &);
+//OMIT void ZNETWORK_GetNextUnusedRideEntitlement(protobuf::ProfileEntitlement *);
+//OMIT void ZNETWORK_UnlockDigitalEntitlements();
+//OMIT void ZNETWORK_INTERNAL_GetCurrentEntitlement(protobuf::ProfileEntitlement *);
+//OMIT void ZNETWORK_GetCurrentEntitlement(protobuf::ProfileEntitlement *);
+//OMIT void ZNETWORK_GetNextTrialStartDate();
+//OMIT void ZNETWORK_IsOnNewTrialSystem(const protobuf::ProfileEntitlement *);
+//OMIT void ZNETWORK_SubscribedFromApple();
+//OMIT void ZNETWORK_HasPromoAvailable();
+//inlined void ZNETWORK_INTERNAL_ProcessMotionData();
+//inlined void ZNETWORK_INTERNAL_ProcessGlobalMessages();
+//inlined void ZNETWORK_INTERNAL_UpdateSubscriptionCache(float);
+//inlined void ZNETWORK_INTERNAL_HandleDelayedRouteHashResponse(float);
+//inlined void ZNETWORK_ClearLateJoinRequest();
+//inlined void ZNETWORK_INTERNAL_HandleDelayedLateJoinResponse(float);
+//inlined void ZNETWORK_GetUpcomingWorkouts();
+//inlined void ZNETWORK_INTERNAL_ProcessPendingWorkouts();
+//inlined void ZNETWORK_ResetTotalRideOnsGiven();
+//inlined void ZNETWORK_TotalRideOnsGiven();
+//inlined void ZNETWORK_ReceivedRideOns();
+//ANDROID only ??? void ZNETWORK_GiveRideOnToSomebodyElse(int64_t);
+//not called void ZNETWORK_INTERNAL_CalcSig(int64_t);
+//inlined void ZNETWORK_INTERNAL_ProcessProfileUpdates();
+//inlined void ZNETWORK_UnRegisterRideLeader(uint64_t, int64_t, uint64_t, uint64_t);
+//inlined void ZNETWORK_IsInRaceEvent();
+//inlined void ZNETWORK_IsInGroupWorkoutEvent();
+//inlined void ZNETWORK_ReducedFlagging(int64_t);
+//inlined void ZNETWORK_GetWeightedFlags(int64_t);
+//inlined void ZNETWORK_GetReceivedRideOnFromUsers();
+//inlined void ZNETWORK_ActivatePlayerPowerup(uint32_t);
+bool ZNETWORK_HasGivenRideOnToPlayer(int64_t playerId);
+//not found void ZNETWORK_GetServerNickname(int32_t);
+//not found void ZNETWORK_GetOAuthClient();
+//inlined void ZNETWORK_GetDropInWorlds();
+//not found void ZNETWORK_InitializeNetworkSyncedGMT(int64_t);
+//not found void ZNETWORK_GetNetworkSyncedDateTimeGMT();
+//inlined void ZNETWORK_LastRideOnReceivedFromPlayerId();
+void ZNETWORK_RegisterLocalPlayersSegmentResult(int64_t, float, float, bool, float);
+void ZNETWORK_RegisterLocalPlayersSegmentResult(int64_t, double, float, float, bool, float);
+protobuf::ActivityList *ZNETWORK_GetActivities();
+void ZNETWORK_INTERNAL_ProcessUpcomingWorkouts();
+void ZNETWORK_UpdateDropInWorldsStatus();
 
 inline bool g_IsOnProductionServer = true;
 inline NetworkClient *g_networkClient;

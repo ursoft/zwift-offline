@@ -17,6 +17,9 @@ int64_t BikeEntity::GetEventID() {
     }
     return m_curEventId;
 }
+void BikeEntity::ActivatePowerUp() {
+    //TODO
+}
 float BikeEntity::GetFTP(bool *bEstimated /*= nullptr*/) {
     if (m_profile.has_ftp()) {
         if (m_profile.ftp()) {

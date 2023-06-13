@@ -1,8 +1,10 @@
+//UT Coverage: 19%, 1190/6166
 #include "ZwiftApp.h"
 #include "readerwriterqueue/readerwriterqueue.h"
 #include "concurrentqueue/concurrentqueue.h"
 #include "openssl/md5.h"
 #include "xxhash.h"
+#include "unicode/ustdio.h"
 #include <regex>
 std::vector<uint8_t> fix_google(const protobuf_bytes &src) { return std::vector<uint8_t>((uint8_t *)src.data(), (uint8_t *)src.data() + src.length()); }
 bool g_NetworkOn;
@@ -562,13 +564,13 @@ struct HttpConnectionManager {
     std::string m_certs;
     std::mutex m_mutex;
     std::condition_variable m_conditionVar;
-    std::vector<std::thread> m_pool;
+    std::vector<std::jthread> m_pool;
     uint32_t m_ncoTimeoutSec, m_ncoUploadTimeoutSec, m_nThreads;
     HttpRequestMode m_hrm;
     bool m_ncoSkipCertCheck;
     HttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, uint32_t ncoTimeoutSec, uint32_t ncoUploadTimeoutSec, HttpRequestMode hrm, uint32_t nThreads) :
         m_curlf(curlf), m_certs(certs), m_ncoTimeoutSec(ncoTimeoutSec), m_ncoUploadTimeoutSec(ncoUploadTimeoutSec), m_hrm(hrm), m_nThreads(nThreads), m_ncoSkipCertCheck(ncoSkipCertCheck) {}
-    ~HttpConnectionManager() {}
+    virtual ~HttpConnectionManager() {}
     virtual void worker(uint32_t nr) = 0;// { /*empty*/ }
     void startWorkers() {
         m_pool.reserve(m_nThreads);
@@ -577,10 +579,6 @@ struct HttpConnectionManager {
     }
     void shutdown() {
         setThreadPoolSize(0);
-        for (auto &t : m_pool) {
-            if (t.joinable())
-                t.join();
-        }
     }
     void setUploadTimeout(uint64_t to) { std::lock_guard l(m_mutex); m_ncoUploadTimeoutSec = to; }
     void setTimeout(uint64_t to) { std::lock_guard l(m_mutex); m_ncoTimeoutSec = to; }
@@ -589,6 +587,7 @@ struct HttpConnectionManager {
         { std::lock_guard l(m_mutex); m_nThreads = val; }
         if (oldVal) {
             m_conditionVar.notify_all();
+            m_pool.clear(); //should call join automatically
         } else while (oldVal < m_nThreads) {
             m_pool.emplace_back([this, oldVal]() { worker(oldVal); });
             ++oldVal;
@@ -601,13 +600,15 @@ struct GenericHttpConnectionManager : public HttpConnectionManager { //0x128 byt
     GenericHttpConnectionManager(CurlHttpConnectionFactory *curlf, const std::string &certs, bool ncoSkipCertCheck, uint32_t ncoTimeoutSec, uint32_t ncoUploadTimeoutSec, HttpRequestMode hrm) :
         HttpConnectionManager(curlf, certs, ncoSkipCertCheck, ncoTimeoutSec, ncoUploadTimeoutSec, hrm, 1) {}
     ~GenericHttpConnectionManager() { shutdown(); }
-    void worker(uint32_t a2) override {
+    void worker(uint32_t myThreadNo) override {
         auto conn = m_curlf->instance(m_certs, m_ncoSkipCertCheck, true, m_ncoTimeoutSec, m_ncoUploadTimeoutSec, HRM_SEQUENTIAL);
-        while (a2 < m_nThreads) {
+        while (myThreadNo < m_nThreads) {
             task_type task;
             {
                 std::unique_lock<std::mutex> lock(m_mutex);
-                m_conditionVar.wait(lock, [this] { return !this->m_ptq.empty(); });
+                m_conditionVar.wait(lock, [this, myThreadNo] { return myThreadNo >= this->m_nThreads || !this->m_ptq.empty(); });
+                if (myThreadNo >= m_nThreads)
+                    return;
                 task = std::move(m_ptq.front());
                 m_ptq.pop();
             }
@@ -808,7 +809,7 @@ namespace HttpHelper {
     static NetworkResponse<Json::Value> parseJson(const std::vector<T> &src) {
         NetworkResponse<Json::Value> ret;
         Json::Reader r;
-        if (src.size() == 0 || !r.parse((const char *)&src.front(), (const char *)&src.back(), ret, false)) {
+        if (src.size() == 0 || !r.parse((const char *)&src.front(), (const char *)&src.back() + 1, ret, false)) {
             NetworkingLogError("Error parsing JSON: %s\nJSON: %s", r.getFormattedErrorMessages().c_str(), src.size() ? (const char *)&src.front() : "empty");
             ret.storeError(NRO_JSON_PARSING_ERROR, "Error parsing json"s);
         }
@@ -1178,13 +1179,15 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
         m_conditionVar.notify_all();
         return ret;
     }
-    void worker(uint32_t a2) override {
+    void worker(uint32_t myThreadNo) override {
         auto conn = m_curlf->instance(m_certs, m_ncoSkipCertCheck, false, m_ncoTimeoutSec, m_ncoUploadTimeoutSec, m_hrm);
-        while (a2 < m_nThreads) {
+        while (myThreadNo < m_nThreads) {
             RequestTaskContext task;
             {
                 std::unique_lock<std::mutex> lock(m_mutex);
-                m_conditionVar.wait(lock, [this] { return !this->m_needNewAcToken && !this->m_rtq.empty(); });
+                m_conditionVar.wait(lock, [this, myThreadNo] { return myThreadNo >= this->m_nThreads || (!this->m_needNewAcToken && !this->m_rtq.empty()); });
+                if (myThreadNo >= this->m_nThreads)
+                    return;
                 task = std::move(m_rtq.front());
                 m_rtq.pop();
             }
@@ -1705,7 +1708,7 @@ struct WorldClockService { //0x2120 bytes
     NetworkClockService *m_ncs;
     int64_t m_twoLegsLatency = 0, m_field_40 = 0, m_calcWorldClockOffset[1024] = {};
     uint64_t m_idx = 0, m_stab = 2;
-    volatile LONG64 m_worldTime = 0, m_worldClockOffset = 0;
+    volatile time_t m_worldTime = 0, m_worldClockOffset = 0;
     std::map<uint32_t, uint64_t> m_map38; //seq to send time
     bool m_stc_useF5 = true, m_bInit = false;
     WorldClockService(EventLoop *, NetworkClockService *ncs) : m_ncs(ncs) {
@@ -5349,47 +5352,47 @@ struct NetworkClientImpl { //0x400 bytes, calloc
     CurlHttpConnectionFactory m_curlf;
     NetworkClientOptions m_nco{ false, 20, 300, /*NL_INFO RTL*/ NL_DEBUG };
     time_t m_netStartTime1 = 0, m_netStartTime2 = 0;
-    GenericHttpConnectionManager *m_httpConnMgr0 = nullptr, *m_httpConnMgr1 = nullptr, *m_httpConnMgr2 = nullptr;
-    ZwiftHttpConnectionManager *m_httpConnMgr3 = nullptr, *m_httpConnMgr4 = nullptr;
-    ZwiftAuthenticationManager *m_authMgr = nullptr;
-    AuthServerRestInvoker *m_authInvoker = nullptr;
-    GlobalState *m_globalState = nullptr;
-    HashSeedService *m_hashSeed1 = nullptr, *m_hashSeed2 = nullptr;
-    WorldAttributeService *m_wat = nullptr;
-    ProfileRequestDebouncer *m_profRqDebouncer = nullptr;
-    UdpClient *m_udpClient = nullptr;
-    TcpClient *m_tcpClient = nullptr;
-    WorldClockService *m_wclock = nullptr;
-    RelayServerRestInvoker *m_relay = nullptr;
-    EventLoop *m_evLoop = nullptr;
-    NetworkClockService *m_netClock = nullptr;
-    UdpStatistics *m_udpStat = nullptr;
-    RestServerRestInvoker *m_restInvoker = nullptr;
-    ExperimentsRestInvoker *m_expRi = nullptr;
-    ActivityRecommendationRestInvoker *m_arRi = nullptr;
-    AchievementsRestInvoker *m_achRi = nullptr;
-    CampaignRestInvoker *m_camRi = nullptr;
-    ClubsRestInvoker *m_clubsRi = nullptr;
-    EventCoreRestInvoker *m_ecRi = nullptr;
-    EventFeedRestInvoker *m_efRi = nullptr;
-    FirmwareUpdateRestInvoker *m_fuRi = nullptr;
-    GenericRestInvoker *m_gRi = nullptr;
-    PrivateEventsRestInvoker *m_peRi = nullptr;
-    RaceResultRestInvoker *m_rarRi = nullptr;
-    RouteResultsRestInvoker *m_rorRi = nullptr;
-    PlayerPlaybackRestInvoker *m_ppbRi = nullptr;
-    SegmentResultsRestInvoker *m_srRi = nullptr;
-    PowerCurveRestInvoker *m_pcRi = nullptr;
-    ZFileRestInvoker *m_zfRi = nullptr;
-    ZwiftWorkoutsRestInvoker *m_zwRi = nullptr;
-    WorkoutServiceRestInvoker *m_wsRi = nullptr;
-    TcpStatistics *m_tcpStat = nullptr;
-    WorldClockStatistics *m_wcStat = nullptr;
-    LanExerciseDeviceStatistics *m_lanStat = nullptr;
-    AuxiliaryControllerStatistics *m_auxStat = nullptr;
-    WorldAttributeStatistics *m_waStat = nullptr;
-    LanExerciseDeviceService *m_lanService = nullptr;
-    AuxiliaryController *m_aux = nullptr;
+    std::unique_ptr<EventLoop> m_evLoop;
+    std::unique_ptr<GenericHttpConnectionManager> m_httpConnMgr0, m_httpConnMgr1, m_httpConnMgr2;
+    std::unique_ptr<ZwiftHttpConnectionManager> m_httpConnMgr3, m_httpConnMgr4;
+    std::unique_ptr<ZwiftAuthenticationManager> m_authMgr;
+    std::unique_ptr<AuthServerRestInvoker> m_authInvoker;
+    std::unique_ptr<GlobalState> m_globalState;
+    std::unique_ptr<HashSeedService> m_hashSeed1, m_hashSeed2;
+    std::unique_ptr<WorldAttributeService> m_wat;
+    std::unique_ptr<ProfileRequestDebouncer> m_profRqDebouncer;
+    std::unique_ptr<UdpClient> m_udpClient;
+    std::unique_ptr<TcpClient> m_tcpClient;
+    std::unique_ptr<WorldClockService> m_wclock;
+    std::unique_ptr<RelayServerRestInvoker> m_relay;
+    std::unique_ptr<NetworkClockService> m_netClock;
+    std::unique_ptr<UdpStatistics> m_udpStat;
+    std::unique_ptr<RestServerRestInvoker> m_restInvoker;
+    std::unique_ptr<ExperimentsRestInvoker> m_expRi;
+    std::unique_ptr<ActivityRecommendationRestInvoker> m_arRi;
+    std::unique_ptr<AchievementsRestInvoker> m_achRi;
+    std::unique_ptr<CampaignRestInvoker> m_camRi;
+    std::unique_ptr<ClubsRestInvoker> m_clubsRi;
+    std::unique_ptr<EventCoreRestInvoker> m_ecRi;
+    std::unique_ptr<EventFeedRestInvoker> m_efRi;
+    std::unique_ptr<FirmwareUpdateRestInvoker> m_fuRi;
+    std::unique_ptr<GenericRestInvoker> m_gRi;
+    std::unique_ptr<PrivateEventsRestInvoker> m_peRi;
+    std::unique_ptr<RaceResultRestInvoker> m_rarRi;
+    std::unique_ptr<RouteResultsRestInvoker> m_rorRi;
+    std::unique_ptr<PlayerPlaybackRestInvoker> m_ppbRi;
+    std::unique_ptr<SegmentResultsRestInvoker> m_srRi;
+    std::unique_ptr<PowerCurveRestInvoker> m_pcRi;
+    std::unique_ptr<ZFileRestInvoker> m_zfRi;
+    std::unique_ptr<ZwiftWorkoutsRestInvoker> m_zwRi;
+    std::unique_ptr<WorkoutServiceRestInvoker> m_wsRi;
+    std::unique_ptr<TcpStatistics> m_tcpStat;
+    std::unique_ptr<WorldClockStatistics> m_wcStat;
+    std::unique_ptr<LanExerciseDeviceStatistics> m_lanStat;
+    std::unique_ptr<AuxiliaryControllerStatistics> m_auxStat;
+    std::unique_ptr<WorldAttributeStatistics> m_waStat;
+    std::unique_ptr<LanExerciseDeviceService> m_lanService;
+    std::unique_ptr<AuxiliaryController> m_aux;
     moodycamel::ReaderWriterQueue<const AuxiliaryControllerAddress> m_rwqAux;
     AuxiliaryControllerAddress m_curAux;
     uint32_t m_limitProfPerRq = 100;
@@ -5400,12 +5403,12 @@ struct NetworkClientImpl { //0x400 bytes, calloc
     NetworkLogLevel GetNetworkMaxLogLevel() const { return m_nco.m_maxLogLevel; }
     void startTcpClient() {
         if (!m_tcpClient && !m_nco.m_bHttpOnly)
-            m_tcpClient = new TcpClient(m_globalState, m_wclock, m_hashSeed1, m_wat, m_relay, m_srRi, this);
+            m_tcpClient.reset(new TcpClient(m_globalState.get(), m_wclock.get(), m_hashSeed1.get(), m_wat.get(), m_relay.get(), m_srRi.get(), this));
     }
     void shutdownTcpClient() {
         if (m_tcpClient) {
             m_tcpClient->shutdown();
-            m_tcpClient = nullptr;
+            m_tcpClient.reset(nullptr);
         }
     }
     void handleDisconnectRequested(bool mode) { //1st vfunc
@@ -5424,15 +5427,15 @@ struct NetworkClientImpl { //0x400 bytes, calloc
     }
     void shutdownUdpClient() {
         if (m_udpClient) {
-            m_wat->removeListener(m_udpClient);
+            m_wat->removeListener(m_udpClient.get());
             m_udpClient->shutdown();
-            FreeAndNil(m_udpClient);
+            m_udpClient.reset(nullptr);
         }
     }
     void shutdownAuxiliaryController() {
         if (m_aux) {
             m_aux->stop();
-            FreeAndNil(m_aux);
+            m_aux.reset(nullptr);
         }
     }
     void logLibSummary() {
@@ -5448,65 +5451,65 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         logLibSummary();
         bool skipCertCheck = m_nco.m_skipCertCheck;
         //smart shared pointers actively used here, but what for???
-        m_httpConnMgr0 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL);
-        m_httpConnMgr1 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_CONCURRENT);
-        m_httpConnMgr2 = new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL);
-        m_authMgr = new ZwiftAuthenticationManager(m_server);
-        m_httpConnMgr3 = new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr, &m_tcpDisconnected, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL, 3);
-        m_httpConnMgr4 = new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr, &m_tcpDisconnected, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_CONCURRENT, 3);
-        m_expRi = new ExperimentsRestInvoker(m_httpConnMgr3, m_server);
-        m_arRi = new ActivityRecommendationRestInvoker(m_httpConnMgr4, m_server);
-        m_achRi = new AchievementsRestInvoker(m_httpConnMgr4, m_server);
-        m_authInvoker = new AuthServerRestInvoker(m_machine.m_id, m_authMgr, m_httpConnMgr3, m_expRi, m_server);
-        m_camRi = new CampaignRestInvoker(m_httpConnMgr3, m_server);
-        m_clubsRi = new ClubsRestInvoker(m_httpConnMgr3, m_server);
-        m_ecRi = new EventCoreRestInvoker(m_httpConnMgr3, m_server);
-        m_efRi = new EventFeedRestInvoker(m_httpConnMgr4, m_server);
-        m_fuRi = new FirmwareUpdateRestInvoker(m_httpConnMgr3, m_server);
-        m_gRi = new GenericRestInvoker(m_httpConnMgr1);
-        m_peRi = new PrivateEventsRestInvoker(m_httpConnMgr3, m_server);
-        m_rarRi = new RaceResultRestInvoker(m_httpConnMgr3, m_server);
-        m_rorRi = new RouteResultsRestInvoker(m_httpConnMgr3, m_server);
-        m_ppbRi = new PlayerPlaybackRestInvoker(m_httpConnMgr4, m_server);
-        m_srRi = new SegmentResultsRestInvoker(m_httpConnMgr4, m_server);
-        m_pcRi = new PowerCurveRestInvoker(m_httpConnMgr4, m_server);
-        m_zfRi = new ZFileRestInvoker(m_httpConnMgr3, m_server);
-        m_zwRi = new ZwiftWorkoutsRestInvoker(m_httpConnMgr3, m_server);
-        m_wsRi = new WorkoutServiceRestInvoker(m_httpConnMgr4, m_server);
-        m_udpStat = new UdpStatistics();
-        m_tcpStat = new TcpStatistics();
-        m_wcStat = new WorldClockStatistics();
-        m_lanStat = new LanExerciseDeviceStatistics();
-        m_auxStat = new AuxiliaryControllerStatistics();
-        m_waStat = new WorldAttributeStatistics();
+        m_httpConnMgr0.reset(new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL));
+        m_httpConnMgr1.reset(new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_CONCURRENT));
+        m_httpConnMgr2.reset(new GenericHttpConnectionManager(&m_curlf, certs, skipCertCheck, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL));
+        m_authMgr.reset(new ZwiftAuthenticationManager(m_server));
+        m_httpConnMgr3.reset(new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr.get(), &m_tcpDisconnected, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_SEQUENTIAL, 3));
+        m_httpConnMgr4.reset(new ZwiftHttpConnectionManager(&m_curlf, certs, m_nco.m_skipCertCheck, m_authMgr.get(), &m_tcpDisconnected, m_nco.m_timeoutSec, m_nco.m_uploadTimeoutSec, HRM_CONCURRENT, 3));
+        m_expRi.reset(new ExperimentsRestInvoker(m_httpConnMgr3.get(), m_server));
+        m_arRi.reset(new ActivityRecommendationRestInvoker(m_httpConnMgr4.get(), m_server));
+        m_achRi.reset(new AchievementsRestInvoker(m_httpConnMgr4.get(), m_server));
+        m_authInvoker.reset(new AuthServerRestInvoker(m_machine.m_id, m_authMgr.get(), m_httpConnMgr3.get(), m_expRi.get(), m_server));
+        m_camRi.reset(new CampaignRestInvoker(m_httpConnMgr3.get(), m_server));
+        m_clubsRi.reset(new ClubsRestInvoker(m_httpConnMgr3.get(), m_server));
+        m_ecRi.reset(new EventCoreRestInvoker(m_httpConnMgr3.get(), m_server));
+        m_efRi.reset(new EventFeedRestInvoker(m_httpConnMgr4.get(), m_server));
+        m_fuRi.reset(new FirmwareUpdateRestInvoker(m_httpConnMgr3.get(), m_server));
+        m_gRi.reset(new GenericRestInvoker(m_httpConnMgr1.get()));
+        m_peRi.reset(new PrivateEventsRestInvoker(m_httpConnMgr3.get(), m_server));
+        m_rarRi.reset(new RaceResultRestInvoker(m_httpConnMgr3.get(), m_server));
+        m_rorRi.reset(new RouteResultsRestInvoker(m_httpConnMgr3.get(), m_server));
+        m_ppbRi.reset(new PlayerPlaybackRestInvoker(m_httpConnMgr4.get(), m_server));
+        m_srRi.reset(new SegmentResultsRestInvoker(m_httpConnMgr4.get(), m_server));
+        m_pcRi.reset(new PowerCurveRestInvoker(m_httpConnMgr4.get(), m_server));
+        m_zfRi.reset(new ZFileRestInvoker(m_httpConnMgr3.get(), m_server));
+        m_zwRi.reset(new ZwiftWorkoutsRestInvoker(m_httpConnMgr3.get(), m_server));
+        m_wsRi.reset(new WorkoutServiceRestInvoker(m_httpConnMgr4.get(), m_server));
+        m_udpStat.reset(new UdpStatistics());
+        m_tcpStat.reset(new TcpStatistics());
+        m_wcStat.reset(new WorldClockStatistics());
+        m_lanStat.reset(new LanExerciseDeviceStatistics());
+        m_auxStat.reset(new AuxiliaryControllerStatistics());
+        m_waStat.reset(new WorldAttributeStatistics());
         //OMIT telemetry
-        m_restInvoker = new RestServerRestInvoker(m_machine.m_id, m_httpConnMgr3, m_server, zaVersion);
-        m_lanService = new LanExerciseDeviceService(zaVersion, 0x14E9, 1, 100, 5, 30);
+        m_restInvoker.reset(new RestServerRestInvoker(m_machine.m_id, m_httpConnMgr3.get(), m_server, zaVersion));
+        m_lanService.reset(new LanExerciseDeviceService(zaVersion, 0x14E9, 1, 100, 5, 30));
         NetworkingLogInfo("CNL initialized");
         m_initOK = true;
     }
     void onLoggedIn(const protobuf::PerSessionInfo &psi, const std::string &sessionId, const EncryptionInfo &ei) {
-        m_netClock = new NetworkClockService(psi.time());
+        m_netClock.reset(new NetworkClockService(psi.time()));
         m_loginOK = false;
         shutdownUdpClient();
         shutdownServiceEventLoop();
-        m_evLoop = new EventLoop();
-        m_globalState = new GlobalState(m_evLoop, psi, sessionId, ei);
-        m_httpConnMgr3->setGlobalState(m_globalState);
+        m_evLoop.reset(new EventLoop());
+        m_globalState.reset(new GlobalState(m_evLoop.get(), psi, sessionId, ei));
+        m_httpConnMgr3->setGlobalState(m_globalState.get());
         //OMIT TelemetryService::setGlobalState(this->m_ts, &v88);
-        m_relay = new RelayServerRestInvoker(m_httpConnMgr3, HttpHelper::sanitizeUrl(psi.relay_url()));
-        m_wat = new WorldAttributeService();
-        m_wclock = new WorldClockService(m_evLoop, m_netClock);
-        m_hashSeed1 = new HashSeedService(m_evLoop, m_globalState, m_relay, m_wclock, false);
+        m_relay.reset(new RelayServerRestInvoker(m_httpConnMgr3.get(), HttpHelper::sanitizeUrl(psi.relay_url())));
+        m_wat.reset(new WorldAttributeService());
+        m_wclock.reset(new WorldClockService(m_evLoop.get(), m_netClock.get()));
+        m_hashSeed1.reset(new HashSeedService(m_evLoop.get(), m_globalState.get(), m_relay.get(), m_wclock.get(), false));
         m_hashSeed1->start();
-        m_hashSeed2 = new HashSeedService(m_evLoop, m_globalState, m_relay, m_wclock, true);
+        m_hashSeed2.reset(new HashSeedService(m_evLoop.get(), m_globalState.get(), m_relay.get(), m_wclock.get(), true));
         m_hashSeed2->start();
-        m_profRqDebouncer = new ProfileRequestDebouncer(m_evLoop, m_restInvoker, m_limitProfPerRq);
+        m_profRqDebouncer.reset(new ProfileRequestDebouncer(m_evLoop.get(), m_restInvoker.get(), m_limitProfPerRq));
         if (!m_nco.m_bHttpOnly) {
-            m_udpClient = new UdpClient(m_globalState, m_wclock, m_hashSeed1, m_hashSeed2, m_udpStat, m_relay, this);
-            m_globalState->registerUdpConfigListener(m_udpClient);
-            m_globalState->registerEncryptionListener(m_udpClient);
-            m_wat->registerListener(m_udpClient);
+            m_udpClient.reset(new UdpClient(m_globalState.get(), m_wclock.get(), m_hashSeed1.get(), m_hashSeed2.get(), m_udpStat.get(), m_relay.get(), this));
+            m_globalState->registerUdpConfigListener(m_udpClient.get());
+            m_globalState->registerEncryptionListener(m_udpClient.get());
+            m_wat->registerListener(m_udpClient.get());
         }
         NetworkingLogInfo("Session ID: %s%s", sessionId.c_str(), m_globalState->shouldUseEncryption() ? " (secure)" : "");
         NetworkingLogInfo("Logged in");
@@ -5548,18 +5551,18 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         //    m_ts->lastSampleMetrics();
         m_loginOK = false;
         return m_authInvoker->logOut([this]() {
+            m_netClock.reset(nullptr);
+            m_wclock.reset(nullptr);
+            m_hashSeed1.reset(nullptr);
+            m_hashSeed2.reset(nullptr);
+            m_profRqDebouncer.reset(nullptr);
+            m_relay.reset(nullptr);
             shutdownUdpClient();
+            m_wat.reset(nullptr);
             shutdownAuxiliaryController();
             shutdownServiceEventLoop();
-            FreeAndNil(m_globalState);
+            m_globalState.reset(nullptr);
             //omit m_ts->clearUserState();
-            FreeAndNil(m_netClock);
-            FreeAndNil(m_wat);
-            FreeAndNil(m_wclock);
-            FreeAndNil(m_hashSeed1);
-            FreeAndNil(m_hashSeed2);
-            FreeAndNil(m_profRqDebouncer);
-            FreeAndNil(m_relay);
             NetworkingLogInfo("Logged out");
             });
     }
@@ -5611,11 +5614,11 @@ struct NetworkClientImpl { //0x400 bytes, calloc
             if (m_globalState->getPlayerId() != playerId) {
                 m_globalState->setPlayerId(playerId);
                 shutdownAuxiliaryController();
-                m_aux = new AuxiliaryController(playerId, m_globalState, m_wclock, /*m_auxStat,*/ [this]() {
+                m_aux.reset(new AuxiliaryController(playerId, m_globalState.get(), m_wclock.get(), /*m_auxStat,*/ [this]() {
                     auto fut = m_relay->setPhoneAddress(""s, 0, protobuf::TCP, 0, ""s);
                     fut.get();
-                });
-                m_globalState->registerWorldIdListener(m_aux);
+                }));
+                m_globalState->registerWorldIdListener(m_aux.get());
                 initializeWorkoutManager(prof.m_T);
                 shutdownTcpClient();
                 startTcpClient();
@@ -6042,15 +6045,15 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         shutdownUdpClient();
         shutdownAuxiliaryController();
         shutdownServiceEventLoop();
-        FreeAndNil(m_globalState);
         //OMIT sub_7FF76A52BBE0((__int64)a1->m_ts);
-        FreeAndNil(m_netClock);
-        FreeAndNil(m_wat);
-        FreeAndNil(m_wclock);
-        FreeAndNil(m_hashSeed1);
-        FreeAndNil(m_hashSeed2);
-        FreeAndNil(m_profRqDebouncer);
-        FreeAndNil(m_relay);
+        m_globalState.reset(nullptr);
+        m_netClock.reset(nullptr);
+        m_wat.reset(nullptr);
+        m_wclock.reset(nullptr);
+        m_hashSeed1.reset(nullptr);
+        m_hashSeed2.reset(nullptr);
+        m_profRqDebouncer.reset(nullptr);
+        m_relay.reset(nullptr);
         NetworkingLogInfo("Logged out");
     }
     std::future<NetworkResponse<protobuf::PlayerProfile>> profile(int64_t profileId, bool bSocial) {
@@ -6476,7 +6479,7 @@ void ZNETWORK_INTERNAL_HandleLateJoinRequest(const ZNETWORK_LateJoinRequest &elj
     IsPaddock = RoadIsPaddock(v25, v24, v23, v21, 0i64, 0i64);*/
     if (eljr.m_cmd) {
         if (!v9 /* TODO || IsPaddock || (*(*v9 + 536i64))(v9) || !mainBike->m_routeComp || *&mainBike->m_routeComp[1].m_field_10*/) {
-            g_lateJoinRequest = eljr;
+            g_lateJoinRequest = eljr; //ZNETWORK_INTERNAL_DelayLateJoinResponse
             g_delayed_latejoin_time = 15.0f;
             //OMIT AnalyticsHelper_inst();
             Log("latejoin Delayed...");
@@ -6611,7 +6614,7 @@ void ZNETWORK_Update(float dt) {
     } else {
         g_pairToPhone = false;
     }
-    zwift_network::Motion v105;
+    zwift_network::Motion v105; //ZNETWORK_INTERNAL_ProcessMotionData
     if (zwift_network::motion_data(&v105)) {
         if (g_ptg_f9 > 0.0f) {
             g_phoneRotation = -v105.m_phoneRot;
@@ -6627,7 +6630,7 @@ void ZNETWORK_Update(float dt) {
         g_ptg_f9 = v105.m_ptg_f9;
     }
     protobuf::WorldAttribute v90;                                   // ZNETWORK_INTERNAL_ProcessGlobalMessages
-    if (ZNETWORK_IsLoggedIn()) 
+    if (ZNETWORK_IsLoggedIn()) //ZNETWORK_INTERNAL_ProcessProfileUpdates
         while (zwift_network::pop_world_attribute(&v90))
             ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(v90);
     int64_t updatedPlayerId;
@@ -6716,9 +6719,88 @@ void ZNETWORK_Update(float dt) {
         }
     }
 }
-int g_nPhantomRidesOnReceived, g_FlaggedAsPottyMouth, g_FlaggedAsHarasser, g_FlaggedAsFlier, g_currentEventTotalRiders;
-float g_sandbaggerPenaltyScale;
-uint32_t g_routehashCt;
+bool ZNETWORK_HasGivenRideOnToPlayer(int64_t playerId) {
+    auto f = g_sessionRideonsGivenTo.find(playerId);
+    if (f == g_sessionRideonsGivenTo.end())
+        return false;
+    return f->second;
+}
+std::future<NetworkResponse<int64_t>> g_SaveSegmentResultReturnCode;
+void ZNETWORK_RegisterLocalPlayersSegmentResult(/*int64_t a1,*/ double wtSec, float durSec, float avgPower, bool isMale, float avgHr) { //IDA: ZNETWORK_RegisterLocalPlayersSegmentResult_0
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    zassert(mainBike != nullptr);
+    if (mainBike && g_pGameWorld->WorldID()) {
+        protobuf::SegmentResult sr;
+        Leaderboards::SetPlayerSegmentResult(&sr, 0, 1, wtSec, durSec, avgPower, isMale, mainBike->m_ipsc->m_pty,
+            mainBike->GetRiderWeightKG(false) * 1000.0f, nullptr, nullptr, mainBike->GetEventID(), avgHr, g_ActivityID);
+        g_SaveSegmentResultReturnCode = zwift_network::save_segment_result(sr);
+        Log("LEADERBOARDS: Saving segment results for segment %d with a time of %3.2f", 1, wtSec);
+    }
+}
+void ZNETWORK_RegisterLocalPlayersSegmentResult(Leaderboards *lbs, int64_t segmentId, double wtSec, float durSec, float avgPower, bool isMale, int64_t eventId) {
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    zassert(mainBike != nullptr);
+    if (mainBike && g_pGameWorld->WorldID()) {
+        protobuf::SegmentResult sr;
+        Leaderboards::SetPlayerSegmentResult(&sr, 0, segmentId, wtSec, durSec, avgPower, isMale, mainBike->m_ipsc->m_pty,
+            mainBike->GetRiderWeightKG(false) * 1000.0f, nullptr, nullptr, eventId, 0.0f, g_ActivityID);
+        lbs->m_segSaveReqs.push_back(ZNet::SaveSegmentResult(sr, [sr](const int64_t &res) {
+            Log("LEADERBOARDS: SUCCESS Segment result uploaded (result-id: %lld) (segment hash: %lld) (event subgroup id: %lld) (duration: %lldms)",
+                res, sr.event_subgroup_id(), sr.world_time()/*CHECKME*/);
+        }, [sr](ZNet::Error e) {
+            Log("LEADERBOARDS: ERROR failed to upload segment result (segment hash: %lld) (event subgroup id: %lld) (duration: %lldms) error: %s",
+                sr.segment_id(), sr.event_subgroup_id(), sr.elapsed_ms()/*CHECKME*/, e.m_msg.data());
+        }));
+        Log("LEADERBOARDS: Saving segment results for segment %lld with a time of %3.2f", segmentId, wtSec);
+    }
+}
+void ZNETWORK_RegisterRideLeader(uint64_t eventId, int64_t leaderId, time_t worldTime, time_t timeExpire) {
+    auto f = std::ranges::find_if(g_RideLeaderActions, [eventId](const RideLeaderActionInfo *i) { return i->m_eventId == eventId; });
+    if (f == g_RideLeaderActions.end()) {
+        g_RideLeaderActions.push_back(new RideLeaderActionInfo{ eventId, leaderId, worldTime, timeExpire });
+    } else if ((*f)->m_worldTime < worldTime) {
+        (*f)->m_leaderId = leaderId;
+        (*f)->m_worldTime = worldTime;
+        (*f)->m_worldTimeExpire = timeExpire;
+    }
+}
+enum DropInWorldsStatus { DIW_INIT, DIW_WAIT, DIW_ERR_PAUSE, DIW_GIVEUP } g_DropInWorldsStatus;
+auto g_UpdateDropInWorldsStatusLam = []() { return zwift_network::fetch_worlds_counts_and_capacities(); };
+std::future<NetworkResponse<protobuf::DropInWorldList>> g_UpdateDropInWorldsStatusFut;
+int g_UpdateDropInWorldsStatusRepeats[2]{ 3, 3 };
+protobuf::DropInWorldList g_DropInWorlds;
+DWORD g_UpdateDropInWorldsStatusTicks;
+void ZNETWORK_UpdateDropInWorldsStatus() {
+    switch(g_DropInWorldsStatus) {
+    case DIW_INIT:
+        break;
+    case DIW_WAIT:
+        if (g_UpdateDropInWorldsStatusFut.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            auto v14 = g_UpdateDropInWorldsStatusFut.get();
+            if (v14.m_errCode == 0) {
+                g_DropInWorlds.CopyFrom(v14.m_T);
+                g_UpdateDropInWorldsStatusTicks = GetTickCount();
+                g_DropInWorldsStatus = DIW_ERR_PAUSE;
+                g_UpdateDropInWorldsStatusRepeats[1] = g_UpdateDropInWorldsStatusRepeats[0];
+                return;
+            }
+            if (g_UpdateDropInWorldsStatusRepeats[1]) {
+                --g_UpdateDropInWorldsStatusRepeats[1];
+                break;
+            }
+            g_DropInWorldsStatus = DIW_GIVEUP;
+        }
+        return;
+    case DIW_ERR_PAUSE:
+        if (g_UpdateDropInWorldsStatusTicks && int(GetTickCount() - g_UpdateDropInWorldsStatusTicks) < 30'000)
+            return;
+        break;
+    default:
+        return;
+    }
+    g_UpdateDropInWorldsStatusFut = g_UpdateDropInWorldsStatusLam();
+    g_DropInWorldsStatus = DIW_WAIT;
+}
 void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttribute &wa) {
     auto ignoreGod = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\IGNOREGODMESSAGES", 0, true); (void)ignoreGod;
     auto mgr = BikeManager::Instance();
@@ -6773,12 +6855,12 @@ void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttrib
             if (spa.spa_type() != protobuf::SOCIAL_TEXT_MESSAGE && spa.spa_type() != protobuf::SOCIAL_FLAG)
                 return;
             auto bk = mgr->FindBikeWithNetworkID(spa.player_id(), false);
-            auto curLead = gGroupEventsActive_CurrentLeader;
+            auto curLead = g_GroupEventsActive_CurrentLeader;
             if (g_currentPrivateEvent && g_currentPrivateEvent->m_leaderId) // GroupEvents::GetCurrentLeader
                 curLead = g_currentPrivateEvent->m_leaderId;
             bool isLeader = curLead == spa.player_id();
             if (spa.spa_type() == protobuf::SOCIAL_TEXT_MESSAGE) {
-                if (ProfanityFilter::PlayerOldEnoughToMessage() || isLeader || gGroupEventsActive_CurrentSweeper == spa.player_id()) {
+                if (ProfanityFilter::PlayerOldEnoughToMessage() || isLeader || g_GroupEventsActive_CurrentSweeper == spa.player_id()) {
                     VEC3 pos{};
                     if (bk)
                         pos = mainBike->GetPosition();
@@ -6961,16 +7043,16 @@ void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttrib
             return;
         switch (brla->m_rideLeaderAction) {
         case RLA_1: case RLA_2: case RLA_3: case RLA_4:
-            RideLeaderActions_add(brla->m_a1, brla->m_leaderId, brla->m_worldTime, wa.world_time_expire());
+            ZNETWORK_RegisterRideLeader(brla->m_eventId, brla->m_leaderId, brla->m_worldTime, wa.world_time_expire());
             break;
         case RLA_6:
             for (auto i : g_RideLeaderActions) {
-                if (i->m_a1 == brla->m_a1) {
+                if (i->m_eventId == brla->m_eventId) {
                     if (i->m_leaderId == brla->m_leaderId) {
                         if (brla->m_worldTime > i->m_worldTime) {
                             i->m_leaderId = 0;
                             i->m_worldTime = brla->m_worldTime;
-                            i->m_world_time_expire = wa.world_time_expire();
+                            i->m_worldTimeExpire = wa.world_time_expire();
                         }
                     }
                     break;
@@ -7026,11 +7108,11 @@ void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttrib
     }
         return;
     case protobuf::WAT_RH: {
-        ZNETWORK_RouteHashResponse *prh = (ZNETWORK_RouteHashResponse *)wa.payload().c_str();
-        static_assert(sizeof(ZNETWORK_RouteHashResponse) == 32);
-        if (prh->m_len != sizeof(ZNETWORK_RouteHashResponse) - 4 || prh->m_playerIdTx != mainBike->m_playerIdTx)
+        auto *prh = (ZNETWORK_RouteHashRequest *)wa.payload().c_str();
+        static_assert(sizeof(ZNETWORK_RouteHashRequest) == 32);
+        if (prh->m_len != sizeof(ZNETWORK_RouteHashRequest) - 4 || prh->m_playerIdTx != mainBike->m_playerIdTx)
             return;
-        Log("Handle RouteHash request...");
+        Log("Handle RouteHash request..."); //ZNETWORK_INTERNAL_HandleRouteHashRequest
         if (prh->m_kind == 1) {
             ZNETWORK_RespondToRouteHashRequest(prh->m_otherPlayerId);
             Log("Responded to RouteHash request");
@@ -7136,8 +7218,8 @@ void ZNETWORK_RespondToRouteHashRequest(int64_t playerId) {
         wa.set_world_time_expire(g_CachedWorldTime + 10000);
         wa.set_importance(5000000);
         wa.set_rel_id(playerId);
-        ZNETWORK_RouteHashResponse v32{ .m_ver = 2, .m_len = sizeof(ZNETWORK_RouteHashResponse) - 4, .m_kind = 2, .m_otherPlayerId = mainBike->m_playerIdTx, .m_playerIdTx = playerId };
-        static_assert(sizeof(ZNETWORK_RouteHashResponse) == 32);
+        ZNETWORK_RouteHashRequest v32{ .m_ver = 2, .m_len = sizeof(ZNETWORK_RouteHashRequest) - 4, .m_kind = 2, .m_otherPlayerId = mainBike->m_playerIdTx, .m_playerIdTx = playerId };
+        static_assert(sizeof(ZNETWORK_RouteHashRequest) == 32);
         if (mainBike->m_routeComp && mainBike->m_routeComp->m_selRoute && mainBike->m_routeComp->m_selRoute->m_hash) {
             v32.m_routeHash = mainBike->m_routeComp->m_selRoute->m_hash;
             v32.m_decisionIndex = mainBike->m_routeComp->m_decisionIndex;
@@ -7159,13 +7241,10 @@ void ZNETWORK_RespondToRouteHashRequest(int64_t playerId) {
                 v32.m_routeHash = v30[v11]->m_hash;
             }
         }
-        wa.set_payload((char *)&v32, sizeof(ZNETWORK_RouteHashResponse));
+        wa.set_payload((char *)&v32, sizeof(ZNETWORK_RouteHashRequest));
         Log("routeHash: respond: [%lld] -> [%lld]  (%u)", playerId, mainBike->m_playerIdTx, v32.m_routeHash);
         g_BroadcastRouteHashReturnCode = zwift_network::save_world_attribute(wa);
     }
-}
-void RideLeaderActions_add(int64_t a1, int64_t leaderId, int64_t a3, uint64_t world_time_expire) {
-    g_RideLeaderActions.push_back(new RideLeaderActionInfo{a1, leaderId, a3, world_time_expire});
 }
 void ZNETWORK_FlagLocalPlayer(PLAYER_FLAGGED_REASONS pfr, bool changeCheatBits /*= true*/) {
     auto mainBike = BikeManager::Instance()->m_mainBike;
@@ -7227,13 +7306,13 @@ void ZNETWORK_BroadcastBibNumberForGroupEvent(int64_t eventId, uint32_t expire, 
 }
 int64_t g_lastBclaTime;
 std::future<NetworkResponse<int64_t>> g_BroadcastLocalPlayerRideLeaderAction, g_BroadcastLocalPlayerRegisterForGroupEvent;
-void ZNETWORK_BroadcastRideLeaderAction(RideLeaderAction act, uint32_t a2, int64_t a3) {
+void ZNETWORK_BroadcastRideLeaderAction(RideLeaderAction act, uint32_t a2_notused, uint64_t eventId) {
     static_assert(sizeof(BroadcastRideLeaderAction) == 0x68);
     auto v5 = (int64_t)_time64(nullptr);
     if (v5 - g_lastBclaTime >= 10) {
         g_lastBclaTime = v5;
         BroadcastRideLeaderAction v13{.m_ver = 1, .m_len = sizeof(BroadcastRideLeaderAction) - 4, .m_leaderId = BikeManager::Instance()->m_mainBike->m_playerIdTx, 
-            .m_worldTime = (int64_t)g_CachedWorldTime, .m_a1 = a3, .m_rideLeaderAction = act };
+            .m_worldTime = g_CachedWorldTime, .m_eventId = eventId, .m_rideLeaderAction = act };
         protobuf::WorldAttribute v14;
         v14.set_payload((char *)&v13, sizeof(ZNETWORK_BibNumberForGroupEvent));
         v14.set_wa_type(protobuf::WAT_RLA);
@@ -7252,7 +7331,7 @@ void ZNETWORK_BroadcastRegisterForGroupEvent(int64_t sgEventId, uint32_t exp, bo
     g_BroadcastLocalPlayerRegisterForGroupEvent = zwift_network::save_world_attribute(v19);
 }
 std::future<NetworkResponse<int64_t>> g_PrivateTextReturnCode, g_BroadcastAreaTextReturnCode, g_BroadcastSPAReturnCode;
-void ZNETWORK_SendPrivateText(int64_t playerIdDest, int64_t playerIdSrc, const uint16_t *msg) {
+void ZNETWORK_SendPrivateText(int64_t playerIdDest, int64_t playerIdSrc, const UChar *msg) {
     static_assert(sizeof(ZNETWORK_TextMessage) == 0x4B0);
     if (g_subscriptionMode != SM_INACTIVE) {
         ZNETWORK_TextMessage v16{ .m_srcProfileId = playerIdSrc, .m_destProfileId = playerIdDest, .m_worldTime = g_CachedWorldTime };
@@ -7394,70 +7473,70 @@ void ZNETWORK_SendPlayerFlag(int64_t srcPlayerId, int64_t destPlayerId, protobuf
 }
 namespace zwift_network {
 NetworkRequestOutcome send_image_to_mobile_app(const std::string &pathName, const std::string &imgName) {
-    auto aux = g_networkClient->m_pImpl->m_aux;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
     aux->send_image_to_mobile_app(pathName, imgName);
     return NRO_OK;
 }
 NetworkRequestOutcome send_set_power_up_command(const std::string &locName, const std::string &color, const std::string &mask, int puId) {
-    auto aux = g_networkClient->m_pImpl->m_aux;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
     aux->send_set_power_up_command(locName, color, mask, puId);
     return NRO_OK;
 }
 NetworkRequestOutcome send_rider_list_entries(const std::list<protobuf::RiderListEntry> &list) {
-    auto aux = g_networkClient->m_pImpl->m_aux;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
     aux->send_rider_list_entries(list);
     return NRO_OK;
 }
 NetworkRequestOutcome send_mobile_alert_cancel_command(const protobuf::MobileAlert &ma) {
-    auto aux = g_networkClient->m_pImpl->m_aux;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
     aux->send_mobile_alert_cancel_command(ma);
     return NRO_OK;
 }
 NetworkRequestOutcome send_player_profile(const protobuf::PlayerProfile &pp) {
-    auto aux = g_networkClient->m_pImpl->m_aux;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
     aux->send_player_profile(pp);
     return NRO_OK;
 }
 NetworkRequestOutcome send_social_player_action(const protobuf::SocialPlayerAction &spa) {
-    auto aux = g_networkClient->m_pImpl->m_aux;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
     aux->send_social_player_action(spa);
     return NRO_OK;
 }
 NetworkRequestOutcome send_mobile_alert(const protobuf::MobileAlert &ma) {
-    auto aux = g_networkClient->m_pImpl->m_aux;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
     aux->send_mobile_alert(ma);
     return NRO_OK;
 }
 NetworkRequestOutcome send_default_activity_name_command(const std::string &name) {
-    auto aux = g_networkClient->m_pImpl->m_aux;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
     aux->send_default_activity_name(name);
     return NRO_OK;
 }
 NetworkRequestOutcome send_game_packet(const std::string &a2, bool force) {
-    auto aux = g_networkClient->m_pImpl->m_aux;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
     aux->send_game_packet(a2, force);
     return NRO_OK;
 }
 NetworkRequestOutcome send_ble_peripheral_request(const protobuf::BLEPeripheralRequest &rq) {
-    auto aux = g_networkClient->m_pImpl->m_aux;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
         return NRO_NOT_PAIRED_TO_PHONE;
     aux->send_ble_peripheral_request(rq);
@@ -7482,9 +7561,9 @@ bool pop_player_id_with_updated_profile(int64_t *ret) {
 bool pop_phone_to_game_command(protobuf::PhoneToGameCommand *pDest) { return g_networkClient->m_pImpl->popPhoneToGameCommand(pDest); }
 std::future<NetworkResponse<protobuf::PlayerProfiles>> profiles(const std::unordered_set<int64_t> &rq) { return g_networkClient->m_pImpl->profiles(rq); }
 bool motion_data(Motion *dest) {
-    auto m_aux = g_networkClient->m_pImpl->m_aux;
-    if (m_aux)
-        return m_aux->motion_data(dest);
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
+    if (aux)
+        return aux->motion_data(dest);
     else
         return false;
 }
@@ -7494,8 +7573,8 @@ std::future<NetworkResponse<protobuf::DropInWorldList>> fetch_drop_in_world_list
 std::list<ValidateProperty> parse_validation_error_message(const std::string &msg) { return g_networkClient->m_pImpl->parseValidationErrorMessage(msg); }
 std::future<NetworkResponse<protobuf::DropInWorldList>> fetch_worlds_counts_and_capacities() { return g_networkClient->m_pImpl->fetchWorldsCountsAndCapacities(); }
 bool is_paired_to_phone() {
-    auto m_aux = g_networkClient->m_pImpl->m_aux;
-    return m_aux && m_aux->m_connectedOK && m_aux->m_lastStatus;
+    auto aux = g_networkClient->m_pImpl->m_aux.get();
+    return aux && aux->m_connectedOK && aux->m_lastStatus;
 }
 ValidateProperty validateProperty(ProfileProperties pp, const std::string &ppval) {
     switch (pp) {
@@ -7631,7 +7710,7 @@ std::future<NetworkResponse<std::string>> log_in_with_oauth2_credentials(const s
 std::future<NetworkResponse<std::string>> log_in_with_email_and_password(const std::string &email, const std::string &pwd, const std::vector<std::string> &anEventProps, bool reserved, const std::string &oauthClient) {
     return g_networkClient->m_pImpl->logInWithEmailAndPassword(email, pwd, anEventProps, reserved, oauthClient);
 }
-uint64_t world_time() { auto w = g_networkClient->m_pImpl->m_wclock; return w ? w->getWorldTime() : 0; }
+uint64_t world_time() { auto w = g_networkClient->m_pImpl->m_wclock.get(); return w ? w->getWorldTime() : 0; }
 }
 bool initialize_zwift_network(const std::string &server, const std::string &certs, const std::string &version) {
     NetworkClient::globalInitialize();
@@ -7937,8 +8016,6 @@ std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double w_
     crit->set_bta_20h((int)bta_20h);
     return zwift_network::create_race_result_entry(rq);
 }
-int32_t g_ServerReportedPlayerCount;
-bool g_ServerReportedRacePlacements;
 void ZNETWORK_INTERNAL_ProcessPlayerPackets() {
     std::shared_ptr<protobuf::ServerToClient> stc;
     auto bikeManager = BikeManager::Instance();
@@ -8057,16 +8134,70 @@ void ZNETWORK_JoinWorld(int64_t serverRealm, bool enableTeleport) {
         Leaderboards::FetchJerseyLeadersForAllSegments();
     }
 }
-void ZNETWORK_SendRouteHashRequest(int64_t playerId) {
-    //TODO
+void ZNETWORK_SendRouteHashRequest(int64_t toPlayerId) {
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    Log("Sending Route hash request (to %d)", toPlayerId);
+    if (g_subscriptionMode != SM_INACTIVE) {
+        if (++g_routehashCt <= 3) {
+            g_RouteHashTargetID = toPlayerId;
+            protobuf::WorldAttribute v17;
+            v17.set_wa_type(protobuf::WAT_RH);
+            v17.set_world_time_expire(g_CachedWorldTime + 10'000);
+            v17.set_importance(5'000'000);
+            v17.set_rel_id(toPlayerId);
+            v17.set_x(mainBike->m_pos.m_data[0]);
+            v17.set_y_altitude(mainBike->m_pos.m_data[1]);
+            v17.set_z(mainBike->m_pos.m_data[2]);
+            static_assert(sizeof(ZNETWORK_RouteHashRequest) == 32);
+            ZNETWORK_RouteHashRequest v16{ .m_ver = 2, .m_len = sizeof(ZNETWORK_RouteHashRequest) - 4, .m_kind = 1, .m_otherPlayerId = mainBike->m_playerIdTx, .m_playerIdTx = toPlayerId };
+            g_delayed_RouteHash_time = 5.0f;
+            v17.set_payload((char *)&v16, sizeof(v16));
+            Log("------------- routehash sent");
+            g_BroadcastRouteHashReturnCode = zwift_network::save_world_attribute(v17);
+        } else {
+            g_delayed_RouteHash_time = -1.0f;
+            g_routehashCt = 0;
+        }
+    }
+}
+protobuf::ActivityList g_LastActivityList;
+std::future<NetworkResponse<protobuf::ActivityList>> g_UserActivitiesFuture;
+int64_t g_LastActivityListRequestPlayerID;
+protobuf::ActivityList *ZNETWORK_GetActivities() {
+    protobuf::ActivityList *ret = nullptr;
+    if (ZNETWORK_IsLoggedIn()) {
+        auto playerIdTx = BikeManager::Instance()->m_mainBike->m_playerIdTx;
+        if (playerIdTx == g_LastActivityListRequestPlayerID)
+            return &g_LastActivityList;
+        if (!g_UserActivitiesFuture.valid())
+            g_UserActivitiesFuture = zwift_network::get_activities(playerIdTx, Optional<int64_t>(), Optional<int64_t>(), false);
+        if (g_UserActivitiesFuture.valid()) {
+            bool ready = (std::future_status::ready == g_UserActivitiesFuture.wait_for(std::chrono::seconds(0)));
+            if (ready) {
+                auto res = g_UserActivitiesFuture.get();
+                if (res.m_errCode) {
+                    Log("zwift_network::get_activities() failure: %d!", res.m_errCode);
+                } else {
+                    g_LastActivityListRequestPlayerID = playerIdTx;
+                    g_LastActivityList.CopyFrom(res.m_T);
+                    ret = &g_LastActivityList;
+                }
+            }
+        }
+    }
+    return ret;
 }
 void ZNETWORK_INTERNAL_ProcessUpcomingWorkouts() {
-    //TODO
+    //OMIT as server-side workouts:
 }
 float g_startLineRoadTime = 0.95f;
 uint32_t g_LastScreenshotTime;
+int g_PhoneAPIVersion, g_farFanviewFocusRequestTimeout;
+int64_t g_farFanviewFocusRequestID;
 void ZNETWORK_INTERNAL_ProcessPhoneInput() {
     protobuf::PhoneToGameCommand ptg;
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    auto exp = Experimentation::Instance();
     while (zwift_network::pop_phone_to_game_command(&ptg)) {
         switch (ptg.command()) {
         case protobuf::CUSTOM_ACTION:
@@ -8092,15 +8223,13 @@ void ZNETWORK_INTERNAL_ProcessPhoneInput() {
             break;
         case protobuf::JOIN_ANOTHER_PLAYER: {
             auto b = BikeManager::Instance()->FindBikeWithNetworkID(ptg.rel_id() /*QUEST why SLODWORD here*/, false);
-            auto myb = BikeManager::Instance()->m_mainBike;
-            if (b && myb) {
-                myb->Respawn(b->m_road ? b->m_road->m_segmentId : 0, b->m_field_888, b->m_field_8B8, false);
+            if (b && mainBike) {
+                mainBike->Respawn(b->m_road ? b->m_road->m_segmentId : 0, b->m_field_888, b->m_field_8B8, false);
                 EventSystem::GetInst()->TriggerEvent(EV_FRAME_CH, 0);
                 ZNETWORK_SendRouteHashRequest(ptg.rel_id());
             }}
             break;
-        case protobuf::TELEPORT_TO_START: {
-            auto mainBike = BikeManager::Instance()->m_mainBike;
+        case protobuf::TELEPORT_TO_START:
             if (mainBike) {
                 assert(g_pRoadManager);
                 auto v64 = mainBike->m_road;
@@ -8118,7 +8247,7 @@ void ZNETWORK_INTERNAL_ProcessPhoneInput() {
                 mainBike->m_field_940 &= ~2u;
                 mainBike->m_field_8F0 = -1;
                 mainBike->m_teleportPos = mainBike->m_pos;
-            }}
+            }
             break;
         case protobuf::ELBOW_FLICK:
             TriggerLocalPlayerAction(BikeEntity::UA_ELBOW);
@@ -8214,35 +8343,201 @@ void ZNETWORK_INTERNAL_ProcessPhoneInput() {
         case protobuf::OBSOLETE_GROUP_TEXT_MESSAGE:
             //nop
             break;
-        case protobuf::OBSOLETE_SINGLE_PLAYER_TEXT_MESSAGE:
-            //TODO
+        case protobuf::OBSOLETE_SINGLE_PLAYER_TEXT_MESSAGE: {
+            BufSafeToUTF8 buf;
+            auto cmsg = ptg.msg().c_str();
+            LogTyped(LOG_NETWORK, "Phone message sent to id %d (%s)", ptg.player_msg_dst(), cmsg);
+            ZNETWORK_SendPrivateText(ptg.player_msg_dst(), mainBike->m_playerIdTx, SafeToUTF8(cmsg, &buf));
+        }
             break;
         case protobuf::MOBILE_API_VERSION:
-            //TODO
+            g_PhoneAPIVersion = ptg.api_ver();
             break;
         case protobuf::ACTIVATE_POWER_UP:
-            //TODO
+            if (mainBike)
+                mainBike->ActivatePowerUp();
             break;
         case protobuf::U_TURN:
-            //TODO
+            zassert(exp);
+            if (exp->IsEnabled(FID_ALLOWUT) || mainBike->m_bc->m_field_188 > 5.0f)
+                RouteComputer::FlipRoute(mainBike);
             break;
-        case protobuf::FAN_VIEW:
-            //TODO
+        case protobuf::FAN_VIEW: {
+            auto v83 = BikeManager::Instance()->FindBikeWithNetworkID(ptg.rel_id(), false);
+            if (v83) {
+                if ((g_GameMode & 4 /*TODO*/) == 0) {
+                    Log("ZML fan view triggered");
+                    g_friendsListGUIObj->FanView(v83, false);
+                    g_friendsListGUIObj->m_fanView = true;
+                }
+            } else {
+                g_farFanviewFocusRequestID = ptg.rel_id();
+                g_farFanviewFocusRequestTimeout = 0;
+                if (mainBike)
+                    mainBike->m_field_CC1 = true;
+            }}
             break;
         case protobuf::SOCIAL_PLAYER_ACTION:
-            //TODO
+            if (ptg.spa().spa_type() == protobuf::SOCIAL_TEXT_MESSAGE) {
+                auto eventId = GroupEvents::GetCurrentBroadcastId_ex();
+                protobuf::SocialPlayerAction newSpa(ptg.spa());
+                auto importance = 75'000.0f;
+                if (ptg.spa().to_player_id())
+                    importance = 5'000'000.0f;
+                auto leaderId = (g_currentPrivateEvent && g_currentPrivateEvent->m_leaderId) ? g_currentPrivateEvent->m_leaderId : g_GroupEventsActive_CurrentLeader;
+                if (leaderId == ptg.spa().player_id() || g_GroupEventsActive_CurrentSweeper == ptg.spa().player_id())
+                    importance = 5'000'000.0f;
+                ZNETWORK_SendSPA(&newSpa, mainBike->m_pos, importance, eventId);
+                if (UI_GroupEventChat::g_GroupChat && UI_GroupEventChat::g_GroupChat->m_field_72) {
+                    BikeEntity *v109 = nullptr;
+                    if (newSpa.player_id())
+                        v109 = BikeManager::Instance()->FindBikeWithNetworkID(newSpa.player_id(), true);
+                    UChar dest[0x400], dest1[0x80];
+                    ToUTF8(newSpa.message().c_str(), dest, _countof(dest));
+                    if (newSpa.player_id()) {
+                        if (v109) {
+                            u_snprintf(dest1, _countof(dest1), "%S -> %S", mainBike->m_uname, v109->m_uname);
+                            UI_GroupEventChat::g_GroupChat->AddChatMessage(dest, dest1, newSpa.player_id(), true);
+                        }
+                    } else {
+                        UI_GroupEventChat::g_GroupChat->AddChatMessage(dest, mainBike->m_uname, newSpa.player_id(), false);
+                    }
+                }
+            } else if (ptg.spa().spa_type() == protobuf::SOCIAL_FLAG) {
+                if (ptg.spa().has_flag_type())
+                    switch (ptg.spa().flag_type()) {
+                    case protobuf::FLAG_TYPE_BAD_LANGUAGE: case protobuf::FLAG_TYPE_HARASSMENT: case protobuf::FLAG_TYPE_FLIER:
+                        ZNETWORK_SendPlayerFlag(mainBike->m_playerIdTx, ptg.spa().to_player_id(), ptg.spa().flag_type());
+                    }
+            } else {
+                Log("Unknown SPA received from phone");
+            }
             break;
         case protobuf::MOBILE_ALERT_RESPONSE:
-            //TODO
+            EventSystem::GetInst()->TriggerEvent(EV_ZCA_ALERT_RESP, 2, ptg.alert_resp().f1(), ptg.alert_resp().f2());
             break;
         case protobuf::BLEPERIPHERAL_RESPONSE:
-            //TODO
+            BLEModule::Instance()->ProcessBLEResponse(ptg.ble_resp(), BLES_ZCA);
             break;
-        case protobuf::PHONE_TO_GAME_PACKET:
-            //TODO
+        case protobuf::PHONE_TO_GAME_PACKET: {
+            protobuf::GamePacket v195;
+            v195.ParseFromString(ptg.game_packet());
+            switch (v195.type()) {
+            case protobuf::SPORTS_DATA_RESPONSE:
+                if (v195.has_client_info())
+                    switch (v195.sports_data_response().type()) {
+                    case protobuf::AVAILABLE_SAMPLE_TYPES: {
+                        auto v130 = false, v131 = false;
+                        for (auto v133 : v195.sports_data_response().sds_f5()) { //uint32_t hash of device?
+                            if (v133 == 1) //TODO: some enum
+                                v130 = true;
+                            else if (v133 == 2)
+                                v131 = true;
+                        }
+#if 0 //TODO
+                        Device = FitnessDeviceManager::FindDevice(-23);
+                        if (Device) {
+                            *&Device[9].field_0[240] = timeGetTime();
+                            *&Device[9].field_0[236] = timeGetTime();
+                        } else {
+                            v135 = operator new(0xB28ui64);
+                            v164 = v135;
+                            ExerciseDevice::ExerciseDevice(v135);
+                            *v135->field_0 = &ZMLAUXDevice::`vftable';
+                                * v135[1].field_0 = 6;
+                            *&v135[2].field_0[52] = -23;
+                            if (v131) {
+                                ComponentOfType = ExerciseDevice::FindComponentOfType(v135, 2);
+                                if (!ComponentOfType || ComponentOfType == 8) {
+                                    v145 = operator new(0x28ui64);
+                                    v145[2] = 2;
+                                    *(v145 + 12) = 1;
+                                    v145[4] = -999;
+                                    v145[5] = 0;
+                                    *(v145 + 3) = 0i64;
+                                    *v145 = &SensorValueComponent::`vftable';
+                                        v145[8] = 0;
+                                    ExerciseDevice::AddComponent(v135, (v145 + 2));
+                                }
+                            }
+                            if (v130) {
+                                v137 = ExerciseDevice::FindComponentOfType(v135, 4);
+                                if (!v137 || v137 == 8) {
+                                    v146 = operator new(0x28ui64);
+                                    v146[2] = 4;
+                                    *(v146 + 12) = 1;
+                                    v146[4] = -999;
+                                    v146[5] = 0;
+                                    *(v146 + 3) = 0i64;
+                                    *v146 = &SensorValueComponent::`vftable';
+                                        v146[8] = 0;
+                                    ExerciseDevice::AddComponent(v135, (v146 + 2));
+                                }
+                            }
+                            FitnessDeviceManager::AddDevice(v135, "Apple Watch");
+                        }
+#endif
+                        }
+                        break;
+                    case protobuf::SELECTED_SAMPLE_TYPES:
+                        /* looks like empty cycle: for (j = 0; j < (sds_f5); ++j)
+                            google::protobuf::RepeatedField<int>::operator[](sds_f5, j);*/
+                        break;
+                    case protobuf::SAMPLE:
+                        if (v195.sports_data_response().sample().type() == protobuf::HEART_RATE) {
+#if 0 //TODO
+                            v124 = v178;
+                            v125 = FitnessDeviceManager::FindDevice(-23);
+                            v126 = v125;
+                            if (v125) {
+                                v127 = ExerciseDevice::FindComponentOfType(v125, 4);
+                                if (v127) {
+                                    v128 = (v127 - 8);
+                                    if (v128) {
+                                        v128[8] = v124;
+                                        *&v126[9].field_0[240] = timeGetTime();
+                                    }
+                                }
+                            }
+#endif
+                        } else if (v195.sports_data_response().sample().type() == protobuf::WALK_RUN_SPEED) {
+#if 0 //TODO
+                            v119 = v178;
+                            v120 = FitnessDeviceManager::FindDevice(-23);
+                            v121 = v120;
+                            if (v120) {
+                                v122 = ExerciseDevice::FindComponentOfType(v120, 2);
+                                if (v122) {
+                                    v123 = (v122 - 8);
+                                    if (v123) {
+                                        v123[8] = v119 * 3.6000059;
+                                        *&v121[9].field_0[236] = timeGetTime();
+                                    }
+                                }
+                            }
+#endif
+                        }
+                        break;
+                    }
+                break;
+            case protobuf::RIDE_ON_BOMB_REQUEST:
+                if (v195.rideon_bomb_request().has_f1() && v195.rideon_bomb_request().f1()) {
+                    ZML_DetonateRideOnBomb();
+                    //OMIT ++g_ZNETWORK_Stats[4];
+                }
+                break;
+            case protobuf::WORKOUT_ACTION_REQUEST:
+                if (v195.workout_action_rq().has_type())
+                    ZML_ReceivedWorkoutAction(v195.workout_action_rq().type());
+                break;
+            case protobuf::CLIENT_ACTION:
+                if (v195.client_action().has_type())
+                    ZML_ReceivedClientAction(v195.client_action());
+                break;
+            }}
             break;
         case protobuf::BLEPERIPHERAL_DISCOVERY:
-            //TODO
+            BLEModule::Instance()->ProcessDiscovery(ptg.ble_adv(), BLES_ZCA);
             break;
         default:
             Log("Received a phone command of type: %d", ptg.command());
@@ -8506,7 +8801,7 @@ RequestId WithdrawFromCampaign(std::string &proto, std::function<void(const prot
 };
 
 //Units
-TEST(SmokeTest, JsonWebToken) {
+TEST(SmokeTestNet, JsonWebToken) {
     Oauth2Credentials o;
     //zoffline first
     std::string at("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ._kPfXO8MdM7j0meG4MVzprSa-3pdQqKyzYMHm4d494w"),
@@ -8555,23 +8850,23 @@ TEST(SmokeTest, JsonWebToken) {
     EXPECT_EQ(retail_rt, rrt.asString());
     EXPECT_EQ(0x003a326a53055a80, rrt.m_exp);
 }
-TEST(SmokeTest, EventLoopTest) {
+TEST(SmokeTestNet, EventLoopTest) {
     google::protobuf::internal::VerifyVersion(3021000, 3020000, __FILE__);
     EventLoop el;
     //Sleep(100);
     //el.shutdown();
     //el.enqueueShutdown();
 }
-TEST(SmokeTest, DISABLED_LoginTestPwd) {
+TEST(SmokeTestNet, DISABLED_LoginTestPwd) {
     g_MainThread = GetCurrentThreadId();
     std::vector<std::string> v{ "OS"s, "Windows"s };
     {
-        auto ret0 = zwift_network::log_in_with_email_and_password(""s, ""s, v, false, "Game_Launcher"s);
+        /*TODO auto ret0 = zwift_network::log_in_with_email_and_password(""s, ""s, v, false, "Game_Launcher"s);
         EXPECT_TRUE(ret0.valid());
         EXPECT_EQ(std::future_status::ready, ret0.wait_for(std::chrono::seconds(0)));
         auto r0 = ret0.get();
         EXPECT_EQ(2, r0.m_errCode) << r0.m_msg;
-        EXPECT_EQ("Initialize CNL first"s, r0.m_msg);
+        EXPECT_EQ("Initialize CNL first"s, r0.m_msg);*/
     }
     ZNETWORK_Initialize();
     ZMUTEX_SystemInitialize();
@@ -8608,8 +8903,9 @@ TEST(SmokeTest, DISABLED_LoginTestPwd) {
     r = ret.get();
     EXPECT_EQ(0, r.m_errCode) << r.m_msg;
     EXPECT_EQ(""s, r.m_msg);
+    ZNETWORK_Shutdown();
 }
-TEST(SmokeTest, DISABLED_LoginTestToken) {
+TEST(SmokeTestNet, DISABLED_LoginTestToken) {
     auto rt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ.5e1X1imPlVfXfhDHE_OGmG9CNGvz7hpPYPXcNkPJ5lw"s;
     auto token = "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ._kPfXO8MdM7j0meG4MVzprSa-3pdQqKyzYMHm4d494w\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\""s + rt + "\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}"s;
     g_MainThread = GetCurrentThreadId();
@@ -8627,8 +8923,9 @@ TEST(SmokeTest, DISABLED_LoginTestToken) {
     auto r = ret.get();
     EXPECT_EQ(0, r.m_errCode) << r.m_msg;
     EXPECT_EQ(rt, r.m_msg);
+    ZNETWORK_Shutdown();
 }
-TEST(SmokeTest, B64) {
+TEST(SmokeTestNet, B64) {
     uint8_t rawData[] = { "\x1\x2\x3-lorem\0ipsum" };
     auto obj = base64::toString(rawData, _countof(rawData));
     EXPECT_STREQ("AQIDLWxvcmVtAGlwc3VtAA==", obj.c_str());
@@ -8650,7 +8947,7 @@ TEST(SmokeTest, B64) {
     int so2 = sizeof(tcpSocket);
 }*/
 TEST(SmokeTest, Protobuf) {
-    /*protobuf::EventSubgroupPlacements EventSubgroupPlacements; //0x90
+    protobuf::EventSubgroupPlacements EventSubgroupPlacements; //0x90
     protobuf::CrossingStartingLineProto CrossingStartingLineProto;
     protobuf::Activity Activity; //0x158
     protobuf::ActivityImage ActivityImage; //0x60
@@ -8658,9 +8955,5 @@ TEST(SmokeTest, Protobuf) {
     protobuf::UdpConfigVOD UdpConfigVOD;
     protobuf::RelayAddressesVOD RelayAddressesVOD;
     protobuf::RelayAddress RelayAddress;
-    protobuf::PlayerSummary PlayerSummary;*/
-    std::string s(4500, 'L');
-    s += "q"s;
-    s.erase(0, 5);
-    printf(s.c_str());
+    protobuf::PlayerSummary PlayerSummary;
 }
