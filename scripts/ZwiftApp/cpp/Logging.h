@@ -16,6 +16,7 @@ void Log(const char *fmt, ...);
 void LogLev(LOG_LEVEL level, const char *fmt, ...);
 void LogDebug(const char *fmt, ...);
 void LogNoesis(void *dummy_a1, void *dummy_a2, NoesisLogLevel noesisLevel, void *dummy_a4, const char *msg);
+void LogShutdown();
 void LogInitialize();
 typedef void (*LogWriteHandler)(LOG_LEVEL level, LOG_TYPE ty, const char *msg);
 void SetLogWriteHandler(LogWriteHandler h);

@@ -387,7 +387,7 @@ struct CurlHttpConnection {
     QueryResult performPutOrPost(bool put, const std::string &url, const ContentTypeHeader &cth, const std::string &payload, const AcceptHeader &ach, const std::string &putDescr, const std::string &postDescr, bool upload) { /*vptr[22]*/
         return put ? performPut(url, cth, payload, ach, putDescr, upload) : performPost(url, cth, payload, ach, postDescr, upload);
     }
-    std::string escapeUrl(const std::string &src) { /*vptr[23]*/ return curl_easy_escape(m_curl, src.c_str(), int(src.size())); }
+    std::string escapeUrl(const std::string &src) { /*vptr[23]*/ auto ptr = curl_easy_escape(m_curl, src.c_str(), int(src.size())); auto ret = std::string(ptr); curl_free(ptr); return ret; }
 
     static int progressCallback(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow) {
         return *((bool *)clientp);
@@ -551,8 +551,8 @@ struct CurlHttpConnectionFactory { //0x90 - 16 bytes
     }
     ~CurlHttpConnectionFactory() {}
     void shutdown() { m_killed = true; }
-    CurlHttpConnection *instance(const std::string &certs, bool ncoSkipCertCheck, bool a5, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode hrm) {
-        return new CurlHttpConnection(certs, ncoSkipCertCheck, a5, ncoTimeoutSec, ncoUploadTimeoutSec, m_curlVersion, m_zaVersion,
+    std::unique_ptr<CurlHttpConnection> instance(const std::string &certs, bool ncoSkipCertCheck, bool a5, int ncoTimeoutSec, int ncoUploadTimeoutSec, HttpRequestMode hrm) {
+        return std::make_unique<CurlHttpConnection>(certs, ncoSkipCertCheck, a5, ncoTimeoutSec, ncoUploadTimeoutSec, m_curlVersion, m_zaVersion,
             m_machineId, &m_killed, hrm);
     }
     //global downloader will init/deinit CURL CURLcode globalInitialize() { return curl_global_init(CURL_GLOBAL_DEFAULT); } globalCleanup()
@@ -608,12 +608,14 @@ struct GenericHttpConnectionManager : public HttpConnectionManager { //0x128 byt
                 std::unique_lock<std::mutex> lock(m_mutex);
                 m_conditionVar.wait(lock, [this, myThreadNo] { return myThreadNo >= this->m_nThreads || !this->m_ptq.empty(); });
                 if (myThreadNo >= m_nThreads)
-                    return;
+                    break;
                 task = std::move(m_ptq.front());
                 m_ptq.pop();
             }
-            task(conn);
+            task(conn.get());
         }
+        conn.reset();
+        OPENSSL_thread_stop();
     }
     template<class T>
     std::future<NetworkResponse<T>> pushRequestTask(const std::function<NetworkResponse<T>(CurlHttpConnection *)> &f) {
@@ -1187,7 +1189,7 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
                 std::unique_lock<std::mutex> lock(m_mutex);
                 m_conditionVar.wait(lock, [this, myThreadNo] { return myThreadNo >= this->m_nThreads || (!this->m_needNewAcToken && !this->m_rtq.empty()); });
                 if (myThreadNo >= this->m_nThreads)
-                    return;
+                    break;
                 task = std::move(m_rtq.front());
                 m_rtq.pop();
             }
@@ -1214,8 +1216,10 @@ struct ZwiftHttpConnectionManager : public HttpConnectionManager { //0x160 bytes
                 conn->setSessionIdHeader(m_gs->getSessionInfo());
             else
                 conn->setSessionIdHeader("");
-            task(conn, needNewAcToken);
+            task(conn.get(), needNewAcToken);
         }
+        conn.reset();
+        OPENSSL_thread_stop();
     }
     ~ZwiftHttpConnectionManager() { shutdown(); }
     template<class T>
@@ -8858,29 +8862,27 @@ TEST(SmokeTestNet, EventLoopTest) {
     //el.enqueueShutdown();
 }
 TEST(SmokeTestNet, DISABLED_LoginTestPwd) {
-    g_MainThread = GetCurrentThreadId();
     std::vector<std::string> v{ "OS"s, "Windows"s };
     {
         /*TODO auto ret0 = zwift_network::log_in_with_email_and_password(""s, ""s, v, false, "Game_Launcher"s);
         EXPECT_TRUE(ret0.valid());
-        EXPECT_EQ(std::future_status::ready, ret0.wait_for(std::chrono::seconds(0)));
+        EXPECT_EQ(std::future_status::ready, ret0.wait_for(std::chrono::milliseconds(20)));
         auto r0 = ret0.get();
         EXPECT_EQ(2, r0.m_errCode) << r0.m_msg;
         EXPECT_EQ("Initialize CNL first"s, r0.m_msg);*/
     }
     ZNETWORK_Initialize();
-    ZMUTEX_SystemInitialize();
-    LogInitialize();
     EXPECT_FALSE(ZNETWORK_IsLoggedIn());
     auto ret2 = zwift_network::log_out();
     EXPECT_TRUE(ret2.valid());
-    EXPECT_EQ(std::future_status::ready, ret2.wait_for(std::chrono::seconds(0)));
+    EXPECT_EQ(std::future_status::ready, ret2.wait_for(std::chrono::milliseconds(20)));
+    EXPECT_TRUE(is_ready(ret2));
     auto r2 = ret2.get();
     EXPECT_EQ(3, (int)r2.m_errCode) << r2.m_msg;
     EXPECT_EQ("Not logged in"s, r2.m_msg);
     auto ret1 = g_networkClient->m_pImpl->logInWithEmailAndPassword(""s, ""s, v, true, "Game_Launcher"s);
     EXPECT_TRUE(ret1.valid());
-    EXPECT_EQ(std::future_status::ready, ret1.wait_for(std::chrono::seconds(0)));
+    EXPECT_EQ(std::future_status::ready, ret1.wait_for(std::chrono::milliseconds(20)));
     auto r1 = ret1.get();
     EXPECT_EQ(4, (int)r1.m_errCode) << r1.m_msg;
     EXPECT_EQ("Good luck, soldier"s, r1.m_msg);
@@ -8889,7 +8891,8 @@ TEST(SmokeTestNet, DISABLED_LoginTestPwd) {
     while (!ZNETWORK_IsLoggedIn())
         Sleep(100);
     EXPECT_TRUE(ret.valid());
-    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::seconds(0)));
+    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20)));
+    EXPECT_TRUE(is_ready(ret));
     auto r = ret.get();
     EXPECT_EQ(0, (int)r.m_errCode) << r.m_msg;
     //zoffline has no fantasy
@@ -8899,7 +8902,7 @@ TEST(SmokeTestNet, DISABLED_LoginTestPwd) {
     while (ZNETWORK_IsLoggedIn())
         Sleep(100);
     EXPECT_TRUE(ret.valid());
-    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::seconds(0)));
+    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20)));
     r = ret.get();
     EXPECT_EQ(0, r.m_errCode) << r.m_msg;
     EXPECT_EQ(""s, r.m_msg);
@@ -8908,10 +8911,7 @@ TEST(SmokeTestNet, DISABLED_LoginTestPwd) {
 TEST(SmokeTestNet, DISABLED_LoginTestToken) {
     auto rt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ.5e1X1imPlVfXfhDHE_OGmG9CNGvz7hpPYPXcNkPJ5lw"s;
     auto token = "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ._kPfXO8MdM7j0meG4MVzprSa-3pdQqKyzYMHm4d494w\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\""s + rt + "\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}"s;
-    g_MainThread = GetCurrentThreadId();
     ZNETWORK_Initialize();
-    ZMUTEX_SystemInitialize();
-    LogInitialize();
     EXPECT_FALSE(ZNETWORK_IsLoggedIn());
     std::vector<std::string> v{"OS"s, "Windows"s};
     auto ret = g_networkClient->m_pImpl->logInWithOauth2Credentials(token, v, "Game_Launcher"s);
@@ -8919,7 +8919,7 @@ TEST(SmokeTestNet, DISABLED_LoginTestToken) {
     while(!ZNETWORK_IsLoggedIn())
         Sleep(100);
     EXPECT_TRUE(ret.valid());
-    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::seconds(0)));
+    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20)));
     auto r = ret.get();
     EXPECT_EQ(0, r.m_errCode) << r.m_msg;
     EXPECT_EQ(rt, r.m_msg);
@@ -8946,7 +8946,7 @@ TEST(SmokeTestNet, B64) {
     boost::asio::ip::tcp::socket tcpSocket(asioCtx, boost::asio::ip::tcp::v4());
     int so2 = sizeof(tcpSocket);
 }*/
-TEST(SmokeTest, Protobuf) {
+TEST(SmokeTestNet, Protobuf) {
     protobuf::EventSubgroupPlacements EventSubgroupPlacements; //0x90
     protobuf::CrossingStartingLineProto CrossingStartingLineProto;
     protobuf::Activity Activity; //0x158
@@ -8956,4 +8956,296 @@ TEST(SmokeTest, Protobuf) {
     protobuf::RelayAddressesVOD RelayAddressesVOD;
     protobuf::RelayAddress RelayAddress;
     protobuf::PlayerSummary PlayerSummary;
+}
+TEST(SmokeTestNet, NetworkResponse) {
+    NetworkResponse<std::string> obj;
+    obj.storeError(NRO_CURL_ERROR, "123"s);
+    EXPECT_EQ(NRO_CURL_ERROR, obj.m_errCode);
+    EXPECT_STREQ("123", obj.m_msg.c_str());
+    obj.storeError(NRO_ENCRYPTION_FAILURE, "1234");
+    EXPECT_EQ(NRO_ENCRYPTION_FAILURE, obj.m_errCode);
+    EXPECT_STREQ("1234", obj.m_msg.c_str());
+    obj.m_T = "12345"s;
+    const auto &cobj = obj.storeError(NRO_ERROR_READING_FILE, obj.m_T);
+    EXPECT_EQ(NRO_ERROR_READING_FILE, cobj.m_errCode);
+    EXPECT_STREQ("12345", obj.m_msg.c_str());
+    const auto &cobj2 = obj;
+    EXPECT_STREQ("12345", std::string(cobj2).c_str());
+    struct testPlayerIdProvider : public ProfileRequestLazyContext::PlayerIdProvider {
+        std::unordered_set<int64_t> getPlayerIds(uint32_t key) override {
+            if (key == 321)
+                return std::unordered_set<int64_t>{3, 2, 1};
+            else
+                return std::unordered_set<int64_t>{};
+        }
+    } tp;
+    ProfileRequestLazyContext ctx(123456, nullptr), ctx2(321, &tp);
+    EXPECT_EQ(123456, ctx.m_key);
+    auto ids = ctx.getPlayerIds();
+    EXPECT_EQ(0u, ids.size());
+    auto ids2 = ctx2.getPlayerIds();
+    EXPECT_EQ(3u, ids2.size());
+    EXPECT_TRUE(ids2.contains(1) && ids2.contains(2) && ids2.contains(3));
+    ZNet::Error e1("NRO_HTTP_STATUS_CONFLICT"), e2("msg", NRO_CURL_ERROR);
+    EXPECT_EQ(NRO_OK, e1.m_netReqOutcome);
+    EXPECT_FALSE(e1.m_hasNetReqOutcome);
+    EXPECT_STREQ("NRO_HTTP_STATUS_CONFLICT", e1.m_msg.data());
+    EXPECT_EQ(NRO_CURL_ERROR, e2.m_netReqOutcome);
+    EXPECT_TRUE(e2.m_hasNetReqOutcome);
+    EXPECT_STREQ("msg", e2.m_msg.data());
+    ZNETWORK_PacePartnerInfo ppi;
+    EXPECT_EQ(0, ppi.field_1C + ppi.field_1A);
+    ZNet::RetryParams rp;
+    EXPECT_EQ(0, rp.m_count + rp.m_timeout);
+    ZNet::Params p;
+    EXPECT_FALSE(p.m_has_retry);
+    EXPECT_EQ(0, p.m_timeout);
+    auto zapi = ZNet::API::Inst();
+    EXPECT_FALSE(zapi->Dequeue(123));
+    auto rid = zapi->Enqueue<int>([]() {
+        return std::future<NetworkResponse<int>>();
+    }, [](const int &val) {
+        ;
+    }, &p);
+    EXPECT_TRUE(rid > 0);
+    p.m_has_retry = true;
+    auto ridr = zapi->Enqueue<int>([]() {
+        return std::future<NetworkResponse<int>>();
+    }, [](const int &val) {
+        ;
+    }, &p);
+    EXPECT_TRUE(ridr > 0);
+    EXPECT_TRUE(zapi->GetStatus(ridr));
+    EXPECT_TRUE(zapi->Dequeue(ridr));
+    EXPECT_FALSE(zapi->GetStatus(ridr));
+    EXPECT_TRUE(zapi->IsBusy());
+    EXPECT_TRUE(zapi->Dequeue(rid));
+    EXPECT_FALSE(zapi->IsBusy());
+    EXPECT_FALSE(ZNet::NetworkService::IsInitialized());
+    ZNet::NetworkService::Initialize();
+    EXPECT_TRUE(ZNet::NetworkService::IsInitialized());
+    EXPECT_TRUE(ZNet::NetworkService::Instance() != nullptr);
+    ZNet::NetworkService::Shutdown();
+    EXPECT_FALSE(ZNet::NetworkService::IsInitialized());
+}
+TEST(SmokeTestNet, RPC) {
+    bool errFlag = false;
+    auto err = [&errFlag](ZNet::Error) {
+        errFlag = true;
+    };
+    ZNet::Params p{.m_funcName = "RPC_test", .m_onError = err, .m_timeout = 2000 };
+    auto zapi = ZNet::API::Inst();
+    std::promise<NetworkResponse<int>> prom;
+    int v = -1;
+    auto rid = zapi->Enqueue<int>([&prom]() {
+        return prom.get_future();
+    }, [&v](const int &val) {
+        v = val;
+    }, &p);
+    zapi->Update(1);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    EXPECT_EQ(-1, v);
+    prom.set_value(NetworkResponse<int>{.m_T = 5});
+    EXPECT_EQ(-1, v);
+    zapi->Update(1);
+    EXPECT_FALSE(zapi->GetStatus(rid));
+    EXPECT_EQ(5, v);
+    EXPECT_FALSE(errFlag);
+}
+TEST(SmokeTestNet, RPC_err) {
+    ZNet::Error errFlag("init");
+    std::string msg_copy;
+    auto err = [&errFlag, &msg_copy](ZNet::Error e) {
+        errFlag = e;
+        msg_copy = e.m_msg;
+    };
+    {
+        ZNet::Params p{ .m_funcName = "RPCerr_test", .m_onError = err, .m_timeout = 2000 };
+        auto zapi = ZNet::API::Inst();
+        std::promise<NetworkResponse<int>> prom;
+        int v = -1;
+        auto rid = zapi->Enqueue<int>([&prom]() {
+            return prom.get_future();
+            }, [&v](const int &val) {
+                v = val;
+            }, &p);
+        zapi->Update(1);
+        EXPECT_TRUE(zapi->GetStatus(rid));
+        prom.set_value(NetworkResponse<int>{NetworkResponseBase{ "message", NRO_CURL_ERROR }, 5});
+        zapi->Update(1);
+        EXPECT_FALSE(zapi->GetStatus(rid));
+        EXPECT_EQ(-1, v);
+        EXPECT_EQ(NRO_CURL_ERROR, errFlag.m_netReqOutcome);
+        EXPECT_STREQ("message", errFlag.m_msg.data()); //future object is not destructed yet
+    }
+    //no! already destructed!!! EXPECT_STREQ("message", errFlag.m_msg.data());
+    EXPECT_STREQ("message", msg_copy.c_str());
+    EXPECT_TRUE(errFlag.m_hasNetReqOutcome);
+}
+TEST(SmokeTestNet, RPC_timeout) {
+    ZNet::Error errFlag("init", NRO_ERROR_READING_FILE);
+    auto err = [&errFlag](ZNet::Error e) {
+        errFlag = e;
+    };
+    ZNet::Params p{ .m_funcName = "RPCto_test", .m_onError = err, .m_timeout = 2 };
+    auto zapi = ZNet::API::Inst();
+    std::promise<NetworkResponse<int>> prom;
+    int v = -1;
+    auto rid = zapi->Enqueue<int>([&prom]() {
+        return prom.get_future();
+        }, [&v](const int &val) {
+            v = val;
+        }, &p);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    zapi->Update(1);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    EXPECT_EQ(NRO_ERROR_READING_FILE, errFlag.m_netReqOutcome);
+    zapi->Update(10);
+    EXPECT_FALSE(zapi->GetStatus(rid));
+    EXPECT_EQ(-1, v);
+    EXPECT_EQ(NRO_OK, errFlag.m_netReqOutcome);
+    EXPECT_STREQ("Timeout", errFlag.m_msg.data()); //future object is not destructed yet
+    EXPECT_FALSE(errFlag.m_hasNetReqOutcome);
+}
+TEST(SmokeTestNet, RPC_block) {
+    std::unique_ptr<ZNet::RPCBase> r;
+    ZNet::Params p{ .m_funcName = "RPCblock_test" };
+    std::promise<NetworkResponse<int>> prom;
+    int v = -1;
+    r.reset(new ZNet::RPC<int>([&prom]() {
+        return prom.get_future();
+    }, [&v](const int &val) {
+        v = val;
+    }, &p));
+    std::jthread t([&prom]() {
+        ::Sleep(100);
+        prom.set_value(NetworkResponse<int>{.m_T = 5});
+    });
+    EXPECT_EQ(-1, v);
+    auto postResult = r->Post(true);
+    EXPECT_EQ(NRO_OK, postResult.first);
+    EXPECT_TRUE(postResult.second);
+    EXPECT_EQ(5, v);
+}
+TEST(SmokeTestNet, RPC_void) {
+    ZNet::Params p{.m_funcName = "RPC_test_void", .m_timeout = 2000 };
+    auto zapi = ZNet::API::Inst();
+    std::promise<NetworkResponse<void>> prom;
+    bool onSucc = false;
+    auto rid = zapi->Enqueue<void>([&prom]() {
+        return prom.get_future();
+    }, [&onSucc]() {
+        onSucc = true;
+    }, &p);
+    zapi->Update(1);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    EXPECT_FALSE(onSucc);
+    prom.set_value(NetworkResponse<void>{});
+    EXPECT_FALSE(onSucc);
+    zapi->Update(1);
+    EXPECT_TRUE(onSucc);
+    EXPECT_FALSE(zapi->GetStatus(rid));
+}
+TEST(SmokeTestNet, RetrRPC) {
+    bool errFlag = false;
+    auto err = [&errFlag](ZNet::Error) {
+        errFlag = true;
+    };
+    ZNet::Params p{ .m_funcName = "RPC_retry_test", .m_onError = err, .m_retry = {.m_count = 2, .m_timeout = 2000}, .m_timeout = 2000, .m_has_retry = true };
+    auto zapi = ZNet::API::Inst();
+    std::promise<NetworkResponse<int>> prom;
+    int v = -1;
+    auto rid = zapi->Enqueue<int>([&prom]() {
+        return prom.get_future();
+    }, [&v](const int &val) {
+        v = val;
+    }, &p);
+    zapi->Update(1);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    EXPECT_EQ(-1, v);
+    prom.set_value(NetworkResponse<int>{.m_T = 5});
+    EXPECT_EQ(-1, v);
+    zapi->Update(1);
+    EXPECT_FALSE(zapi->GetStatus(rid));
+    EXPECT_EQ(5, v);
+    EXPECT_FALSE(errFlag);
+}
+TEST(SmokeTestNet, Retr2RPC) {
+    bool errFlag = false;
+    auto err = [&errFlag](ZNet::Error) {
+        errFlag = true;
+    };
+    ZNet::Params p{ .m_funcName = "RPC_retry2_test", .m_onError = err, .m_retry = {.m_count = 2, .m_timeout = 20'000}, .m_timeout = 20'000, .m_has_retry = true };
+    auto zapi = ZNet::API::Inst();
+    std::promise<NetworkResponse<int>> prom[2];
+    int v = -1, idx = 0;
+    auto rid = zapi->Enqueue<int>([&prom, &idx]() {
+        return prom[idx].get_future();
+    }, [&v](const int &val) {
+        v = val;
+    }, &p);
+    zapi->Update(1);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    EXPECT_EQ(-1, v);
+    prom[idx++].set_value(NetworkResponse<int>{NetworkResponseBase{"message", NRO_CURL_ERROR}, 5});
+    EXPECT_EQ(-1, v);
+    zapi->Update(1);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    EXPECT_EQ(-1, v);
+    prom[idx].set_value(NetworkResponse<int>{.m_T = 5});
+    EXPECT_EQ(-1, v);
+    zapi->Update(500);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    EXPECT_EQ(-1, v);
+    zapi->Update(5000);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    zapi->Update(1);
+    EXPECT_FALSE(zapi->GetStatus(rid));
+    EXPECT_EQ(5, v);
+    EXPECT_FALSE(errFlag);
+}
+TEST(SmokeTestNet, Retr3RPC) {
+    bool errFlag = false;
+    auto err = [&errFlag](ZNet::Error) {
+        errFlag = true;
+    };
+    ZNet::Params p{ .m_funcName = "RPC_retry3_test", .m_onError = err, .m_retry = {.m_count = 3, .m_timeout = 6'000}, .m_timeout = 6'000, .m_has_retry = true };
+    auto zapi = ZNet::API::Inst();
+    std::promise<NetworkResponse<int>> prom[3];
+    int v = -1, idx = 0;
+    auto rid = zapi->Enqueue<int>([&prom, &idx]() {
+        return prom[idx].get_future();
+    }, [&v](const int &val) {
+        v = val;
+    }, &p);
+    zapi->Update(3500);
+    zapi->Update(3500);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    EXPECT_EQ(-1, v);
+    zapi->Update(500);
+    prom[++idx].set_value(NetworkResponse<int>{NetworkResponseBase{"message", NRO_CURL_ERROR}, 5});
+    EXPECT_EQ(-1, v);
+    zapi->Update(5000);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    EXPECT_EQ(-1, v);
+    prom[++idx].set_value(NetworkResponse<int>{.m_T = 5});
+    EXPECT_EQ(-1, v);
+    zapi->Update(500);
+    zapi->Update(500);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    EXPECT_EQ(-1, v);
+    zapi->Update(5000);
+    EXPECT_TRUE(zapi->GetStatus(rid));
+    zapi->Update(1);
+    EXPECT_FALSE(zapi->GetStatus(rid));
+    EXPECT_EQ(5, v);
+    EXPECT_FALSE(errFlag);
+}
+TEST(SmokeTestNet, SubscriptionStuff) {
+    EXPECT_EQ(SM_NAMED_SRC, ZNETWORK_CalculateSubscriptionMode());
+    EXPECT_EQ(SM_UNDEFINED, ZNETWORK_CalculateThenGetSubscriptionMode());
+    EXPECT_STREQ("Ursoft premium", ZNETWORK_GetPromoNameOfCurrentRideEntitlement());
+    EXPECT_STREQ("Ursoft platinum", ZNETWORK_GetPromoNameOfNextRideEntitlement());
+    EXPECT_EQ(100'000.0f, ZNETWORK_GetTrialKMLeft());
+    EXPECT_EQ(-1, ZNETWORK_GetSubscriptionDaysLeft());
 }

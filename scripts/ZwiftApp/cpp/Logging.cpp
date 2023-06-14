@@ -236,7 +236,23 @@ void ZwiftAssert::Abort() {
         g_abortProcessing = false;
     }
 }
+void LogShutdown() {
+    if (g_logFile) {
+        fclose(g_logFile);
+        g_logFile = nullptr;
+    }
+    for (auto &i : g_LogLines) {
+        if (i) {
+            free(i);
+            i = nullptr;
+        }
+    }
+}
 void LogInitialize() {
+    if (g_logFile) {
+        fclose(g_logFile);
+        g_logFile = nullptr;
+    }
     char PathName[MAX_PATH]{ '.' }, FileName[MAX_PATH], v18[MAX_PATH], Buffer[MAX_PATH];
     auto userPath = OS_GetUserPath();
     if (userPath) {
@@ -245,7 +261,8 @@ void LogInitialize() {
         sprintf_s(PathName, "%s\\Logs", PathName);
         CreateDirectoryA(PathName, nullptr);
         for (auto &i : g_LogLines) {
-            i = (char *)malloc(LOGC_LINE_BUF);
+            if (!i)
+                i = (char *)malloc(LOGC_LINE_BUF);
             i[0] = 0;
         }
         g_canUseLogging = true;

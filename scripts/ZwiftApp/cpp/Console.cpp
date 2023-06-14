@@ -573,8 +573,13 @@ ConsoleHandler::ConsoleHandler(int16_t minLength) {
         OutputDebugStringA("non_zwift: ConsoleHandler: CreateNewConsole failed");
 }
 bool ConsoleHandler::LaunchUnitTests(int argc, char **argv) {
+    int cnt = 0, cntMax = 1;
+    bool ret = false;
     ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS() == 0;
+    do {
+        ret = RUN_ALL_TESTS() == 0;
+    } while (ret && ++cnt < cntMax);
+    return ret;
 }
 ConsoleHandler::~ConsoleHandler() {
     if (m_releaseNeed)
@@ -585,6 +590,65 @@ int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
+#include <crtdbg.h>
+#pragma warning(push)
+#pragma warning(disable:4073)
+#pragma init_seg(lib)
+struct memLeakAtExit {
+    _CrtMemState m_initial_state;
+    memLeakAtExit() {
+        g_MainThread = GetCurrentThreadId();
+        ZMUTEX_SystemInitialize();
+        LogInitialize();
+#if defined(_DEBUG)
+        _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+        _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
+        OutputDebugStringA("ZA memLeakAtExit: ctr\n");
+        _CrtMemCheckpoint(&m_initial_state);
+#endif
+    }
+    void Update() {
+#if defined(_DEBUG)
+        OutputDebugStringA("ZA memLeakAtExit: Update requested\n");
+        _CrtMemCheckpoint(&m_initial_state);
+#endif
+    }
+    void Terminate() {
+        LogShutdown();
+        ZMUTEX_SystemShutdown();
+        google::protobuf::ShutdownProtobufLibrary();
+        u_cleanup();
+#if defined(_DEBUG)
+        _CrtMemState finish_state, diff_state;
+        _CrtMemCheckpoint(&finish_state);
+        _CrtMemDifference(&diff_state, &m_initial_state, &finish_state);
+        _set_error_mode(_OUT_TO_STDERR);
+        int crtReportMode = _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG;
+        _CrtSetReportMode(_CRT_ASSERT, crtReportMode);
+        _CrtSetReportMode(_CRT_WARN, crtReportMode);
+        _CrtSetReportMode(_CRT_ERROR, crtReportMode);
+        int d_n = (int)diff_state.lCounts[_NORMAL_BLOCK];
+        int d_c = (int)diff_state.lCounts[_CLIENT_BLOCK];
+        int f_n = (int)finish_state.lCounts[_NORMAL_BLOCK];
+        int f_c = (int)finish_state.lCounts[_CLIENT_BLOCK];
+        if (d_n > 1000 || d_c > 1000 || f_n > 1000 || f_c > 1000) {
+            char stat[1024];
+            sprintf_s(stat, "ZA memLeakAtExit: more than 1000 blocks (f %d/%d, d %d/%d), dump skipped.", f_n, f_c, d_n, d_c);
+            if (IsDebuggerPresent())
+                MessageBoxA(nullptr, stat, "ZA MLK", MB_OK | MB_ICONWARNING | MB_TOPMOST);
+            else
+                OutputDebugStringA(stat);
+            int tmp = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
+            tmp &= ~_CRTDBG_LEAK_CHECK_DF;
+            _CrtSetDbgFlag(tmp);
+        }
+#endif
+    }
+    ~memLeakAtExit() {
+        Terminate();
+    }
+} gMLK;
+#pragma warning(pop)
 } // namespace non_zwift
 bool CMD_SetLanguage(const char *lang) {
     auto l = LOC_GetLanguageFromString(lang);

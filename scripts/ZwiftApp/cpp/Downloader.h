@@ -22,7 +22,7 @@ struct Downloader {
         CurrentFile() {}
         CurrentFile(const PendingFile &pend_src);
         std::string m_name, m_urlp, m_locp;
-        CURL *m_curl = curl_easy_init();
+        CURL *m_curl = nullptr;
         uint64_t m_actualLength = 0, m_expectedLength = 0;
         FILE *m_FILE = nullptr;
         size_t m_tickLastRead = GetTickCount64();
@@ -48,6 +48,7 @@ struct Downloader {
     float m_maxSpeed = 0.0f;
     bool m_constructed = false, m_error = false;
     Downloader();
+    ~Downloader();
     void SetLocalPath(const char *lp) { m_locp = lp; }
     void SetServerURLPath(const char *up) { m_urlp = up; }
     void Download(const char *name, std::function<void(const char *)>);
@@ -79,5 +80,8 @@ struct Downloader {
     bool IsInProgress(const std::string &, std::function<void(const char *)>, void (*)(std::string, int));
     void SetDebugMessage(char *);
     void SetLastModDate(FILE *, int64_t, const std::string &);
+    static Downloader *Instance() {
+        static Downloader g_mDownloader;
+        return &g_mDownloader;
+    }
 };
-inline Downloader g_mDownloader, *g_pDownloader;

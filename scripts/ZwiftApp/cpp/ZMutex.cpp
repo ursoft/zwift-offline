@@ -16,6 +16,14 @@ bool ZwiftEnterCriticalSection(int idx) {
     }
     return true;
 }
+void ZMUTEX_SystemShutdown() {
+    for (int i = 0; i < ZM_CNT; ++i) {
+        if (!g_CriticalSectionsAvailable[i]) {
+            ::DeleteCriticalSection(g_CriticalSections + i);
+            g_CriticalSectionsAvailable[i] = true;
+        }
+    }
+}
 void ZMUTEX_SystemInitialize() {
     memset(g_CriticalSectionsAvailable, 1, sizeof(g_CriticalSectionsAvailable));
 }

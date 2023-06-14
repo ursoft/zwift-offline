@@ -46,6 +46,7 @@ struct WADManager {
     WAD_HEADER *GetWadHeaderByFileName(const char *name, time_t *);
     bool IsWADFileLoaded(const char *);
     bool IsWADFileLoaded(uint32_t crc) { return m_wads.contains(crc); }
+    ~WADManager() { DeleteAllWadFiles(); }
 };
 WAD_FILE_HEADER *WAD_FindAssetsBySignature(uint32_t crcItemPathName, WAD_ASSET_TYPE type, WAD_HEADER *pHeader);
 void WAD_FindAssetsByType(WAD_ASSET_TYPE, WAD_HEADER *);

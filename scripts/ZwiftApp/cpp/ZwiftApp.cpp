@@ -265,7 +265,7 @@ struct UpdateLoadingItem {
     bool        m_bShown;
 };
 void ZWIFT_UpdateLoading(const UChar *text, bool last) {
-    g_mDownloader.Update();
+    Downloader::Instance()->Update();
     static UpdateLoadingItem g_UpdateLoadingDB[] = {
         { GetTextW("LOC_LOADING_QUIP_0") }, { GetTextW("LOC_LOADING_QUIP_1") }, { GetTextW("LOC_LOADING_QUIP_2") }, { GetTextW("LOC_LOADING_QUIP_3") },
         { GetTextW("LOC_LOADING_QUIP_4") }, { GetTextW("LOC_LOADING_QUIP_5") }, { GetTextW("LOC_LOADING_QUIP_6") }, { GetTextW("LOC_LOADING_QUIP_7") },
@@ -308,7 +308,7 @@ void MsgBoxAndExit(const char *lpText) {
 }
 
 //Unit Tests
-TEST(SmokeTest, Linkage) {                                        //testing if libs are linked properly
+TEST(SmokeTestNet, Linkage) {                                        //testing if libs are linked properly
     AK::MemoryMgr::GetDefaultSettings(g_memSettings);             //Wwize, not debuggable
     Noesis::GUI::SetLicense("NS_LICENSE_NAME", "NS_LICENSE_KEY"); //NOESIS, not debuggable
     EXPECT_TRUE(g_memSettings.pfAllocVM != nullptr) << "AK::MemoryMgr";
@@ -327,6 +327,7 @@ TEST(SmokeTest, Linkage) {                                        //testing if l
     z_stream strm{}; //zlib
     auto     di = deflateInit(&strm, 6);
     EXPECT_EQ(0, di) << "deflateInit";
+    deflateEnd(&strm);
 
     tinyxml2::XMLDocument doc; //tinyxml2
     auto err_xml = doc.LoadFile("");

@@ -148,7 +148,6 @@ void BroadcastPrompt(EVENT_ID, va_list) {
     //TODO
 }
 void ZwiftInitialize(const std::vector<std::string> &argv) {
-    g_MainThread = GetCurrentThreadId();
     uint32_t startTime = timeGetTime();
     auto     evSysInst = EventSystem::GetInst();
     zassert(g_sCrashReportingUPtr.get() == nullptr);
@@ -183,14 +182,14 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     if (userPath) {
         char downloadPath[MAX_PATH] = {};
         sprintf_s(downloadPath, "%s/Zwift/", userPath);
-        g_mDownloader.SetLocalPath(downloadPath);
+        Downloader::Instance()->SetLocalPath(downloadPath);
     }
-    g_mDownloader.SetServerURLPath("https://cdn.zwift.com/gameassets/");
-    g_mDownloader.Download("MapSchedule_v2.xml", 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
+    Downloader::Instance()->SetServerURLPath("https://cdn.zwift.com/gameassets/");
+    Downloader::Instance()->Download("MapSchedule_v2.xml", 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
     //OMIT: check GFX driver if no "<data>\Zwift\olddriver.ok" exist
-    g_pDownloader->Update();
-    ZMUTEX_SystemInitialize();
-    LogInitialize(); //TODO: move up so logging early stages is available too
+    Downloader::Instance()->Update();
+    //ZMUTEX_SystemInitialize();
+    //LogInitialize(); //TODO: move up so logging early stages is available too
     OS_Initialize();
     u_setDataDirectory("data");
     InitICUBase();

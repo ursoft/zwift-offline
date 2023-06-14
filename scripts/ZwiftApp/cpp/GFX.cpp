@@ -3576,6 +3576,14 @@ void GFX_SetTextureWrap(uint32_t tn, GFX_TEXTURE_WRAP_MODE t, GFX_TEXTURE_WRAP_M
 
 //Unit Tests
 TEST(SmokeTest, DISABLED_VertexArray) {
+    static bool bFirst = true;
+    if (bFirst) {
+        bFirst = false;
+        EXPECT_EQ(0, g_vertexArray.size);
+    } else {
+        g_vertexArray.size = 0;
+        g_vertexArray.extra = nullptr;
+    }
     GFX_CreateVertexParams p{ 4, 1,
         { {0, 0, GVF_FLOAT7, 0}, {0, 3, GVF_UNSIGNED_BYTE1, 12}, {0, 6, GVF_FLOAT6, 16}, {0, 7, GVF_FLOAT6, 24} },
         { {0, 32, GVF_UNSIGNED_BYTE1, 0} }
@@ -3646,7 +3654,6 @@ TEST(SmokeTest, ZData) {
     }
 }
 TEST(SmokeTest, ZDataLocal) {
-    g_MainThread = GetCurrentThreadId();
     std::vector<byte> vectorDest;
     ZData *pDataDest;
     uint64_t *pPhysIdx;
@@ -3699,7 +3706,6 @@ TEST(SmokeTest, DISABLED_ShaderCacheGrow) {
     EXPECT_TRUE(g_mainWindow != nullptr);
     glfwMakeContextCurrent(g_mainWindow);
     EXPECT_EQ(GLEW_OK, glewInit());
-    g_MainThread = GetCurrentThreadId();
     g_WADManager.LoadWADFile("assets/global.wad");
     g_gfxShaderModel = 4;
     g_BlurShaderHandle = GFX_CreateShaderFromFile("Blur", -1);

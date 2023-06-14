@@ -1,4 +1,4 @@
-#pragma once //UT Coverage: 28%, 50/180
+#pragma once //UT Coverage: 98%, 196/199, ENOUGH
 enum ProfileProperties { PP_EMAIL, PP_PASSWORD, PP_FIRST_NAME, PP_LAST_NAME };
 enum ValidateProperty {
     VP_OK = 0, VP_PARSE_ERROR, VP_EMAIL_REQ = 2, VP_EMAIL_WRONG_LEN = 3, VP_EMAIL_SHORT = 4, VP_EMAIL_LONG = 5, VP_EMAIL_FORMAT = 6,
@@ -317,7 +317,10 @@ namespace ZNet {
         std::future<NetworkResponse<T>> m_future;
         uint32_t m_wrkTime = 0, m_timeout = 0;
         RPC(std::function<std::future<NetworkResponse<T>>(void)> &&fc, TOnReady<T>::type &&fsucc, Params *p) :
-            m_futureCreator(fc), m_onSuccess(fsucc), m_parFuncName(p->m_funcName), m_onError(std::move(p->m_onError)), m_timeout(p->m_timeout) { zassert(m_parFuncName.length() || "RPC enqueued without a name, expect inferior debugging"); }
+            m_futureCreator(fc), m_onSuccess(fsucc), m_parFuncName(p->m_funcName), m_onError(std::move(p->m_onError)), m_timeout(p->m_timeout) { 
+            m_future = m_futureCreator();
+            zassert(m_parFuncName.length() || "RPC enqueued without a name, expect inferior debugging"); 
+        }
         std::pair<NetworkRequestOutcome, bool> Post(bool blocking) override  { //vptr[2]
             /*if (m_future == nullptr) {
                 Log("[ZNet] Invalid future! [%s]", m_parFuncName.data());
@@ -328,16 +331,16 @@ LABEL_57:
                 return { 0, false };
             }*/
             if (blocking)
-                m_future.wait();
-            if (!is_ready(m_future)) {
+                if(!m_future._Ptr()->_Is_ready()) m_future.wait();
+            if (!m_future._Ptr()->_Is_ready() && !is_ready(m_future)) {
                 if (!m_timeout || m_wrkTime < m_timeout)
-                    zassert(!"Must have timed out if the future is valid but not ready.");
+                    zassert(!"Must have timed out if the future is valid but not ready."); //UT indulgence
                 Log("[ZNet] Timed Out! [%s] [%d ms]", m_parFuncName.data(), m_wrkTime);
                 if (m_onError)
                     m_onError(Error{ "Timeout" });
                 return { NRO_OK, false };
             }
-            auto result = m_future.get();
+            auto &result = m_future._Ptr()->_Get_value(false);
             /*if (result == nullptr ) - not possible now
             {
                 Log("[ZNet] NetworkResponsePtr is null! [%s]", this->m_parFuncName.m_str, v11, v12, 0);
@@ -381,7 +384,7 @@ LABEL_57:
     template<typename T>
     struct RetryableRPC : public RPC<T> {
         int32_t (*m_backoffMultiplier)(int32_t) = nullptr;
-        int32_t m_backoffDelayInit = 5000, m_maxRetries = 5, m_remainRetries = 5, m_backoffDelay = 5000;
+        int32_t m_backoffDelayInit = 5000, m_maxRetries = 5, m_remainRetries = 5, m_backoffDelay = 0;
         bool IsRetryable() {
             bool valid = this->m_future.valid();
             bool timedOut = this->m_timeout && (this->m_wrkTime >= this->m_timeout);
@@ -390,7 +393,7 @@ LABEL_57:
             if (!valid || timedOut || notReady) {
                 Log("[ZNet] RRPC::IsRetryable (%s) future in error state: (valid: %d) (timed out: %d) (not ready: %d)", this->m_parFuncName.data(), valid, timedOut, notReady);
             } else {
-                auto outcome = PeekAtResponse().m_errCode;
+                auto outcome = PeekAtResponse();
                 //if (outcome) {
                     if (!outcome || outcome == 400) {
                         ret = false;
@@ -405,8 +408,8 @@ LABEL_57:
             }
             return ret;
         }
-        NetworkResponse<T> PeekAtResponse() {
-            return this->m_future.get();
+        NetworkRequestOutcome PeekAtResponse() {
+            return this->m_future._Ptr()->_Get_value(false).m_errCode;
         }
         bool ShouldRemove(uint32_t dt) override {
             if (m_backoffDelay > 0) {
@@ -617,8 +620,8 @@ struct ZNETWORK_PacePartnerInfo { //32 bytes
     float m_float;
     enum BroadcastState : int16_t { BS_1 = 1, BS_2 = 2, BS_5 = 5, BS_10 = 10 };
     BroadcastState m_bcs;
-    uint16_t field_1A = 0;
-    int field_1C = 0;
+    uint16_t field_1A = 0; //UT indulgence
+    int field_1C = 0; //UT indulgence
 };
 struct ZNETWORK_LateJoinResponse { //0x28 bytes - maybe, = ZNETWORK_LateJoinRequest
     uint16_t m_ver, m_len;

@@ -109,7 +109,7 @@ void Downloader::Download/*IDA: DownloadCStr*/ (const char *name, std::function<
 }
 Downloader::Downloader() {
     char path[MAX_PATH];
-    m_curlLastCode = curl_global_init(CURL_GLOBAL_DEFAULT);
+    //m_curlLastCode = curl_global_init(CURL_GLOBAL_DEFAULT); //use ZNETWORK_Initialize
     m_curlEasy = curl_easy_init();
     m_curlMulti = curl_multi_init();
     if (SHGetFolderPathA(nullptr, CSIDL_PERSONAL, nullptr, 0, path) == S_OK) {
@@ -118,9 +118,12 @@ Downloader::Downloader() {
         sprintf_s(path, "%s\\Logs", path);
         CreateDirectoryA(path, nullptr);
         //sprintf_s(path, "%s\\Libcurl_log.txt", path);
-        g_pDownloader = &g_mDownloader;
     }
     m_constructed = true;
+}
+Downloader::~Downloader() {
+    curl_multi_cleanup(m_curlMulti);
+    curl_easy_cleanup(m_curlEasy);
 }
 void Downloader::Download/*IDA: DownloadFptr*/ (const std::string &name, uint64_t expectedLength, int64_t fileTime, uint32_t checksumWant, void (*cbFail)(const std::string &, int)) {
     auto f = FindCompleted(name);
@@ -166,7 +169,7 @@ bool strstr_s(const char *haystack, size_t haystack_len, const char *needle, siz
     return false;
 }
 size_t Downloader::CurlWriteData(char *ptr, size_t size, size_t nmemb, void *userdata) {
-    if (!ptr || !userdata || !g_pDownloader) {
+    if (!ptr || !userdata || !Instance()) {
         strcpy_s(debugDestination, "Downloader::CurlWriteData(): buffer/file/downloader is null\n");
         return 0;
     }
@@ -185,7 +188,7 @@ size_t Downloader::CurlWriteData(char *ptr, size_t size, size_t nmemb, void *use
         strcpy_s(debugDestination, Source);
         return 0;
     }
-    for (auto &i : g_pDownloader->m_filesCurrent) {
+    for (auto &i : Instance()->m_filesCurrent) {
         if (i.m_FILE == f) {
             i.m_tickLastRead = GetTickCount64();
             i.m_actualLength += written;
@@ -332,7 +335,7 @@ void Downloader::Update() {
                             cur->m_checksumGot = tmpcrc;
                         Log("Downloader: \"%s\" downloaded successfully (local checksum=%d, manifest checksum=%d).\n", fullname.c_str(), cur->m_checksumGot, cur->m_checksumWant);
                     }
-                    if (!g_mDownloader.m_error)
+                    if (!Instance()->m_error)
                         for (auto cbSuccess : cur->m_succCallbacks)
                             cbSuccess(fullname.c_str());
                 }
@@ -355,7 +358,7 @@ void Downloader::Update() {
             Log("\nDownloader: ERROR: \"%s\" timed out!\n\n", cur->m_name.c_str());
         } else {
             if (!cur->m_expectedLength || cur->m_actualLength == cur->m_expectedLength) {
-                hasProblems = (g_mDownloader.m_curlmLastCode != 0);
+                hasProblems = (Instance()->m_curlmLastCode != 0);
             } else {
                 len_mismatch = true;
                 Log("\nDownloader: ERROR: \"%s\" completed download successfully, but failed the file length test (manifest=%d, written=%d)!\n\n",
@@ -376,7 +379,7 @@ void Downloader::Update() {
                 if (cur->m_timeout) {
                     m_lastErrorCode = 103;
                 } else if (len_mismatch) {
-                    g_mDownloader.m_lastErrorCode = 112;
+                    Instance()->m_lastErrorCode = 112;
                 } else {
                     m_lastErrorCode = (cur->m_checksumGot != cur->m_checksumWant) ? 113 : 106;
                 }
@@ -509,7 +512,7 @@ Downloader::CurrentFile::~CurrentFile() {
 
 //Units
 #pragma comment(lib, "winhttp.lib")
-TEST(SmokeTest, DISABLED_SchMap) {
+TEST(SmokeTestNet, DISABLED_SchMap) {
     /* all_proxy env var is better than: WINHTTP_CURRENT_USER_IE_PROXY_CONFIG proxyConfig{};
     if (WinHttpGetIEProxyConfigForCurrentUser(&proxyConfig)) {
         if (proxyConfig.lpszProxy && *proxyConfig.lpszProxy) { //we support http=127.0.0.1:8888;https=127.0.0.1:8888 syntax only, no unicode symbols
@@ -523,20 +526,22 @@ TEST(SmokeTest, DISABLED_SchMap) {
             *pDest = 0;
             if (delim)
                 *delim++ = 0;
-            curl_easy_setopt(g_mDownloader.m_curlEasy, CURLOPT_PROXY, proxyCopy);
+            curl_easy_setopt(Instance()->m_curlEasy, CURLOPT_PROXY, proxyCopy);
             if (delim)
-                curl_easy_setopt(g_mDownloader.m_curlEasy, CURLOPT_PROXY, delim);
+                curl_easy_setopt(Instance()->m_curlEasy, CURLOPT_PROXY, delim);
             if (delim)
                 SetEnvironmentVariableA("http_proxy", delim);
         }
     }*/
     char downloadPath[MAX_PATH] = {};
+    ZNETWORK_Initialize();
     sprintf_s(downloadPath, "%s\\Zwift\\", OS_GetUserPath());
-    g_mDownloader.SetLocalPath(downloadPath);
-    g_mDownloader.SetServerURLPath("https://cdn.zwift.com/gameassets/");
+    Downloader::Instance()->SetLocalPath(downloadPath);
+    Downloader::Instance()->SetServerURLPath("https://cdn.zwift.com/gameassets/");
     std::string file("MapSchedule_v2.xml"), fullFile(downloadPath + file);
-    g_mDownloader.Download(file, 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
-    while (!g_mDownloader.CompletedSuccessfully(fullFile)) {
-        g_mDownloader.Update();
+    Downloader::Instance()->Download(file, 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
+    while (!Downloader::Instance()->CompletedSuccessfully(fullFile)) {
+        Downloader::Instance()->Update();
     }
+    ZNETWORK_Shutdown();
 }

@@ -32,6 +32,11 @@ Other static libs
 ~~~~~~~~~~~~~~~~~
 turned off https://github.com/getsentry/sentry-native
 
+Coverage
+~~~~~~~~
+C:\Users\builder\AppData\Roaming\OpenCppCoverage\config.json
+{"BasicSettingController":{"Data":{"ProgramToRun":"C:\\Users\\builder\\source\\repos\\zwift-offline\\scripts\\ZwiftApp\\1.32.1_106405-Debug\\ZwiftApp.exe","OptionalWorkingDirectory":"C:\\Users\\builder\\source\\repos\\zwift-offline\\scripts\\ZwiftApp\\1.32.1_106405-Debug","Arguments":"--gtest_also_run_disabled_tests --gtest_filter=*SmokeTestNet*","CompileBeforeRunning":false,"OptimizedBuild":false},"IsSelectedByProjectPath":{}},"FilterSettingController":{"AdditionalSourcePatterns":[{"Value":"*ZNet*"}],"AdditionalModulePatterns":[{"Value":"*ZwiftApp*"}],"ExcludedSourcePatterns":[],"ExcludedModulePatterns":[],"UnifiedDiffs":[]},"ImportExportSettingController":{"Exports":[],"InputCoverages":[],"CoverChildrenProcesses":false,"AggregateByFile":true},"MiscellaneousSettingController":{"OptionalConfigFile":null,"LogTypeValue":0,"ContinueAfterCppExceptions":true}}
+
 current decompilation stats
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 future/lib/total code(kb): 9352/7012/16364, badNames=39764; libs/total: 55%: 34618/62119

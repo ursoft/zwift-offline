@@ -22,7 +22,7 @@
         "args": [
             "--launcher_version=1.1.4",
             "--token={\"access_token\":\"%at%\",\"expires_in\":1000021600,\"id_token\":\"_id_t\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\"%rt%\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}",
-            "--gtest_filter=*SmokeTestNet*"
+            "--gtest_repeat=1 --gtest_shuffle --gtest_random_seed=-1 --gtest_filter=*"
         ]
     }
   ]
