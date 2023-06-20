@@ -171,6 +171,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
         bool m_field_28 = false, m_field_29 = false;
     };
     BikeEntity();
+    ~BikeEntity();
     int64_t m_curEventId = 0, m_cheatBits = 0;
     VirtualBikeComputer *m_bc = nullptr;
     IncomingPlayerStateComponent *m_ipsc = nullptr;
@@ -216,7 +217,6 @@ struct BikeEntity : public Entity { //0x1948 bytes
     void AdjustRandomXZ(/*float*/);
     void ActivatePowerUp();
     /* TODO:
-void ~BikeEntity();
 void WakeupAnim(void);
 void UpdateWhileSleeping(zwiftUpdateContext &,float);
 void UpdateWheelRot(float);

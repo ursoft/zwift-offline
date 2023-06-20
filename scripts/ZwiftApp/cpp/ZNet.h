@@ -1,4 +1,4 @@
-#pragma once //UT Coverage: 98%, 196/199, ENOUGH
+#pragma once //UT Coverage: 99%, 200/203, ENOUGH
 enum ProfileProperties { PP_EMAIL, PP_PASSWORD, PP_FIRST_NAME, PP_LAST_NAME };
 enum ValidateProperty {
     VP_OK = 0, VP_PARSE_ERROR, VP_EMAIL_REQ = 2, VP_EMAIL_WRONG_LEN = 3, VP_EMAIL_SHORT = 4, VP_EMAIL_LONG = 5, VP_EMAIL_FORMAT = 6,
@@ -21,12 +21,15 @@ enum NetworkRequestOutcome {
     NRO_ENCRYPTION_FAILURE,
     NRO_HTTP_STATUS_BAD_REQUEST = 400, NRO_HTTP_STATUS_UNAUTHORIZED = 401, NRO_HTTP_STATUS_FORBIDDEN = 403, NRO_HTTP_STATUS_NOT_FOUND = 404,
     NRO_HTTP_STATUS_CONFLICT = 409, NRO_HTTP_STATUS_GONE = 410, NRO_HTTP_STATUS_TOO_MANY_REQUESTS = 429, NRO_HTTP_STATUS_SERVICE_UNAVAILABLE = 503,
-    NRO_HTTP_STATUS_BANDWIDTH_LIMIT_EXCEEDED = 509 };
+    NRO_HTTP_STATUS_BANDWIDTH_LIMIT_EXCEEDED = 509, NRO_CNT };
 std::string_view NetworkRequestOutcomeToString(NetworkRequestOutcome code);
 void shutdown_zwift_network();
 template<class T>
 struct Optional {
-    T m_T = T();
+    Optional() {}
+    Optional(T &&src) { m_T = src; m_hasValue = true; }
+    Optional(const T &src) { m_T = src; m_hasValue = true; }
+    T m_T{};
     bool m_hasValue = false;
     void setJson(Json::Value *dest, const std::string &index, const std::function<std::string(const T&)> &f = std::function<std::string(const T &)>()) const {
         if (!m_hasValue) return;

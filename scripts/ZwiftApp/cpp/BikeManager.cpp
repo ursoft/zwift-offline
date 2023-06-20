@@ -24,3 +24,6 @@ BikeEntity *BikeManager::FindBikeWithNetworkID(int64_t id, bool a3) {
 void BikeManager::ProcessPlayerState(zwiftUpdateContext *, const protobuf::PlayerState &pst) {
     //TODO
 }
+BikeManager::~BikeManager() {
+    delete m_mainBike; //temporary
+}

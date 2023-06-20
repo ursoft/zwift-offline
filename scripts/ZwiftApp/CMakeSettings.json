@@ -10,6 +10,8 @@
             "buildCommandArgs": "",
             "ctestCommandArgs": "",
             "environments": [
+                { "CFLAGS": "/fsanitize=address" },
+                { "CXXFLAGS": "/fsanitize=address" },
                 { "NOESIS_ID": "Noesis-3.0.12" },
                 { "WWISE_ID": "Wwise_v2021.1.11" },
                 { "NOESIS_DIR": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Noesis-3.0.12" },

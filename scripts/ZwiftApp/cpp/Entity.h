@@ -7,6 +7,7 @@ struct Entity {
     bool m_field_C98 = false;
     virtual const VEC3 &GetPosition() { return m_pos; }
     void SetPos(const VEC3 &pos) { m_pos = pos; }
+    virtual ~Entity() {}
 };
 struct BlimpEntity : public Entity {
     double m_roadTime = 0.0;

@@ -6,10 +6,16 @@ struct BikeManager {
     std::vector<BikeEntity *> m_field_9D08, m_field_9CD8, m_field_9CF0;
     BikeManager(/*EventSystem *, bool*/);
     //static void Shutdown() { g_pBikeManager.reset(); }
-    static BikeManager *Instance() { /*TODO*/g_pBikeManager.reset(new BikeManager()); zassert(g_pBikeManager.get() != nullptr); return g_pBikeManager.get(); }
-    //static bool IsInitialized() { return g_pBikeManager.get() != nullptr; }
+    static BikeManager *Instance() { 
+        /*TODO*/
+        if (!IsInitialized()) 
+            g_pBikeManager.reset(new BikeManager()); 
+        zassert(g_pBikeManager.get() != nullptr); 
+        return g_pBikeManager.get(); 
+    }
+    static bool IsInitialized() { return g_pBikeManager.get() != nullptr; }
     void Initialize(Experimentation *exp);
-    //~BikeManager();
+    ~BikeManager();
     BikeEntity *m_mainBike;
     PrivateAttributesHelper *m_pah;
     BikeEntity *FindBikeWithNetworkID(int64_t id, bool);

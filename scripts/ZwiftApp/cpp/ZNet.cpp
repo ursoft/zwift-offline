@@ -1,4 +1,4 @@
-//UT Coverage: 19%, 1190/6166
+//UT Coverage: 28%, 1811/6581
 #include "ZwiftApp.h"
 #include "readerwriterqueue/readerwriterqueue.h"
 #include "concurrentqueue/concurrentqueue.h"
@@ -93,7 +93,7 @@ struct QueryStringBuilder : std::multimap<std::string, std::string> {
     std::string getString(bool needQuest) {
         int total = 0;
         for (const auto &i : *this)
-            total += int(i.first.length() + i.second.length() + 2);
+            total += int(i.first.length() + i.second.length() + 3);
         std::string ret;
         ret.reserve(total);
         if (needQuest)
@@ -6768,7 +6768,7 @@ void ZNETWORK_RegisterRideLeader(uint64_t eventId, int64_t leaderId, time_t worl
         (*f)->m_worldTimeExpire = timeExpire;
     }
 }
-enum DropInWorldsStatus { DIW_INIT, DIW_WAIT, DIW_ERR_PAUSE, DIW_GIVEUP } g_DropInWorldsStatus;
+enum DropInWorldsStatus { DIW_INIT, DIW_WAIT, DIW_OK_PAUSE, DIW_GIVEUP } g_DropInWorldsStatus;
 auto g_UpdateDropInWorldsStatusLam = []() { return zwift_network::fetch_worlds_counts_and_capacities(); };
 std::future<NetworkResponse<protobuf::DropInWorldList>> g_UpdateDropInWorldsStatusFut;
 int g_UpdateDropInWorldsStatusRepeats[2]{ 3, 3 };
@@ -6784,7 +6784,7 @@ void ZNETWORK_UpdateDropInWorldsStatus() {
             if (v14.m_errCode == 0) {
                 g_DropInWorlds.CopyFrom(v14.m_T);
                 g_UpdateDropInWorldsStatusTicks = GetTickCount();
-                g_DropInWorldsStatus = DIW_ERR_PAUSE;
+                g_DropInWorldsStatus = DIW_OK_PAUSE;
                 g_UpdateDropInWorldsStatusRepeats[1] = g_UpdateDropInWorldsStatusRepeats[0];
                 return;
             }
@@ -6795,7 +6795,7 @@ void ZNETWORK_UpdateDropInWorldsStatus() {
             g_DropInWorldsStatus = DIW_GIVEUP;
         }
         return;
-    case DIW_ERR_PAUSE:
+    case DIW_OK_PAUSE:
         if (g_UpdateDropInWorldsStatusTicks && int(GetTickCount() - g_UpdateDropInWorldsStatusTicks) < 30'000)
             return;
         break;
@@ -8908,13 +8908,13 @@ TEST(SmokeTestNet, DISABLED_LoginTestPwd) {
     EXPECT_EQ(""s, r.m_msg);
     ZNETWORK_Shutdown();
 }
+auto g_rt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ.5e1X1imPlVfXfhDHE_OGmG9CNGvz7hpPYPXcNkPJ5lw"s;
+auto g_token = "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ._kPfXO8MdM7j0meG4MVzprSa-3pdQqKyzYMHm4d494w\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\""s + g_rt + "\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}"s;
 TEST(SmokeTestNet, DISABLED_LoginTestToken) {
-    auto rt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ.5e1X1imPlVfXfhDHE_OGmG9CNGvz7hpPYPXcNkPJ5lw"s;
-    auto token = "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ._kPfXO8MdM7j0meG4MVzprSa-3pdQqKyzYMHm4d494w\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\""s + rt + "\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}"s;
     ZNETWORK_Initialize();
     EXPECT_FALSE(ZNETWORK_IsLoggedIn());
     std::vector<std::string> v{"OS"s, "Windows"s};
-    auto ret = g_networkClient->m_pImpl->logInWithOauth2Credentials(token, v, "Game_Launcher"s);
+    auto ret = zwift_network::log_in_with_oauth2_credentials(g_token, v, "Game_Launcher"s);
     EXPECT_TRUE(ret.valid());
     while(!ZNETWORK_IsLoggedIn())
         Sleep(100);
@@ -8922,7 +8922,7 @@ TEST(SmokeTestNet, DISABLED_LoginTestToken) {
     EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20)));
     auto r = ret.get();
     EXPECT_EQ(0, r.m_errCode) << r.m_msg;
-    EXPECT_EQ(rt, r.m_msg);
+    EXPECT_EQ(g_rt, r.m_msg);
     ZNETWORK_Shutdown();
 }
 TEST(SmokeTestNet, B64) {
@@ -9248,4 +9248,144 @@ TEST(SmokeTestNet, SubscriptionStuff) {
     EXPECT_STREQ("Ursoft platinum", ZNETWORK_GetPromoNameOfNextRideEntitlement());
     EXPECT_EQ(100'000.0f, ZNETWORK_GetTrialKMLeft());
     EXPECT_EQ(-1, ZNETWORK_GetSubscriptionDaysLeft());
+}
+TEST(SmokeTestNet, Nro2Str) {
+    int64_t act = 0;
+    for (auto i = 0; i < NRO_CNT; i++)
+        for (auto ch : NetworkRequestOutcomeToString((NetworkRequestOutcome)i))
+            act += ch;
+    EXPECT_EQ(406868, act);
+}
+TEST(SmokeTestNet, Qsb) {
+    QueryStringBuilder obj; //string values must be escaped outside!
+    obj.addOptional("skip"s, Optional<int>());
+    obj.addOptional("b0"s, Optional(false));
+    obj.addOptional("b1"s, Optional(true));
+    obj.addOptional("str"s, Optional<const char *>("sval"));
+    obj.addOptional("int32_t"s, Optional<int32_t>(-1));
+    obj.addOptional("int32_t"s, Optional<int32_t>(123));
+    obj.addOptional("int64_t"s, Optional<int64_t>(0x7FFFFFFFFFFFFFFFi64));
+    obj.addOptional("uint32_t"s, Optional<uint32_t>(0xFFFFFFFF));
+    obj.addOptional("uint64_t"s, Optional<uint64_t>(0xFFFFFFFFFFFFFFFFui64));
+    obj.addOptional("std_str"s, Optional("strval"s));
+    obj.addIfNotEmpty("skip"s, "");
+    obj.addIfNotEmpty("skip"s, (const char *)nullptr);
+    obj.addIfNotEmpty("str2"s, "sval2");
+    obj.addIfNotFalse("skip"s, false);
+    obj.addIfNotFalse("if_bool"s, true);
+    obj.addIfNotZero("skip"s, (int32_t)0);
+    obj.addIfNotZero("skip"s, (int64_t)0);
+    obj.addIfNotZero("skip"s, (uint32_t)0);
+    obj.addIfNotZero("skip"s, (uint64_t)0);
+    obj.addIfNotZero("if_int32"s, (int32_t)1);
+    obj.addIfNotZero("if_int64"s, (int64_t)2);
+    obj.addIfNotZero("if_uint32"s, (uint32_t)3);
+    obj.addIfNotZero("if_uint64"s, (uint64_t)4);
+    EXPECT_STREQ("?b0=false&b1=true&if_bool=true&if_int32=1&if_int64=2&if_uint32=3&if_uint64=4&int32_t=-1&int32_t=123&int64_t=9223372036854775807&std_str=strval&str=sval&str2=sval2&uint32_t=4294967295&uint64_t=18446744073709551615", obj.getString(true).c_str());
+    EXPECT_STREQ("b0=false&b1=true&if_bool=true&if_int32=1&if_int64=2&if_uint32=3&if_uint64=4&int32_t=-1&int32_t=123&int64_t=9223372036854775807&std_str=strval&str=sval&str2=sval2&uint32_t=4294967295&uint64_t=18446744073709551615", obj.getString(false).c_str());
+}
+TEST(SmokeTestNet, TestDropInWorldsStatus) {
+    ZNETWORK_Initialize();
+    EXPECT_FALSE(ZNETWORK_IsLoggedIn());
+    //not logged in branch:
+    auto waitUntil = GetTickCount() + 2000;
+    do {
+        ZNETWORK_UpdateDropInWorldsStatus();
+        if (int(GetTickCount() - waitUntil) > 0) {
+            EXPECT_STREQ("", "timeout");
+            break;
+        }
+    } while (g_DropInWorldsStatus != DIW_GIVEUP);
+
+    //log in:
+    std::vector<std::string> v{"OS"s, "Windows"s};
+    auto ret = zwift_network::log_in_with_oauth2_credentials(g_token, v, "Game_Launcher"s);
+    EXPECT_TRUE(ret.valid());
+    while (!ZNETWORK_IsLoggedIn())
+        Sleep(100);
+    EXPECT_TRUE(ret.valid());
+    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20)));
+    auto r = ret.get();
+    EXPECT_EQ(0, r.m_errCode) << r.m_msg;
+    EXPECT_EQ(g_rt, r.m_msg);
+
+    //logged in TestDropInWorldsStatus branch:
+    g_DropInWorldsStatus = DIW_INIT;
+    waitUntil = GetTickCount() + 20000;
+    do {
+        ZNETWORK_UpdateDropInWorldsStatus();
+        if (int(GetTickCount() - waitUntil) > 0) {
+            EXPECT_STREQ("", "timeout");
+            break;
+        }
+        if (g_DropInWorldsStatus == DIW_GIVEUP) {
+            EXPECT_STREQ("", "DIW_GIVEUP");
+            break;
+        }
+    } while (g_DropInWorldsStatus != DIW_OK_PAUSE);
+    EXPECT_EQ(14, g_DropInWorlds.worlds_size());
+    if (g_DropInWorlds.worlds_size() == 14) {
+        auto &w13name = g_DropInWorlds.worlds(13).name();
+        EXPECT_EQ("Public Watopia"s, w13name);
+    }
+
+    g_DropInWorldsStatus = DIW_INIT;
+    auto logOutResp = zwift_network::log_out().get();
+    EXPECT_EQ(0, (int)logOutResp.m_errCode) << logOutResp.m_msg;
+    EXPECT_EQ(""s, logOutResp.m_msg);
+    ZNETWORK_Shutdown();
+}
+TEST(SmokeTestNet, Activities) {
+    BikeManager::Instance()->m_mainBike->m_playerIdTx = 0;
+    g_LastActivityListRequestPlayerID = 0;
+    g_LastActivityList.Clear();
+    ZNETWORK_Initialize();
+    EXPECT_FALSE(ZNETWORK_IsLoggedIn());
+    //not logged in branch:
+    auto acts = ZNETWORK_GetActivities();
+    EXPECT_EQ(nullptr, acts);
+
+    //log in:
+    std::vector<std::string> v{"OS"s, "Windows"s};
+    auto ret = zwift_network::log_in_with_oauth2_credentials(g_token, v, "Game_Launcher"s);
+    EXPECT_TRUE(ret.valid());
+    while (!ZNETWORK_IsLoggedIn())
+        Sleep(100);
+    EXPECT_TRUE(ret.valid());
+    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20)));
+    auto r = ret.get();
+    EXPECT_EQ(0, r.m_errCode) << r.m_msg;
+    EXPECT_EQ(g_rt, r.m_msg);
+
+    //logged in ZNETWORK_GetActivities branch:
+    acts = ZNETWORK_GetActivities();
+    EXPECT_EQ(&g_LastActivityList, acts);
+    //no m_playerIdTx
+    EXPECT_EQ(0, g_LastActivityList.activities_size());
+    auto mypf = zwift_network::my_profile();
+    auto status = mypf.wait_for(std::chrono::seconds(5));
+    EXPECT_EQ(std::future_status::ready, status);
+    if (std::future_status::ready == status) {
+        auto prof = mypf.get();
+        EXPECT_EQ(NRO_OK, prof.m_errCode) << prof.m_msg;
+        if (NRO_OK == prof.m_errCode) {
+            auto pid = g_networkClient->m_pImpl->m_globalState->getPlayerId();
+            EXPECT_EQ(pid, prof.m_T.id());
+            BikeManager::Instance()->m_mainBike->m_playerIdTx = pid;
+            auto waitUntil = GetTickCount() + 20000;
+            do {
+                acts = ZNETWORK_GetActivities();
+                if (int(GetTickCount() - waitUntil) > 0)
+                    break;
+            } while (acts != &g_LastActivityList);
+            EXPECT_EQ(&g_LastActivityList, acts) << "timeout";
+            EXPECT_GT(g_LastActivityList.activities_size(), 0);
+        }
+    }
+
+    auto logOutResp = zwift_network::log_out().get();
+    EXPECT_EQ(0, (int)logOutResp.m_errCode) << logOutResp.m_msg;
+    EXPECT_EQ(""s, logOutResp.m_msg);
+    BikeManager::Instance()->m_mainBike->m_playerIdTx = 0;
+    ZNETWORK_Shutdown();
 }

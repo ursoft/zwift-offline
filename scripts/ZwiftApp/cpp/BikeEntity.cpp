@@ -6,6 +6,9 @@ BikeEntity::BikeEntity() : m_pah(this) {
     //TODO
     m_bc = new VirtualBikeComputer(); //delme
 }
+BikeEntity::~BikeEntity() {
+    delete m_bc; //delme
+}
 void BikeEntity::SaveProfile(bool, bool) {
     //TODO
 }
