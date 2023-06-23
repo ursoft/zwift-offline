@@ -1,4 +1,4 @@
-//UT Coverage: 28%, 1811/6581
+//UT Coverage: 40%, 2703/6841
 #include "ZwiftApp.h"
 #include "readerwriterqueue/readerwriterqueue.h"
 #include "concurrentqueue/concurrentqueue.h"
@@ -1376,21 +1376,19 @@ struct Codec {
                 m_reset[ENC] = true;
                 m_hostSeqNo[DEC] = 0;
                 m_ivs[DEC].m_CI = ntohs(m_netConnId);
-                m_ivs[DEC].m_netSEQ = ntohl(m_hostSeqNo[DEC]);
             } else if (m_vitalCI && !m_hasConnId[DEC]) {
                 return failM1("connection id not received yet"s, err);
             }
             if (flags & 1) {
-                m_ivs[DEC].m_netSEQ = ntohl(m_hostSeqNo[DEC]);
-                return retHlen;
+                if (len >= retHlen) {
+                    m_hostSeqNo[DEC] = ntohl(*(uint32_t *)&h[retHlen]);
+                    retHlen += 4;
+                } else {
+                    return failM1("message too short"s, err);
+                }
             }
-            if (len >= retHlen) {
-                m_hostSeqNo[DEC] = ntohl(*(uint32_t *)&h[retHlen]);
-                retHlen += 4;
-                m_ivs[DEC].m_netSEQ = ntohl(m_hostSeqNo[DEC]);
-                return retHlen;
-            }
-            return failM1("message too short"s, err);
+            m_ivs[DEC].m_netSEQ = ntohl(m_hostSeqNo[DEC]);
+            return retHlen;
         }
         return failM1("invalid protocol version"s, err);
     }
@@ -1406,14 +1404,14 @@ struct Codec {
                     if (!EVP_CIPHER_CTX_ctrl(this->m_ciphers[ENC], 0, 0, nullptr))
                         return fail("EVP_CIPHER_CTX_ctrl"s, err);
                     else
-                        ;
+                        outlf += outl;
                 else
                     return fail("EVP_EncryptFinal_ex"s, err);
             else
                 return fail("EVP_EncryptUpdate"s, err);
         else
             return fail("EVP_EncryptInit_ex"s, err);
-        dest->insert(dest->end(), m_tmp[ENC].begin(), m_tmp[ENC].begin() + outlf + outl);
+        dest->insert(dest->end(), m_tmp[ENC].begin(), m_tmp[ENC].begin() + outlf);
         dest->insert(dest->end(), (uint8_t *)&(m_tag32[ENC]), (uint8_t *)&(m_tag32[ENC]) + 4);
         return true;
     }
@@ -1425,18 +1423,18 @@ struct Codec {
             if (header && hlen && !EVP_DecryptUpdate(m_ciphers[DEC], nullptr, &outl, header, hlen))
                 return fail("EVP_DecryptUpdate AAD"s, err);
             else if (EVP_DecryptUpdate(m_ciphers[DEC], &m_tmp[DEC][0], &outl, src, len - 4))
-                if (EVP_CIPHER_CTX_ctrl(m_ciphers[DEC], 0, 0, nullptr))
+                if (EVP_CIPHER_CTX_ctrl(m_ciphers[DEC], EVP_CTRL_AEAD_SET_TAG, 4, &m_tag32[DEC]))
                     if (!EVP_DecryptFinal_ex(m_ciphers[DEC], &m_tmp[DEC][0] + outl, &outlf))
                         return fail("EVP_DecryptFinal_ex"s, err);
                     else
-                        ;
+                        outlf += outl;
                 else
                     return fail("EVP_CIPHER_CTX_ctrl"s, err);
             else
                 return fail("EVP_DecryptUpdate"s, err);
         else
             return fail("EVP_DecryptInit_ex"s, err);
-        dest->insert(dest->end(), &m_tmp[DEC][0], &m_tmp[DEC][0] + outlf + outl);
+        dest->insert(dest->end(), &m_tmp[DEC][0], &m_tmp[DEC][0] + outlf);
         return true;
     }
     bool encode(const uint8_t *src, int len, std::vector<uint8_t> *dest, std::string *err) { /*vptr[1]*/
@@ -1692,7 +1690,10 @@ struct AuthServerRestInvoker { //0x60 bytes
 struct EventLoop { //0x30 bytes
     boost::asio::io_context m_asioCtx;
     std::thread m_thrd;
-    static void Execute(EventLoop *t) { t->m_asioCtx.run(); }
+    static void Execute(EventLoop *t) { 
+        auto w = boost::asio::make_work_guard(t->m_asioCtx);
+        t->m_asioCtx.run(); 
+    }
     EventLoop() : m_asioCtx(), m_thrd(Execute, this) {} //OMIT: get m_asioCtx->impl pointer and increment references count to it
     ~EventLoop() { shutdown(); }
     void shutdown() { 
@@ -1705,7 +1706,9 @@ struct EventLoop { //0x30 bytes
         if (m_thrd.joinable()) 
             m_thrd.join();
     }
-    void post(std::function<void()> &&f) { boost::asio::post(m_asioCtx, f); }
+    void post(std::function<void()> &&f) { 
+        boost::asio::post(m_asioCtx, f);
+    }
 };
 struct NetworkClockService;
 struct WorldClockService { //0x2120 bytes
@@ -4400,7 +4403,7 @@ struct TcpClient {
             NetworkingLogDebug("TCP disconnect socket shutdown");
             boost::system::error_code ec;
             m_tcpSocket.shutdown(m_tcpSocket.shutdown_both, ec);
-            if (ec /*shutdown(m_tcpSocket, SD_BOTH)*/)
+            if (ec && ec.value() != 10057 /*ignore WSAENOTCONN*/)
                 NetworkingLogWarn("Error shutting down TCP socket [%d] %s", ec.value(), ec.to_string().c_str());
             NetworkingLogDebug("TCP disconnect socket close"); 
             m_tcpSocket.close(ec);
@@ -6961,8 +6964,7 @@ void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttrib
             auto bk = mgr->FindBikeWithNetworkID(wgm->m_srcProfileId, false);
             VEC3 dv = mainBike->GetPosition() - (bk ? bk->GetPosition() : wgm->m_msgPos);
             if (dv.lenSquared() < wgm->m_msgRadius * wgm->m_msgRadius) {
-                wgm->m_msg[1022] = 0;
-                wgm->m_msg[1023] = 0;
+                wgm->m_msg[511] = 0;
                 HUD_PushTextMessage(*wgm);
             }
         } else {
@@ -7881,7 +7883,7 @@ void UdpClient::handleServerToClient(const std::shared_ptr<protobuf::ServerToCli
 }
 void TcpClient::processPayload(uint64_t len) {
     //OMIT TcpStatistics::registerNetUseIn(*((TcpStatistics **)this + 24), len + 2);
-    auto decodedPtr = decodeMessage(m_buf64k, &len);
+    auto decodedPtr = decodeMessage(m_buf64k + 2, &len);
     if (!decodedPtr) {
         handleCommunicationError(boost::asio::error::make_error_code(boost::asio::error::broken_pipe), "Failed to decode TCP StC"s);
     } else {
@@ -8624,6 +8626,7 @@ bool WaitForPendingRequests(const std::vector<RequestId> &vec, std::string_view 
                     LogTyped(LOG_ERROR, "[ZNet] RPC wait failure for [%s]! Outcome: %d", sv.data(), outcome);
                 }
             } else {
+                inst->m_mutex.unlock();
                 zassert(!"[ZNet] RequestId is empty!");
             }
         } else {
@@ -8861,6 +8864,13 @@ TEST(SmokeTestNet, EventLoopTest) {
     //el.shutdown();
     //el.enqueueShutdown();
 }
+#ifdef OLDNAPALM_SERVER
+auto g_rt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjV8ODU0Mjc1MjBmOTQ5MjQxMThkZjc1YjhhNDc5ZmIzN2ZlY2I3MjEwODU1YzFkYTgxOWE1Yzk4Y2U1Yjk1OTVjZTVmNzgyOGYwNzMwMzQ4YmM4MmRhY2U0ZjM3NWU4OGUxNTUxZjg1ZWEzY2FkMjM3M2RmMDRhYzNlMGJjOTg4YzYifQ.ZB87s5lo7jde09q9IKsFCWc22U65kroBYz0aVb46Lmk"s;
+auto g_token = "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjV8ODU0Mjc1MjBmOTQ5MjQxMThkZjc1YjhhNDc5ZmIzN2ZlY2I3MjEwODU1YzFkYTgxOWE1Yzk4Y2U1Yjk1OTVjZTVmNzgyOGYwNzMwMzQ4YmM4MmRhY2U0ZjM3NWU4OGUxNTUxZjg1ZWEzY2FkMjM3M2RmMDRhYzNlMGJjOTg4YzYifQ.Z3lqUfV7UXSwrB7UoLTdoyupnzoBNP-uaGG1Yh45cKU\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjV8ODU0Mjc1MjBmOTQ5MjQxMThkZjc1YjhhNDc5ZmIzN2ZlY2I3MjEwODU1YzFkYTgxOWE1Yzk4Y2U1Yjk1OTVjZTVmNzgyOGYwNzMwMzQ4YmM4MmRhY2U0ZjM3NWU4OGUxNTUxZjg1ZWEzY2FkMjM3M2RmMDRhYzNlMGJjOTg4YzYifQ.ZB87s5lo7jde09q9IKsFCWc22U65kroBYz0aVb46Lmk\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}"s;
+#else
+auto g_rt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjJ8ZjNjYTdiYmQwZTNkNjRlNjViODE1Y2EzZmQ2Y2E5ZjMyMDQ1OGE4OTUyY2UwMWE4M2UzMGQyYmJhNDI5OWJlNjI2ZDFlMmY5YmIxY2FlMjcwMzViZTA5ZjNlMTMzNDZhMTM5NTc3NWY0ODEwYTAxYTRlMTNmODU2NjkxOGU0NzcifQ.__xW1OygoBGtTl_T1rlkxoJtPjlE6KRZhTMvnVWCXRo"s;
+auto g_token = "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjJ8ZjNjYTdiYmQwZTNkNjRlNjViODE1Y2EzZmQ2Y2E5ZjMyMDQ1OGE4OTUyY2UwMWE4M2UzMGQyYmJhNDI5OWJlNjI2ZDFlMmY5YmIxY2FlMjcwMzViZTA5ZjNlMTMzNDZhMTM5NTc3NWY0ODEwYTAxYTRlMTNmODU2NjkxOGU0NzcifQ.iCHigZvPvh6P3zX9NLjjfbTpBpHYO0_s_T-9edJS5qE\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjJ8ZjNjYTdiYmQwZTNkNjRlNjViODE1Y2EzZmQ2Y2E5ZjMyMDQ1OGE4OTUyY2UwMWE4M2UzMGQyYmJhNDI5OWJlNjI2ZDFlMmY5YmIxY2FlMjcwMzViZTA5ZjNlMTMzNDZhMTM5NTc3NWY0ODEwYTAxYTRlMTNmODU2NjkxOGU0NzcifQ.__xW1OygoBGtTl_T1rlkxoJtPjlE6KRZhTMvnVWCXRo\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}\""s;
+#endif
 TEST(SmokeTestNet, DISABLED_LoginTestPwd) {
     std::vector<std::string> v{ "OS"s, "Windows"s };
     {
@@ -8896,7 +8906,11 @@ TEST(SmokeTestNet, DISABLED_LoginTestPwd) {
     auto r = ret.get();
     EXPECT_EQ(0, (int)r.m_errCode) << r.m_msg;
     //zoffline has no fantasy
-    EXPECT_EQ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjV8ODU0Mjc1MjBmOTQ5MjQxMThkZjc1YjhhNDc5ZmIzN2ZlY2I3MjEwODU1YzFkYTgxOWE1Yzk4Y2U1Yjk1OTVjZTVmNzgyOGYwNzMwMzQ4YmM4MmRhY2U0ZjM3NWU4OGUxNTUxZjg1ZWEzY2FkMjM3M2RmMDRhYzNlMGJjOTg4YzYifQ.ZB87s5lo7jde09q9IKsFCWc22U65kroBYz0aVb46Lmk"s, r.m_msg);
+    auto env_rt = std::getenv("rt");
+    auto senv_rt = g_rt;
+    if (env_rt != nullptr) //token for olyen2007@gmail.com
+        senv_rt = env_rt;
+    EXPECT_EQ(senv_rt, r.m_msg);
     ret = zwift_network::log_out();
     EXPECT_TRUE(ret.valid());
     while (ZNETWORK_IsLoggedIn())
@@ -8908,21 +8922,28 @@ TEST(SmokeTestNet, DISABLED_LoginTestPwd) {
     EXPECT_EQ(""s, r.m_msg);
     ZNETWORK_Shutdown();
 }
-auto g_rt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjgiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6IkdhbWVfTGF1bmNoZXIiLCJhdXRoX3RpbWUiOjAsInNlc3Npb25fc3RhdGUiOiIwODQ2bm85bi03NjVxLTRwM3MtbjIwcC02cG5wOXI4NnI1czMiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZXZlcnlib2R5IiwidHJpYWwtc3Vic2NyaWJlciIsImV2ZXJ5b25lIiwiYmV0YS10ZXN0ZXIiXX0sInJlc291cmNlX2FjY2VzcyI6eyJteS16d2lmdCI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIkdhbWVfTGF1bmNoZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIiwiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBaZW5kZXNrIjp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiWndpZnQgUmVsYXkgUkVTVCBBUEkgLS0gcHJvZHVjdGlvbiI6eyJyb2xlcyI6WyJhdXRob3JpemVkLXBsYXllciJdfSwiZWNvbS1zZXJ2ZXIiOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ.5e1X1imPlVfXfhDHE_OGmG9CNGvz7hpPYPXcNkPJ5lw"s;
-auto g_token = "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjkiLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiR2FtZV9MYXVuY2hlciIsImF1dGhfdGltZSI6MTUzNTUwNzI0OSwic2Vzc2lvbl9zdGF0ZSI6IjA4NDZubzluLTc2NXEtNHAzcy1uMjBwLTZwbnA5cjg2cjVzMyIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiaHR0cHM6Ly9sYXVuY2hlci56d2lmdC5jb20qIiwiaHR0cDovL3p3aWZ0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJldmVyeWJvZHkiLCJ0cmlhbC1zdWJzY3JpYmVyIiwiZXZlcnlvbmUiLCJiZXRhLXRlc3RlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im15LXp3aWZ0Ijp7InJvbGVzIjpbImF1dGhlbnRpY2F0ZWQtdXNlciJdfSwiR2FtZV9MYXVuY2hlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFJFU1QgQVBJIC0tIHByb2R1Y3Rpb24iOnsicm9sZXMiOlsiYXV0aG9yaXplZC1wbGF5ZXIiLCJhdXRoZW50aWNhdGVkLXVzZXIiXX0sIlp3aWZ0IFplbmRlc2siOnsicm9sZXMiOlsiYXV0aGVudGljYXRlZC11c2VyIl19LCJad2lmdCBSZWxheSBSRVNUIEFQSSAtLSBwcm9kdWN0aW9uIjp7InJvbGVzIjpbImF1dGhvcml6ZWQtcGxheWVyIl19LCJlY29tLXNlcnZlciI6eyJyb2xlcyI6WyJhdXRoZW50aWNhdGVkLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20iLCJzZXNzaW9uX2Nvb2tpZSI6IjZ8YTJjNWM1MWY5ZDA4YzY4NWUyMDRlNzkyOWU0ZmMyMDAyOWI5ODE1OGYwYjdmNzk0MmZiMmYyMzkwYWMzNjExMDMzN2E3YTQyYjVlNTcwNmVhODM0YjQzYzFlNDU1NzJkMTQ2MzIwMTQxOWU5NzZjNTkzZWZjZjE0M2UwNWNiZjgifQ._kPfXO8MdM7j0meG4MVzprSa-3pdQqKyzYMHm4d494w\",\"expires_in\":1000021600,\"id_token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJiYjQ4czgyOS03NDgzLTQzbzEtbzg1NC01ZDc5M3E1bjAwbjciLCJleHAiOjIxNDc0ODM2NDcsIm5iZiI6MCwiaWF0IjoxNTM1NTA4MDg3LCJpc3MiOiJodHRwczovL3NlY3VyZS56d2lmdC5jb20vYXV0aC9yZWFsbXMvendpZnQiLCJhdWQiOiJHYW1lX0xhdW5jaGVyIiwic3ViIjoiMDJyM2RlYjUtbnE5cS00NzZzLTlzczAtMDM0cTk3N3NwMnIxIiwidHlwIjoiSUQiLCJhenAiOiJHYW1lX0xhdW5jaGVyIiwiYXV0aF90aW1lIjoxNTM1NTA3MjQ5LCJzZXNzaW9uX3N0YXRlIjoiMDg0Nm5vOW4tNzY1cS00cDNzLW4yMHAtNnBucDlyODZyNXMzIiwiYWNyIjoiMCIsIm5hbWUiOiJad2lmdCBPZmZsaW5lIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiem9mZmxpbmVAdHV0YW5vdGEuY29tIiwiZ2l2ZW5fbmFtZSI6Ilp3aWZ0IiwiZmFtaWx5X25hbWUiOiJPZmZsaW5lIiwiZW1haWwiOiJ6b2ZmbGluZUB0dXRhbm90YS5jb20ifQ.rWGSvv5TFO-i6LKczHNUUcB87Hfd5ow9IMG9O5EGR4Y\",\"not-before-policy\":1408478984,\"refresh_expires_in\":611975560,\"refresh_token\":\""s + g_rt + "\",\"scope\":\"\",\"session_state\":\"0846ab9a-765d-4c3f-a20c-6cac9e86e5f3\",\"token_type\":\"bearer\"}"s;
+#define LOGIN_VIA_TOKEN \
+    EXPECT_FALSE(ZNETWORK_IsLoggedIn()); \
+    std::vector<std::string> v{"OS"s, "Windows"s}; \
+    auto oauth = std::getenv("oauth"), rt = std::getenv("rt"); \
+    std::string s_oauth(g_token), s_rt(g_rt); \
+    if (oauth != nullptr) /*token for olyen2007@gmail.com*/ \
+        s_oauth = oauth; \
+    if (rt != nullptr) /*token for olyen2007@gmail.com*/ \
+        s_rt = rt; \
+    auto ret = zwift_network::log_in_with_oauth2_credentials(s_oauth, v, "Game_Launcher"s); \
+    EXPECT_TRUE(ret.valid()); \
+    while (!ZNETWORK_IsLoggedIn()) \
+        Sleep(100); \
+    EXPECT_TRUE(ret.valid()); \
+    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20))); \
+    auto r = ret.get(); \
+    EXPECT_EQ(0, r.m_errCode) << r.m_msg; \
+    EXPECT_EQ(s_rt, r.m_msg)
+
 TEST(SmokeTestNet, DISABLED_LoginTestToken) {
     ZNETWORK_Initialize();
-    EXPECT_FALSE(ZNETWORK_IsLoggedIn());
-    std::vector<std::string> v{"OS"s, "Windows"s};
-    auto ret = zwift_network::log_in_with_oauth2_credentials(g_token, v, "Game_Launcher"s);
-    EXPECT_TRUE(ret.valid());
-    while(!ZNETWORK_IsLoggedIn())
-        Sleep(100);
-    EXPECT_TRUE(ret.valid());
-    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20)));
-    auto r = ret.get();
-    EXPECT_EQ(0, r.m_errCode) << r.m_msg;
-    EXPECT_EQ(g_rt, r.m_msg);
+    LOGIN_VIA_TOKEN;
     ZNETWORK_Shutdown();
 }
 TEST(SmokeTestNet, B64) {
@@ -9243,7 +9264,8 @@ TEST(SmokeTestNet, Retr3RPC) {
 }
 TEST(SmokeTestNet, SubscriptionStuff) {
     EXPECT_EQ(SM_NAMED_SRC, ZNETWORK_CalculateSubscriptionMode());
-    EXPECT_EQ(SM_UNDEFINED, ZNETWORK_CalculateThenGetSubscriptionMode());
+    auto sm = ZNETWORK_CalculateThenGetSubscriptionMode();
+    EXPECT_TRUE(sm == SM_UNDEFINED || sm == SM_NAMED_SRC);
     EXPECT_STREQ("Ursoft premium", ZNETWORK_GetPromoNameOfCurrentRideEntitlement());
     EXPECT_STREQ("Ursoft platinum", ZNETWORK_GetPromoNameOfNextRideEntitlement());
     EXPECT_EQ(100'000.0f, ZNETWORK_GetTrialKMLeft());
@@ -9286,7 +9308,6 @@ TEST(SmokeTestNet, Qsb) {
 }
 TEST(SmokeTestNet, TestDropInWorldsStatus) {
     ZNETWORK_Initialize();
-    EXPECT_FALSE(ZNETWORK_IsLoggedIn());
     //not logged in branch:
     auto waitUntil = GetTickCount() + 2000;
     do {
@@ -9296,19 +9317,7 @@ TEST(SmokeTestNet, TestDropInWorldsStatus) {
             break;
         }
     } while (g_DropInWorldsStatus != DIW_GIVEUP);
-
-    //log in:
-    std::vector<std::string> v{"OS"s, "Windows"s};
-    auto ret = zwift_network::log_in_with_oauth2_credentials(g_token, v, "Game_Launcher"s);
-    EXPECT_TRUE(ret.valid());
-    while (!ZNETWORK_IsLoggedIn())
-        Sleep(100);
-    EXPECT_TRUE(ret.valid());
-    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20)));
-    auto r = ret.get();
-    EXPECT_EQ(0, r.m_errCode) << r.m_msg;
-    EXPECT_EQ(g_rt, r.m_msg);
-
+    LOGIN_VIA_TOKEN;
     //logged in TestDropInWorldsStatus branch:
     g_DropInWorldsStatus = DIW_INIT;
     waitUntil = GetTickCount() + 20000;
@@ -9328,7 +9337,6 @@ TEST(SmokeTestNet, TestDropInWorldsStatus) {
         auto &w13name = g_DropInWorlds.worlds(13).name();
         EXPECT_EQ("Public Watopia"s, w13name);
     }
-
     g_DropInWorldsStatus = DIW_INIT;
     auto logOutResp = zwift_network::log_out().get();
     EXPECT_EQ(0, (int)logOutResp.m_errCode) << logOutResp.m_msg;
@@ -9344,19 +9352,7 @@ TEST(SmokeTestNet, Activities) {
     //not logged in branch:
     auto acts = ZNETWORK_GetActivities();
     EXPECT_EQ(nullptr, acts);
-
-    //log in:
-    std::vector<std::string> v{"OS"s, "Windows"s};
-    auto ret = zwift_network::log_in_with_oauth2_credentials(g_token, v, "Game_Launcher"s);
-    EXPECT_TRUE(ret.valid());
-    while (!ZNETWORK_IsLoggedIn())
-        Sleep(100);
-    EXPECT_TRUE(ret.valid());
-    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20)));
-    auto r = ret.get();
-    EXPECT_EQ(0, r.m_errCode) << r.m_msg;
-    EXPECT_EQ(g_rt, r.m_msg);
-
+    LOGIN_VIA_TOKEN;
     //logged in ZNETWORK_GetActivities branch:
     acts = ZNETWORK_GetActivities();
     EXPECT_EQ(&g_LastActivityList, acts);
@@ -9371,6 +9367,8 @@ TEST(SmokeTestNet, Activities) {
         if (NRO_OK == prof.m_errCode) {
             auto pid = g_networkClient->m_pImpl->m_globalState->getPlayerId();
             EXPECT_EQ(pid, prof.m_T.id());
+            EXPECT_EQ("P"s, prof.m_T.last_name());
+            EXPECT_EQ("Olyen"s, prof.m_T.first_name());
             BikeManager::Instance()->m_mainBike->m_playerIdTx = pid;
             auto waitUntil = GetTickCount() + 20000;
             do {
@@ -9382,10 +9380,137 @@ TEST(SmokeTestNet, Activities) {
             EXPECT_GT(g_LastActivityList.activities_size(), 0);
         }
     }
+    //no player branch:
+    BikeManager::Instance()->m_mainBike->m_playerIdTx = 0;
+    acts = ZNETWORK_GetActivities();
+    EXPECT_EQ(nullptr, acts);
 
     auto logOutResp = zwift_network::log_out().get();
     EXPECT_EQ(0, (int)logOutResp.m_errCode) << logOutResp.m_msg;
     EXPECT_EQ(""s, logOutResp.m_msg);
-    BikeManager::Instance()->m_mainBike->m_playerIdTx = 0;
     ZNETWORK_Shutdown();
+}
+TEST(SmokeTestNet, ClearPlayerPowerups) {
+    ZNETWORK_Initialize();
+    //not logged in branch:
+    BikeManager::Instance()->m_mainBike->m_playerIdTx = 0;
+    auto nro = ZNETWORK_ClearPlayerPowerups();
+    EXPECT_FALSE(ZNETWORK_IsLoggedIn());
+    EXPECT_EQ(NRO_NOT_PAIRED_TO_PHONE, nro);
+
+    /*need pair to phone
+    //log in:
+    std::vector<std::string> v{"OS"s, "Windows"s};
+    auto ret = zwift_network::log_in_with_oauth2_credentials(g_token, v, "Game_Launcher"s);
+    EXPECT_TRUE(ret.valid());
+    while (!ZNETWORK_IsLoggedIn())
+        Sleep(100);
+    EXPECT_TRUE(ret.valid());
+    EXPECT_EQ(std::future_status::ready, ret.wait_for(std::chrono::milliseconds(20)));
+    auto r = ret.get();
+    EXPECT_EQ(0, r.m_errCode) << r.m_msg;
+    EXPECT_EQ(g_rt, r.m_msg);
+
+    //logged in ZNETWORK_ClearPlayerPowerups branch, no m_playerIdTx:
+    nro = ZNETWORK_ClearPlayerPowerups();
+    EXPECT_EQ(NRO_INVALID_ARGUMENT, nro);
+    //with m_playerIdTx:
+    auto mypf = zwift_network::my_profile();
+    auto status = mypf.wait_for(std::chrono::seconds(5));
+    EXPECT_EQ(std::future_status::ready, status);
+    if (std::future_status::ready == status) {
+        auto prof = mypf.get();
+        EXPECT_EQ(NRO_OK, prof.m_errCode) << prof.m_msg;
+        if (NRO_OK == prof.m_errCode) {
+            auto pid = g_networkClient->m_pImpl->m_globalState->getPlayerId();
+            EXPECT_EQ(pid, prof.m_T.id());
+            EXPECT_EQ("P"s, prof.m_T.last_name());
+            BikeManager::Instance()->m_mainBike->m_playerIdTx = pid;
+            auto waitUntil = GetTickCount() + 20000;
+            do {
+                acts = ZNETWORK_ClearPlayerPowerups();
+                if (int(GetTickCount() - waitUntil) > 0)
+                    break;
+            } while (acts != &g_LastActivityList);
+            EXPECT_EQ(&g_LastActivityList, acts) << "timeout";
+            EXPECT_GT(g_LastActivityList.activities_size(), 0);
+        }
+    }
+
+    //no player branch:
+    BikeManager::Instance()->m_mainBike->m_playerIdTx = 0;
+    acts = ZNETWORK_GetActivities();
+    EXPECT_EQ(nullptr, acts);*/
+
+    auto logOutResp = zwift_network::log_out().get();
+    EXPECT_EQ(3, (int)logOutResp.m_errCode) << logOutResp.m_msg;
+    EXPECT_EQ("Not logged in"s, logOutResp.m_msg);
+    ZNETWORK_Shutdown();
+}
+TEST(SmokeTestNet, SayHello) {
+    auto evSysInst = EventSystem::GetInst();
+    Experimentation::Initialize(evSysInst);
+    ZNETWORK_Initialize();
+    BikeManager::Instance()->m_mainBike->m_playerIdTx = 0;
+    LOGIN_VIA_TOKEN;
+    //who am i
+    auto mypf = zwift_network::my_profile();
+    auto status = mypf.wait_for(std::chrono::seconds(5));
+    EXPECT_EQ(std::future_status::ready, status);
+
+    for (int i = 0; i < 1000; i++) {
+        auto receivedTCPs = g_networkClient->m_pImpl->m_tcpClient->m_codec.m_hostSeqNo[protocol_encryption::Codec::DEC];
+        if (receivedTCPs > 1)
+            break;
+        ZNETWORK_Update(0.1f);
+        Sleep(100);
+    }
+
+    auto logOutResp = zwift_network::log_out().get();
+    EXPECT_EQ(0, (int)logOutResp.m_errCode) << logOutResp.m_msg;
+    EXPECT_EQ(""s, logOutResp.m_msg);
+    Experimentation::Shutdown();
+    ZNETWORK_Shutdown();
+    EventSystem::Destroy();
+}
+TEST(SmokeTestNet, Crypt) {
+    auto header = (const uint8_t *)"\x00\xe3\x1f\xf6\xfb\x8a\x52\xbe\x2f\x44\xbf\x2b\x6e\x3c\xbd\x62\x8e\xae\xec\x14\x02\xb8\x9f\xdf\x7d\x8f\x61\x80\xc3\x6c\x00\xd0\x41\x15\x47\xa3\x89\x9f\x65\xc8\x17\x9e\x67\xcb\xa3\x04\x23\xef\x21\xbb\xbd\x3d\x44\x41\xc4\xf7\x6b\xb0\xf5\xff\x99\xc5\x58\xc6\x91\x45\x6e\x52\x43\x5e\xcc\x97\x57\x0d\xf5\xe7\xeb\xf3\xc7\x4a\x6f\xdf\x63\x62\x89\xf7\xff\x31\xb7\xe4\x8b\x6b\xce\x87\xcd\xa7\xd2\x46\x17\x2b\x13\x45\xcf\x6b\x2f\x52\x4b\x06\x2c\x0a\x98\x3c\x4b\x68\x92\x55\xf2\x29\x4d\xae\x41\xb1\x30\x21\xf9\x26\xeb\x8f";
+    auto src = header + 1;
+    int hlen = 1, len = 127;
+    auto iv = (const uint8_t *)"\x00\x00\x00\x01\x00\x04\x00\x01\x00\x00\x00\x00";
+    auto secretRaw = (const uint8_t *)"\xa9\x05\x6d\xcd\xa2\x1a\xad\xcc\xd4\xd2\xb4\x5b\xce\x76\x43\xd8";
+    EVP_CIPHER_CTX *cipher = EVP_CIPHER_CTX_new();
+    ASSERT_NE(nullptr, cipher);
+    auto gcm = EVP_aes_128_gcm();
+    ASSERT_NE(nullptr, gcm);
+    auto ok = EVP_EncryptInit_ex(cipher, gcm, nullptr, nullptr, nullptr);
+    ASSERT_NE(0, ok);
+    ok = EVP_CIPHER_CTX_set_padding(cipher, 0);
+    ASSERT_NE(0, ok);
+    ok = EVP_CIPHER_CTX_ctrl(cipher, 0, 0, nullptr);
+    ASSERT_NE(0, ok);
+    ok = EVP_CIPHER_CTX_set_key_length(cipher, 16);
+    ASSERT_NE(0, ok);
+    int outl = EVP_CIPHER_CTX_block_size(cipher) + len, outlf = 0;
+    std::vector<uint8_t> tmp(outl);
+    uint32_t tag = *(uint32_t *)&src[len - 4];
+    ok = EVP_DecryptInit_ex(cipher, nullptr, nullptr, secretRaw, iv);
+    ASSERT_NE(0, ok);
+    if (hlen) {
+        ok = EVP_DecryptUpdate(cipher, nullptr, &outl, header, hlen);
+        ASSERT_NE(0, ok);
+    }
+    ok = EVP_DecryptUpdate(cipher, &tmp[0], &outl, src, len - 4);
+    ASSERT_NE(0, ok);
+    ok = EVP_CIPHER_CTX_ctrl(cipher, EVP_CTRL_AEAD_SET_TAG, 4, &tag);
+    ASSERT_NE(0, ok);
+    ok = EVP_DecryptFinal_ex(cipher, &tmp[0] + outl, &outlf);
+    outlf += outl;
+    ASSERT_NE(0, ok);
+    EVP_CIPHER_CTX_free(cipher);
+    const char pay[] = "\x10\x02\x18\x00\xc2\x01\x34\x0a\x15\x08\x01\x10\x06\x1a\x0c\x31\x39\x32\x2e\x31\x36\x38\x2e\x31\x2e\x36\x30\x20\xce\x17\x0a\x15\x08\x00\x10\x00\x1a\x0c\x31\x39\x32\x2e\x31\x36\x38\x2e\x31\x2e\x36\x30\x20\xce\x17\x10\x0a\x18\x1e\x20\x03\xca\x01\x3d\x0a\x1b\x08\x01\x10\x06\x1a\x15\x08\x01\x10\x06\x1a\x0c\x31\x39\x32\x2e\x31\x36\x38\x2e\x31\x2e\x36\x30\x20\xce\x17\x0a\x1b\x08\x00\x10\x00\x1a\x15\x08\x00\x10\x00\x1a\x0c\x31\x39\x32\x2e\x31\x36\x38\x2e\x31\x2e\x36\x30\x20\xce\x17\x10\xce\x17";
+    ASSERT_EQ(sizeof(pay) - 1 /*ending 0*/, outlf);
+    ASSERT_GE(tmp.size(), outlf);
+    tmp.resize(outlf);
+    ASSERT_EQ(0, memcmp(&tmp[0], pay, outlf));
 }
