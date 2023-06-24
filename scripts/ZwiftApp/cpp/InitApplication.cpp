@@ -501,7 +501,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     ZWIFT_UpdateLoading(nullptr, false);
     GAME_Initialize();
     GAME_SetTrainerSlopeModifier(g_UserConfigDoc.GetF32("ZWIFT\\CONFIG\\TRAINER_EFFECT", 0.5f, true));
-    BikeManager::Instance()->m_mainBike->m_bc->SetTireSize(g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\TIRE_CIRC", 2105, true));
+    BikeManager::Instance()->m_mainBike->m_bc->SetTireSize(g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\TIRE_CIRC", 2105));
     BikeManager::Instance()->m_mainBike->m_fwGdeSignature = SIG_CalcCaseInsensitiveSignature("bikes/Wheels/Campagnolo_Bora_Ultra/Campagnolo_Bora_Ultra_Low_Front.gde");
     BikeManager::Instance()->m_mainBike->m_rwGdeSignature = SIG_CalcCaseInsensitiveSignature("bikes/Wheels/Campagnolo_Bora_Ultra/Campagnolo_Bora_Ultra_Low_Rear.gde");
     //TODO BikeManager::Instance()->m_mainBike->m_field_11F0 = nullptr;
@@ -785,7 +785,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         if (!UI_DialogPointer(UID_CONNECTION_NOTIFICATIONS))
             UI_CreateDialog(UID_CONNECTION_NOTIFICATIONS, nullptr, nullptr);
         ZWIFT_UpdateLoading(nullptr, false);
-        auto     ltd = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", (uint32_t)-1, true);
+        auto     ltd = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", (uint32_t)-1);
         uint64_t Power;
         if (ltd != -1 && (Power = ZwiftPowers::GetInst()->GetPower(ltd)) != 0) {
             BikeManager::Instance()->m_mainBike->m_bc->m_lastPower = Power;
@@ -809,7 +809,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         ZwiftAppKeyProcessorManager::Instance()->Init();
         SetIcon();
         GAME_GetMapForTime(_time64(nullptr) - 14400); // MAP_SCHEDULE_GMT_4_OFFSET
-        auto worldCfg = g_UserConfigDoc.GetU32("ZWIFT\\WORLD", 0, true);
+        auto worldCfg = g_UserConfigDoc.GetU32("ZWIFT\\WORLD", 0);
         if (!GAME_IsWorldIDAvailableViaPrefsFile(worldCfg))
             worldCfg = 0;
         GFX_SetLoadedAssetMode(false);

@@ -46,7 +46,7 @@ void LOC_Init() {
     } else {
         const char *oslang = OS_GetLanguage();
         LOC_SetLanguageFromString(oslang, false);
-        g_UserConfigDoc.SetCStr("ZWIFT\\CONFIG\\LANGUAGE", oslang, true);
+        g_UserConfigDoc.SetCStr("ZWIFT\\CONFIG\\LANGUAGE", oslang);
     }
 }
 void LOC_SetLanguageChangeCallback(void (*cb)(LOC_LANGS)) { g_languageChangeCallback = cb; }

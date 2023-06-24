@@ -233,3 +233,13 @@ SetRiderOffsetBlendDistance(float)
 GetDefaultLoiterOffset(void)
 SetDefaultLoiterOffset(float)
 GetRoadEdge(VEC3 const&,VEC3,double,float)
+
+XMLDoc
+[0] dtr
+[1] Load
+[2] SaveAs(char const*,bool)
+[3] UserLoad
+[4] UserSaveAs(char const*,bool)
+[5] BufferLoad
+
+XMLNode

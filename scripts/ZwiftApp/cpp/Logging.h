@@ -59,5 +59,5 @@ int LogGetLineCount();
 LOG_TYPE LogGetLineType(int a1);
 const char *LogGetLine(int a1);
 
-inline bool g_useLogLevelSettings = true, g_alwaysScrollToEnd;
+inline bool g_alwaysScrollToEnd;
 inline int  g_nLogLines, g_curLogLine, g_scrollLogPos;

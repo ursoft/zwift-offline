@@ -1,8 +1,11 @@
+//UT Coverage: 100%, 5/5
 #pragma once
 struct XMLDoc { //1736 bytes
     tinyxml2::XMLDocument m_tiny_doc;
     std::string m_root_name;
     std::map<uint32_t, tinyxml2::XMLElement *> m_map;
+    char *m_wadCopy = nullptr;
+    int m_version = 0;
     char m_path[MAX_PATH] = {};
     bool m_loadResult = false;
     XMLDoc();
@@ -36,33 +39,34 @@ struct XMLDoc { //1736 bytes
     std::vector<float> GetF32Vector(const char *, bool);
     int GetS32(const char *, int, bool);
     std::vector<std::string> GetStringArray(const char *, bool);
-    bool GetTag(const char *, bool);
-    unsigned GetU32(const char *, uint32_t, bool);
+    //not found @PC bool GetTag(const char *, bool);
+    tinyxml2::XMLElement *GetElt(const char *ename, bool distinctMode, bool enableCreate);
+    uint32_t GetU32(const char *, uint32_t);
     VEC3 GetVEC3(const char *, const VEC3 &, bool);
     VEC3 *GetVEC3Array(const char *, bool);
     VEC4 GetVEC4(const char *, const VEC4 &, bool);
     VEC4 *GetVEC4Array(const char *, bool);
     bool Internal_Load(const char *, long *);
     bool Internal_Load(uint32_t, void *);
-    bool Load(const char *, long *);
+    bool Load(const char *aName, time_t *aTime);
     tinyxml2::XMLError LoadCompressedXML(const std::string &, tinyxml2::XMLDocument &);
-    void Save();
-    void SaveAs(const char *, bool);
-    void SetBool(const char *, bool, bool);
-    void SetCStr(const char *path, const char *text, bool enableCreate);
-    void SetF32(const char *, float, bool);
-    void SetF32Array(char *, int, const float *, bool);
-    void SetF32Vector(char *, const std::vector<float> &, bool);
-    void SetS32(const char *, int, bool);
-    void SetU32(const char *, uint32_t, bool);
-    void SetVEC2(const char *, const VEC2 &, bool);
+    int Save();
+    int SaveAs(const char *, bool);
+    void SetBool(const char *path, bool val);
+    void SetCStr(const char *path, const char *text);
+    void SetF32(const char *, float);
+    void SetF32Array(const char *, int, const float *);
+    void SetF32Vector(const char *, const std::vector<float> &);
+    void SetS32(const char *, int);
+    void SetU32(const char *, uint32_t);
+    void SetVEC2(const char *, const VEC2 &);
     void SetVEC2(tinyxml2::XMLElement *, const VEC2 &);
-    void SetVEC3(const char *, const VEC3 &, bool);
+    void SetVEC3(const char *, const VEC3 &);
     void SetVEC3(tinyxml2::XMLElement *, const VEC3 &);
-    void SetVEC4(const char *, const VEC4 &, bool);
+    void SetVEC4(const char *, const VEC4 &);
     void SetVEC4(tinyxml2::XMLElement *, const VEC4 &);
     bool UserLoad(const char *);
-    void UserSaveAs(const char *, bool);
+    int UserSaveAs(const char *, bool);
 };
 
 inline XMLDoc g_UserConfigDoc;

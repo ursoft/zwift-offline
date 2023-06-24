@@ -161,7 +161,7 @@ void ZML_HandleCustomButton(uint32_t but) {
             break;
         case 1060:
             g_ShowGraph = !g_ShowGraph;
-            g_UserConfigDoc.SetBool("ZWIFT\\CONFIG\\SHOW_GRAPH", g_ShowGraph, true);
+            g_UserConfigDoc.SetBool("ZWIFT\\CONFIG\\SHOW_GRAPH", g_ShowGraph);
             break;
         case 1070:
             if (mainBike && mainBike->m_grFenceComponent)

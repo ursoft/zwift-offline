@@ -1,4 +1,4 @@
-//UT Coverage: 40%, 2703/6841
+//UT Coverage: 38%, 2503/6638
 #include "ZwiftApp.h"
 #include "readerwriterqueue/readerwriterqueue.h"
 #include "concurrentqueue/concurrentqueue.h"

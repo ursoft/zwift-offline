@@ -30,7 +30,8 @@ void LOADER_DebugGetName(uint32_t, WAD_ASSET_TYPE) {
     //TODO
 }
 void LOADER_DecompressFileToMemory(std::string, void **, int &, uint32_t) {
-    //TODO
+    //unused
+    assert(false);
 }
 void LOADER_DecompressToFile(void *, int, const char *) {
     //TODO

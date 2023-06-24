@@ -17,7 +17,7 @@ void GAME_onFinishedDownloadingMapSchedule(const std::string &filename, int err)
     g_bMapSchedule_Ready = 1;
 }
 void GAME_GetSuppressedLogTypes() {
-    if (g_useLogLevelSettings) {
+    if (g_UserConfigDoc.m_loadResult) {
         auto str = g_UserConfigDoc.GetCStr("ZWIFT\\GAME_LOGS_SUPPRESSED", nullptr, true);
         if (str)
             LogSetSuppressedLogTypes(ParseSuppressedLogs(str));
@@ -25,7 +25,7 @@ void GAME_GetSuppressedLogTypes() {
 }
 void GAME_SetUseErgModeInWorkouts(bool val) {
     g_UseErgModeInWorkouts = val;
-    g_UserConfigDoc.SetBool("ZWIFT\\WORKOUTS\\USE_ERG", val, true);
+    g_UserConfigDoc.SetBool("ZWIFT\\WORKOUTS\\USE_ERG", val);
 }
 void GAME_Initialize() {
     //TODO

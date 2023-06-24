@@ -8,9 +8,9 @@ bool GFX_Initialize() {
     g_bFullScreen = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\FULLSCREEN", 0, true) != 0;
     auto WINWIDTH = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\WINWIDTH", 0, true);
     auto WINHEIGHT = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\WINHEIGHT", 0, true);
-    auto PREFERRED_MONITOR = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\PREFERRED_MONITOR", (uint32_t)-1, true);
+    auto PREFERRED_MONITOR = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\PREFERRED_MONITOR", (uint32_t)-1);
     auto VSYNC = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\VSYNC", 1, true);
-    auto GPU = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\GPU", (uint32_t)-1, true);
+    auto GPU = g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\GPU", (uint32_t)-1);
     auto GFX_TIER = g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\GFX_TIER", (uint32_t)-1, true);
     Log("Initializing graphics window of size %d x %d", WINWIDTH, WINHEIGHT);
     GFX_InitializeParams gip{};
@@ -40,7 +40,7 @@ bool GFX_Initialize() {
     }
     g_view_h = g_height;
     g_view_y = 0.0;
-    auto perf_flags = g_UserConfigDoc.GetU32("PERF", (uint32_t)-1, true);
+    auto perf_flags = g_UserConfigDoc.GetU32("PERF", (uint32_t)-1);
     if (perf_flags != -1)
         GFX_AddPerformanceFlags(perf_flags);
     return true;

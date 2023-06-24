@@ -51,8 +51,8 @@ void LogSetSuppressedLogTypes(const std::vector<std::string> &supprLogs) {
 }
 void LoadLogLevelSettings() {
     g_MinLogLevel = LL_VERBOSE;
-    if (g_useLogLevelSettings) {
-        auto set = g_UserConfigDoc.GetU32("ZWIFT\\GAME_LOG_LEVEL", LL_VERBOSE, true);
+    if (g_UserConfigDoc.m_loadResult) {
+        auto set = g_UserConfigDoc.GetU32("ZWIFT\\GAME_LOG_LEVEL", LL_VERBOSE);
         if (set >= LL_CNT) // QUEST: was > 6, unknown level
             set = LL_VERBOSE;
         g_MinLogLevel = (LOG_LEVEL)set;

@@ -5,7 +5,7 @@ UnitTypeManager::UnitTypeManager(EventSystem *ev, bool readonly) : EventObject(e
 void UnitTypeManager::SetUseMetric(bool m) {
     m_unitType = m ? UT_METRIC : UT_IMPERIAL;
     if (!m_readonly)
-        g_UserConfigDoc.SetBool("ZWIFT\\CONFIG\\METRIC", m, true);
+        g_UserConfigDoc.SetBool("ZWIFT\\CONFIG\\METRIC", m);
     if (BikeManager::Instance()) {
         auto mainBike = BikeManager::Instance()->m_mainBike;
         if (mainBike) {
