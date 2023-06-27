@@ -1,8 +1,50 @@
+//UT Coverage: 100%, 4/4
 #pragma once
-enum BLE_SOURCE { BLES_ZCA = 1 };
+enum BLE_SOURCE { BLES_BUILTIN = 0, BLES_ZCA = 1, BLES_2 = 2, BLES_WFTN = 3 };
+enum BLE_ERROR_TYPE { BLER_0 = 0 };
+inline bool g_BLE_LoggingON;
+struct BLEDevice {
+    static uint32_t CreateUniqueID(uint32_t hf1, uint32_t hf2);
+    static uint32_t CreateUniqueID(const std::string &f1, const std::string &f2);
+};
 struct BLEModule : public EventObject {
+    struct LegacyBLEImpl {
+        void DidConnect(const char *, const char *);
+        void DidReceiveError(const char *, const char *, BLE_ERROR_TYPE, uint32_t);
+        void DidRecover(const char *, const char *);
+        void DoHardwarePrompt();
+        void EnableDeviceDiscovery(bool);
+        void GetRSSI(const char *);
+        bool HasBLE();
+        void IgnoreReceivedBluetoothPackets(bool);
+        void InitializeBLE();
+        bool IsAnyDeviceConnecting();
+        bool IsAutoConnectPairingOn();
+        bool IsBLEAvailable();
+        bool IsRecoveringLostDevices();
+        bool IsScanning();
+        void PairDevice(const BLEDevice &);
+        void PairDevice(const std::string &);
+        void ProcessAdvertisedServiceUUIDs(const protobuf::BLEAdvertisement &, const std::string &, protobuf::BLEAdvertisementDataSection_Type, BLE_SOURCE);
+        void ProcessAdvertisementManufacturerData(const protobuf::BLEAdvertisement &, const std::string &, BLE_SOURCE);
+        void ProcessBLEResponse(const protobuf::BLEPeripheralResponse &, BLE_SOURCE);
+        void ProcessDiscovery(const protobuf::BLEAdvertisement &, BLE_SOURCE);
+        void PurgeDeviceList();
+        void ReceivedRSSI(int, const char *, const char *);
+        void SendValueToDevice(const protobuf::BLEPeripheralRequest &, BLE_SOURCE);
+        void SetAutoConnectPairingMode(bool);
+        void SetDeviceConnectedFlag(const protobuf::BLEPeripheralResponse &, bool);
+        void StartBackgroundBLECommunication();
+        void StartScan(const protobuf::BLEPeripheralRequest &);
+        void StartSearchForLostDevices();
+        void StopBackgroundBLECommunication();
+        void StopScan();
+        void StopSearchForLostDevices();
+        void UnpairDevice(const BLEDevice &);
+    } *m_bleImpl = nullptr;
     inline static std::unique_ptr<BLEModule> g_BLEModule;
     BLEModule(Experimentation *exp);
+    ~BLEModule();
     static void Initialize(Experimentation *exp);
     static bool IsInitialized() { return g_BLEModule.get() != nullptr; }
     static BLEModule *Instance() { zassert(g_BLEModule.get() != nullptr); return g_BLEModule.get(); }
@@ -11,79 +53,29 @@ struct BLEModule : public EventObject {
     void StopScan();
     void ProcessDiscovery(const protobuf::BLEAdvertisement &, BLE_SOURCE);
     void ProcessBLEResponse(const protobuf::BLEPeripheralResponse &, BLE_SOURCE);
-
-    /*BLEModule::BLEModule(Experiment::IExperimentation<Experiment::Feature> &)
-BLEModule::DidConnect(char const*,char const*)
-BLEModule::DidReceiveError(char const*,char const*,BLE_ERROR_TYPE,uint)
-BLEModule::DidRecover(char const*,char const*)
-BLEModule::DoHardwarePrompt(void)
-BLEModule::EnableDeviceDiscovery(bool)
-BLEModule::GetRSSI(char const*)
-BLEModule::HasBLE(void)
-BLEModule::IBLEBackend::~IBLEBackend()
-BLEModule::IgnoreReceivedBluetoothPackets(bool)
-BLEModule::Initialize(Experiment::IExperimentation<Experiment::Feature> &)
-BLEModule::InitializeBLE(void)
-BLEModule::Instance(void)
-BLEModule::IsAnyDeviceConnecting(void)
-BLEModule::IsAutoConnectPairingOn(void)
-BLEModule::IsBLEAvailable(void)
-BLEModule::IsInitialized(void)
-BLEModule::IsRecoveringLostDevices(void)
-BLEModule::IsScanning(void)
-BLEModule::LegacyBLEImpl::DidConnect(char const*,char const*)
-BLEModule::LegacyBLEImpl::DidReceiveError(char const*,char const*,BLE_ERROR_TYPE,uint)
-BLEModule::LegacyBLEImpl::DidRecover(char const*,char const*)
-BLEModule::LegacyBLEImpl::DoHardwarePrompt(void)
-BLEModule::LegacyBLEImpl::EnableDeviceDiscovery(bool)
-BLEModule::LegacyBLEImpl::GetRSSI(char const*)
-BLEModule::LegacyBLEImpl::HasBLE(void)
-BLEModule::LegacyBLEImpl::IgnoreReceivedBluetoothPackets(bool)
-BLEModule::LegacyBLEImpl::InitializeBLE(void)
-BLEModule::LegacyBLEImpl::IsAnyDeviceConnecting(void)
-BLEModule::LegacyBLEImpl::IsAutoConnectPairingOn(void)
-BLEModule::LegacyBLEImpl::IsBLEAvailable(void)
-BLEModule::LegacyBLEImpl::IsRecoveringLostDevices(void)
-BLEModule::LegacyBLEImpl::IsScanning(void)
-BLEModule::LegacyBLEImpl::PairDevice(BLEDevice const&)
-BLEModule::LegacyBLEImpl::PairDevice(std::string const&)
-BLEModule::LegacyBLEImpl::ProcessAdvertisedServiceUUIDs(zwift::protobuf::BLEAdvertisement const&,std::string const&,zwift::protobuf::BLEAdvertisementDataSection_Type,BLE_SOURCE)
-BLEModule::LegacyBLEImpl::ProcessAdvertisementManufacturerData(zwift::protobuf::BLEAdvertisement const&,std::string const&,BLE_SOURCE)
-BLEModule::LegacyBLEImpl::ProcessBLEResponse(zwift::protobuf::BLEPeripheralResponse const&,BLE_SOURCE)
-BLEModule::LegacyBLEImpl::ProcessDiscovery(zwift::protobuf::BLEAdvertisement const&,BLE_SOURCE)
-BLEModule::LegacyBLEImpl::PurgeDeviceList(void)
-BLEModule::LegacyBLEImpl::ReceivedRSSI(int,char const*,char const*)
-BLEModule::LegacyBLEImpl::SendValueToDevice(zwift::protobuf::BLEPeripheralRequest const&,BLE_SOURCE)
-BLEModule::LegacyBLEImpl::SetAutoConnectPairingMode(bool)
-BLEModule::LegacyBLEImpl::SetDeviceConnectedFlag(zwift::protobuf::BLEPeripheralResponse const&,bool)
-BLEModule::LegacyBLEImpl::StartBackgroundBLECommunication(void)
-BLEModule::LegacyBLEImpl::StartScan(zwift::protobuf::BLEPeripheralRequest const&)
-BLEModule::LegacyBLEImpl::StartSearchForLostDevices(void)
-BLEModule::LegacyBLEImpl::StopBackgroundBLECommunication(void)
-BLEModule::LegacyBLEImpl::StopScan(void)
-BLEModule::LegacyBLEImpl::StopSearchForLostDevices(void)
-BLEModule::LegacyBLEImpl::UnpairDevice(BLEDevice const&)
-BLEModule::LegacyBLEImpl::~LegacyBLEImpl()
-BLEModule::PairDevice(BLEDevice const&)
-BLEModule::PairDevice(std::string const&)
-BLEModule::ProcessAdvertisedServiceUUIDs(zwift::protobuf::BLEAdvertisement const&,std::string const&,zwift::protobuf::BLEAdvertisementDataSection_Type,BLE_SOURCE)
-BLEModule::ProcessAdvertisementManufacturerData(zwift::protobuf::BLEAdvertisement const&,std::string const&,BLE_SOURCE)
-BLEModule::PurgeDeviceList(void)
-BLEModule::ReceivedRSSI(int,char const*,char const*)
-BLEModule::SendValueToDevice(zwift::protobuf::BLEPeripheralRequest const&,BLE_SOURCE)
-BLEModule::SetAutoConnectPairingMode(bool)
-BLEModule::SetDeviceConnectedFlag(zwift::protobuf::BLEPeripheralResponse const&,bool)
-BLEModule::Shutdown(void)
-BLEModule::StartBackgroundBLECommunication(void)
-BLEModule::StartScan(zwift::protobuf::BLEPeripheralRequest const&)
-BLEModule::StartSearchForLostDevices(void)
-BLEModule::StopBackgroundBLECommunication(void)
-BLEModule::StopScan(void)
-BLEModule::StopSearchForLostDevices(void)
-BLEModule::ToggleBLEPacketLogging(void)
-BLEModule::UnpairDevice(BLEDevice const&)
-BLEModule::Update(void)
-BLEModule::callBoolImplMethodOrLogIfUninitialized(std::function<bool ()(void)>,std::string)
-BLEModule::callVoidImplMethodOrLogIfUninitialized(std::function<void ()(void)>,std::string)
-BLEModule::~BLEModule()*/
+    void callVoidImplMethodOrLogIfUninitialized(const std::function<void(void)> &func, const char *method);
+    bool callBoolImplMethodOrLogIfUninitialized(const std::function<bool(void)> &func, const char *method);
+    void PairDevice(const std::string &);
+    void DidRecover(const char *a2, const char *a3);
+    void DidConnect(const char *a2, const char *a3);
+    void ReceivedRSSI(int a2, const char *a3, const char *a4);
+    void DidReceiveError(const char *, const char *, BLE_ERROR_TYPE, uint32_t);
+    void SetDeviceConnectedFlag(const protobuf::BLEPeripheralResponse &resp, bool flag);
+    void StartScan(const protobuf::BLEPeripheralRequest &req);
+    void ProcessAdvertisementManufacturerData(const protobuf::BLEAdvertisement &adv, const std::string &a3, BLE_SOURCE src);
+    void EnableDeviceDiscovery(bool en);
+    void StartSearchForLostDevices();
+    void SendValueToDevice(const protobuf::BLEPeripheralRequest &req, BLE_SOURCE src);
+    bool IsScanning();
+    bool HasBLE();
+    bool IsBLEAvailable();
+    bool IsRecoveringLostDevices();
+    bool IsAutoConnectPairingOn();
+    void PurgeDeviceList();
+    void DoHardwarePrompt();
+    void IgnoreReceivedBluetoothPackets(bool ign);
+    void ProcessAdvertisedServiceUUIDs(const protobuf::BLEAdvertisement &adv, const std::string &a2, protobuf::BLEAdvertisementDataSection_Type dst, BLE_SOURCE src);
+    void StopSearchForLostDevices();
+    void UnpairDevice(const BLEDevice &dev);
+    void InitializeBLE();
 };

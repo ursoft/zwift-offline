@@ -60,8 +60,8 @@ WorldClockService
 HashSeedService
 [0,  0] dtr
 [1,  8] calculateRefreshRelaySessionInAdvance(std::chrono::duration<long,std::ratio<60l,1l>>)
-[2, 16] onHashSeedsReceived(std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::HashSeeds> const> const&)
-[3, 24] onRefreshRelaySession(std::shared_ptr<zwift_network::NetworkResponse<zwift::protobuf::RelaySessionRefreshResponse> const> const&)
+[2, 16] onHashSeedsReceived(std::shared_ptr<zwift_network::NetworkResponse<protobuf::HashSeeds> const> const&)
+[3, 24] onRefreshRelaySession(std::shared_ptr<zwift_network::NetworkResponse<protobuf::RelaySessionRefreshResponse> const> const&)
 
 NetworkClientImpl
 [0,  0] NetworkClientImpl__handleDisconnectRequested
@@ -243,3 +243,48 @@ XMLDoc
 [5] BufferLoad
 
 XMLNode
+
+BLEModule
+[0] dtr
+[1] DidReceiveError
+[2] DidRecover
+[3] DidConnect
+[4] ReceivedRSSI
+[5] PairDevice(std::string)
+[6] ProcessDiscovery
+[7] ProcessBLEResponse
+
+BLEModule::LegacyBLEImpl
+[00]  ~LegacyBLEImpl()
+[01] InitializeBLE
+[02] HasBLE
+[03] IsBLEAvailable
+[04] IgnoreReceivedBluetoothPackets(bool)
+[05] EnableDeviceDiscovery(bool)
+[06] SetDeviceConnectedFlag(protobuf::BLEPeripheralResponse const&,bool)
+[07] StartScan(protobuf::BLEPeripheralRequest const&)
+[08] StopScan
+[09] IsScanning
+[10] IsAnyDeviceConnecting
+[11] StartSearchForLostDevices
+[12] StopSearchForLostDevices(void)
+[13] IsRecoveringLostDevices(void)
+[14] PairDevice(BLEDevice const&) PairDevice_bd=ret0
+[15] PairDevice(std::string const&)
+[16] UnpairDevice(BLEDevice const&)
+[17] SendValueToDevice(protobuf::BLEPeripheralRequest const&,BLE_SOURCE)
+[18] ProcessDiscovery(protobuf::BLEAdvertisement const&,BLE_SOURCE)
+[19] ProcessAdvertisedServiceUUIDs=ret0
+[20] ProcessAdvertisementManufacturerData(protobuf::BLEAdvertisement const&,std::string const&,BLE_SOURCE)
+[21] ProcessBLEResponse(protobuf::BLEPeripheralResponse const&,BLE_SOURCE)
+[22] GetRSSI(char const*)=ret0
+[23] ReceivedRSSI(int,char const*,char const*)
+[24] DoHardwarePrompt(void)
+[25] IsAutoConnectPairingOn(void)
+[26] SetAutoConnectPairingMode(bool)
+[27] DidReceiveError(char const*,char const*,BLE_ERROR_TYPE,uint)
+[28] DidRecover(char const*,char const*)
+[29] DidConnect(char const*,char const*)
+[30] PurgeDeviceList(void)
+[31] StartBackgroundBLECommunication(void)=ret0
+[32] StopBackgroundBLECommunication(void)=ret0

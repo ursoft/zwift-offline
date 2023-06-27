@@ -5,7 +5,7 @@ ClientTelemetry::ClientTelemetry(Experimentation *exp, EventSystem *eventSystem)
         eventSystem->Subscribe(EV_RESET, this);
         exp->IsEnabled(FID_RLOG, [this](ExpVariant val) {
             //TODO doClientTelemetryFID_RLOG
-            });
+        });
 }
 ClientTelemetry::~ClientTelemetry() {
     m_eventSystem->Unsubscribe(EV_28, this);

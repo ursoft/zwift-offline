@@ -259,10 +259,25 @@ message BLEPeripheralCharacteristic {
     optional string f1 = 1;
     optional bytes f2 = 2;
 }
+enum BLEPeripheralResponse_Error {
+    BL_ERR_UNK = -1;
+    BL_ERR_0 = 0;
+    BL_ERR_1 = 1;
+    BL_ERR_2 = 2;
+    BL_ERR_3 = 3;
+}
+enum BLEPeripheralResponse_Type {
+    BL_TY_0 = 0;
+    BL_TY_1 = 1;
+    BL_TY_2 = 2;
+    BL_TY_3 = 3;
+    BL_TY_4 = 4;
+    BL_TY_5 = 5;
+}
 message BLEPeripheralResponse {
-    optional uint32 f1 = 1; //enum <= 5
-    optional uint32 f2 = 2; //enum <= 3
-    optional string f3 = 3;
+    optional BLEPeripheralResponse_Type type = 1;
+    optional BLEPeripheralResponse_Error err_kind = 2;
+    optional string err_msg = 3;
     optional BLEPeripheral per = 4;
     optional BLEPeripheralCharacteristic char = 5;
 }

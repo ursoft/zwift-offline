@@ -2973,11 +2973,11 @@ reset(void) - not used
 inlined:
 resetFields(void)
 resetFanViewFields(void)
-registerTripDuration(zwift::protobuf::PlayerState const&,ulong)
-registerSeenPlayers(zwift::protobuf::PlayerState const&)
-registerFanViewLatestPlayerStateInfo(zwift::protobuf::PlayerState const&)
+registerTripDuration(protobuf::PlayerState const&,ulong)
+registerSeenPlayers(protobuf::PlayerState const&)
+registerFanViewLatestPlayerStateInfo(protobuf::PlayerState const&)
 registerDatagramWindowSize(void)
-isInsideInnermostRing(zwift::protobuf::PlayerState const&,ulong)
+isInsideInnermostRing(protobuf::PlayerState const&,ulong)
 getParseErrorCount(void)
 getInnermostSquaredDistance(void)
 computeFanView(void)
@@ -5132,8 +5132,8 @@ struct AuxiliaryController : public WorldIdListener { //0x105B8-16 bytes
                         /* OMIT if (!this->m_ci2telemetry_sent && i.command() == protobuf::PHONE_TO_GAME_PACKET)
                         {
                             memset(v37, 0, 0xD8ui64);
-                            zwift::protobuf::GamePacket::GamePacket((__int64)v37, 0i64, 0);
-                            v37[0] = (__int64)&zwift::protobuf::GamePacket::`vftable';
+                            protobuf::GamePacket::GamePacket((__int64)v37, 0i64, 0);
+                            v37[0] = (__int64)&protobuf::GamePacket::`vftable';
                                 if ((unsigned __int8)protobuf::MessageLite::ParseFromString(
                                     v37,
                                     *(_QWORD *)(v10 + 48) & 0xFFFFFFFFFFFFFFF8ui64))

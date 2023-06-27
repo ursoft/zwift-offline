@@ -1,6 +1,6 @@
 #pragma once
 struct FitnessDeviceManager {
-public:
+    static inline uint32_t m_lastBLESearchTime;
     static void TrainerSetSimGrade(float v);
     static void Initialize();
     static void SetInitialRotationZC();
