@@ -1,4 +1,7 @@
 #pragma once
+#define _ITERATOR_DEBUG_LEVEL 0 //otherwise sizoef(std::string) == 40, ble dll does not like this
+#define _DISABLE_VECTOR_ANNOTATION
+#define _DISABLE_STRING_ANNOTATION
 #define _CRT_SECURE_NO_WARNINGS
 #define OPENSSL_API_COMPAT 0x10100000L
 #define NOMINMAX

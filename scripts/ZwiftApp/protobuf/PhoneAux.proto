@@ -256,8 +256,8 @@ message MobileAlertResponse {
     optional int64 f2 = 2;
 }
 message BLEPeripheralCharacteristic {
-    optional string f1 = 1;
-    optional bytes f2 = 2;
+    optional string id = 1;
+    optional bytes value = 2;
 }
 enum BLEPeripheralResponse_Error {
     BL_ERR_UNK = -1;
@@ -279,20 +279,20 @@ message BLEPeripheralResponse {
     optional BLEPeripheralResponse_Error err_kind = 2;
     optional string err_msg = 3;
     optional BLEPeripheral per = 4;
-    optional BLEPeripheralCharacteristic char = 5;
+    optional BLEPeripheralCharacteristic chr = 5;
 }
 message BLEAdvertisementDataSection {
     required BLEAdvertisementDataSection_Type type = 1;
-    required bytes f2 = 2;
+    required bytes data = 2;
 }
 message BLEPeripheral {
-    optional string f1 = 1;
-    optional string f2 = 2;
+    optional string device_id = 1;
+    optional string device_name = 2;
     optional int32 f3 = 3;
 }
 message BLEAdvertisement {
-    optional BLEPeripheral f1 = 1;
-    repeated BLEAdvertisementDataSection f2 = 2;
+    optional BLEPeripheral per = 1;
+    repeated BLEAdvertisementDataSection sects = 2;
     optional int32 f3 = 3; //enum <= 5
 }
 message PhoneToGameCommand {
@@ -460,7 +460,7 @@ message BLEPeripheralRequest {
     optional BLEPeripheral per = 3;
 }
 message BLEPeripheralService {
-    optional string f1 = 1;
+    optional string id = 1;
     repeated BLEPeripheralCharacteristic chars = 2;
 }
 message FitnessAttribute {

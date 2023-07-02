@@ -288,3 +288,34 @@ BLEModule::LegacyBLEImpl
 [30] PurgeDeviceList(void)
 [31] StartBackgroundBLECommunication(void)=ret0
 [32] StopBackgroundBLECommunication(void)=ret0
+
+BLEDeviceManager
+[00] BLEDeviceManager_dtr_0
+[01] _purecall
+[02] StartScan
+[03] StopScan
+[04] PurgeDeviceList
+[05] SendValueToDevice
+[06] StartSearchForLostDevices
+[07] StopSearchForLostDevices
+[08] PairDevice
+[09] UnpairDevice
+
+ExerciseDevice
+[00] dtr
+[01] Pair(bool)
+[02] UnPair(void)
+[03] Destroy(void)
+[04] IsPaired(void)
+[05] IsActivelyPaired(void)
+[06] Update(float)
+[07] StartWorkout(void)
+[08] EndWorkout(void)
+[09] FirmwareVersionCheck(void (*)(eCheckResult,sDeviceFirmwareInfo *,void *),void *)
+[10] FirmwareUpdate(FirmwareUpdate::eUserChoice,void (*)(eUpdateResult,sDeviceFirmwareInfo *,void *),void *)
+[11] GetFirmwareUpdateProgress(void)
+[12] GetPrefsID(void)
+
+BLEDevice : ExerciseDevice
+[13] SetPaired(bool)
+[14] ProcessBLEData(zwift::protobuf::BLEPeripheralResponse const&)

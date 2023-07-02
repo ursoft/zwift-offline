@@ -64,7 +64,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   unofficial::libsquish::squish
   xxHash::xxhash
 )
-target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:RELWITHDEBINFO>:/PROFILE>)
+#target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:RELWITHDEBINFO>:/PROFILE>)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ./)
 install(FILES $<TARGET_PDB_FILE:${PROJECT_NAME}> DESTINATION ./ OPTIONAL)

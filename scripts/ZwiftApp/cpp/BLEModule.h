@@ -1,11 +1,87 @@
 //UT Coverage: 100%, 4/4
 #pragma once
-enum BLE_SOURCE { BLES_BUILTIN = 0, BLES_ZCA = 1, BLES_2 = 2, BLES_WFTN = 3 };
-enum BLE_ERROR_TYPE { BLER_0 = 0 };
 inline bool g_BLE_LoggingON;
-struct BLEDevice {
-    static uint32_t CreateUniqueID(uint32_t hf1, uint32_t hf2);
-    static uint32_t CreateUniqueID(const std::string &f1, const std::string &f2);
+enum BLEDeviceSubtype { BLEST_GENERIC, BLEST_ZC, BLEST_ZH, BLEST_LAN, BLEST_CNT };
+struct BLEDevice : public ExerciseDevice { //0x360 bytes
+    std::string m_devId, m_nameId;
+    BLEDeviceSubtype m_bleSubType = BLEST_GENERIC;
+    uint32_t m_charId;
+    bool m_isPaired, m_field_2CC;
+    static uint32_t CreateUniqueID(uint32_t hf1 /*, uint32_t hf2*/);
+    static uint32_t CreateUniqueID(const std::string &f1/*, const std::string &f2*/);
+    virtual void SetPaired(bool p);
+    void Update(float dt) override;
+    void ProcessBLEData(const protobuf::BLEPeripheralResponse &);
+    void Pair(bool) override;
+    bool IsActivelyPaired() override;
+    bool IsPaired() override;
+    uint32_t GetPrefsID() override;
+    void UnPair() override;
+        /*void BLEDevice(std::string const&,std::string const&,uint,uint,BLE_SOURCE)
+void CreateUniqueID(std::string const&,std::string const&)
+void CreateUniqueID(uint,uint)
+void EndWorkout(void)
+void FirmwareUpdate(FirmwareUpdate::eUserChoice,void (*)(eUpdateResult,sDeviceFirmwareInfo *,void *),void *)
+void FirmwareVersionCheck(void (*)(eCheckResult,sDeviceFirmwareInfo *,void *),void *)
+void GetEliteSteeringComponent(void)
+void GetFirmwareUpdateProgress(void)
+void GetJetBlackSteeringComponent(void)
+void HubFirmwareUpdate(std::string,std::string,std::string)
+void LogBleRxPacket(zwift::protobuf::BLEPeripheralResponse const&)
+void LogBleTxPacket(char const*,char const*,zwift::protobuf::BLEPeripheralRequest &)
+void OnDeviceConnected(void)
+void OnDeviceDisconnected(void)
+void ProcessBLEData(zwift::protobuf::BLEPeripheralResponse const&)
+void ProcessBattery(CharacteristicInfo const&)
+void ProcessBowFlexTreadmillStatus(CharacteristicInfo const&)
+void ProcessBowFlexTreadmillStream(CharacteristicInfo const&)
+void ProcessCharacteristic(zwift::protobuf::BLEPeripheralResponse const&)
+void ProcessCycleOpsControlPoint(CharacteristicInfo const&)
+void ProcessEliteActivationControlPoint(CharacteristicInfo const&)
+void ProcessEliteActivationResponsePoint(CharacteristicInfo const&)
+void ProcessEliteAux(CharacteristicInfo const&)
+void ProcessEliteResponsePoint(CharacteristicInfo const&)
+void ProcessFTMSBikeData(CharacteristicInfo const&)
+void ProcessFTMSControlPoint(CharacteristicInfo const&)
+void ProcessFTMSFeatures(CharacteristicInfo const&)
+void ProcessFTMSMachineStatus(CharacteristicInfo const&)
+void ProcessFTMSTreadmillData(CharacteristicInfo const&)
+void ProcessFirmwareVersion(CharacteristicInfo const&)
+void ProcessHardwareRevision(CharacteristicInfo const&)
+void ProcessHeartRate(CharacteristicInfo const&)
+void ProcessInRideData(CharacteristicInfo const&)
+void ProcessJetBlackSWB(CharacteristicInfo const&)
+void ProcessKickrBikeInput(CharacteristicInfo const&)
+void ProcessKickrControlPoint(CharacteristicInfo const&)
+void ProcessKineticSmartData(CharacteristicInfo const&)
+void ProcessMagneticDaysControlPoint1(CharacteristicInfo const&)
+void ProcessManufacturerName(CharacteristicInfo const&)
+void ProcessMilestonePodToHost(CharacteristicInfo const&)
+void ProcessMilestonePodVersion(CharacteristicInfo const&)
+void ProcessModelNumber(CharacteristicInfo const&)
+void ProcessPower(CharacteristicInfo const&)
+void ProcessRunSpeedCadence(CharacteristicInfo const&)
+void ProcessSerialID(CharacteristicInfo const&)
+void ProcessSoftwareVersion(CharacteristicInfo const&)
+void ProcessSpeedCadence(CharacteristicInfo const&)
+void ProcessStagesBikeInput(CharacteristicInfo const&)
+void ProcessSystemID(CharacteristicInfo const&)
+void ProcessTacxControlPoint(CharacteristicInfo const&)
+void ProcessTechnoGymControlPoint(CharacteristicInfo const&)
+void ProcessTemperature(CharacteristicInfo const&)
+void ProcessTickrXControlPoint(CharacteristicInfo const&)
+void ProcessUserDataWeight(CharacteristicInfo const&)
+void ProcessWahooGymConnectDeviceData(CharacteristicInfo const&)
+void ProcessWahooGymConnectDeviceType(CharacteristicInfo const&)
+void ProcessWattBikeControlPoint(CharacteristicInfo const&)
+void ProcessWattBikeInput(CharacteristicInfo const&)
+void ProcessWhisperSmartControlPointFast(CharacteristicInfo const&)
+void ProcessWhisperSmartControlPointSlow(CharacteristicInfo const&)
+void RequestUpdatedRSSIInfo(void)
+void ShouldCheckForHubFirmwareUpdate(void)
+void StartWorkout(void)
+void SwapLegacyControlComponentForFTMS(void)
+*/
 };
 struct BLEModule : public EventObject {
     struct LegacyBLEImpl {
