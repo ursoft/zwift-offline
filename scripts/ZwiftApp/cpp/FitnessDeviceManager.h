@@ -75,7 +75,7 @@ struct ExerciseDevice { //0x290 bytes
     virtual void Pair(bool p) {}               //[01]
     virtual void UnPair() {}                   //[02]
     virtual void Destroy() {}                  //[03]
-    virtual bool IsPaired() { return false; }  //[04]
+    virtual bool IsPaired() const { return false; }   //[04]
     virtual bool IsActivelyPaired() { return false; } //[05]
     virtual void Update(float) = 0;            //[06]
     virtual void StartWorkout() {}             //[07]
@@ -85,7 +85,7 @@ struct ExerciseDevice { //0x290 bytes
     //OMIT void GetFirmwareUpdateProgress(void) [11]
     virtual uint32_t GetPrefsID() { return m_prefsID; } //[12]
     std::vector<DeviceComponent *> &GetComponentList() { return m_components; }
-    DeviceComponent *FindComponentOfType(uint32_t ct) {
+    DeviceComponent *FindComponentOfType(DeviceComponent::ComponentType ct) {
         std::lock_guard l(m_mutex);
         for (auto c : m_components)
             if (c->m_type == ct)
@@ -107,7 +107,7 @@ void GetDeviceAnalytics(std::vector<std::string> &)
  */
 };
 struct ZMLAUXDevice : public ExerciseDevice { //0xb28 bytes
-    bool IsPaired();
+    bool IsPaired() const;
     void Pair(bool p);
     //UnPair();
     //Update(float);

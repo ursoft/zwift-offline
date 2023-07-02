@@ -2,11 +2,18 @@
 #pragma once
 inline bool g_BLE_LoggingON;
 enum BLEDeviceSubtype { BLEST_GENERIC, BLEST_ZC, BLEST_ZH, BLEST_LAN, BLEST_CNT };
+void InitializeBLESearchParameters(protobuf::BLEPeripheralRequest *rq);
+void BLEDevice_StartSearchForLostDevices();
+bool IsNewBLEMiddlewareEnabled();
+namespace JetBlackSteeringComponent {
+    bool IsFeatureFlagEnabled();
+}
 struct BLEDevice : public ExerciseDevice { //0x360 bytes
     std::string m_devId, m_nameId;
     BLEDeviceSubtype m_bleSubType = BLEST_GENERIC;
     uint32_t m_charId;
     bool m_isPaired, m_field_2CC;
+    BLEDevice(const std::string &, const std::string &, uint32_t, uint32_t, BLE_SOURCE src);
     static uint32_t CreateUniqueID(uint32_t hf1 /*, uint32_t hf2*/);
     static uint32_t CreateUniqueID(const std::string &f1/*, const std::string &f2*/);
     virtual void SetPaired(bool p);
@@ -14,20 +21,16 @@ struct BLEDevice : public ExerciseDevice { //0x360 bytes
     void ProcessBLEData(const protobuf::BLEPeripheralResponse &);
     void Pair(bool) override;
     bool IsActivelyPaired() override;
-    bool IsPaired() override;
+    bool IsPaired() const override;
     uint32_t GetPrefsID() override;
     void UnPair() override;
-        /*void BLEDevice(std::string const&,std::string const&,uint,uint,BLE_SOURCE)
-void CreateUniqueID(std::string const&,std::string const&)
-void CreateUniqueID(uint,uint)
+    void LogBleRxPacket(const protobuf::BLEPeripheralResponse &resp);
+        /*void 
 void EndWorkout(void)
-void FirmwareUpdate(FirmwareUpdate::eUserChoice,void (*)(eUpdateResult,sDeviceFirmwareInfo *,void *),void *)
-void FirmwareVersionCheck(void (*)(eCheckResult,sDeviceFirmwareInfo *,void *),void *)
 void GetEliteSteeringComponent(void)
 void GetFirmwareUpdateProgress(void)
 void GetJetBlackSteeringComponent(void)
 void HubFirmwareUpdate(std::string,std::string,std::string)
-void LogBleRxPacket(zwift::protobuf::BLEPeripheralResponse const&)
 void LogBleTxPacket(char const*,char const*,zwift::protobuf::BLEPeripheralRequest &)
 void OnDeviceConnected(void)
 void OnDeviceDisconnected(void)
@@ -78,7 +81,6 @@ void ProcessWattBikeInput(CharacteristicInfo const&)
 void ProcessWhisperSmartControlPointFast(CharacteristicInfo const&)
 void ProcessWhisperSmartControlPointSlow(CharacteristicInfo const&)
 void RequestUpdatedRSSIInfo(void)
-void ShouldCheckForHubFirmwareUpdate(void)
 void StartWorkout(void)
 void SwapLegacyControlComponentForFTMS(void)
 */
@@ -100,7 +102,6 @@ struct BLEModule : public EventObject {
         bool IsRecoveringLostDevices();
         bool IsScanning();
         void PairDevice(const BLEDevice &);
-        void PairDevice(const std::string &);
         void ProcessAdvertisedServiceUUIDs(const protobuf::BLEAdvertisement &, const std::string &, protobuf::BLEAdvertisementDataSection_Type, BLE_SOURCE);
         void ProcessAdvertisementManufacturerData(const protobuf::BLEAdvertisement &, const std::string &, BLE_SOURCE);
         void ProcessBLEResponse(const protobuf::BLEPeripheralResponse &, BLE_SOURCE);
@@ -131,7 +132,7 @@ struct BLEModule : public EventObject {
     void ProcessBLEResponse(const protobuf::BLEPeripheralResponse &, BLE_SOURCE);
     void callVoidImplMethodOrLogIfUninitialized(const std::function<void(void)> &func, const char *method);
     bool callBoolImplMethodOrLogIfUninitialized(const std::function<bool(void)> &func, const char *method);
-    void PairDevice(const std::string &);
+    void PairDevice(const BLEDevice &dev);
     void DidRecover(const char *a2, const char *a3);
     void DidConnect(const char *a2, const char *a3);
     void ReceivedRSSI(int a2, const char *a3, const char *a4);

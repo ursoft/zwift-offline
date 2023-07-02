@@ -1,5 +1,38 @@
 //UT Coverage: 50%, 249/502, NEED_MORE
 #include "ZwiftApp.h"
+enum BLESearchSource { BSS_BUILTIN = 1, BSS_ZCA = 2 };
+int g_BLESearchSources;
+bool IsNewBLEMiddlewareEnabled() {
+    static bool g_bIsNewBLEMiddlewareEnabled = Experimentation::Instance()->IsEnabled(FID_BLEMIDD);
+    return g_bIsNewBLEMiddlewareEnabled;
+}
+bool JetBlackSteeringComponent::IsFeatureFlagEnabled() {
+    static bool ret = Experimentation::Instance()->IsEnabled(FID_ADDDEVI);
+    return ret;
+}
+bool IsWdcErrorDialogs() {
+    static bool ret = Experimentation::Instance()->IsEnabled(FID_WDCERRO);
+    return ret;
+}
+void BLEDevice_StartSearchForLostDevices() {
+    if (!g_BLESearchSources)
+        zassert(!"No search types have been specified");
+    if (g_BLESearchSources & BSS_BUILTIN) {
+        auto bm = BLEModule::Instance();
+        if (bm->HasBLE() && bm->IsBLEAvailable()) {
+            protobuf::BLEPeripheralRequest rq;
+            InitializeBLESearchParameters(&rq);
+            LogTyped(LOG_BLE, "Starting Native BLE search");
+            BLEModule::Instance()->StartScan(rq);
+        }
+    }
+    if (g_BLESearchSources & BSS_ZCA && zwift_network::is_paired_to_phone()) {
+        protobuf::BLEPeripheralRequest rq;
+        InitializeBLESearchParameters(&rq);
+        Log("Starting BLE search over Zwift Companion");
+        zwift_network::send_ble_peripheral_request(rq);
+    }
+}
 void BLEDevice_CreateTrainerST3(const protobuf::BLEAdvertisement &adv, uint8_t a2, uint16_t a3, BLE_SOURCE src) {
     //TODO
 }
@@ -138,17 +171,19 @@ bool g_windowsBleSupported, g_windowsBleDllLoaded, g_windowsBleDllFunctionsOK;
 uint32_t g_bleDllLoadingError;
 typedef void (*fptr_void_void)();
 typedef void (*fptr_void_ptr)(void *);
-typedef bool (*fptr_bool_ptr)(void *);
-typedef bool (*fptr_bool_ptr3)(void *, void *, void *);
+typedef bool (*unpairFromDeviceFunc_t)(uint64_t id);
+typedef bool (*pairToDeviceFunc_t)(uint64_t id);
+typedef bool (*writeToDeviceFunc_t)(uint64_t id, const std::string &chrId, const std::string &val);
 #pragma comment(lib, "Version.lib")
 struct BLEDeviceManager { //and BLEDeviceManagerWindows
     fptr_void_ptr m_startScanningFunc;
     fptr_void_void m_stopScanningFunc;
     fptr_void_void m_purgeDeviceListFunc;
-    fptr_bool_ptr m_pairToDeviceFunc;
-    fptr_bool_ptr m_unpairFromDeviceFunc;
-    fptr_bool_ptr3 m_writeToDeviceFunc;
+    pairToDeviceFunc_t m_pairToDeviceFunc;
+    unpairFromDeviceFunc_t m_unpairFromDeviceFunc;
+    writeToDeviceFunc_t m_writeToDeviceFunc;
     fptr_void_void m_initFlagsFunc;
+    std::vector<std::string> m_lostDevs;
     enum DeviceState { BLE_DEVICE_STATE_UNK, BLE_DEVICE_STATE_IDLE, BLE_DEVICE_STATE_SCANNING, BLE_DEVICE_STATE_RECOVERING } m_deviceState = BLE_DEVICE_STATE_UNK;
     bool m_HasBLE, m_AutoConnectPairingMode, m_bleAvalilable, m_initFlagCalled;
     ~BLEDeviceManager() { //vptr[0]
@@ -199,9 +234,9 @@ struct BLEDeviceManager { //and BLEDeviceManagerWindows
         auto startScanningFunc = (fptr_void_ptr)GetProcAddress(BleDll, "BLEStartScanning");
         auto stopScanningFuncBLEStopScanning = (fptr_void_void)GetProcAddress(BleDll, "BLEStopScanning");
         auto purgeDeviceListFunc = (fptr_void_void)GetProcAddress(BleDll, "BLEPurgeDeviceList");
-        auto pairToDeviceFunc = (fptr_bool_ptr)GetProcAddress(BleDll, "BLEPairToDevice");
-        auto unpairFromDeviceFunc = (fptr_bool_ptr)GetProcAddress(BleDll, "BLEUnpairFromDevice");
-        auto writeToDeviceFunc = (fptr_bool_ptr3)GetProcAddress(BleDll, "BLEWriteToDevice");
+        auto pairToDeviceFunc = (pairToDeviceFunc_t)GetProcAddress(BleDll, "BLEPairToDevice");
+        auto unpairFromDeviceFunc = (unpairFromDeviceFunc_t)GetProcAddress(BleDll, "BLEUnpairFromDevice");
+        auto writeToDeviceFunc = (writeToDeviceFunc_t)GetProcAddress(BleDll, "BLEWriteToDevice");
         auto initFlagsFunc = (fptr_void_void)GetProcAddress(BleDll, "BLEInitBLEFlags");
         auto BLESetProcessBLEResponse = (fptr_void_ptr)GetProcAddress(BleDll, "BLESetProcessBLEResponse");
         auto BLESetPeripheralDiscoveryFunc = (fptr_void_ptr)GetProcAddress(BleDll, "BLESetPeripheralDiscoveryFunc");
@@ -310,30 +345,192 @@ struct BLEDeviceManager { //and BLEDeviceManagerWindows
         }
     }
     void StopScan() { //vptr[3]
-        //TODO
+        if (m_HasBLE) {
+            if (m_stopScanningFunc) {
+                if (m_deviceState == BLE_DEVICE_STATE_SCANNING) {
+                    m_stopScanningFunc();
+                    FitnessDeviceManager::m_lastBLESearchTime = timeGetTime();
+                }
+            } else {
+                zassert(!"BLE - Calling StopDeviceSearch when there is no stop device search function");
+            }
+            m_deviceState = BLE_DEVICE_STATE_IDLE;
+        }
     }
     void PurgeDeviceList() { //vptr[4]
-        //TODO
+        if (m_purgeDeviceListFunc)
+            m_purgeDeviceListFunc();
     }
-    void SendValueToDevice(const protobuf::BLEPeripheralRequest &req) { //vptr[5]
-        //TODO
+    void SendValueToDevice(const protobuf::BLEPeripheralRequest &rq) { //vptr[5]
+        if (m_writeToDeviceFunc) {
+            if (rq.type() == protobuf::WRITE_CHARACTERISTIC_VALUE && rq.has_per()) {
+                auto devId = std::strtoull(rq.per().device_id().c_str(), nullptr, 10);
+                for (auto &serv : rq.servs())
+                    for (auto &chr : serv.chars())
+                        if (chr.has_value())
+                            m_writeToDeviceFunc(devId, chr.id(), chr.value());
+            }
+        } else {
+            zassert("BLE - Calling SendValueToDevice when there is no write to device function");
+        }
     }
     void StartSearchForLostDevices() { //vptr[6]
-        //TODO
+        BLEDevice_StartSearchForLostDevices();
+        m_deviceState = BLE_DEVICE_STATE_RECOVERING;
     }
     void StopSearchForLostDevices() { //vptr[7]
-        //TODO
-    }
-    void PairDevice(const std::string &) {
-        //TODO
+        if (m_HasBLE) {
+            if (m_stopScanningFunc) {
+                if (m_deviceState == BLE_DEVICE_STATE_RECOVERING) {
+                    m_stopScanningFunc();
+                    m_lostDevs.clear();
+                }
+            } else {
+                zassert(!"BLE - Calling StopDeviceSearch when there is no stop device search function");
+            }
+            m_deviceState = BLE_DEVICE_STATE_IDLE;
+        }
     }
     void PairDevice(const BLEDevice &dev) { //vptr[8]
-        //TODO
+        if (!dev.IsPaired()) {
+            if (m_pairToDeviceFunc) {
+                auto v9 = std::strtoull(dev.m_devId.c_str(), nullptr, 10);
+                if (!m_pairToDeviceFunc(v9))
+                    Log("BLE: Pairing failed for %s", dev.m_devId.c_str());
+            } else {
+                zassert(!"BLE - Calling PairDevice when there is no pair to device function");
+            }
+        }
     }
     void UnpairDevice(const BLEDevice &dev) { //vptr[9]
-        //TODO
+        if (m_unpairFromDeviceFunc) {
+            auto v9 = std::strtoull(dev.m_devId.c_str(), nullptr, 10);
+            if (!m_unpairFromDeviceFunc(v9))
+                Log("BLE: Unpairing failed for %s", dev.m_devId.c_str());
+        } else {
+            zassert(!"BLE - Calling UnPairDevice when there is no unpair from device function");
+        }
     }
 } g_BLEDeviceManager;
+void InitializeBLESearchParameters(protobuf::BLEPeripheralRequest *rq) {
+    rq->set_type(protobuf::BEGIN_PERIPHERAL_DISCOVERY);
+    auto v4 = rq->add_servs();
+    v4->set_id("0x1818"s);
+    auto v12 = v4->add_chars();
+    v12->set_id("2A63"s);
+    //if (IsNewBLEMiddlewareEnabled()) { //QUEST: not sure what is the difference
+          v4->add_chars()->set_id("A026E005-0A7D-4AB3-97FA-F1500F9FEB8B"s);
+    //} else {
+    //    v4->add_chars()->set_id("A026E005-0A7D-4AB3-97FA-F1500F9FEB8B"s);
+    //}
+    if (Experimentation::Instance()->IsEnabled(FID_FTMS)) {
+        auto v33 = rq->add_servs();
+        v33->set_id("0x181C"s);
+        auto v36 = v33->add_chars();
+        v36->set_id("2A98"s);
+    }
+    auto v39 = rq->add_servs();
+    v39->set_id("0x1826"s);
+    v39->add_chars()->set_id("2ACC"s);
+    v39->add_chars()->set_id("2AD2"s);
+    v39->add_chars()->set_id("2AD9"s);
+    v39->add_chars()->set_id("2ADA"s);
+    v39->add_chars()->set_id("2ACD"s);
+    auto v51 = rq->add_servs();
+    v51->set_id("6E40FEC1-B5A3-F393-E0A9-E50E24DCCA9E"s);
+    v51->add_chars()->set_id("6E40FEC3-B5A3-F393-E0A9-E50E24DCCA9E"s);
+    auto v55 = rq->add_servs();
+    v55->set_id("B4CC1223-BC02-4CAE-ADB9-1217AD2860D1"s);
+    v55->add_chars()->set_id("B4CC1224-BC02-4CAE-ADB9-1217AD2860D1"s);
+    v55->add_chars()->set_id("B4CC1225-BC02-4CAE-ADB9-1217AD2860D1"s);
+    auto v61 = rq->add_servs();
+    v61->set_id("babf1723-cedb-444c-88c3-c672c7a59806"s);
+    v61->add_chars()->set_id("babf1724-cedb-444c-88c3-c672c7a59806"s);
+    auto v65 = rq->add_servs();
+    v65->set_id("a913bfc0-929e-11e5-b928-0002a5d5c51b"s);
+    v65->add_chars()->set_id("58094966-498C-470D-8051-37E617A13895"s);
+    auto v69 = rq->add_servs();
+    v69->set_id("E9410200-B434-446B-B5CC-36592FC4C724"s);
+    v69->add_chars()->set_id("E9410203-B434-446B-B5CC-36592FC4C724"s);
+    v69->add_chars()->set_id("E9410201-B434-446B-B5CC-36592FC4C724"s);
+    auto v75 = rq->add_servs();
+    v75->set_id("E9410100-B434-446B-B5CC-36592FC4C724"s);
+    v75->add_chars()->set_id("E9410101-B434-446B-B5CC-36592FC4C724"s);
+    if (JetBlackSteeringComponent::IsFeatureFlagEnabled()) {
+        auto v79 = rq->add_servs();
+        v79->set_id("26D4A3EC-2E24-4364-A1BB-883ADDFD86BC"s);
+        v79->add_chars()->set_id("26D42A4D-2E24-4364-A1BB-883ADDFD86BC"s);
+    }
+    auto v83 = rq->add_servs();
+    v83->set_id("0x1816"s);
+    v83->add_chars()->set_id("2A5B"s);
+    auto v87 = rq->add_servs();
+    v87->set_id("347B0001-7635-408B-8918-8FF3949CE592"s);
+    v87->add_chars()->set_id("347B0010-7635-408B-8918-8FF3949CE592"s);
+    v87->add_chars()->set_id("347B0030-7635-408B-8918-8FF3949CE592"s);
+    v87->add_chars()->set_id("347B0031-7635-408B-8918-8FF3949CE592"s);
+    v87->add_chars()->set_id("347B0032-7635-408B-8918-8FF3949CE592"s);
+    auto v97 = rq->add_servs();
+    v97->set_id("0x180A"s);
+    v97->add_chars()->set_id("2A23"s);
+    v97->add_chars()->set_id("2A24"s);
+    v97->add_chars()->set_id("2A25"s);
+    v97->add_chars()->set_id("2A26"s);
+    v97->add_chars()->set_id("2A27"s);
+    v97->add_chars()->set_id("2A28"s);
+    v97->add_chars()->set_id("2A29"s);
+    auto v113 = rq->add_servs();
+    v113->set_id("c0f4013a-a837-4165-bab9-654ef70747c6"s);
+    v113->add_chars()->set_id("ca31a533-a858-4dc7-a650-fdeb6dad4c14"s);
+    auto v117 = rq->add_servs();
+    v117->set_id("0x1814"s);
+    v117->add_chars()->set_id("2A53"s);
+    auto v121 = rq->add_servs();
+    v121->set_id("A026EE07-0A7D-4AB3-97FA-F1500F9FEB8B"s);
+    v121->add_chars()->set_id("A026E01F-0A7D-4AB3-97FA-F1500F9FEB8B"s);
+    v121->add_chars()->set_id("A026E01D-0A7D-4AB3-97FA-F1500F9FEB8B"s);
+    auto v127 = rq->add_servs();
+    v127->set_id("A026EE0D-0A7D-4AB3-97FA-F1500F9FEB8B"s);
+    v127->add_chars()->set_id("A026E03C-0A7D-4AB3-97FA-F1500F9FEB8B"s);
+    auto v131 = rq->add_servs();
+    v131->set_id("C4630001-003F-4CEC-8994-E489B04D857E"s);
+    v131->add_chars()->set_id("C4632B01-003F-4CEC-8994-E489B04D857E"s);
+    v131->add_chars()->set_id("C4632B02-003F-4CEC-8994-E489B04D857E"s);
+    auto v137 = rq->add_servs();
+    v137->set_id("EDFF9E80-CAD7-11E5-AB63-0002A5D5C51B"s);
+    v137->add_chars()->set_id("E3F9AF20-2674-11E3-879E-0002A5D5C51B"s);
+    v137->add_chars()->set_id("4E349C00-999E-11E3-B341-0002A5D5C51B"s);
+    v137->add_chars()->set_id("1717B3C0-9803-11E3-90E1-0002A5D5C51B"s);
+    v137->add_chars()->set_id("6BE8F580-9803-11E3-AB03-0002A5D5C51B"s);
+    v137->add_chars()->set_id("a46a4a80-9803-11e3-8f3c-0002a5d5c51b"s);
+    v137->add_chars()->set_id("b8066ec0-9803-11e3-8346-0002a5d5c51b"s);
+    v137->add_chars()->set_id("d57cda20-9803-11e3-8426-0002a5d5c51b"s);
+    auto v153 = rq->add_servs();
+    v153->set_id("b5c78780-cad7-11e5-b9f8-0002a5d5c51b"s);
+    v153->add_chars()->set_id("E3F9AF20-2674-11E3-879E-0002A5D5C51B"s);
+    v153->add_chars()->set_id("4E349C00-999E-11E3-B341-0002A5D5C51B"s);
+    v153->add_chars()->set_id("1717B3C0-9803-11E3-90E1-0002A5D5C51B"s);
+    v153->add_chars()->set_id("6BE8F580-9803-11E3-AB03-0002A5D5C51B"s);
+    v153->add_chars()->set_id("a46a4a80-9803-11e3-8f3c-0002a5d5c51b"s);
+    v153->add_chars()->set_id("b8066ec0-9803-11e3-8346-0002a5d5c51b"s);
+    v153->add_chars()->set_id("d57cda20-9803-11e3-8426-0002a5d5c51b");
+    auto v169 = rq->add_servs();
+    v169->set_id("0C46BE5F-9C22-48FF-AE0E-C6EAE1A2F4E5"s);
+    v169->add_chars()->set_id("0C46BE60-9C22-48FF-AE0E-C6EAE1A2F4E5"s);
+    v169->add_chars()->set_id("0C46BE61-9C22-48FF-AE0E-C6EAE1A2F4E5"s);
+    auto v175 = rq->add_servs();
+    v175->set_id("0x180D"s);
+    v175->add_chars()->set_id("2A37"s);
+    auto v179 = rq->add_servs();
+    v179->set_id("0xFFF0"s);
+    v179->add_chars()->set_id("FFF1"s);
+    v179->add_chars()->set_id("FFF2"s);
+    v179->add_chars()->set_id("FFF5"s);
+    v179->add_chars()->set_id("FFB2"s);
+    auto v189 = rq->add_servs();
+    v189->set_id("0x180F"s);
+    v189->add_chars()->set_id("2A19"s);
+}
 void cbProcessBLEResponse(dllBLEPeripheralResponse *resp) {
     if (!resp->m_deviceName.empty()) {
         protobuf::BLEPeripheralResponse pbresp;
@@ -451,11 +648,8 @@ bool BLEModule::LegacyBLEImpl::IsRecoveringLostDevices() {
 bool BLEModule::LegacyBLEImpl::IsScanning() {
     return g_BLEDeviceManager.m_deviceState == BLEDeviceManager::BLE_DEVICE_STATE_SCANNING;
 }
-void BLEModule::LegacyBLEImpl::PairDevice(const BLEDevice &) {
-    //empty
-}
-void BLEModule::LegacyBLEImpl::PairDevice(const std::string &s) {
-    g_BLEDeviceManager.PairDevice(s);
+void BLEModule::LegacyBLEImpl::PairDevice(const BLEDevice &dev) {
+    g_BLEDeviceManager.PairDevice(dev);
 }
 void BLEModule::LegacyBLEImpl::ProcessAdvertisedServiceUUIDs(const protobuf::BLEAdvertisement &, const std::string &, protobuf::BLEAdvertisementDataSection_Type, BLE_SOURCE) {
     //empty
@@ -601,9 +795,9 @@ bool BLEModule::callBoolImplMethodOrLogIfUninitialized(const std::function<bool(
     }
     return false;
 }
-void BLEModule::PairDevice(const std::string &s) {
-    callVoidImplMethodOrLogIfUninitialized([this, s]() {
-        this->m_bleImpl->PairDevice(s);
+void BLEModule::PairDevice(const BLEDevice &dev) {
+    callVoidImplMethodOrLogIfUninitialized([this, &dev]() {
+        this->m_bleImpl->PairDevice(dev);
     }, "BLEModule::PairDevice");
 }
 void BLEModule::DidRecover(const char *a2, const char *a3) {
@@ -734,12 +928,96 @@ void BLEDevice::ProcessBLEData(const protobuf::BLEPeripheralResponse &) {
     //TODO
 }
 void BLEDevice::Pair(bool) {
-    //TODO
+    switch (m_bleSubType) {
+    case BLEST_GENERIC:
+        BLEModule::Instance()->PairDevice(*this);
+        m_field_2CC = true;
+        break;
+    case BLEST_ZC: {
+        protobuf::BLEPeripheralRequest rq;
+        //CommonPair(&rq, m_devId, m_charId):
+        rq.set_type(protobuf::CONNECT_PERIPHERAL);
+        rq.mutable_per()->set_device_id(m_devId);
+        auto serv = rq.add_servs();
+        auto chr = serv->add_chars();
+        char serv_id[1024], chr_id[1024];
+        chr_id[0] = 0;
+        serv_id[0] = '0'; serv_id[1] = 0;
+        switch (m_charId) {
+        case 0xA026E01D: case 0xA026E01F:
+            strcpy(serv_id, "A026EE07-0A7D-4AB3-97FA-F1500F9FEB8B");
+            break;
+        case 0xE9410101:
+            strcpy(serv_id, "E9410100-B434-446B-B5CC-36592FC4C724");
+            strcpy(chr_id, "E9410101-B434-446B-B5CC-36592FC4C724");
+            break;
+        case 0xE9410201:
+            strcpy(serv_id, "E9410200-B434-446B-B5CC-36592FC4C724");
+            break;
+        case 0x347B0030:
+            strcpy(serv_id, "347B0001-7635-408B-8918-8FF3949CE592");
+            strcpy(chr_id, "347B0030-7635-408B-8918-8FF3949CE592");
+            break;
+        case 0x2A37:
+            strcpy(serv_id, "180d");
+            break;
+        case 0x2A5B:
+            strcpy(serv_id, "1816");
+            break;
+        case 0x2A63:
+            strcpy(serv_id, "1818");
+            break;
+        case 0x2A53:
+            strcpy(serv_id, "1814");
+            break;
+        default:
+            Log("CommonPair() default: %d", m_charId);
+        }
+        serv->set_id(serv_id);
+        if (!chr_id[0])
+            sprintf(chr_id, "%x", m_charId);
+        chr->set_id(chr_id);
+        m_field_2CC = true;
+        zwift_network::send_ble_peripheral_request(rq);
+        /* TODO auto v20 = ExerciseDevice::FindComponentOfType(DeviceComponent::CPT_CTRL);
+        if (v20)
+            (*&v20[-1].m_owner->m_name[72])(&v20[-1].m_owner);*/ }
+        break;
+    case BLEST_ZH:
+        zassert(!"Pair not implented for BLE source");
+        break;
+    case BLEST_LAN: {
+        Log("WFTNPDeviceManager::Pairing device \"%s\"", m_name);
+        /* later IDBySerial = WFTNPDeviceManager::GetIDBySerial(m_devId);
+        *&this->m_base.field_11C[4] = *IDBySerial;
+        *(IDBySerial + 121) = 1;
+        if (!*(IDBySerial + 120)) {
+            Log("WFTNPDeviceManager: connecting to LAN device \"%s\"", (IDBySerial + 8).c_str());
+            icu_72::Transliterator::_getAvailableTarget(*&this->m_base.field_11C[4], 0i64, 0i64);
+            if (!IsWdcErrorDialogs())
+                SetPaired(true);
+        }
+        if (IsWdcErrorDialogs())
+            SetPaired(true);
+        m_field_2CC = true;
+        ComponentOfType = ExerciseDevice::FindComponentOfType(DeviceComponent::CPT_CTRL);
+        if (ComponentOfType)
+        {
+            p_m_owner = &ComponentOfType[-1].m_owner;
+            if (ComponentOfType != 8)
+            {
+                LogTyped(LOG_BLE, "Controllable found.. calling OnPaired!");
+                (*&(*p_m_owner)->m_name[72])(p_m_owner);
+            }
+        }*/
+        }
+        break;
+    }
 }
 bool BLEDevice::IsActivelyPaired() {
     return m_isPaired;
 }
-bool BLEDevice::IsPaired() {
+bool BLEDevice::IsPaired() const  {
     return m_isPaired || m_field_2CC;
 }
 uint32_t BLEDevice::GetPrefsID() {
@@ -804,7 +1082,34 @@ void BLEDevice::UnPair() {
     }
     FitnessDeviceManager::RemoveDevice(this, false);
 }
+bool g_bLogBlePackets;
+void BLEDevice::LogBleRxPacket(const protobuf::BLEPeripheralResponse &resp) {
+    if (g_bLogBlePackets) {
+        char Buffer[256];
+        auto chVal = resp.chr().value().c_str();
+        auto v7 = resp.per().device_name().c_str();
+        auto v9 = sprintf_s(Buffer, "%d RX '%s' %s [%d]: ", GFX_GetFrameCount(), v7, resp.chr().id().c_str(), (int)resp.chr().value().length());
+        if (v9 <= 0 || v9 >= _countof(Buffer)) {
+            if (v7)
+                LogTyped(LOG_BLE, "Error logging RX packet for '%s'", v7);
+        } else {
+            char *pBuffer = Buffer;
+            for (int i = 0; i < resp.chr().value().length(); ++chVal, ++i) {
+                auto v12 = sprintf(Buffer + v9, "%02X ", *chVal);
+                if (v12 <= 0 || v12 >= 8)
+                    break;
+                pBuffer += v12;
+                if (pBuffer - Buffer >= 0xFF)
+                    break;
+            }
+            LogTyped(LOG_BLE, "%s", Buffer);
+        }
+    }
+}
 void BLEDevice::Update(float) {
+    //TODO
+}
+BLEDevice::BLEDevice(const std::string &, const std::string &, uint32_t, uint32_t, BLE_SOURCE src) {
     //TODO
 }
 
