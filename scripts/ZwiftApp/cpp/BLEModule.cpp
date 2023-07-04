@@ -7,8 +7,7 @@ bool IsNewBLEMiddlewareEnabled() {
     return g_bIsNewBLEMiddlewareEnabled;
 }
 bool JetBlackSteeringComponent::IsFeatureFlagEnabled() {
-    static bool ret = Experimentation::Instance()->IsEnabled(FID_ADDDEVI);
-    return ret;
+    return Experimentation::IsEnabledCached<FID_ADDDEVI>();
 }
 bool IsWdcErrorDialogs() {
     static bool ret = Experimentation::Instance()->IsEnabled(FID_WDCERRO);
@@ -36,10 +35,7 @@ void BLEDevice_StartSearchForLostDevices() {
 void BLEDevice_CreateTrainerST3(const protobuf::BLEAdvertisement &adv, uint8_t a2, uint16_t a3, BLE_SOURCE src) {
     //TODO
 }
-bool IsWahooDirectConnectEnabled() {
-    static bool g_bWahooDirectConnectEnabled = Experimentation::Instance()->IsEnabled(FID_WAHOOD);
-    return g_bWahooDirectConnectEnabled;
-}
+bool IsWahooDirectConnectEnabled() { return Experimentation::IsEnabledCached<FID_WAHOOD>(); }
 void BLEDevice_ProcessBLEResponse(const protobuf::BLEPeripheralResponse &resp, BLE_SOURCE src) {
     //TODO
 }
@@ -710,7 +706,7 @@ void BLEModule::LegacyBLEImpl::SendValueToDevice(const protobuf::BLEPeripheralRe
     case BLES_ZCA:
         zwift_network::send_ble_peripheral_request(req);
         break;
-    case BLES_2:
+    case BLES_ZH:
         break;
     case BLES_WFTN:
         WFTNPDeviceManager::WriteCharacteristic(req);
@@ -929,11 +925,11 @@ void BLEDevice::ProcessBLEData(const protobuf::BLEPeripheralResponse &) {
 }
 void BLEDevice::Pair(bool) {
     switch (m_bleSubType) {
-    case BLEST_GENERIC:
+    case BLES_BUILTIN:
         BLEModule::Instance()->PairDevice(*this);
         m_field_2CC = true;
         break;
-    case BLEST_ZC: {
+    case BLES_ZCA: {
         protobuf::BLEPeripheralRequest rq;
         //CommonPair(&rq, m_devId, m_charId):
         rq.set_type(protobuf::CONNECT_PERIPHERAL);
@@ -979,14 +975,14 @@ void BLEDevice::Pair(bool) {
         chr->set_id(chr_id);
         m_field_2CC = true;
         zwift_network::send_ble_peripheral_request(rq);
-        /* TODO auto v20 = ExerciseDevice::FindComponentOfType(DeviceComponent::CPT_CTRL);
+        auto v20 = (TrainerControlComponent *)ExerciseDevice::FindComponentOfType(DeviceComponent::CPT_CTRL);
         if (v20)
-            (*&v20[-1].m_owner->m_name[72])(&v20[-1].m_owner);*/ }
-        break;
-    case BLEST_ZH:
+            v20->OnPaired();
+        break; }
+    case BLES_ZH:
         zassert(!"Pair not implented for BLE source");
         break;
-    case BLEST_LAN: {
+    case BLES_WFTN: {
         Log("WFTNPDeviceManager::Pairing device \"%s\"", m_name);
         /* later IDBySerial = WFTNPDeviceManager::GetIDBySerial(m_devId);
         *&this->m_base.field_11C[4] = *IDBySerial;
@@ -998,19 +994,13 @@ void BLEDevice::Pair(bool) {
                 SetPaired(true);
         }
         if (IsWdcErrorDialogs())
-            SetPaired(true);
+            SetPaired(true);*/
         m_field_2CC = true;
-        ComponentOfType = ExerciseDevice::FindComponentOfType(DeviceComponent::CPT_CTRL);
-        if (ComponentOfType)
-        {
-            p_m_owner = &ComponentOfType[-1].m_owner;
-            if (ComponentOfType != 8)
-            {
-                LogTyped(LOG_BLE, "Controllable found.. calling OnPaired!");
-                (*&(*p_m_owner)->m_name[72])(p_m_owner);
-            }
-        }*/
-        }
+        auto cot = (TrainerControlComponent *)ExerciseDevice::FindComponentOfType(DeviceComponent::CPT_CTRL);
+        if (cot) {
+            LogTyped(LOG_BLE, "Controllable found.. calling OnPaired!");
+            cot->OnPaired();
+        }}
         break;
     }
 }
@@ -1060,11 +1050,11 @@ void CommonUnpair(protobuf::BLEPeripheralRequest *rq, const std::string &devId, 
 }
 void BLEDevice::UnPair() {
     switch(m_bleSubType) {
-    case BLEST_GENERIC:
+    case BLES_BUILTIN:
         BLEModule::Instance()->UnpairDevice(*this);
         SetPaired(false);
         break;
-    case BLEST_ZC:
+    case BLES_ZCA:
         if (m_isPaired) {
             protobuf::BLEPeripheralRequest rq;
             CommonUnpair(&rq, m_devId, m_charId);
@@ -1072,10 +1062,10 @@ void BLEDevice::UnPair() {
             zwift_network::send_ble_peripheral_request(rq);
         }
         break;
-    case BLEST_ZH:
+    case BLES_ZH:
         zassert(!"UnPair not implented for BLE source");
         break;
-    case BLEST_LAN:
+    case BLES_WFTN:
         WFTNPDeviceManager::UnPair(this);
         SetPaired(false);
         break;
@@ -1106,11 +1096,98 @@ void BLEDevice::LogBleRxPacket(const protobuf::BLEPeripheralResponse &resp) {
         }
     }
 }
-void BLEDevice::Update(float) {
-    //TODO
+int g_RunSensorSecondsSincePacket;
+ExpVariant g_expFID_HWEXPER = EXP_NONE;
+bool expFID_HWEXPER() {
+    if (g_expFID_HWEXPER != EXP_NONE)
+        return g_expFID_HWEXPER == EXP_ENABLED;
+    g_expFID_HWEXPER = Experimentation::Instance()->IsEnabled(FID_HWEXPER, EXP_UNASSIGNED);
+    return g_expFID_HWEXPER == EXP_ENABLED;
 }
-BLEDevice::BLEDevice(const std::string &, const std::string &, uint32_t, uint32_t, BLE_SOURCE src) {
-    //TODO
+void BLEDevice::Update(float f) {
+    auto cad = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_CAD);
+    auto t = timeGetTime();
+    if (cad && (t - m_lastCadTs) * 0.001f > 3.0f)
+        cad->m_val = 0.0f;
+    auto spd = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_SPD);
+    if (spd && (t - m_lastSpdTs) * 0.001f > 3.0f) {
+        spd->m_val = 0.0f;
+        spd->m_bInitState = false;
+    }
+    auto run_spd = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_RUN_SPD);
+    if (run_spd) {
+        auto since = (t - m_lastSpdTs) * 0.001f;
+        if (this == FitnessDeviceManager::m_pSelectedRunSpeedDevice)
+            g_RunSensorSecondsSincePacket = int(since);
+        if (since > 30.0f) {
+            if (this == FitnessDeviceManager::m_pSelectedRunSpeedDevice && run_spd->m_val != 0.0f)
+                Log("Timeout on run speed data. Timing out and setting speed to 0");
+            run_spd->m_val = 0.0f;
+            run_spd->m_bInitState = false;
+            if (m_field_29D && !m_field_29C && m_isPaired) {
+                auto run_spd_b = (Bowflex_BLE_ControlComponent *)run_spd;
+                run_spd_b->InitStreaming();
+                m_field_29C = true;
+            }
+        }
+    }
+    if (Experimentation::IsEnabledCached<FID_FTMSBIK>()) {
+        auto ct = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
+        if (ct && ct->m_field_24 == 3)
+            ct->Update(f);
+    } else if (expFID_HWEXPER()) {
+        auto ct = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
+        if (ct && ct->m_field_24 == 2)
+            ct->Update(f);
+    }
+}
+bool isJetBlackSteering(const std::string &name) { return name.find("Smart Wheel Block"s) != std::string::npos; }
+bool isEliteSteering(const std::string &name) { return name.find("STERZO"s) != std::string::npos && name.find("RIZER"s) != std::string::npos; }
+BLEDevice::BLEDevice(const std::string &devId, const std::string &devName, uint32_t charId, uint32_t hash, BLE_SOURCE src) {
+    m_hash = hash;
+    m_protocol = DP_BLE;
+    m_prefsID = hash & 0xFFFFFFF | 0x10000000;
+    m_charId = charId;
+    m_devId = devId;
+    m_bleSubType = src;
+    m_nameId = devName;
+    char buffer[64];
+    auto v18 = std::strtoull(devId.c_str(), nullptr, 10);
+    sprintf_s(buffer, "%02X:%02X:%02X:%02X:%02X:%02X",
+        uint8_t(v18 >> 40),
+        uint8_t(v18 >> 32),
+        uint8_t(v18 >> 24),
+        uint8_t(v18 >> 16),
+        uint8_t(v18 >> 8),
+        uint8_t(v18));
+    m_address = buffer;
+    switch(charId) {
+    default: Log("Unknown Native BLE component attached. Device name: %s", devName.c_str());
+    case 0x347B0010: case 0x26D42A4D: break;
+    case 0xE9410101:
+        AddComponent(new SensorValueComponent(DeviceComponent::CPT_PM));
+        AddComponent(new SensorValueComponent(DeviceComponent::CPT_CAD));
+        break;
+    case 0x4E349C00: case 0xE3F9AF20:
+        AddComponent(new Bowflex_BLE_ControlComponent());
+        break;
+    case 0xC4632B01: case 0xE9410201: case 0xFF01: case 0x2A63:
+        AddComponent(new SensorValueComponent(DeviceComponent::CPT_PM));
+        break;
+    case 0x2A37:
+        AddComponent(new SensorValueComponent(DeviceComponent::CPT_HR));
+        break;
+    case 0x2A5B:
+        AddComponent(new SensorValueComponent(DeviceComponent::CPT_SPD));
+        AddComponent(new SensorValueComponent(DeviceComponent::CPT_CAD));
+        AddComponent(new Component_7(DeviceComponent::CPT_7));
+        break;
+    }
+    if (isEliteSteering(devName))
+        AddComponent(new EliteSteeringComponent(this));
+    if (JetBlackSteeringComponent::IsFeatureFlagEnabled() && isJetBlackSteering(devName))
+        AddComponent(new JetBlackSteeringComponent(this));
+    //later: experimentals
 }
 
 TEST(SmokeTestBLE, Init_V1) {

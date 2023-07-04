@@ -8433,56 +8433,18 @@ void ZNETWORK_INTERNAL_ProcessPhoneInput() {
                 if (v195.has_client_info())
                     switch (v195.sports_data_response().type()) {
                     case protobuf::AVAILABLE_SAMPLE_TYPES: {
-                        auto v130 = false, v131 = false;
-                        for (auto v133 : v195.sports_data_response().sds_f5()) { //uint32_t hash of device?
-                            if (v133 == 1) //TODO: some enum
-                                v130 = true;
-                            else if (v133 == 2)
-                                v131 = true;
+                        auto hasHR = false, hasSPEED = false;
+                        for (auto v133 : v195.sports_data_response().sample_types()) {
+                            if (v133 == protobuf::HEART_RATE)
+                                hasHR = true;
+                            else if (v133 == protobuf::WALK_RUN_SPEED)
+                                hasSPEED = true;
                         }
-#if 0 //TODO
-                        Device = FitnessDeviceManager::FindDevice(-23);
-                        if (Device) {
-                            *&Device[9].field_0[240] = timeGetTime();
-                            *&Device[9].field_0[236] = timeGetTime();
-                        } else {
-                            v135 = operator new(0xB28ui64);
-                            v164 = v135;
-                            ExerciseDevice::ExerciseDevice(v135);
-                            *v135->field_0 = &ZMLAUXDevice::`vftable';
-                                * v135[1].field_0 = 6;
-                            *&v135[2].field_0[52] = -23;
-                            if (v131) {
-                                ComponentOfType = ExerciseDevice::FindComponentOfType(v135, 2);
-                                if (!ComponentOfType || ComponentOfType == 8) {
-                                    v145 = operator new(0x28ui64);
-                                    v145[2] = 2;
-                                    *(v145 + 12) = 1;
-                                    v145[4] = -999;
-                                    v145[5] = 0;
-                                    *(v145 + 3) = 0i64;
-                                    *v145 = &SensorValueComponent::`vftable';
-                                        v145[8] = 0;
-                                    ExerciseDevice::AddComponent(v135, (v145 + 2));
-                                }
-                            }
-                            if (v130) {
-                                v137 = ExerciseDevice::FindComponentOfType(v135, 4);
-                                if (!v137 || v137 == 8) {
-                                    v146 = operator new(0x28ui64);
-                                    v146[2] = 4;
-                                    *(v146 + 12) = 1;
-                                    v146[4] = -999;
-                                    v146[5] = 0;
-                                    *(v146 + 3) = 0i64;
-                                    *v146 = &SensorValueComponent::`vftable';
-                                        v146[8] = 0;
-                                    ExerciseDevice::AddComponent(v135, (v146 + 2));
-                                }
-                            }
-                            FitnessDeviceManager::AddDevice(v135, "Apple Watch");
-                        }
-#endif
+                        auto v135 = (ZMLAUXDevice *)FitnessDeviceManager::FindDevice(ZMLAUXDevice::PREFS_ID);
+                        if (v135)
+                            v135->m_tsLastSPD = v135->m_tsLastHR = timeGetTime();
+                        else
+                            FitnessDeviceManager::AddDevice(new ZMLAUXDevice(hasHR, hasSPEED), "Apple Watch");
                         }
                         break;
                     case protobuf::SELECTED_SAMPLE_TYPES:
@@ -8491,37 +8453,23 @@ void ZNETWORK_INTERNAL_ProcessPhoneInput() {
                         break;
                     case protobuf::SAMPLE:
                         if (v195.sports_data_response().sample().type() == protobuf::HEART_RATE) {
-#if 0 //TODO
-                            v124 = v178;
-                            v125 = FitnessDeviceManager::FindDevice(-23);
-                            v126 = v125;
+                            auto v125 = (ZMLAUXDevice *)FitnessDeviceManager::FindDevice(ZMLAUXDevice::PREFS_ID);
                             if (v125) {
-                                v127 = ExerciseDevice::FindComponentOfType(v125, 4);
+                                auto v127 = (SensorValueComponent *)v125->FindComponentOfType(DeviceComponent::CPT_HR);
                                 if (v127) {
-                                    v128 = (v127 - 8);
-                                    if (v128) {
-                                        v128[8] = v124;
-                                        *&v126[9].field_0[240] = timeGetTime();
-                                    }
+                                    v127->m_val = (float)v195.sports_data_response().sample().value();
+                                    v125->m_tsLastHR = timeGetTime();
                                 }
                             }
-#endif
                         } else if (v195.sports_data_response().sample().type() == protobuf::WALK_RUN_SPEED) {
-#if 0 //TODO
-                            v119 = v178;
-                            v120 = FitnessDeviceManager::FindDevice(-23);
-                            v121 = v120;
+                            auto v120 = (ZMLAUXDevice *)FitnessDeviceManager::FindDevice(ZMLAUXDevice::PREFS_ID);
                             if (v120) {
-                                v122 = ExerciseDevice::FindComponentOfType(v120, 2);
+                                auto v122 = (SensorValueComponent *)v120->FindComponentOfType(DeviceComponent::CPT_RUN_SPD);
                                 if (v122) {
-                                    v123 = (v122 - 8);
-                                    if (v123) {
-                                        v123[8] = v119 * 3.6000059;
-                                        *&v121[9].field_0[236] = timeGetTime();
-                                    }
+                                    v122->m_val = float(v195.sports_data_response().sample().value() * 3.6);
+                                    v120->m_tsLastSPD = timeGetTime();
                                 }
                             }
-#endif
                         }
                         break;
                     }

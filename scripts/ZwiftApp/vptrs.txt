@@ -319,3 +319,31 @@ ExerciseDevice
 BLEDevice : ExerciseDevice
 [13] SetPaired(bool)
 [14] ProcessBLEData(zwift::protobuf::BLEPeripheralResponse const&)
+
+SarisControlComponent 0x78 bytes, CPT_CTRL: TrainerControlComponent, DeviceComponent
+
+public SensorValueComponent: CPT_SPD, CPT_RUN_SPD, CPT_RUN_CAD, CPT_5, CPT_CAD, CPT_PM
+  public /* offset 0x8 */ DeviceComponent
+[0] GetSensorType
+
+public FECTrainerControlComponent : //CPT_CTRL
+  public /* offset 0x0 */ TrainerControlComponent :
+    public /* offset 0x8 */ DeviceComponent
+[00] FECTrainerControlComponent::ProcessANTEvent(uchar)
+[01] FECTrainerControlComponent::InitSpindown(void)
+[02] FECTrainerControlComponent::SetERGMode(int)
+[03] FECTrainerControlComponent::SetRoadMode(void)
+[04] FECTrainerControlComponent::SetSimulationMode(void)
+[05] FECTrainerControlComponent::SupportsRoadTexture(void)
+[06] FECTrainerControlComponent::SetRoadTexture(RoadFeelType,float)
+[07] TrainerControlComponent::SetGradeLookAheadSecs(float)
+[08] FECTrainerControlComponent::SetSimulationGrade(float)
+[09] FECTrainerControlComponent::SetWindSpeed(float)
+[10] TrainerControlComponent::Update(float)
+[11] TrainerControlComponent::OnPaired(void)
+[12] TrainerControlComponent::SetRiderWeightKG(float)
+[13] TrainerControlComponent::SetGearingShiftType(GearingType)
+[14] TrainerControlComponent::ShiftCassetteCog(ShiftDirection)
+[15] TrainerControlComponent::ShiftChainRing(ShiftDirection)
+[16] TrainerControlComponent::Shift_EZTap_Event(bool,ShiftDirection)
+[17] TrainerControlComponent::Shift_ZTap_Event(bool,ShiftDirection)

@@ -1,18 +1,14 @@
 //UT Coverage: 100%, 4/4
 #pragma once
 inline bool g_BLE_LoggingON;
-enum BLEDeviceSubtype { BLEST_GENERIC, BLEST_ZC, BLEST_ZH, BLEST_LAN, BLEST_CNT };
 void InitializeBLESearchParameters(protobuf::BLEPeripheralRequest *rq);
 void BLEDevice_StartSearchForLostDevices();
 bool IsNewBLEMiddlewareEnabled();
-namespace JetBlackSteeringComponent {
-    bool IsFeatureFlagEnabled();
-}
 struct BLEDevice : public ExerciseDevice { //0x360 bytes
     std::string m_devId, m_nameId;
-    BLEDeviceSubtype m_bleSubType = BLEST_GENERIC;
-    uint32_t m_charId;
-    bool m_isPaired, m_field_2CC;
+    BLE_SOURCE m_bleSubType = BLES_BUILTIN;
+    uint32_t m_charId = 0, m_hash = 0, m_lastCadTs = 0, m_lastSpdTs = 0;
+    bool m_isPaired = false, m_field_2CC = false, m_field_29D = false, m_field_29C = false;
     BLEDevice(const std::string &, const std::string &, uint32_t, uint32_t, BLE_SOURCE src);
     static uint32_t CreateUniqueID(uint32_t hf1 /*, uint32_t hf2*/);
     static uint32_t CreateUniqueID(const std::string &f1/*, const std::string &f2*/);

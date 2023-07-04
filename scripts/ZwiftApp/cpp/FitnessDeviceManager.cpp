@@ -59,7 +59,7 @@ ExerciseDevice::SignalStrengthGroup ExerciseDevice::GetSignalStrengthGroup() {
     return ExerciseDevice::LOW_TWO_BARS;
 }
 const char *g_devProtocol[DP_CNT] = {"ANT", "BLE", "SERIAL", "BLE_MOBILE", "WATCH", "WAHOO_ANT", "ZML", "USB", "WIFI", "UNKNOWN"};
-const char *g_devBleSubtype[BLEST_CNT] = { "BLE", "BLE (ZC)", "BLE (ZH)", "BLE (LAN)" };
+const char *g_devBleSubtype[BLES_CNT] = { "BLE", "BLE (ZC)", "BLE (ZH)", "BLE (LAN)" };
 void ExerciseDevice::AddComponent(DeviceComponent *devComp) {
     zassert(devComp);
     {
@@ -159,6 +159,70 @@ void FitnessDeviceManager::AddDevice(ExerciseDevice *dev, const char *nameId) {
     FitnessDeviceManager::AddDeviceToKnownDatabase(dev->m_protocol, dev->m_prefsID, nameId ? nameId : "UNKNOWN DEVICE", 0);
     FitnessDeviceManager::AddDevice(dev, nameId);
 }
+bool FitnessDeviceManager::AreAnyBLEDevicesCurrentlyPaired() {
+    return (m_pSelectedHRDevice && m_pSelectedHRDevice->m_protocol == DP_BLE)
+        || (m_pSelectedDi2Device && m_pSelectedDi2Device->m_protocol == DP_BLE)
+        || (m_pSelectedPowerDevice && m_pSelectedPowerDevice->m_protocol == DP_BLE)
+        || (m_pSelectedSpeedDevice && m_pSelectedSpeedDevice->m_protocol == DP_BLE)
+        || (m_pSelectedCadenceDevice && m_pSelectedCadenceDevice->m_protocol == DP_BLE)
+        || (m_pSelectedRunSpeedDevice && m_pSelectedRunSpeedDevice->m_protocol == DP_BLE)
+        || (m_pSelectedRunCadenceDevice && m_pSelectedRunCadenceDevice->m_protocol == DP_BLE)
+        || (m_pSelectedControllableTrainerDevice && m_pSelectedControllableTrainerDevice->m_protocol == DP_BLE)
+        || (m_pSelectedSteeringDevice && m_pSelectedSteeringDevice->m_protocol == DP_BLE)
+        || (m_pSelectedBrakingDevice && m_pSelectedBrakingDevice->m_protocol == DP_BLE);
+}
+void FitnessDeviceManager::AddDevice(DeviceDbItem *dev, const char *nameId) {
+    //TODO
+}
+std::string FitnessDeviceManager::GetEquipmentTypesString(const BLEDevice *dev) {
+    std::string ret;
+    ret.reserve(1024);
+    if (dev == FitnessDeviceManager::m_pSelectedPowerDevice)
+        ret += "Power"s;
+    if (dev == FitnessDeviceManager::m_pSelectedSpeedDevice) {
+        if (!ret.empty()) ret += '|';
+        ret += "Speed"s;
+    }
+    if (dev == FitnessDeviceManager::m_pSelectedCadenceDevice) {
+        if (!ret.empty()) ret += '|';
+        ret += "Cadence"s;
+    }
+    if (dev == FitnessDeviceManager::m_pSelectedDi2Device) {
+        if (!ret.empty()) ret += '|';
+        ret += "Di2"s;
+    }
+    if (dev == FitnessDeviceManager::m_pSelectedControllableTrainerDevice) {
+        if (!ret.empty()) ret += '|';
+        ret += "Controllable"s;
+    }
+    if (dev == FitnessDeviceManager::m_pSelectedRunSpeedDevice) {
+        if (!ret.empty()) ret += '|';
+        ret += "RunSpeed"s;
+    }
+    if (dev == FitnessDeviceManager::m_pSelectedRunCadenceDevice) {
+        if (!ret.empty()) ret += '|';
+        ret += "RunCadence"s;
+    }
+    if (dev == FitnessDeviceManager::m_pSelectedHRDevice) {
+        if (!ret.empty()) ret += '|';
+        ret += "HR"s;
+    }
+    if (dev == FitnessDeviceManager::m_pSelectedAuthoritativeDevice) {
+        if (!ret.empty()) ret += '|';
+        ret += "Authoritative"s;
+    }
+    if (dev == FitnessDeviceManager::m_pSelectedSteeringDevice) {
+        if (!ret.empty()) ret += '|';
+        ret += "Steering"s;
+    }
+    if (dev == FitnessDeviceManager::m_pSelectedBrakingDevice) {
+        if (!ret.empty()) ret += '|';
+        ret += "Braking"s;
+    }
+    if (ret.empty())
+        ret = "Unknown"s;
+    return ret;
+}
 void FitnessDeviceManager::PairAuthoritativeSensor(ExerciseDevice *dev) {
     //TODO
 }
@@ -195,9 +259,55 @@ void FitnessDeviceManager::PairSteeringSensor(ExerciseDevice *dev) {
 void FitnessDeviceManager::RemoveDevice(ExerciseDevice *, bool) {
     //TODO
 }
+int FitnessDeviceManager::GetUnpairedBLEDeviceCount() {
+    int ret = 0;
+    std::lock_guard l(g_FDM_DeviceListMutex);
+    for (auto i : m_DeviceList)
+        if (i && !i->m_hidden && i->m_protocol == DP_BLE && !IsThisDevicePaired(i->m_prefsID))
+            ++ret;
+    return ret;
+}
+int FitnessDeviceManager::GetSelectedBLEDeviceCount() {
+    int ret = 0;
+    std::lock_guard l(g_FDM_DeviceListMutex);
+    for (auto i : m_DeviceList)
+        if (i && i->m_protocol == DP_BLE && IsThisDevicePaired(i->m_prefsID))
+            ++ret;
+    return ret;
+}
+bool FitnessDeviceManager::IsThisDevicePaired(uint32_t prefsId) {
+    return (m_pSelectedHRDevice && m_pSelectedHRDevice->m_prefsID == prefsId)
+        || (m_pSelectedDi2Device && m_pSelectedDi2Device->m_prefsID == prefsId)
+        || (m_pSelectedPowerDevice && m_pSelectedPowerDevice->m_prefsID == prefsId)
+        || (m_pSelectedSpeedDevice && m_pSelectedSpeedDevice->m_prefsID == prefsId)
+        || (m_pSelectedCadenceDevice && m_pSelectedCadenceDevice->m_prefsID == prefsId)
+        || (m_pSelectedRunSpeedDevice && m_pSelectedRunSpeedDevice->m_prefsID == prefsId)
+        || (m_pSelectedRunCadenceDevice && m_pSelectedRunCadenceDevice->m_prefsID == prefsId)
+        || (m_pSelectedControllableTrainerDevice && m_pSelectedControllableTrainerDevice->m_prefsID == prefsId)
+        || (m_pSelectedSteeringDevice && m_pSelectedSteeringDevice->m_prefsID == prefsId)
+        || (m_pSelectedBrakingDevice && m_pSelectedBrakingDevice->m_prefsID == prefsId);
+}
 void WFTNPDeviceManager::WriteCharacteristic(const protobuf::BLEPeripheralRequest &rq) {
     //TODO
 }
 void WFTNPDeviceManager::UnPair(BLEDevice *dev) {
+    //TODO
+}
+bool ZMLAUXDevice::IsPaired() const { return true; }
+void ZMLAUXDevice::UnPair() {
+    ZML_SendAuxPairingSelection(false, protobuf::HEART_RATE);
+    ZML_SendAuxPairingSelection(false, protobuf::WALK_RUN_SPEED);
+}
+void ZMLAUXDevice::Pair(bool) {
+    ZML_SendAuxPairingSelection(true, protobuf::HEART_RATE);
+    ZML_SendAuxPairingSelection(true, protobuf::WALK_RUN_SPEED);
+}
+void ZMLAUXDevice::Update(float) {
+    //TODO
+}
+void Bowflex_BLE_ControlComponent::Bowflex_ParseStream(uint8_t *, uint32_t, Bowflex_BLE_ControlComponent *, SensorValueComponent *) {
+    //TODO
+}
+void Bowflex_BLE_ControlComponent::InitStreaming() {
     //TODO
 }

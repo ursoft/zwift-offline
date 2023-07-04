@@ -108,6 +108,11 @@ struct Experimentation : public EventObject { //sizeof=0x1E48; vtblExperimentati
     template <class T> FeatureValue<T> Get(FeatureID id, const std::string &name) {  //vtblExp+6: bool, vtblExp+7: int64, vtblExp+8: double, vtblExp+9: String
         return m_fsms[id].GetFeatureVariable<T>(name);
     }
+    template <FeatureID F>
+    static bool IsEnabledCached() {
+        static bool g = Experimentation::Instance()->IsEnabled(F);
+        return g;
+    }
     void SetEventTypeAttribute(const std::string_view &src);                         //vtblExp+10
     void RequestFeatureData(FeatureID id);
     static bool IsInitialized() { return g_ExperimentationUPtr.get() != nullptr; }

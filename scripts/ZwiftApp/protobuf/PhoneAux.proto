@@ -406,7 +406,7 @@ message SportsDataResponse {
     optional SportsDataResponse_Type type = 1;
     optional SportsDataResponse_DeviceModel device = 2;
     optional SportsDataResponse_ConnectionStatus cstatus = 3;
-    repeated uint32 sds_f4 = 4; //enum <= 2
+    repeated SportsDataSample_Type sample_types = 4; //enum <= 2
     repeated uint32 sds_f5 = 5; //enum <= 2
     repeated uint32 sds_f6 = 6; //enum <= 2
     optional SportsDataSample sample = 7;
@@ -415,7 +415,7 @@ message SportsDataResponse {
 }
 message SportsDataSample {
     optional SportsDataSample_Type type = 1;
-    optional double f2 = 2;
+    optional double value = 2;
 }
 enum ClientAction_Type {
     CA_DISCARD_ACTIVITY = 4;
