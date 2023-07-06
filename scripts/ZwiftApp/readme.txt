@@ -56,6 +56,6 @@ future/lib/total code(kb): 8776/7588/16364, badNames=36770; libs/total: 58%: 363
 future/lib/total code(kb): 8756/7608/16364, badNames=36640; libs/total: 58%: 36395/62107 - ZNETWORK_INTERNAL_ProcessPhoneInput 50%
 future/lib/total code(kb): 8740/7624/16364, badNames=36609; libs/total: 58%: 36420/62107 - ZNETWORK_*: 100%, CNL unit tests 19%
 future/lib/total code(kb): 8735/7629/16364, badNames=36586; libs/total: 58%: 36443/62107 - XMLDoc unit tests 99%, CNL unit tests 38%
-future/lib/total code(kb): 8684/7680/16364, badNames=36415; libs/total: 59%: 36665/62107 - Started BLE
+future/lib/total code(kb): 8677/7687/16364, badNames=36412; libs/total: 59%: 36683/62107 - Started BLE
 
 NEXT: CNL unit tests, BLE & ANT, GFX

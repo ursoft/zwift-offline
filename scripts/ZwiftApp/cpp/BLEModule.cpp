@@ -32,12 +32,408 @@ void BLEDevice_StartSearchForLostDevices() {
         zwift_network::send_ble_peripheral_request(rq);
     }
 }
-void BLEDevice_CreateTrainerST3(const protobuf::BLEAdvertisement &adv, uint8_t a2, uint16_t a3, BLE_SOURCE src) {
-    //TODO
+FTMS_ControlComponent_v3 *CreateReplaceOrGetFTMSControlComponent_v3(BLEDevice *dev) {
+    FTMS_ControlComponent_v3 *ret = nullptr;
+    if (dev) {
+        auto pControllableTrainer = (TrainerControlComponent *)dev->FindComponentOfType(DeviceComponent::CPT_CTRL);
+        if (pControllableTrainer) {
+            zassert(pControllableTrainer->GetProtocolType() != TrainerControlComponent::ZAP_PROTOCOL);
+            if (pControllableTrainer->GetProtocolType() > TrainerControlComponent::P_1)
+                return ret;
+            dev->RemoveComponent(pControllableTrainer);
+        }
+        dev->m_field_1FE = true;
+        ret = new FTMS_ControlComponent_v3(dev);
+        dev->AddComponent(ret);
+    }
+    return ret;
+}
+void BLEDevice_CreateTrainerST3(const protobuf::BLEAdvertisement &adv, uint8_t a2, uint16_t id, BLE_SOURCE src) {
+    auto hash = SIG_CalcCaseInsensitiveSignature(adv.per().device_id().c_str());
+    if (adv.per().has_device_id() && adv.per().has_device_name() && !FitnessDeviceManager::FindDevice(hash & 0xFFFFFFF | 0x10000000)) {
+        auto v20 = new BLEDevice(adv.per().device_id(), adv.per().device_name(), 0, hash, src);
+        sprintf_s(v20->m_nameIdBuf, "%s %04X", adv.per().device_name().c_str(), id);
+        v20->m_field_11C = a2;
+        FitnessDeviceManager::AddDevice(v20, v20->m_nameIdBuf);
+        if (!v20->FindComponentOfType(DeviceComponent::CPT_PM))
+            v20->AddComponent(new SensorValueComponent(DeviceComponent::CPT_PM));
+        if (!v20->FindComponentOfType(DeviceComponent::CPT_CAD))
+            v20->AddComponent(new SensorValueComponent(DeviceComponent::CPT_CAD));
+        if (!v20->FindComponentOfType(DeviceComponent::CPT_HR))
+            v20->AddComponent(new SensorValueComponent(DeviceComponent::CPT_HR));
+        auto ftms = CreateReplaceOrGetFTMSControlComponent_v3(v20);
+        if (ftms)
+            ftms->m_field_36 = true;
+    }
 }
 bool IsWahooDirectConnectEnabled() { return Experimentation::IsEnabledCached<FID_WAHOOD>(); }
+bool g_IgnoreReceivedBluetoothPackets;
+protobuf::BLEPeripheralResponse_Error g_lastBLEError = protobuf::BL_ERR_UNK;
+void BLE_GenerateFriendlyName(const std::string &src, char *dest) {
+    auto csrc = src.c_str();
+    const char *v6 = csrc;
+    if (csrc[0] == 'D' && csrc[1] == 'I' && !csrc[2])
+        v6 = "Direto";
+    else if (csrc[0] == 'D' && csrc[1] == 'R' && !csrc[2])
+        v6 = "Drivo";
+    else if (csrc[0] == 'R' && csrc[1] == 'M' && !csrc[2])
+        v6 = "Rampa";
+    strncpy(dest, v6, 255);
+    dest[255] = 0;
+}
+bool g_EnableDeviceDiscovery = true;
+bool isJetBlackSteering(const std::string &name) { return name.find("Smart Wheel Block"s) != std::string::npos; }
+bool isEliteSteering(const std::string &name) { return name.find("STERZO"s) != std::string::npos && name.find("RIZER"s) != std::string::npos; }
 void BLEDevice_ProcessBLEResponse(const protobuf::BLEPeripheralResponse &resp, BLE_SOURCE src) {
-    //TODO
+    if (g_IgnoreReceivedBluetoothPackets)
+        return;
+    if (resp.has_err_msg()) {
+        Log("BLE Response error %d : %s", resp.err_kind(), resp.err_msg().c_str());
+        g_lastBLEError = resp.err_kind();
+        return;
+    }
+    g_lastBLEError = protobuf::BL_ERR_UNK;
+    uint32_t charId = 0;
+    if (1 != sscanf(resp.chr().id().c_str(), "%x", &charId) && resp.type() != protobuf::BL_TY_3 && resp.type() != protobuf::BL_TY_4)
+        return LogTyped(LOG_BLE, "Failed to parse characteristic UUID in response (type %d) for device \"%s\"", resp.type(), resp.per().device_name().c_str());
+    if (charId == 0x2A53 && FitnessDeviceManager::m_PairingSport != protobuf::RUNNING)
+        return;
+    if (charId == 0x2A63 && FitnessDeviceManager::m_PairingSport == protobuf::RUNNING)
+        return;
+    switch (charId) {
+    case 0xA026E005: case 0x6E40FEC2: case 0x6E40FEC3:
+        charId = 0x2A63;
+        break;
+    case 0xE9410102:
+        charId = 0xE9410101;
+        break;
+    case 0xE9410203:
+        charId = 0xE9410201;
+        break;
+    case 0xA026E01D:
+        charId = 0xA026E01F;
+        break;
+    case 0xC46BE5F:
+        charId = 0xC46BE60;
+        break;
+    }
+    auto device_id = resp.per().device_id();
+    auto device_name = resp.per().device_name();
+    auto cdevice_id = device_id.c_str();
+    auto cdevice_name = device_name.c_str();
+    auto hash = SIG_CalcCaseInsensitiveSignature(cdevice_id);
+    auto uid = BLEDevice::CreateUniqueID(hash);
+    auto Device = (BLEDevice *)FitnessDeviceManager::FindDevice(uid);
+    if (Device && Device->m_devId != device_id)
+        LogTyped(LOG_BLE, "Hash Collision: '%s' & '%s'", Device->m_devId.c_str(), cdevice_id);
+    if (resp.type() != protobuf::BL_TY_4) {
+        bool zcaOk = (g_BLESearchSources & BSS_ZCA) && (src == BLES_ZCA);
+        bool builtinOk = ((g_BLESearchSources & BSS_BUILTIN) && src == BLES_BUILTIN && BLEModule::Instance()->IsScanning()) || BLEModule::Instance()->IsRecoveringLostDevices();
+        bool netwOk = (src == BLES_WFTN) && IsWahooDirectConnectEnabled();
+        bool runPod = false;
+        char nameBuf[256]{}, nameMfg[256]{};
+        if (!Device && g_EnableDeviceDiscovery && (zcaOk || builtinOk || netwOk)) {
+            if (charId != 0x2A53 && (strstr(cdevice_name, "Milestone") || strstr(cdevice_name, "Zwift RunPod"))) {
+                runPod = true;
+                Device = new RunPod_BLE(device_id, device_name, charId, hash, src);
+            } else {
+                Device = new BLEDevice(device_id, device_name, charId, hash, src);
+            }
+            switch (charId)
+            {
+            case 0xA026E01F:
+                sprintf_s(nameBuf, "%s %d", cdevice_name, hash);
+                sprintf_s(nameMfg, "???");
+                break;
+            case 0xE9410101:
+                sprintf_s(nameBuf, "%s %d", cdevice_name, hash);
+                sprintf_s(nameMfg, "inRide");
+                break;
+            case 0xE9410201:
+                sprintf_s(nameBuf, "%s %d", cdevice_name, hash);
+                sprintf_s(nameMfg, "Kinetic");
+                break;
+            case 0x2A63: case 0x2A37: case 0x2A53: case 0x2A5B:
+                if (runPod)
+                    sprintf_s(nameBuf, "%s", cdevice_name);
+                else
+                    sprintf_s(nameBuf, "%s %d", cdevice_name, hash);
+                sprintf_s(nameMfg, "%s", cdevice_name);
+                break;
+            default:
+                BLE_GenerateFriendlyName(device_name, nameBuf);
+                BLE_GenerateFriendlyName(device_name, nameMfg);
+                break;
+            }
+            strcpy_s(Device->m_nameIdBuf, nameMfg);
+            FitnessDeviceManager::AddDevice(Device, nameBuf);
+            Device->m_rssiTime = timeGetTime();
+            Device->m_rssi = resp.per().rssi();
+        } else {
+            Device->m_rssiTime = timeGetTime();
+            Device->m_rssi = resp.per().rssi();
+            switch (charId) {
+            case 0x347B0031: case 0x347B0032: case 0xA026E010: case 0x347B0011:
+                break;
+            case 0xE9410101:
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_PM))
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_PM));
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_CAD))
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_CAD));
+                break;
+            case 0xE9410201:
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_PM))
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_PM));
+                break;
+            case 0x347B0030:
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_STEER) && isEliteSteering(Device->m_name))
+                    Device->AddComponent(new EliteSteeringComponent(Device));
+                break;
+            case 0x347B0010: case 0x58094966: case 0x6E40FEC2: case 0x6E40FEC3:
+                if (!isEliteSteering(Device->m_name) && !Device->FindComponentOfType(DeviceComponent::CPT_PM))
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_PM));
+                break;
+            case 0x26D42A4D:
+                if (JetBlackSteeringComponent::IsFeatureFlagEnabled() && !Device->FindComponentOfType(DeviceComponent::CPT_STEER))
+                    if (isJetBlackSteering(Device->m_name))
+                        Device->AddComponent(new JetBlackSteeringComponent(Device));
+                break;
+            case 0x2A37:
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_HR))
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_HR));
+                break;
+            case 0x2A63:
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_PM))
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_PM));
+                break;
+            case 0x2ACD:
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_RUN_SPD))
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_RUN_SPD));
+                break;
+            case 0x2AD2:
+                if (!strstr(Device->m_name, "WattbikeAtom")) {
+                    if (!Device->FindComponentOfType(DeviceComponent::CPT_PM))
+                        Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_PM));
+                    Device->m_field_1FD = true;
+                }
+                break;
+            case 0x2AD9:
+                if (!strstr(Device->m_name, "WattbikeAtom"))
+                    Device->m_field_1FE = true;
+                break;
+            case 0x2A53: {
+                bool v68 = false;
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_RUN_CAD)) {
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_RUN_CAD));
+                    v68 = true;
+                }
+                if (Device->FindComponentOfType(DeviceComponent::CPT_RUN_SPD)) {
+                    if (v68)
+                        Device->m_field_1FC = true;
+                } else {
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_RUN_SPD));
+                    Device->m_field_1FC = true;
+                }}
+                break;
+            case 0x2A5B:
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_SPD))
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_SPD));
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_CAD))
+                    Device->AddComponent(new SensorValueComponent(DeviceComponent::CPT_CAD));
+                if (!Device->FindComponentOfType(DeviceComponent::CPT_7))
+                    Device->AddComponent(new Component_7(DeviceComponent::CPT_7));
+                break;
+            default:
+#if 0 //later
+                if (charId > 0xFFB2 && !Device->FindComponentOfType(DeviceComponent::CPT_CTRL))
+                Device->m_scharId = resp.chr().id();
+                per_f3 = operator new(0x78ui64);
+                v95 = KICKR_BLEM_ControlComponent_ctr(per_f3, v94, Device);
+                v96 = (v95 + 8);
+                if (!v95)
+                    v96 = 0i64;
+                ExerciseDevice::AddComponent(Device, v96);
+                v97 = &device_name;
+                v98 = device_name._Myres >= 0x10ui64;
+                v99 = device_name._Bx._Ptr;
+                if (device_name._Myres >= 0x10ui64)
+                    v97 = device_name._Bx._Ptr;
+                v100 = device_name._Mysize;
+                if (device_name._Mysize < 5ui64)
+                    goto LABEL_286;
+                v101 = &v97->_Bx._Buf[device_name._Mysize];
+                v102 = memchr(v97, 75, device_name._Mysize - 4);
+                if (!v102)
+                    goto LABEL_286;
+                while (1)
+                {
+                    v103 = 0i64;
+                    while (1)
+                    {
+                        v104 = v102[v103++];
+                        if (v104 != aKickr[v103 - 1])
+                            break;
+                        if (v103 == 5)
+                        {
+                            v105 = 0;
+                            goto LABEL_282;
+                        }
+                    }
+                    v105 = v104 < aKickr[v103 - 1] ? -1 : 1;
+                LABEL_282:
+                    if (!v105)
+                        break;
+                    v102 = memchr(v102 + 1, 75, v101 - 4 - (v102 + 1));
+                    if (!v102)
+                        goto LABEL_286;
+                }
+                if (v102 - v97 == -1)
+                {
+                LABEL_286:
+                    v106 = &device_name;
+                    if (v98)
+                        v106 = v99;
+                    if (v100 < 0xD)
+                        goto LABEL_292;
+                    v107 = memchr(v106, 77, v100 - 12);
+                    if (!v107)
+                        goto LABEL_292;
+                    while (memcmp(v107, "MINOURA SMART", 0xDui64))
+                    {
+                        v107 = memchr(v107 + 1, 77, v106 + v100 - 12 - (v107 + 1));
+                        if (!v107)
+                            goto LABEL_292;
+                    }
+                    if (v107 - v106 == -1)
+                    {
+                    LABEL_292:
+                        v108 = 0;
+                        goto LABEL_293;
+                    }
+                }
+                v108 = 1;
+            LABEL_293:
+                *(v95 + 54) = v108;
+                v109 = &device_name;
+                v110 = device_name._Myres >= 0x10ui64;
+                if (device_name._Myres >= 0x10ui64)
+                    v109 = device_name._Bx._Ptr;
+                v111 = device_name._Mysize;
+                if (device_name._Mysize < 6ui64)
+                    goto LABEL_308;
+                v112 = &v109->_Bx._Buf[device_name._Mysize];
+                v113 = memchr(v109, 77, device_name._Mysize - 5);
+                if (!v113)
+                    goto LABEL_308;
+                while (1)
+                {
+                    v114 = 0i64;
+                    while (1)
+                    {
+                        v115 = v113[v114++];
+                        if (v115 != aMagnus[v114 - 1])
+                            break;
+                        if (v114 == 6)
+                        {
+                            v116 = 0;
+                            goto LABEL_304;
+                        }
+                    }
+                    v116 = v115 < aMagnus[v114 - 1] ? -1 : 1;
+                LABEL_304:
+                    if (!v116)
+                        break;
+                    v113 = memchr(v113 + 1, 77, v112 - 5 - (v113 + 1));
+                    if (!v113)
+                        goto LABEL_308;
+                }
+                if (v113 - v109 == -1)
+                {
+                LABEL_308:
+                    v117 = &device_name;
+                    if (v110)
+                        v117 = device_name._Bx._Ptr;
+                    if (v111 < 6)
+                        goto LABEL_157;
+                    v118 = memchr(v117, 72, v111 - 5);
+                    if (!v118)
+                        goto LABEL_157;
+                    while (1)
+                    {
+                        v119 = 0i64;
+                        while (1)
+                        {
+                            v120 = v118[v119++];
+                            if (v120 != aHammer[v119 - 1])
+                                break;
+                            if (v119 == 6)
+                            {
+                                v121 = 0;
+                                goto LABEL_317;
+                            }
+                        }
+                        v121 = v120 < aHammer[v119 - 1] ? -1 : 1;
+                    LABEL_317:
+                        if (!v121)
+                            break;
+                        v118 = memchr(v118 + 1, 72, v117 + v111 - 5 - (v118 + 1));
+                        if (!v118)
+                            goto LABEL_157;
+                    }
+                    if (v118 - v117 == -1)
+                        goto LABEL_157;
+                }
+                *(v95 + 55) = 1;
+#endif
+                break;
+            }
+        }
+    }
+    switch (resp.type()) {
+    case protobuf::BL_TY_0: case protobuf::BL_TY_5:
+        if (Device)
+            Device->m_last_time_ms = timeGetTime();
+        break;
+    case protobuf::BL_TY_2:
+        Device->ProcessBLEData(resp);
+        break;
+    case protobuf::BL_TY_3:
+        if (Device) {
+            static uint32_t g_lastTY3ts;
+            if (GFX_GetFrameCount() != g_lastTY3ts) {
+                g_lastTY3ts = GFX_GetFrameCount();
+                Device->SetPaired(true);
+                auto steer = (SensorValueComponent *)Device->FindComponentOfType(DeviceComponent::CPT_STEER);
+                if (steer && steer->GetSensorType() == ST_ELITE_STEER)
+                    ((EliteSteeringComponent *)steer)->m_ts = timeGetTime();
+                if (JetBlackSteeringComponent::IsFeatureFlagEnabled()) {
+                    if (steer && steer->GetSensorType() == ST_JB_STEER) {
+                        auto jb = (JetBlackSteeringComponent *)steer;
+                        jb->m_field_34 = 0;
+                        jb->m_val = 0.0f;
+                        Log("JetBlackSteeringComponent::SetCenter()");
+                    }
+                }
+            }
+            Device->ProcessBLEData(resp);
+        }
+        break;
+    case protobuf::BL_TY_4:
+        if (Device) {
+            Device->SetPaired(true);
+            auto steer = (SensorValueComponent *)Device->FindComponentOfType(DeviceComponent::CPT_STEER);
+            if (steer && steer->GetSensorType() == ST_ELITE_STEER)
+                ((EliteSteeringComponent *)steer)->m_parent->SetPaired(false);
+            if (JetBlackSteeringComponent::IsFeatureFlagEnabled()) {
+                if (steer && steer->GetSensorType() == ST_JB_STEER) {
+                    auto jb = (JetBlackSteeringComponent *)steer;
+                    jb->m_parent->SetPaired(false);
+                }
+            }
+            Device->ProcessBLEData(resp);
+        }
+        break;
+    }
 }
 struct dllBLEPeripheralResponseChr {
     std::string m_id;
@@ -52,7 +448,7 @@ struct dllBLEPeripheralResponse {
     protobuf::BLEPeripheralResponse_Type m_type;
     int gap;
     std::string m_deviceId, m_deviceName;
-    uint16_t m_f3;
+    int16_t m_rssi;
     std::vector<dllBLEPeripheralResponseSrv> m_servs;
 };
 struct dllBLEAdvertisementDataSection { //32 bytes
@@ -74,13 +470,13 @@ void parseDllBLEPeripheralResponse(const dllBLEPeripheralResponse &src, protobuf
         dest->set_type(src.m_type);
     }
     auto per = dest->mutable_per();
-    per->set_f3(src.m_f3); //TACX 1816/2A55: FFB6; TACX 1818/2A55:FFB3
+    per->set_rssi(src.m_rssi); //TACX 1816/2A55: FFB6; TACX 1818/2A55:FFB3
     per->set_device_id(src.m_deviceId); //TACX 1816/2A55(any): 274523460006625
     per->set_device_name(src.m_deviceName);
 }
 void parseDllBLEAdvertisement(const dllBLEAdvertisement &src, protobuf::BLEAdvertisement *dest) {
     auto per = dest->mutable_per();
-    per->set_f3(src.m_per_f3);
+    per->set_rssi(src.m_per_f3);
     per->set_device_id(src.m_deviceId);
     per->set_device_name(src.m_deviceName);
     for (auto &dsi : src.m_dataSects)
@@ -96,7 +492,7 @@ void cbProcessBLEResponseChr(const dllBLEPeripheralResponseChr &chr, const dllBL
     auto per = v20.mutable_per();
     per->set_device_name(resp.m_deviceName);
     per->set_device_id(resp.m_deviceId);
-    per->set_f3(resp.m_f3);
+    per->set_rssi(resp.m_rssi);
     auto lchr = v20.mutable_chr();
     auto v19 = chr.m_id;
     lchr->set_id(v19);
@@ -612,7 +1008,6 @@ void BLEModule::LegacyBLEImpl::DoHardwarePrompt() {
         LogTyped(LOG_WARNING, "BLEDevice_DoHardwarePrompt not implemented on Windows");
     }
 }
-bool g_EnableDeviceDiscovery = true;
 void BLEModule::LegacyBLEImpl::EnableDeviceDiscovery(bool en) {
     g_EnableDeviceDiscovery = en;
 }
@@ -622,7 +1017,6 @@ void BLEModule::LegacyBLEImpl::GetRSSI(const char *) {
 bool BLEModule::LegacyBLEImpl::HasBLE() {
     return g_BLEDeviceManager.m_HasBLE;
 }
-bool g_IgnoreReceivedBluetoothPackets;
 void BLEModule::LegacyBLEImpl::IgnoreReceivedBluetoothPackets(bool ign) {
     g_IgnoreReceivedBluetoothPackets = ign;
 }
@@ -718,7 +1112,6 @@ void BLEModule::LegacyBLEImpl::SendValueToDevice(const protobuf::BLEPeripheralRe
 void BLEModule::LegacyBLEImpl::SetAutoConnectPairingMode(bool ac) {
     g_BLEDeviceManager.m_AutoConnectPairingMode = ac;
 }
-protobuf::BLEPeripheralResponse_Error g_lastBLEError = protobuf::BL_ERR_UNK;
 uint32_t BLEDevice::CreateUniqueID(uint32_t hf1/*, uint32_t hf2*/) {
     return (hf1 & 0xFFFFFFF) | 0x10000000u;
 }
@@ -920,11 +1313,11 @@ void BLEDevice::SetPaired(bool p) {
     m_isPaired = p;
     m_field_2CC = false;
 }
-void BLEDevice::ProcessBLEData(const protobuf::BLEPeripheralResponse &) {
+void BLEDevice::ProcessBLEData(const protobuf::BLEPeripheralResponse &resp) {
     //TODO
 }
 void BLEDevice::Pair(bool) {
-    switch (m_bleSubType) {
+    switch (m_bleSrc) {
     case BLES_BUILTIN:
         BLEModule::Instance()->PairDevice(*this);
         m_field_2CC = true;
@@ -985,11 +1378,11 @@ void BLEDevice::Pair(bool) {
     case BLES_WFTN: {
         Log("WFTNPDeviceManager::Pairing device \"%s\"", m_name);
         /* later IDBySerial = WFTNPDeviceManager::GetIDBySerial(m_devId);
-        *&this->m_base.field_11C[4] = *IDBySerial;
+        *&this->field_11C[4] = *IDBySerial;
         *(IDBySerial + 121) = 1;
         if (!*(IDBySerial + 120)) {
             Log("WFTNPDeviceManager: connecting to LAN device \"%s\"", (IDBySerial + 8).c_str());
-            icu_72::Transliterator::_getAvailableTarget(*&this->m_base.field_11C[4], 0i64, 0i64);
+            icu_72::Transliterator::_getAvailableTarget(*&this->field_11C[4], 0i64, 0i64);
             if (!IsWdcErrorDialogs())
                 SetPaired(true);
         }
@@ -1049,7 +1442,7 @@ void CommonUnpair(protobuf::BLEPeripheralRequest *rq, const std::string &devId, 
     chr->set_id(chr_id);
 }
 void BLEDevice::UnPair() {
-    switch(m_bleSubType) {
+    switch(m_bleSrc) {
     case BLES_BUILTIN:
         BLEModule::Instance()->UnpairDevice(*this);
         SetPaired(false);
@@ -1079,20 +1472,45 @@ void BLEDevice::LogBleRxPacket(const protobuf::BLEPeripheralResponse &resp) {
         auto chVal = resp.chr().value().c_str();
         auto v7 = resp.per().device_name().c_str();
         auto v9 = sprintf_s(Buffer, "%d RX '%s' %s [%d]: ", GFX_GetFrameCount(), v7, resp.chr().id().c_str(), (int)resp.chr().value().length());
-        if (v9 <= 0 || v9 >= _countof(Buffer)) {
+        if (v9 <= 0 || v9 >= _countof(Buffer) - 8) {
             if (v7)
                 LogTyped(LOG_BLE, "Error logging RX packet for '%s'", v7);
         } else {
-            char *pBuffer = Buffer;
             for (int i = 0; i < resp.chr().value().length(); ++chVal, ++i) {
                 auto v12 = sprintf(Buffer + v9, "%02X ", *chVal);
                 if (v12 <= 0 || v12 >= 8)
                     break;
-                pBuffer += v12;
-                if (pBuffer - Buffer >= 0xFF)
+                v9 += v12;
+                if (v9 >= 0xF8)
                     break;
             }
             LogTyped(LOG_BLE, "%s", Buffer);
+        }
+    }
+}
+void BLEDevice::LogBleTxPacket(char const *funcName, char const *devName, protobuf::BLEPeripheralRequest &req) {
+    if (g_bLogBlePackets) {
+        char Buffer[256];
+        auto fr = GFX_GetFrameCount();
+        for (auto &s : req.servs()) {
+            for (auto &c : s.chars()) {
+                auto v9 = sprintf_s(Buffer, "%d TX '%s' %s {%s} %s [%02d]: ", fr, devName, funcName, s.id().c_str(), c.id().c_str(), (int)c.value().length());
+                if (v9 <= 0 || v9 >= sizeof(Buffer) - 8) {
+                    if (devName)
+                        LogTyped(LOG_BLE, "Error logging TX packet for '%s'", devName);
+                } else {
+                    auto chVal = c.value().c_str();
+                    for (int i = 0; i < c.value().length(); ++chVal, ++i) {
+                        auto v12 = sprintf(Buffer + v9, "%02X ", *chVal);
+                        if (v12 <= 0 || v12 >= 8)
+                            break;
+                        v9 += v12;
+                        if (v9 >= 0xF8)
+                            break;
+                    }
+                    LogTyped(LOG_BLE, "%s", Buffer);
+                }
+            }
         }
     }
 }
@@ -1133,23 +1551,21 @@ void BLEDevice::Update(float f) {
     }
     if (Experimentation::IsEnabledCached<FID_FTMSBIK>()) {
         auto ct = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
-        if (ct && ct->m_field_24 == 3)
+        if (ct && ct->m_protocolType == TrainerControlComponent::FTMS_V3)
             ct->Update(f);
     } else if (expFID_HWEXPER()) {
         auto ct = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
-        if (ct && ct->m_field_24 == 2)
+        if (ct && ct->m_protocolType == TrainerControlComponent::P_2)
             ct->Update(f);
     }
 }
-bool isJetBlackSteering(const std::string &name) { return name.find("Smart Wheel Block"s) != std::string::npos; }
-bool isEliteSteering(const std::string &name) { return name.find("STERZO"s) != std::string::npos && name.find("RIZER"s) != std::string::npos; }
 BLEDevice::BLEDevice(const std::string &devId, const std::string &devName, uint32_t charId, uint32_t hash, BLE_SOURCE src) {
     m_hash = hash;
     m_protocol = DP_BLE;
     m_prefsID = hash & 0xFFFFFFF | 0x10000000;
     m_charId = charId;
     m_devId = devId;
-    m_bleSubType = src;
+    m_bleSrc = src;
     m_nameId = devName;
     char buffer[64];
     auto v18 = std::strtoull(devId.c_str(), nullptr, 10);

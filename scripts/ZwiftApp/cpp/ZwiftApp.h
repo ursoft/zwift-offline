@@ -129,6 +129,7 @@ using NOTABLEMOMENT_TYPE = protobuf::NotableMomentType; //not sure
 #include "ZML.h"
 #include "Leaderboards.h"
 
+bool check_float(float f);
 enum ZwiftStartupFlow { ZSF_LOGIN = 0x0, ZSF_1 = 0x1, ZSF_EULA = 0x2, ZSF_3 = 0x3, ZSF_4 = 0x4, ZSF_SEL_SPORT = 0x5, ZSF_BOARDING_CUST = 0x6, ZSF_PROFILE = 0x7, ZSF_8 = 0x8,
                         ZSF_9 = 0x9, ZSF_PAIRING = 0xA, ZSF_b = 0xB, ZSF_c = 0xC, ZSF_SEL_CHALLENGE = 0xD, ZSF_GENDER = 0xE, ZSF_HEIGHT_WEIGHT = 0xF, ZSF_BC_CONF = 0x10, ZSF_11 = 0x11, ZSF_TRAINING_PLAN = 0x12,
                         ZSF_CNT };

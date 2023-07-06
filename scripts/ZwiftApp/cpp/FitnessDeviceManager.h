@@ -35,7 +35,7 @@ struct WFTNPDeviceManager {
 struct DeviceComponent { //24 (0x18) bytes
     ExerciseDevice *m_owner = nullptr;
     enum ComponentType { CPT_SPD = 0, CPT_CAD = 1, CPT_RUN_SPD = 2, CPT_RUN_CAD = 3, CPT_HR = 4, CPT_5 = 5, CPT_PM = 6, CPT_7 = 7, CPT_CTRL = 8, CPT_9 = 9, CPT_STEER = 16 } m_type = CPT_SPD;
-    int m_packId = -999, m_packTs = 0;
+    int m_packId = -999, m_packTs = 0, m_field_20 /*TODO:enum*/= 0;
     bool m_bInitState = true;
     DeviceComponent(ComponentType ct = CPT_SPD) : m_type(ct) {}
     ExerciseDevice *GetOwner() { return m_owner; }
@@ -49,149 +49,317 @@ struct DeviceComponent { //24 (0x18) bytes
     void SetPacketId(int id) { m_packId = id; }
     void SetPacketTimeStamp(int ts) { m_packTs = ts; }
 };
-enum RoadFeelType { RF_0 };
+enum RoadFeelType { RF_0, RF_1, RF_2, RF_WOOD = 3, RF_BRICKS_HARD = 4, RF_BRICKS_SOFT = 5, RF_GRAVEL1 = 6, RF_GRAVEL2 = 7, RF_GRAVEL_SOFT = 8 };
 enum GearingType { GT_0 };
 enum ShiftDirection { SD_0 };
-struct TrainerControlComponent : public DeviceComponent { //0x78 bytes
-    virtual void ProcessANTEvent(uint8_t) {} //[00]
-    virtual void InitSpindown() {} //[01]
-    virtual void SetERGMode(int) {} //[02]
-    virtual void SetRoadMode() {} //[03]
-    virtual void SetSimulationMode() {} //[04]
+struct TrainerControlComponent : public DeviceComponent { //0x68 bytes
+    virtual void ProcessANTEvent(uint8_t) = 0; //[00]
+    virtual void InitSpindown() = 0; //[01]
+    virtual void SetERGMode(int) = 0; //[02]
+    virtual void SetRoadMode() = 0; //[03]
+    virtual void SetSimulationMode() = 0; //[04]
     virtual bool SupportsRoadTexture() { return false; } //[05]
-    virtual void SetRoadTexture(RoadFeelType, float) {} //[06]
-    virtual void SetGradeLookAheadSecs(float) {} //[07]
-    virtual void SetSimulationGrade(float) {} //[08]
-    virtual void SetWindSpeed(float) {} //[09]
-    virtual void Update(float) {} //[10]
-    virtual void OnPaired() {} //[11]
-    virtual void SetRiderWeightKG(float) {} //[12]
-    virtual void SetGearingShiftType(GearingType) {} //[13]
-    virtual void ShiftCassetteCog(ShiftDirection) {} //[14]
-    virtual void ShiftChainRing(ShiftDirection) {} //[15]
-    virtual void Shift_EZTap_Event(bool, ShiftDirection) {} //[16]
-    virtual void Shift_ZTap_Event(bool, ShiftDirection) {} //[17]
-    int m_field_24 = 0; //TODO:enum?
+    virtual void SetRoadTexture(RoadFeelType, float) { /*empty*/ } //[06]
+    virtual void SetGradeLookAheadSecs(float f) { m_gradeLookAheadSecs = f; } //[07]
+    virtual void SetSimulationGrade(float) = 0; //[08]
+    virtual void SetWindSpeed(float) = 0; //[09]
+    virtual void Update(float) { /*empty*/ } //[10]
+    virtual void OnPaired() { /*empty*/ } //[11]
+    virtual void SetRiderWeightKG(float f) { m_riderWeightKG = f; } //[12]
+    virtual void SetGearingShiftType(GearingType) { /*empty*/ } //[13]
+    virtual void ShiftCassetteCog(ShiftDirection) { /*empty*/ } //[14]
+    virtual void ShiftChainRing(ShiftDirection) { /*empty*/ } //[15]
+    virtual void Shift_EZTap_Event(bool, ShiftDirection) { /*empty*/ } //[16]
+    virtual void Shift_ZTap_Event(bool, ShiftDirection) { /*empty*/ } //[17]
+    enum ProtocolType { P_0, P_1, P_2, FTMS_V3, P_4, ZAP_PROTOCOL = 5 } m_protocolType = P_0;
+    ProtocolType GetProtocolType() { return m_protocolType; }
+    TrainerControlComponent() : DeviceComponent(DeviceComponent::CPT_CTRL) {}
+    bool IsFitTech();
+    void UpdateShifting() { /*empty*/ }
+    int64_t m_field_2C = -1;
+    float m_gradeLookAheadSecs = 0.0f, m_riderWeightKG = 73.0f, m_gradePercent = 0.0f, m_field_40 = 0.0f, m_field_58 = 0.004f, m_field_5C = 0.368f, m_lastTimeSec = 0.0f;
+    int m_field_20 = 11 /*TODO:enum*/, m_field_28 = 0, m_erg = 0;
+    bool m_field_34 = true, m_field_35 = true, m_field_36 = false;
+    char m_field_60 = 2;
 };
-struct SarisControlComponent : public TrainerControlComponent { //0x78 bytes
-    void ProcessANTEvent(uint8_t) override {} //[00]
-    void SetERGMode(int) override {} //[02]
-    void SetRoadMode() override {} //[03]
+struct SarisControlComponent : public TrainerControlComponent { //0x78 bytes, PC only
+    void ProcessANTEvent(uint8_t) override { /*later*/ } //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
+    void SetERGMode(int) override { /*later*/ } //[02]
+    void SetRoadMode() override { /*later*/ } //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
 };
 struct KICKRControlComponent : public TrainerControlComponent { //0x78 bytes
     void ProcessANTEvent(uint8_t) override {} //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
     void SetERGMode(int) override {} //[02]
     void SetRoadMode() override {} //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
-    void SetWindSpeed(float) override {} //[09]
+    void SetWindSpeed(float) override { //[09]
+        /* later ANDR:result = ANT_IsSearchEnabled();
+        if ((result & 1) != 0)
+            return result;
+        result = timeGetTime();
+        if ((int)result - dword_2586920 <= (unsigned int)g_PacketSendDelay)
+            return result;
+        result = timeGetTime();
+        dword_2586920 = result;
+        v6 = *((_DWORD *)this + 8);
+        if ((unsigned int)(v6 - 2) >= 4)
+        {
+            return (*(__int64(__fastcall **)(KICKRControlComponent *))(*(_QWORD *)this + 32LL))(this);
+        } else if (v6 != 5)
+        {
+            result = Log(8u, "KICKR changing wind speed to %3.2f", v5);
+            v7 = *((_QWORD *)this + 14);
+            if (v7)
+            {
+                result = *(unsigned int *)(v7 + 588);
+                if ((result & 0x80000000) == 0)
+                {
+                    *((float *)this + 16) = a2;
+                    *((_DWORD *)this + 8) = 5;
+                    *((_BYTE *)this + 121) = 1;
+                    WF_SetRoadCurveMode_Burst();
+                    v8 = (double)(unsigned int)timeGetTime() / 1000.0;
+                    *((float *)this + 19) = v8;
+                    result = timeGetTime();
+                    v9 = *((_QWORD *)this + 14);
+                    v10 = *(_DWORD *)(v9 + 1632);
+                    *(_DWORD *)(v9 + 4LL * (unsigned __int8)v10 + 1636) = result;
+                    *(_DWORD *)(v9 + 1632) = v10 + 1;
+                }
+            }
+        }*/
+    }
+//        KICKRControlComponent::SendUserParametersToEquipment(void)
+//        KICKRControlComponent::SetSimulationGrade(float, bool)
 };
 struct FECTrainerControlComponent : public TrainerControlComponent { //0x78 bytes
+    static inline int g_flag;
+    static inline uint32_t g_lastSpindownTs;
     void ProcessANTEvent(uint8_t) override {} //[00]
-    void InitSpindown() override {} //[01]
+    void InitSpindown() override { //[01]
+        g_flag = 0;
+        doInitSpindown();
+    }
     void SetERGMode(int) override {} //[02]
     void SetRoadMode() override {} //[03]
     void SetSimulationMode() override {} //[04]
     bool SupportsRoadTexture() override {} //[05]
     void SetRoadTexture(RoadFeelType, float) override {} //[06]
     void SetSimulationGrade(float) override {} //[08]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
+    void doInitSpindown() {
+        //TODO
+    }
 };
 struct EliteControlComponent : public TrainerControlComponent{ //0x90 bytes
     void ProcessANTEvent(uint8_t) override {} //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
     void SetERGMode(int) override {} //[02]
     void SetRoadMode() override {} //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
     void Update(float) override {} //[10]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
 };
 struct TACX_BLE_ControlComponent : public TrainerControlComponent { //0x78 bytes
-    void SetERGMode(int) override {} //[02]
-    void SetSimulationMode() override {} //[04]
-    bool SupportsRoadTexture() override {} //[05]
-    void SetRoadTexture(RoadFeelType, float) override {} //[06]
-    void SetSimulationGrade(float) override {} //[08]
+    TACX_BLE_ControlComponent(BLEDevice *parent) : m_parent(parent) { m_gradeLookAheadSecs = 2.0f; }
+    BLEDevice *m_parent;
+    bool m_field_70 = true, m_field_71 = false;
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
+    void SetERGMode(int) override; //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
+    void SetSimulationMode() override { m_field_20 = 3; } //[04]
+    bool SupportsRoadTexture() override; //[05]
+    void SetRoadTexture(RoadFeelType ty, float strength) override; //[06]
+    void SetSimulationGrade(float) override; //[08]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
 };
 struct ELITE_BLE_ControlComponent : public TrainerControlComponent{ //0x78 bytes
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
     void SetERGMode(int) override {} //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
 };
 struct WATTBIKE_BLE_ControlComponent : public TrainerControlComponent { //0x78 bytes
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
     void SetERGMode(int) override {} //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
     void OnPaired() override {} //[11]
 };
-struct FTMS_ControlComponent_v3 : public TrainerControlComponent { //0xB40 bytes
-    void InitSpindown() override {} //[01]
-    void SetERGMode(int) override {} //[02]
-    void SetSimulationMode() override {} //[04]
-    void SetSimulationGrade(float) override {} //[08]
-    void SetWindSpeed(float) override {} //[09]
-    void Update(float) override {} //[10]
-};
 struct TechnoGym_BLE_ControlComponent : public TrainerControlComponent { //0x78 bytes
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
     void SetERGMode(int) override {} //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
-    void SetWindSpeed(float) override {} //[09]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
     void Update(float) override {} //[10]
 };
 struct KICKR_BLEM_ControlComponent : public TrainerControlComponent { //0x78 bytes
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
     void InitSpindown() override {} //[01]
     void SetERGMode(int) override {} //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
 };
 struct KINETIC_BLE_ControlComponent : public TrainerControlComponent { //0x78 bytes
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
     void SetERGMode(int) override {} //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
 };
 struct FTMS_ControlComponent : public TrainerControlComponent { //0x78 bytes
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
     void InitSpindown() override {} //[01]
     void SetERGMode(int) override {} //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
+    void SetSimulationMode() override { /*empty*/ } //[04]
     void SetSimulationGrade(float) override {} //[08]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
 };
 struct FTMS_ControlComponent_v2 : public TrainerControlComponent { //0xA40 bytes
-    void InitSpindown() override {} //[01]
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { m_bSpinDown = true; } //[01]
     void SetERGMode(int) override {} //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
-    void SetWindSpeed(float) override {} //[09]
+    void SetWindSpeed(float f) override { //[09]
+        m_field_20 = 3;
+        m_windSpeed = f;
+    }
     void Update(float) override {} //[10]
+    float m_windSpeed = 0.0f;
+    bool m_bSpinDown = false;
+};
+struct FTMS_ControlComponent_v3 : public TrainerControlComponent { //0xB40 bytes
+    float m_windSpeed = 0.0f;
+    int m_field_68 = 0; //TODO: enum
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { //[01]
+        if (m_FID_FSF) {
+            if (m_field_68 > 8 && m_field_68 < 15)
+                return;
+            m_bSpinDown = true;
+        } else if (m_field_68 == 14 || m_field_68 == 12)
+            return;
+        m_bSpinDown = true;
+    }
+    void SetERGMode(int) override {} //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
+    void SetSimulationMode() override {} //[04]
+    void SetSimulationGrade(float) override {} //[08]
+    void SetWindSpeed(float f) override { //[09]
+        if (m_FID_FSF && m_field_20 <= 7)
+            return;
+        m_field_20 = 3;
+        m_windSpeed = f;
+    }
+    void Update(float) override {} //[10]
+    BLEDevice *m_bleDevice;
+    int m_field_B18;
+    bool m_FID_FSF, m_bSpinDown = false;
+    char m_field_B38;
+    FTMS_ControlComponent_v3(BLEDevice *dev);
+    /*FTMS_ControlComponent_v3::CheckState_BikeSimMode(float)
+FTMS_ControlComponent_v3::CheckState_SimMode(float)
+FTMS_ControlComponent_v3::FTMS_RequestControl(void)
+FTMS_ControlComponent_v3::FTMS_RequestSpindown(void)
+FTMS_ControlComponent_v3::FTMS_ResetTrainer(void)
+FTMS_ControlComponent_v3::FTMS_SetBikeSimParms(void)
+FTMS_ControlComponent_v3::FTMS_SetTargetWatts(void)
+FTMS_ControlComponent_v3::FTMS_StartSession(void)
+FTMS_ControlComponent_v3::GetTrainerSpinDownTargetSpeedInMPH(ExerciseDevice const*,FTMS_ControlComponent_v3::RequestResult const&)
+FTMS_ControlComponent_v3::HandleControlPointResultCode(FTMS_ControlComponent_v3::RequestResult &,FTMS_ControlComponent_v3::FTMS_TRAINER_CONTROL_STATE &,FTMS_ControlComponent_v3::FTMS_CONTROL_OPCODE &)
+FTMS_ControlComponent_v3::HandleState_Ready(float)
+FTMS_ControlComponent_v3::HandleState_RequestControl(float,FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::HandleState_RequestControlAndReset(float,FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::HandleState_RequestSetBikeSimParms(float,FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::HandleState_RequestSetTargetPower(float,FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::HandleState_RequestSpinDown(float,FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::HandleState_RequestTrainerReset(float,FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::HandleState_SpinDownClearSimParms(float,FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::HandleState_SpinDownClearTargetPower(float,FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::HandleState_StartSession(float,FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::HandleState_WaitForSpindown(float,FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::IntervalTimeHasElapsed(float)
+FTMS_ControlComponent_v3::LogOpcodeParameters(FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::ProcessANTEvent(uchar)
+FTMS_ControlComponent_v3::RequestHasCompleted(FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::RequestHasError(FTMS_ControlComponent_v3::RequestResult &)
+FTMS_ControlComponent_v3::SendPacketData(char const*,uchar const*,int)
+FTMS_ControlComponent_v3::SetERGMode(int)
+FTMS_ControlComponent_v3::SetERGMode(int,bool)
+FTMS_ControlComponent_v3::SetNextState(FTMS_ControlComponent_v3::FTMS_TRAINER_CONTROL_STATE,FTMS_ControlComponent_v3::FTMS_CONTROL_OPCODE)
+FTMS_ControlComponent_v3::SetRequestResult(uchar const*,uint)
+FTMS_ControlComponent_v3::SetRiderWeight(void)
+FTMS_ControlComponent_v3::SetRoadMode(void)
+FTMS_ControlComponent_v3::SetSimulationGrade(float)
+FTMS_ControlComponent_v3::SetSimulationMode(void)
+FTMS_ControlComponent_v3::UpdateStateMachine(float)*/
 };
 struct WhisperSmart_BLE_ControlComponent : public TrainerControlComponent { //0x78 bytes
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
     void SetERGMode(int) override {} //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
-    void SetWindSpeed(float) override {} //[09]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
     void Update(float) override {} //[10]
 };
 struct MAGDAYS_BLE_ControlComponent : public TrainerControlComponent { //0x78 bytes
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
     void SetERGMode(int) override {} //[02]
+    void SetRoadMode() override { /*empty*/ } //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
-    void SetWindSpeed(float) override {} //[09]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
     void Update(float) override {} //[10]
 };
 struct CompuTrainerControlComponent : public TrainerControlComponent { //0x78 bytes
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
     void SetERGMode(int) override {} //[02]
     void SetRoadMode() override {} //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
 };
 struct EliteWiredControlComponent : public TrainerControlComponent { //0x78 bytes
+    void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
+    void InitSpindown() override { /*empty*/ } //[01]
     void SetERGMode(int) override {} //[02]
     void SetRoadMode() override {} //[03]
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
+    void SetWindSpeed(float) override { /*empty*/ } //[09]
 };
+enum SensorType { ST_GENERIC, ST_ELITE_STEER, ST_JB_STEER };
 struct SensorValueComponent : public DeviceComponent { //40 (0x28) bytes
     using DeviceComponent::DeviceComponent;
-    virtual int GetSensorType() { return 0; } //TODO: enum
+    virtual SensorType GetSensorType() { return ST_GENERIC; }
     float m_val = 0.f;
     int gap;
 };
@@ -208,31 +376,34 @@ struct Bowflex_BLE_ControlComponent : public SensorValueComponent { //56 (0x38) 
     void InitStreaming();
 };
 struct EliteSteeringComponent : public SensorValueComponent { //72 (0x48) bytes
-    int GetSensorType() override { return 1; } //TODO: enum
+    SensorType GetSensorType() override { return ST_ELITE_STEER; }
     BLEDevice *m_parent;
+    uint32_t m_ts = 0;
     EliteSteeringComponent(BLEDevice *parent) : SensorValueComponent(CPT_STEER), m_parent(parent) {
         //TODO
     }
 };
 struct JetBlackSteeringComponent : public SensorValueComponent { //72 (0x48) bytes
-    int GetSensorType() override { return 2; } //TODO: enum
+    SensorType GetSensorType() override { return ST_JB_STEER; }
     static bool IsFeatureFlagEnabled();
     BLEDevice *m_parent;
+    int m_field_34 = 0;
     JetBlackSteeringComponent(BLEDevice *parent) : SensorValueComponent(CPT_STEER), m_parent(parent) {
         //TODO
     }
 };
 struct ExerciseDevice { //0x290 bytes
-    char m_name[256]{};
+    char m_name[128]{};
+    char m_nameIdBuf[128]{};
     std::vector<DeviceComponent *> m_components;
     //OMIT std::vector<std::string> m_devAnalytics;
     std::string m_str1, m_str2, m_str3, m_str4, m_address;
     std::mutex m_mutex;
     uint32_t m_last_time_ms = 0, m_rssiTime = 0;
-    int m_rssi = 0;
+    int m_rssi = 0, m_field_11C = 0;
     uint32_t m_prefsID = (uint32_t)-1;
     DeviceProtocol m_protocol = DP_UNKNOWN;
-    bool m_hidden = false, m_is560017 = false;
+    bool m_hidden = false, m_is560017 = false, m_field_1FE = false, m_field_1FC = false, m_field_1FD = false;
     void UpdateTimeStamp(uint32_t ts) { m_last_time_ms = ts; }
     int GetTimeSinceLastSeen(uint32_t ts) { return int(ts - m_last_time_ms); }
     void SetSignalStrength(int rssi) {
@@ -351,6 +522,9 @@ struct FitnessDeviceManager {
     static int GetUnpairedBLEDeviceCount();
     static bool AreAnyBLEDevicesCurrentlyPaired();
     static std::string GetEquipmentTypesString(const BLEDevice *);
+    static bool TrainerSetGradeLookAheadSecs(float f);
+    static bool TrainerSetWindSpeed(float);
+
     /*
 FitnessDeviceManager::AddDevicesToReconnectAfterBackgrounding(void)
 FitnessDeviceManager::AddLostDevice(uint)
@@ -437,14 +611,12 @@ FitnessDeviceManager::TrainerGetSpeed(void)
 FitnessDeviceManager::TrainerGetTargetSpeed(void)
 FitnessDeviceManager::TrainerInitSpindown(void)
 FitnessDeviceManager::TrainerSetERG(int)
-FitnessDeviceManager::TrainerSetGradeLookAheadSecs(float)
 FitnessDeviceManager::TrainerSetRiderWeightKG(float)
 FitnessDeviceManager::TrainerSetRoadMode(void)
 FitnessDeviceManager::TrainerSetRoadTexture(RoadFeelType,float)
 FitnessDeviceManager::TrainerSetSimGrade(float)
 FitnessDeviceManager::TrainerSetSimMode(void)
 FitnessDeviceManager::TrainerSetSpindownStatus(uint)
-FitnessDeviceManager::TrainerSetWindSpeed(float)
 FitnessDeviceManager::TrainerSpindownStatus(void)
 FitnessDeviceManager::TrainerSupportErgMode(void)
 FitnessDeviceManager::TrainerSupportErgResume(void)

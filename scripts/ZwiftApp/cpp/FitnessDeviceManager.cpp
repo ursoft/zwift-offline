@@ -70,7 +70,7 @@ void ExerciseDevice::AddComponent(DeviceComponent *devComp) {
     auto v6 = "UNKNOWN";
     if (m_protocol == DP_BLE) {
         v6 = "BLE (!)";
-        auto v8 = ((BLEDevice *)this)->m_bleSubType;
+        auto v8 = ((BLEDevice *)this)->m_bleSrc;
         if (v8 >= 0 && v8 <= _countof(g_devBleSubtype))
             v6 = g_devBleSubtype[v8];
     } else if (m_protocol < DP_CNT) {
@@ -310,4 +310,162 @@ void Bowflex_BLE_ControlComponent::Bowflex_ParseStream(uint8_t *, uint32_t, Bowf
 }
 void Bowflex_BLE_ControlComponent::InitStreaming() {
     //TODO
+}
+bool TrainerControlComponent::IsFitTech() {
+    if (m_owner)
+        return m_owner->m_field_11C == 1; //not sure
+    return false;
+}
+
+FTMS_ControlComponent_v3::FTMS_ControlComponent_v3(BLEDevice *dev) : m_bleDevice(dev) {
+    m_protocolType = FTMS_V3;
+    m_field_28 = 1;
+    m_gradeLookAheadSecs = 1.5f;
+    m_field_40 = 1.0f;
+    m_FID_FSF = Experimentation::Instance()->IsEnabled(FID_FSF);
+    m_field_B18 = 60;
+    m_field_B38 = -1;
+    if (m_bleDevice) {
+        //OMIT m_devAnalytics stuff
+        Log( "%s configured for new FTMS indoor bike trainer implementation (v3).", m_bleDevice->m_name);
+    } else {
+        Log("Device configured for new FTMS indoor bike trainer implementation (v3).");
+    }
+}
+bool FitnessDeviceManager::TrainerSetGradeLookAheadSecs(float f) {
+    if (m_pSelectedControllableTrainerDevice && timeGetTime() - m_pSelectedControllableTrainerDevice->m_last_time_ms >= 5000) {
+        auto cot = (TrainerControlComponent *)m_pSelectedControllableTrainerDevice->FindComponentOfType(DeviceComponent::CPT_CTRL);
+        if (cot) {
+            cot->SetGradeLookAheadSecs(f);
+            return true;
+        }
+    }
+    return false;
+}
+bool FitnessDeviceManager::TrainerSetWindSpeed(float f) {
+    if (m_pSelectedControllableTrainerDevice && timeGetTime() - m_pSelectedControllableTrainerDevice->m_last_time_ms >= 5000) {
+        auto cot = (TrainerControlComponent *)m_pSelectedControllableTrainerDevice->FindComponentOfType(DeviceComponent::CPT_CTRL);
+        if (cot) {
+            cot->SetWindSpeed(f);
+            return true;
+        }
+    }
+    return false;
+}
+bool TACX_BLE_ControlComponent::SupportsRoadTexture() {
+    return m_parent
+        && (strstr(m_parent->m_nameId.c_str(), "Tacx Neo")
+            || strstr(m_parent->m_nameId.c_str(), "Tacx Smart")
+            || strstr(m_parent->m_nameId.c_str(), "Garmin Neo")
+            || strstr(m_parent->m_nameId.c_str(), "Garmin Flux"));
+}
+void TACX_BLE_ControlComponent::SetERGMode(int erg) {
+    auto t = timeGetTime();
+    static uint32_t g_lastTs = t - 1001;
+    if (t - g_lastTs > 1000 && m_parent) {
+        g_lastTs = t;
+        if (m_erg != erg)
+            Log("[BLE TACX] ERG (%dw)", erg);
+        m_field_20 = 1;
+        std::string val("\xA4\x09\x4E\x05\x31\xFF\xFF\xFF\xFF\xFF\x0\0\0"s);
+        *(uint16_t *)&val[10] = 4 * erg;
+        val[12] = val[10] - 'x'; //checksum?
+        protobuf::BLEPeripheralRequest req;
+        req.set_type(protobuf::WRITE_CHARACTERISTIC_VALUE);
+        auto per = req.mutable_per();
+        per->set_device_id(m_parent->m_devId);
+        auto serv = req.add_servs();
+        serv->set_id("6E40FEC1-B5A3-F393-E0A9-E50E24DCCA9E"s);
+        auto chr = serv->add_chars();
+        chr->set_id(m_parent->m_scharId);
+        chr->set_value(val);
+        m_parent->LogBleTxPacket("TACX_BLE_ControlComponent::SetERGMode", m_parent->m_name, req);
+        BLEModule::Instance()->SendValueToDevice(req, m_parent->m_bleSrc);
+        m_erg = erg;
+        m_lastTimeSec = timeGetTime() * 0.001;
+    }
+}
+void TACX_BLE_ControlComponent::SetSimulationGrade(float grade) {
+    auto t = timeGetTime();
+    static uint32_t g_lastTs = t - 1001;
+    if (t - g_lastTs > 1000 && m_parent) {
+        g_lastTs = t;
+        m_field_20 = 3;
+        auto spd = BikeManager::Instance()->m_mainBike->m_bc->m_speed;
+        if (!check_float(spd) || spd < 0.0f)
+            grade = 0.0f;
+        m_gradePercent = grade * 100.0f;
+        int v10 = std::clamp(int((m_gradePercent * 100.0) + 20000.0), 0, 0xFFFF);
+        std::string val("\xA4\x09\x4E\x05\x33\xFF\xFF\xFF\xFF\x0\x0\xFF\0"s);
+        *(uint16_t *)&val[9] = v10;
+        val[12] = val[9] + val[10] - 'u'; //checksum?
+        protobuf::BLEPeripheralRequest req;
+        req.set_type(protobuf::WRITE_CHARACTERISTIC_VALUE);
+        auto per = req.mutable_per();
+        per->set_device_id(m_parent->m_devId);
+        auto serv = req.add_servs();
+        serv->set_id("6E40FEC1-B5A3-F393-E0A9-E50E24DCCA9E"s);
+        auto chr = serv->add_chars();
+        chr->set_id(m_parent->m_scharId);
+        chr->set_value(val);
+        m_parent->LogBleTxPacket("TACX_BLE_ControlComponent::SetSimulationGrade", m_parent->m_name, req);
+        BLEModule::Instance()->SendValueToDevice(req, m_parent->m_bleSrc);
+        m_lastTimeSec = timeGetTime() * 0.001;
+    }
+}
+void TACX_BLE_ControlComponent::SetRoadTexture(RoadFeelType ty, float strength) {
+    if (SupportsRoadTexture() && m_parent) {
+        float coeff = 1.0f;
+        enum TacxRoadFeel { TACX_NOP = 0, TACX_CONCRETE_PLATES = 1, TACX_CATTLE_GUARD = 2, TACX_COBBLESTONES_1 = 3, TACX_COBBLESTONES_2 = 4, TACX_BRICKS = 5, TACX_OFFROAD = 6, TACX_GRAVEL = 7, TACX_ICE = 8, TACX_WOOD = 9 }
+        tacxTy = TACX_NOP; //no road feel
+        switch (ty) {
+        case RF_WOOD:
+            tacxTy = TACX_WOOD;
+            break;
+        case RF_BRICKS_HARD:
+            tacxTy = TACX_BRICKS;
+            break;
+        case RF_BRICKS_SOFT:
+            tacxTy = TACX_BRICKS;
+            coeff = 0.5f;
+            break;
+        case RF_GRAVEL1: case RF_GRAVEL2:
+            tacxTy = TACX_GRAVEL;
+            break;
+        case RF_GRAVEL_SOFT:
+            tacxTy = TACX_GRAVEL;
+            coeff = 0.9f;
+            break;
+        }
+        float outcome = std::clamp(coeff * strength, 0.0f, 1.0f) * std::clamp(100.0f - m_gradePercent * 20.0f, 0.0f, 100.0f);
+        static int g_cnt = 10, g_lastTacxTy = -1;
+        static uint32_t g_lastTs;
+        if (m_field_20 == 1)
+            tacxTy = TACX_NOP;
+        if (g_lastTacxTy != tacxTy)
+            g_cnt = 0;
+        auto t = timeGetTime();
+        if (t - g_lastTs > 5000 || (g_cnt < 3 && t - g_lastTs > 250)) {
+            g_lastTs = t;
+            LogTyped(LOG_ANT, "BLE: Tacx set road texture %d (time=%d)", tacxTy, t);
+            std::string val("\xA4\x09\x4E\x05\xFC\0\0\x64\0\0\0\0\0"s);
+            val[9] = (char)tacxTy;
+            auto outcomew = uint16_t(outcome + 0.5f);
+            *(uint16_t *)&val[10] = outcomew;
+            val[12] = val[9] + val[10] - 'D'; //checksum?
+            protobuf::BLEPeripheralRequest req;
+            req.set_type(protobuf::WRITE_CHARACTERISTIC_VALUE);
+            auto per = req.mutable_per();
+            per->set_device_id(m_parent->m_devId);
+            auto serv = req.add_servs();
+            serv->set_id("6E40FEC1-B5A3-F393-E0A9-E50E24DCCA9E"s);
+            auto chr = serv->add_chars();
+            chr->set_id(m_parent->m_scharId);
+            chr->set_value(val);
+            m_parent->LogBleTxPacket("TACX_BLE_ControlComponent::SetRoadTexture", m_parent->m_name, req);
+            BLEModule::Instance()->SendValueToDevice(req, m_parent->m_bleSrc);
+            g_lastTacxTy = tacxTy;
+            ++g_cnt;
+        }
+    }
 }

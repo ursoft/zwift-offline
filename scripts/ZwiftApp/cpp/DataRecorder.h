@@ -9,7 +9,7 @@ struct DataPointVEC3 {
 struct RecorderComponent { //0x98 bytes
     float m_valMax = 0.0f, m_valMin = 1e15f, m_startTime = 0.0f, m_field_84 = 0.0f, m_period = 60.0f, m_timeBetweenPoints = 1.0f, m_curTime = 0.0f, m_valMax_init, m_valMin_init, m_nextPointTime = 0.0f, m_maxTime = 0.0f;
     VEC3 m_v3max, m_v3min, m_v3max_init, m_v3min_init;
-    enum TYPE { T_0 = 0, T_1 = 1, T_2 = 2, T_3 = 3, T_4 = 4, T_DISTANCE = 5, T_6 = 6, T_CPC = 7, T_8 = 8, T_9 = 9 } m_type;
+    enum TYPE { T_0 = 0, T_1 = 1, T_RIDE_SPEED = 2, T_3 = 3, T_4 = 4, T_DISTANCE = 5, T_6 = 6, T_CPC = 7, T_8 = 8, T_RUN_SPEED = 9 } m_type;
     enum TIME_PERIOD { TP_NOT_SET = -1, TP_5S, TP_MINUTE, TP_5MIN, TP_HOUR, TP_CNT };
     std::vector<DataPoint> m_dataPoints;
     std::vector<DataPointVEC3> m_dataPointsVec3;

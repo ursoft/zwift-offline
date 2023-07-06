@@ -5,13 +5,13 @@ void InitializeBLESearchParameters(protobuf::BLEPeripheralRequest *rq);
 void BLEDevice_StartSearchForLostDevices();
 bool IsNewBLEMiddlewareEnabled();
 struct BLEDevice : public ExerciseDevice { //0x360 bytes
-    std::string m_devId, m_nameId;
-    BLE_SOURCE m_bleSubType = BLES_BUILTIN;
+    std::string m_devId, m_nameId, m_scharId;
+    BLE_SOURCE m_bleSrc = BLES_BUILTIN;
     uint32_t m_charId = 0, m_hash = 0, m_lastCadTs = 0, m_lastSpdTs = 0;
     bool m_isPaired = false, m_field_2CC = false, m_field_29D = false, m_field_29C = false;
-    BLEDevice(const std::string &, const std::string &, uint32_t, uint32_t, BLE_SOURCE src);
-    static uint32_t CreateUniqueID(uint32_t hf1 /*, uint32_t hf2*/);
-    static uint32_t CreateUniqueID(const std::string &f1/*, const std::string &f2*/);
+    BLEDevice(const std::string &devId, const std::string &devName, uint32_t charId, uint32_t hash, BLE_SOURCE src);
+    static uint32_t CreateUniqueID(uint32_t hdevId /*, uint32_t hf2*/);
+    static uint32_t CreateUniqueID(const std::string &devId/*, const std::string &f2*/);
     virtual void SetPaired(bool p);
     void Update(float dt) override;
     void ProcessBLEData(const protobuf::BLEPeripheralResponse &);
@@ -21,13 +21,13 @@ struct BLEDevice : public ExerciseDevice { //0x360 bytes
     uint32_t GetPrefsID() override;
     void UnPair() override;
     void LogBleRxPacket(const protobuf::BLEPeripheralResponse &resp);
+    void LogBleTxPacket(const char *funcName, const char *devName, protobuf::BLEPeripheralRequest &req);
         /*void 
 void EndWorkout(void)
 void GetEliteSteeringComponent(void)
 void GetFirmwareUpdateProgress(void)
 void GetJetBlackSteeringComponent(void)
 void HubFirmwareUpdate(std::string,std::string,std::string)
-void LogBleTxPacket(char const*,char const*,zwift::protobuf::BLEPeripheralRequest &)
 void OnDeviceConnected(void)
 void OnDeviceDisconnected(void)
 void ProcessBLEData(zwift::protobuf::BLEPeripheralResponse const&)
@@ -80,6 +80,11 @@ void RequestUpdatedRSSIInfo(void)
 void StartWorkout(void)
 void SwapLegacyControlComponentForFTMS(void)
 */
+};
+struct RunPod_BLE : public BLEDevice { //0x878 bytes
+    RunPod_BLE(const std::string &devId, const std::string &devName, uint32_t charId, uint32_t hash, BLE_SOURCE src) : BLEDevice(devId, devName, charId, hash, src) {
+        //later
+    }
 };
 struct BLEModule : public EventObject {
     struct LegacyBLEImpl {

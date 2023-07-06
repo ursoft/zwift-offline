@@ -288,7 +288,7 @@ message BLEAdvertisementDataSection {
 message BLEPeripheral {
     optional string device_id = 1;
     optional string device_name = 2;
-    optional int32 f3 = 3;
+    optional int32 rssi = 3;
 }
 message BLEAdvertisement {
     optional BLEPeripheral per = 1;

@@ -9,8 +9,8 @@ DataRecorder::DataRecorder(Experimentation *exp, ZNet::NetworkService *net, Even
     auto c8 = GetComponent(RecorderComponent::T_8);
     if (c8)
         c8->Init(1.0f, 7200);
-    m_graphers[0] = new Grapher(GetComponent(RecorderComponent::T_2));
-    m_graphers[1] = new Grapher(GetComponent(RecorderComponent::T_9));
+    m_graphers[0] = new Grapher(GetComponent(RecorderComponent::T_RIDE_SPEED));
+    m_graphers[1] = new Grapher(GetComponent(RecorderComponent::T_RUN_SPEED));
     m_graphers[3] = new Grapher(GetComponent(RecorderComponent::T_3));
     m_graphers[2] = new Grapher(GetComponent(RecorderComponent::T_0));
     m_graphers[4] = new Grapher(GetComponent(RecorderComponent::T_4));
@@ -150,13 +150,16 @@ void RecorderComponent::Init(float timeBetweenPoints, uint32_t reserve) {
         m_dataPoints.reserve(reserve);
     m_dataPoints.clear();
 }
+bool check_float(float f) {
+    int fpclass = _fpclass(f);
+    return fpclass == _FPCLASS_PN || fpclass & _FPCLASS_NN || fpclass & _FPCLASS_NZ || fpclass & _FPCLASS_PZ;
+}
 void RecorderComponent::Update(float) {
     auto mb = BikeManager::Instance()->m_mainBike;
     auto bc = mb->m_bc;
     if (bc->m_bool) {
         if (m_type == T_1 || !bc->m_bool1) {
             float val = 0.0f;
-            int fpclass;
             if (m_nextPointTime <= 0.0f) {
                 switch (m_type) {
                 case T_0: case T_1:
@@ -164,10 +167,9 @@ void RecorderComponent::Update(float) {
                         val = bc->m_power;
                     AddDataPoint(val, m_curTime);
                     break;
-                case T_2:
-                    fpclass = _fpclass(bc->m_field_188);
-                    if (fpclass == _FPCLASS_PN || fpclass & _FPCLASS_NN || fpclass & _FPCLASS_NZ || fpclass & _FPCLASS_PZ)
-                        val = bc->m_field_188;
+                case T_RIDE_SPEED:
+                    if (check_float(bc->m_speed))
+                        val = bc->m_speed;
                     AddDataPoint(val, m_curTime);
                     break;
                 case T_3:
@@ -189,11 +191,10 @@ void RecorderComponent::Update(float) {
                 case T_8:
                     AddDataPointVEC3(mb->GetPosition(), m_curTime);
                     break;
-                case T_9:
+                case T_RUN_SPEED:
                     if (bc->m_sport == protobuf::RUNNING) {
-                        fpclass = _fpclass(bc->m_field_188);
-                        if (fpclass == _FPCLASS_PN || fpclass & _FPCLASS_NN || fpclass & _FPCLASS_NZ || fpclass & _FPCLASS_PZ)
-                            val = bc->m_field_188;
+                        if (check_float(bc->m_speed))
+                            val = bc->m_speed;
                         AddDataPoint(val, m_curTime);
                     }
                     break;
