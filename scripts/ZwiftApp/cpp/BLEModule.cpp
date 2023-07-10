@@ -7,10 +7,10 @@ bool IsNewBLEMiddlewareEnabled() {
     return g_bIsNewBLEMiddlewareEnabled;
 }
 bool JetBlackSteeringComponent::IsFeatureFlagEnabled() {
-    return Experimentation::IsEnabledCached<FID_ADDDEVI>();
+    return Experimentation::IsEnabledCached<FID_ADD_JB>();
 }
 bool IsWdcErrorDialogs() {
-    static bool ret = Experimentation::Instance()->IsEnabled(FID_WDCERRO);
+    static bool ret = Experimentation::Instance()->IsEnabled(FID_WDC_ERD);
     return ret;
 }
 void BLEDevice_StartSearchForLostDevices() {
@@ -38,12 +38,28 @@ FTMS_ControlComponent_v3 *CreateReplaceOrGetFTMSControlComponent_v3(BLEDevice *d
         auto pControllableTrainer = (TrainerControlComponent *)dev->FindComponentOfType(DeviceComponent::CPT_CTRL);
         if (pControllableTrainer) {
             zassert(pControllableTrainer->GetProtocolType() != TrainerControlComponent::ZAP_PROTOCOL);
-            if (pControllableTrainer->GetProtocolType() > TrainerControlComponent::P_1)
+            if (pControllableTrainer->GetProtocolType() > TrainerControlComponent::FTMS_V1)
                 return ret;
             dev->RemoveComponent(pControllableTrainer);
         }
         dev->m_field_1FE = true;
         ret = new FTMS_ControlComponent_v3(dev);
+        dev->AddComponent(ret);
+    }
+    return ret;
+}
+FTMS_ControlComponent_v2 *CreateReplaceOrGetFTMSControlComponent_v2(BLEDevice *dev) {
+    FTMS_ControlComponent_v2 *ret = nullptr;
+    if (dev) {
+        auto pControllableTrainer = (TrainerControlComponent *)dev->FindComponentOfType(DeviceComponent::CPT_CTRL);
+        if (pControllableTrainer) {
+            zassert(pControllableTrainer->GetProtocolType() != TrainerControlComponent::ZAP_PROTOCOL);
+            if (pControllableTrainer->GetProtocolType() > TrainerControlComponent::FTMS_V1)
+                return ret;
+            dev->RemoveComponent(pControllableTrainer);
+        }
+        dev->m_field_1FE = true;
+        ret = new FTMS_ControlComponent_v2(dev);
         dev->AddComponent(ret);
     }
     return ret;
@@ -401,7 +417,7 @@ void BLEDevice_ProcessBLEResponse(const protobuf::BLEPeripheralResponse &resp, B
         if (Device) {
             static uint32_t g_lastTY3ts;
             if (GFX_GetFrameCount() != g_lastTY3ts) {
-                g_lastTY3ts = GFX_GetFrameCount();
+                g_lastTY3ts = GFX_GetFrameCount(); //BLEDevice::OnDeviceConnected inlined
                 Device->SetPaired(true);
                 auto steer = (SensorValueComponent *)Device->FindComponentOfType(DeviceComponent::CPT_STEER);
                 if (steer && steer->GetSensorType() == ST_ELITE_STEER)
@@ -418,7 +434,7 @@ void BLEDevice_ProcessBLEResponse(const protobuf::BLEPeripheralResponse &resp, B
             Device->ProcessBLEData(resp);
         }
         break;
-    case protobuf::BL_TY_4:
+    case protobuf::BL_TY_4: //BLEDevice::OnDeviceDisconnected inlined
         if (Device) {
             Device->SetPaired(true);
             auto steer = (SensorValueComponent *)Device->FindComponentOfType(DeviceComponent::CPT_STEER);
@@ -605,7 +621,7 @@ struct BLEDeviceManager { //and BLEDeviceManagerWindows
         return ret;
     }
     void bleLoadDLL(uint16_t winBuild) {
-        static bool st_bNewBleDll = Experimentation::Instance()->IsEnabled(FID_BLEDLLV);
+        static bool st_bNewBleDll = Experimentation::Instance()->IsEnabled(FID_BLE_DL2);
         auto bleName = "BleWin10Lib_V2.dll";
         if (!st_bNewBleDll)
             bleName = "BleWin10Lib.dll";
@@ -815,7 +831,7 @@ void InitializeBLESearchParameters(protobuf::BLEPeripheralRequest *rq) {
     //} else {
     //    v4->add_chars()->set_id("A026E005-0A7D-4AB3-97FA-F1500F9FEB8B"s);
     //}
-    if (Experimentation::Instance()->IsEnabled(FID_FTMS)) {
+    if (Experimentation::Instance()->IsEnabled(FID_FTMS_RW)) {
         auto v33 = rq->add_servs();
         v33->set_id("0x181C"s);
         auto v36 = v33->add_chars();
@@ -1313,8 +1329,568 @@ void BLEDevice::SetPaired(bool p) {
     m_isPaired = p;
     m_field_2CC = false;
 }
-void BLEDevice::ProcessBLEData(const protobuf::BLEPeripheralResponse &resp) {
+void BLEDevice::ProcessCharacteristic(const protobuf::BLEPeripheralResponse &resp) {
+    LogBleRxPacket(resp);
+    m_last_time_ms = timeGetTime();
     //TODO
+}
+struct CharacteristicInfo {
+    const char *m_data;
+    uint32_t m_size;
+    std::string m_charId, m_deviceName, m_deviceId;
+    uint16_t GetData16(const void *p) const { return *(uint16_t *)p; }
+    //uint_t GetData16At(BLEDataPacketOffset) === GetData16At(uint32_t of)
+    uint16_t GetData16At(uint32_t of) const {
+        if (of + 2 <= m_size)
+            return GetData16(m_data + of);
+        LogTyped(LOG_BLE, "Error processing 0x%X (2 bytes) for \"%s\" at out-of-range offset %d (data size: %d)", m_charId.c_str(), m_deviceName.c_str(), of, m_size);
+        return 0;
+    }
+    uint32_t GetData32(const void *p) const { return *(uint32_t *)p; }
+    //uint32_t GetData32At(BLEDataPacketOffset) === GetData32At(uint32_t of)
+    uint32_t GetData32At(uint32_t of) const {
+        if (of + 4 <= m_size)
+            return GetData32(m_data + of);
+        LogTyped(LOG_BLE, "Error processing 0x%X (4 bytes) for \"%s\" at out-of-range offset %d (data size: %d)", m_charId.c_str(), m_deviceName.c_str(), of, m_size);
+        return 0;
+    }
+    uint8_t GetData8(const void *p) const { return *(uint8_t *)p; }
+    //uint8_t GetData8At(BLEDataPacketOffset) === GetData8At(uint32_t of)
+    uint8_t GetData8At(uint32_t of) const {
+        if (of < m_size)
+            return GetData8(m_data + of);
+        LogTyped(LOG_BLE, "Error processing 0x%X (1 byte) for \"%s\" at out-of-range offset %d (data size: %d)", m_charId.c_str(), m_deviceName.c_str(), of, m_size);
+        return 0;
+    }
+};
+void BLEDevice::ProcessSystemID(const CharacteristicInfo &) {
+    //later (System ID used for Milestone and "Zwift RunPod" only -> m_address
+}
+void BLEDevice::ProcessSerialID(const CharacteristicInfo &ci) {
+    if (isEliteSteering(m_name)) {
+        auto st = (EliteSteeringComponent *)FindComponentOfType(DeviceComponent::CPT_STEER);
+        if (st == nullptr || st->GetSensorType() != ST_ELITE_STEER)
+            AddComponent(new EliteSteeringComponent(this));
+    }
+    if (ci.m_size) {
+        m_address.reserve(ci.m_size);
+        for (uint32_t i = 0; i < ci.m_size; i++)
+            m_address[i] = std::toupper(ci.m_data[i]);
+    }
+}
+void BLEDevice::ProcessFirmwareVersion(const CharacteristicInfo &ci) {
+    if (ci.m_size) {
+        m_fwVersion.assign(ci.m_data, ci.m_size);
+        m_fwVersionInt = (uint32_t)_atoi64(ci.m_data);
+        Log("\"%s\" firmware version: %s", m_name, ci.m_data);
+        //OMIT BLEDevice::HubFirmwareUpdate
+    }
+}
+void BLEDevice::ProcessHardwareRevision(const CharacteristicInfo &ci) {
+    if (ci.m_size) {
+        m_hwRev.assign(ci.m_data, ci.m_size);
+        Log("\"%s\" firmware revision number: %s", m_name, ci.m_data);
+        //OMIT BLEDevice::HubFirmwareUpdate
+    }
+}
+void BLEDevice::ProcessSoftwareVersion(const CharacteristicInfo &ci) {
+    if (ci.m_size) {
+        m_swVersion.assign(ci.m_data, ci.m_size);
+        m_swVersionInt = (uint32_t)_atoi64(ci.m_data);
+        Log("\"%s\" software version number: %s", m_name, ci.m_data);
+    }
+}
+void BLEDevice::ProcessManufacturerName(const CharacteristicInfo &ci) {
+    if (ci.m_size) {
+        m_manufName.assign(ci.m_data, ci.m_size);
+        Log("Received manufacturer name \"%s\" from \"%s\"", ci.m_data, m_name);
+    }
+}
+void BLEDevice::ProcessHeartRate(const CharacteristicInfo &ci) {
+    auto hr = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_HR);
+    if (hr == nullptr) {
+        hr = new SensorValueComponent(DeviceComponent::CPT_HR);
+        AddComponent(hr);
+    }
+    if (ci.m_size && hr) {
+        if (ci.m_data[0] & 1)
+            hr->m_val = (float)ci.GetData16At(1);
+        else
+            hr->m_val = ci.m_data[1];
+    }
+}
+void BLEDevice::ProcessRunSpeedCadence(const CharacteristicInfo &ci) {
+    m_lastSpdTs = timeGetTime();
+    auto rs = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_RUN_SPD);
+    if (rs == nullptr) {
+        rs = new SensorValueComponent(DeviceComponent::CPT_RUN_SPD);
+        AddComponent(rs);
+    }
+    auto rc = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_RUN_CAD);
+    if (rc == nullptr) {
+        rc = new SensorValueComponent(DeviceComponent::CPT_RUN_CAD);
+        AddComponent(rc);
+    }
+    if (ci.m_size) {
+        auto spd = (float)ci.GetData16At(1) * 0.0140625f;
+        rs->m_val = (spd > 40.0f) ? 0.0f : spd;
+        auto cad = (uint8_t)ci.m_data[3];
+        if (rc) {
+            if ((spd > 2.0f && cad < 75) || (spd > 5.5f && cad < 105))
+                cad *= 2;
+            rc->m_bInitState = false;
+            rc->m_val = (float)cad;
+        }
+    }
+}
+void BLEDevice::ProcessSpeedCadence(const CharacteristicInfo &ci) {
+    if (ci.m_size) {
+        uint32_t offset = 1;
+        if (ci.m_data[0] & 1) { //Wheel Revolution Data Present bit
+            //TODO v28 = v2;
+            auto cumulativeWheelRevolutions = ci.GetData32At(1);
+            auto lastWheelEventTime = ci.GetData16At(5);
+            auto spd = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_SPD);
+            if (!spd) {
+                spd = new SensorValueComponent(DeviceComponent::CPT_SPD);
+                AddComponent(spd);
+            }
+            auto c7 = (Component_7 *)FindComponentOfType(DeviceComponent::CPT_7);
+            if (!c7) {
+                c7 = new Component_7();
+                AddComponent(c7);
+            }
+            offset = 7;
+            if (spd && c7) {
+                auto prevWET = m_lastWheelEventTime;
+                auto dCWR = cumulativeWheelRevolutions - m_cumulativeWheelRevolutions;
+                if (lastWheelEventTime == prevWET || !m_spdInitialized) {
+                    if (timeGetTime() - m_lastSpdTs > 3000) {
+                        spd->m_val = 0.0f;
+                        c7->m_deltaSec = 0.001000000047497451;
+                        c7->m_prevSpeed = 0.0;
+                        c7->m_curSpeed = 0.0;
+                        //TODO EventSystem::GetInst()->TriggerEvent(EV_SENS_DATA, 0, v21, v28);
+                    }
+                } else {
+                    auto deltaSec = (lastWheelEventTime - prevWET + ((lastWheelEventTime - prevWET < 0) ? 0xFFFF : 0)) * 0.0009765625;// /1024 -> sec
+                    auto tireL = std::max(2155u, BikeManager::Instance()->m_mainBike->m_bc->m_tireCirc);
+                    c7->m_packId = lastWheelEventTime;
+                    c7->m_packTs = lastWheelEventTime;
+                    auto spd_val = (tireL * (dCWR / deltaSec)) * 0.0022369362;// mph
+                    c7->m_prevSpeed = spd->m_val;
+                    c7->m_deltaSec = deltaSec;
+                    c7->m_curSpeed = spd_val;
+                    spd->m_val = spd_val;
+                    //TODO EventSystem::GetInst()->TriggerEvent(EV_SENS_DATA, 0, v19, v28);
+                    m_lastSpdTs2 = m_lastSpdTs = timeGetTime();
+                }
+                m_cumulativeWheelRevolutions = cumulativeWheelRevolutions;
+                m_lastWheelEventTime = lastWheelEventTime;
+                m_spdInitialized = true;
+                spd->m_bInitState = false;
+            }
+        }
+        if (ci.m_data[0] & 2) { //Crank Revolution Data Present bit
+            auto cumulativeCrankRevolutions = ci.GetData16At(offset);
+            auto lastCrankEventTime = ci.GetData16At(offset + 2);
+            auto cad = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_CAD);
+            if (!cad) {
+                cad = new SensorValueComponent(DeviceComponent::CPT_CAD);
+                AddComponent(cad);
+            }
+            auto prevCET = m_lastCrankEventTime;
+            if (lastCrankEventTime == prevCET || !m_cadInitialized) {
+                if (timeGetTime() - m_lastCadTs > 3000)
+                    cad->m_val = 0.0f;
+            } else {
+                auto cad_val = (61440.0 / (lastCrankEventTime - prevCET + ((lastCrankEventTime - prevCET < 0) ? 0xFFFF : 0)))
+                    * (cumulativeCrankRevolutions - m_cumulativeCrankRevolutions);
+                if (cad_val > 240.0)
+                    cad_val = 1.0;
+                cad->m_val = cad_val;
+                if (cad_val > 0.1)
+                    cad->m_bInitState = false;
+                m_lastCadTs = timeGetTime();
+            }
+            m_cumulativeCrankRevolutions = cumulativeCrankRevolutions;
+            m_lastCrankEventTime = lastCrankEventTime;
+            m_cadInitialized = true;
+        }
+    }
+}
+bool g_rolldownStarted;
+void BLEDevice::ProcessPower(const CharacteristicInfo &ci) {
+    if (!m_field_1FD) {
+        auto pm = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_PM);
+        if (!pm) {
+            pm = new SensorValueComponent(DeviceComponent::CPT_PM);
+            AddComponent(pm);
+        }
+        if (ci.m_size && pm) {
+            auto flags = ci.GetData16At(0);
+            auto power = ci.GetData16At(2);
+            if (strstr(m_name, "powertap P1.L") || strstr(m_name, "powertap P1.R") || strstr(m_name, "PowerBeat.L") || strstr(m_name, "PowerBeat.R") || strstr(m_name, "Polar PWR") || (strstr(m_name, "ASSIOMA") && strstr(m_name, "U")))
+                power *= 2;
+            uint32_t offset = (flags & 1) + 4; // 1: power balance (1 byte), 4 = 2 byte flags + 2 byte power
+            pm->m_val = power;
+            if (flags & 4) { //Accumulated Torque Present
+                auto torque = ci.GetData16At(offset); //QUEST: 32 bit in original, why?
+                if (torque == this->m_torque) {
+                    if (timeGetTime() - m_lastTorTs > 3000) {
+                        pm->m_val = 0.0;
+                        if (timeGetTime() - m_lastTorTs < 10000)
+                            LogTyped(LOG_BLE, "Crank power 3sec timeout");
+                    }
+                } else {
+                    m_lastTorTs = timeGetTime();
+                }
+                m_torque = torque;
+                offset = (flags & 1) + 6;
+            }
+            if (flags & 0x10 // Wheel Revolution Data Present 
+                && FitnessDeviceManager::m_pSelectedPowerDevice && FitnessDeviceManager::m_pSelectedPowerDevice->m_prefsID == m_prefsID) {
+                auto cumulativeWheelRevolutions = ci.GetData32At(offset);
+                auto lastWheelEventTime = ci.GetData16At(offset + 4);
+                offset += 6;
+                if (lastWheelEventTime != m_lastWheelEventTimePm && m_spdInitialized) {
+                    auto dt = lastWheelEventTime - m_lastWheelEventTimePm + ((lastWheelEventTime - m_lastWheelEventTimePm < 0) ? 0xFFFF : 0);
+                    auto tireCirc = std::max(2155u, BikeManager::Instance()->m_mainBike->m_bc->m_tireCirc);
+                    FitnessDeviceManager::m_SpindownSpeedInMPH = ((4.5812454f / dt) * (cumulativeWheelRevolutions - m_cumulativeWheelRevolutionsPm)) * tireCirc;
+                    //TODO EventSystem::GetInst()->TriggerEvent(EV_SENS_DATA, 0, v23, v38);
+                    if (FitnessDeviceManager::m_SpindownSpeedInMPH > 20.0 && !g_rolldownStarted) {
+                        g_rolldownStarted = true;
+                        auto kickr = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
+                        if (kickr && kickr->m_field_37) {
+                            ((KICKR_BLEM_ControlComponent *)kickr)->StartRolldown(5);
+                            Log("---- start rolldown");
+                        }
+                    }
+                }
+                m_cumulativeWheelRevolutionsPm = cumulativeWheelRevolutions;
+                m_lastWheelEventTimePm = lastWheelEventTime;
+                m_spdInitialized = true;
+            }
+            if (flags & 0x20) { // Crank Revolution Data Present
+                auto cumulativeCrankRevolutions = ci.GetData16At(offset);
+                auto crankEventTime = ci.GetData16At(offset + 2);
+                auto cad = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_CAD);
+                if (!cad) {
+                    cad = new SensorValueComponent(DeviceComponent::CPT_CAD);
+                    AddComponent(cad);
+                }
+                if (crankEventTime != m_lastCrankEventTime && m_cadInitialized) {
+                    auto cadVal = (61440.0 / (crankEventTime - m_lastCrankEventTime + ((crankEventTime - m_lastCrankEventTime < 0) ? 0xFFFF : 0)))
+                        * (cumulativeCrankRevolutions - this->m_cumulativeCrankRevolutions);
+                    if (cadVal > 240.0)
+                        cadVal = 1.0;
+                    cad->m_val = cadVal;
+                    cad->m_bInitState = false;
+                    m_lastCadTs = timeGetTime();
+                }
+                m_cumulativeCrankRevolutions = cumulativeCrankRevolutions;
+                m_lastCrankEventTime = crankEventTime;
+                m_cadInitialized = true;
+            }
+        }
+    }
+}
+void FTMS_ProcessMachineFeatures(BLEDevice *dev, const uint8_t *data, uint32_t size) {
+    if (dev && dev->m_field_11C != 1 && dev->m_field_118 != 4 && !strstr(dev->m_name, "WattbikeAtom") && !dev->m_field_200 && size >= 8) {
+        uint16_t flags = *data + (data[1] << 8);
+        if (flags & 2) {
+            auto cad = (SensorValueComponent *)dev->FindComponentOfType(DeviceComponent::CPT_CAD);
+            if (!cad) {
+                cad = new SensorValueComponent(DeviceComponent::CPT_CAD);
+                dev->AddComponent(cad);
+            }
+        }
+        if (flags & 0x400) {
+            auto hr = (SensorValueComponent *)dev->FindComponentOfType(DeviceComponent::CPT_HR);
+            if (hr == nullptr) {
+                hr = new SensorValueComponent(DeviceComponent::CPT_HR);
+                dev->AddComponent(hr);
+            }
+        }
+        if (flags & 8) {
+            auto c10 = (SensorValueComponent *)dev->FindComponentOfType(DeviceComponent::CPT_10);
+            if (c10 == nullptr) {
+                c10 = new SensorValueComponent(DeviceComponent::CPT_10);
+                dev->AddComponent(c10);
+            }
+        }
+        if (data[5] & 0x80) {
+            TrainerControlComponent *ftms;
+            if (Experimentation::IsEnabledCached<FID_FTMS_V3>())
+                ftms = CreateReplaceOrGetFTMSControlComponent_v3(dev);
+            else
+                ftms = CreateReplaceOrGetFTMSControlComponent_v2(dev);
+            if (ftms)
+                ftms->m_field_36 = true;
+        }
+    }
+}
+FTMS_ControlComponent *BLEDevice::SwapLegacyControlComponentForFTMS() {
+    auto ftms = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
+    if (ftms)
+        RemoveComponent(ftms);
+    auto new_ftms = new FTMS_ControlComponent(this);
+    AddComponent(new_ftms);
+    return new_ftms;
+}
+void BLEDevice::ProcessFTMSFeatures(const CharacteristicInfo &ci) {
+    if (Experimentation::IsEnabledCached<FID_HWEXP1>() || Experimentation::IsEnabledCached<FID_FTMS_V3>()) {
+        FTMS_ProcessMachineFeatures(this, (const uint8_t *)ci.m_data, ci.m_size);
+    } else if (!strstr(m_name, "WattbikeAtom") && m_field_118 != 4 && ci.m_size) {
+        auto v4 = *(uint32_t *)(ci.m_data + 4);
+        auto v5 = SwapLegacyControlComponentForFTMS();
+        if (v4 & 0x8000 && v5)
+            v5->m_field_36 = true;
+    }
+}
+void BLEDevice::ProcessFTMSTreadmillData(const CharacteristicInfo &ci) {
+    //later
+}
+void FTMS_ProcessBikeData(BLEDevice *dev, const uint8_t *data, uint32_t size) {
+    if (dev && dev->m_field_11C != 1 && dev->m_field_118 != 4 && !strstr(dev->m_name, "WattbikeAtom") && !dev->m_field_200 && size >= 2) {
+        uint16_t flags = *data + (data[1] << 8);
+        uint32_t offset = 2;
+        if ((flags & 1) == 0) {
+            offset += 2;
+            FitnessDeviceManager::m_SpindownSpeedInMPH = (data[2] + (data[3] << 8)) * 0.0062137097;
+        }
+        if (flags & 2)
+            offset += 2;
+        if (flags & 4) {
+            auto cadVal = (data[offset] + (data[offset + 1] << 8)) >> 1;
+            offset += 2;
+            auto cad = (SensorValueComponent *)dev->FindComponentOfType(DeviceComponent::CPT_CAD);
+            if (!cad) {
+                cad = new SensorValueComponent(DeviceComponent::CPT_CAD);
+                dev->AddComponent(cad);
+            }
+            cad->m_bInitState = false;
+            cad->m_val = cadVal;
+            dev->m_lastCadTs = timeGetTime();
+        }
+        if (flags & 8)
+            offset += 2;
+        if (flags & 0x10)
+            offset += 3;
+        if (flags & 0x20)
+            offset += 2;
+        if (flags & 0x40) {
+            dev->m_field_1FD = true;
+            auto pm = (SensorValueComponent *)dev->FindComponentOfType(DeviceComponent::CPT_PM);
+            if (!pm) {
+                pm = new SensorValueComponent(DeviceComponent::CPT_PM);
+                dev->AddComponent(pm);
+            }
+            pm->m_val = data[offset] + (data[offset + 1] << 8);
+            offset += 2;
+        }
+        if (flags & 0x80)
+            offset += 2;
+        if (flags & 0x100)
+            offset += 5;
+        if (flags & 0x200) {
+            if (data[offset] <= 254u) {
+                auto hr = (SensorValueComponent *)dev->FindComponentOfType(DeviceComponent::CPT_HR);
+                if (!hr) {
+                    hr = new SensorValueComponent(DeviceComponent::CPT_HR);
+                    dev->AddComponent(hr);
+                }
+                hr->m_val = data[offset];
+            }
+        }
+    }
+}
+void BLEDevice::ProcessFTMSBikeData(const CharacteristicInfo &ci) {
+    if (Experimentation::IsEnabledCached<FID_HWEXP1>() || Experimentation::IsEnabledCached<FID_FTMS_V3>()) {
+        FTMS_ProcessBikeData(this, (const uint8_t *)ci.m_data, ci.m_size);
+    } else {
+        assert(0); //old stuff
+    }
+}
+EliteSteeringComponent *BLEDevice::GetEliteSteeringComponent() {
+    auto ret = (EliteSteeringComponent *)FindComponentOfType(DeviceComponent::CPT_STEER);
+    if (!ret) {
+        ret = new EliteSteeringComponent(this);
+        AddComponent(ret);
+    }
+    return ret;
+}
+void FTMS_ProcessControlPoint(BLEDevice *dev, const uint8_t *data, uint32_t size, const std::string &charId) {
+    if (dev && dev->m_field_11C != 1 && dev->m_field_118 != 4 && !strstr(dev->m_name, "WattbikeAtom") && !dev->m_field_200) {
+        dev->m_scharId = charId;
+        if (/*expFID_FTMS_V3()*/true) {
+            auto f3 = CreateReplaceOrGetFTMSControlComponent_v3(dev);
+            if (!f3 || size <= 0 || *data != 0x80)
+                return;
+            if (size < 3) {
+                Log("[FTMS] Response from %s is missing data.", dev->m_name);
+                return;
+            }
+            if (f3->m_field_68 == 2) {
+                Log("[FTMS] Ignored response for opcode %d because the operation timed out.", data[1]);
+                return;
+            }
+            if (data[1] != f3->m_field_B38)
+                return;
+            auto v11 = size - 3;
+            if (data[1] < 0x80) {
+                if (v11 > 17) {
+                    Log("[FTMS] Error processing response code. Was expecting parameter data, but not with a size of %d.", v11);
+                    return;
+                }
+                /*TODO v15 = f3 + 21 * data[1];
+                v15[110] = data[2];
+                if (v11 > 0) {
+                    memmove(v15 + 112, data + 3, v11);
+                    v15[111] = v11;
+                }
+                v15[108] = 1;*/
+                return;
+            }
+            Log("[FTMS] Error processing response code. Was expecting opcode between 0x00 and 0x80, received %02X.", data[1]);
+        }
+        //OMIT FTMSv2
+    }
+}
+void BLEDevice::ProcessFTMSControlPoint(const CharacteristicInfo &ci) {
+    if (Experimentation::IsEnabledCached<FID_HWEXP1>() || Experimentation::IsEnabledCached<FID_FTMS_V3>()) {
+        FTMS_ProcessControlPoint(this, (const uint8_t *)ci.m_data, ci.m_size, ci.m_charId);
+    } else {
+        assert(0); //old stuff
+    }
+}
+void FTMS_ProcessMachineStatus(ExerciseDevice *dev, const uint8_t *data) {
+    if (dev && dev->m_field_11C != 1 && dev->m_field_118 != 4 && !strstr(dev->m_name, "WattbikeAtom") && !dev->m_field_200) {
+        if (data[0] == 0xFF) {
+            if (/*expFID_FTMS_V3()*/ true) {
+                auto ctrl = (TrainerControlComponent *)dev->FindComponentOfType(DeviceComponent::CPT_CTRL);
+                if (ctrl && ctrl->m_protocolType == TrainerControlComponent::FTMS_V3)
+                    ((FTMS_ControlComponent_v3 *)ctrl)->m_field_B3D = true;
+            } //OMIT else
+        }
+    }
+}
+void BLEDevice::ProcessFTMSMachineStatus(const CharacteristicInfo &ci) {
+    if (Experimentation::IsEnabledCached<FID_HWEXP1>() || Experimentation::IsEnabledCached<FID_FTMS_V3>()) {
+        FTMS_ProcessMachineStatus(this, (const uint8_t *)ci.m_data);
+    } else {
+        assert(0); //old stuff
+    }
+}
+void BLEDevice::ProcessTacxControlPoint(const CharacteristicInfo &ci) {
+    m_scharId = "6E40FEC3-B5A3-F393-E0A9-E50E24DCCA9E"s;
+    auto ctrl = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
+    if (!ctrl)
+        AddComponent(new TACX_BLE_ControlComponent(this));
+}
+
+void BLEDevice::ProcessBLEData(const protobuf::BLEPeripheralResponse &resp) {
+    static auto g_bleDataGuard_v2 = Experimentation::Instance()->IsEnabled(FID_BLE_DG2);
+    if (g_bleDataGuard_v2 == EXP_ENABLED)
+        return ProcessCharacteristic(resp);
+    uint32_t charId = 0;
+    auto &chr = resp.chr();
+    if (sscanf(chr.id().c_str(), "%x", &charId) != 1)
+        return Log("Error parsing characteristic id for \"%s\".", chr.id().c_str());
+    auto &val = chr.value();
+    CharacteristicInfo ci{ val.c_str(), (uint32_t)val.size(), chr.id(), resp.per().device_name(), resp.per().device_id() };
+    switch (charId) {
+    default:
+        Log("Unhandled characteristic %s for \"%s\"", chr.id().c_str(), m_name);
+        break;
+    case 0x2A1C:
+        break;
+    case 0x2A19:
+        if (!val.empty())
+            Log("\"%s\" battery level: %d%%", m_name, *val.c_str());
+        break;
+    case 0x2A23:
+        ProcessSystemID(ci);
+        break;
+    case 0x2A24:
+        m_modelNumber = (uint16_t)_atoi64(ci.m_data);
+        break;
+    case 0x2A25:
+        ProcessSerialID(ci);
+        break;
+    case 0x2A26:
+        ProcessFirmwareVersion(ci);
+        break;
+    case 0x2A27:
+        ProcessHardwareRevision(ci);
+        break;
+    case 0x2A28:
+        ProcessSoftwareVersion(ci);
+        break;
+    case 0x2A29u:
+        ProcessManufacturerName(ci);
+        break;
+    case 0x2A37:
+        ProcessHeartRate(ci);
+        break;
+    case 0x2A53:
+        ProcessRunSpeedCadence(ci);
+        break;
+    case 0x2A5B:
+        ProcessSpeedCadence(ci);
+        break;
+    case 0x2A63:
+        ProcessPower(ci);
+        break;
+    case 0x2A98: // Weight
+        if (Experimentation::Instance()->IsEnabled(FID_FTMS_RW) && ci.m_size && !m_riderWeight)
+            m_riderWeight = ci.GetData16At(0);
+        break;
+    case 0x2ACC:
+        ProcessFTMSFeatures(ci);
+        break;
+    case 0x2ACD:
+        ProcessFTMSTreadmillData(ci);
+        break;
+    case 0x2AD2:
+        ProcessFTMSBikeData(ci);
+        break;
+    case 0x2AD9:
+        ProcessFTMSControlPoint(ci);
+        break;
+    case 0x2ADA:
+        ProcessFTMSMachineStatus(ci);
+        break;
+    case 0x6E40FEC2: case 0x6E40FEC3:
+        ProcessTacxControlPoint(ci);
+        break;
+    case 0x347B0030: 
+        if (ci.m_size >= 4) {
+            auto es = GetEliteSteeringComponent();
+            if (es) {
+                auto st = ci.GetData32At(0);
+                if (st == (uint32_t)-1)
+                    es->m_val = 0.0f;
+                else
+                    es->m_val = st;
+            }
+        }
+        break;
+    case 0x347B0031:
+        GetEliteSteeringComponent();
+        break;
+    case 0x347B0032: {
+        auto es = GetEliteSteeringComponent();
+        if (es) {
+            if (ci.m_data[1] == 18) {
+                es->SendActivationCommand(ci.GetData32At(2));
+            } else if (ci.m_data[1] == 19 && ci.m_data[2] == 255) {
+                es->OnDeviceActivated();
+                LogTyped(LOG_BLE, "Elite Sterzo Activation: Success");
+            }
+        }}
+        break;
+    }
 }
 void BLEDevice::Pair(bool) {
     switch (m_bleSrc) {
@@ -1515,12 +2091,12 @@ void BLEDevice::LogBleTxPacket(char const *funcName, char const *devName, protob
     }
 }
 int g_RunSensorSecondsSincePacket;
-ExpVariant g_expFID_HWEXPER = EXP_NONE;
+ExpVariant g_expFID_HW_EXPERIMENT1 = EXP_NONE;
 bool expFID_HWEXPER() {
-    if (g_expFID_HWEXPER != EXP_NONE)
-        return g_expFID_HWEXPER == EXP_ENABLED;
-    g_expFID_HWEXPER = Experimentation::Instance()->IsEnabled(FID_HWEXPER, EXP_UNASSIGNED);
-    return g_expFID_HWEXPER == EXP_ENABLED;
+    if (g_expFID_HW_EXPERIMENT1 != EXP_NONE)
+        return g_expFID_HW_EXPERIMENT1 == EXP_ENABLED;
+    g_expFID_HW_EXPERIMENT1 = Experimentation::Instance()->IsEnabled(FID_HWEXP1, EXP_UNASSIGNED);
+    return g_expFID_HW_EXPERIMENT1 == EXP_ENABLED;
 }
 void BLEDevice::Update(float f) {
     auto cad = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_CAD);
@@ -1549,13 +2125,13 @@ void BLEDevice::Update(float f) {
             }
         }
     }
-    if (Experimentation::IsEnabledCached<FID_FTMSBIK>()) {
+    if (Experimentation::IsEnabledCached<FID_FTMS_V3>()) {
         auto ct = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
         if (ct && ct->m_protocolType == TrainerControlComponent::FTMS_V3)
             ct->Update(f);
     } else if (expFID_HWEXPER()) {
         auto ct = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
-        if (ct && ct->m_protocolType == TrainerControlComponent::P_2)
+        if (ct && ct->m_protocolType == TrainerControlComponent::FTMS_V2)
             ct->Update(f);
     }
 }
@@ -1605,12 +2181,175 @@ BLEDevice::BLEDevice(const std::string &devId, const std::string &devName, uint3
         AddComponent(new JetBlackSteeringComponent(this));
     //later: experimentals
 }
+void EliteSteeringComponent::SetUpdateFrequency() {
+    if (m_parent) {
+        Log("EliteSteeringComponent::SetUpdateFrequency() New Frequency 30HZ");
+        protobuf::BLEPeripheralRequest req;
+        req.set_type(protobuf::WRITE_CHARACTERISTIC_VALUE);
+        auto per = req.mutable_per();
+        per->set_device_id(m_parent->m_devId);
+        auto serv = req.add_servs();
+        serv->set_id("347B0001-7635-408B-8918-8FF3949CE592"s);
+        auto chr = serv->add_chars();
+        chr->set_id("347B0031-7635-408B-8918-8FF3949CE592"s);
+        chr->set_value("\x2\x2"s); //30hz
+        BLEDevice::LogBleTxPacket("EliteSteeringComponent::SetUpdateFrequency", m_parent->m_name, req);
+        BLEModule::Instance()->SendValueToDevice(req, m_parent->m_bleSrc);
+    }
+}
+void EliteSteeringComponent::SendActivationCommand(uint32_t cmd) {
+    m_ts = timeGetTime();
+    if (m_field_30 == 1 && m_parent) {
+        if (cmd == (_rotl(m_field_3C, m_field_3C % 0xBu) ^ (m_field_3C + 385505047))) {
+            protobuf::BLEPeripheralRequest req;
+            req.set_type(protobuf::WRITE_CHARACTERISTIC_VALUE);
+            auto per = req.mutable_per();
+            per->set_device_id(m_parent->m_devId);
+            auto serv = req.add_servs();
+            serv->set_id("347B0001-7635-408B-8918-8FF3949CE592"s);
+            auto chr = serv->add_chars();
+            chr->set_id("347B0031-7635-408B-8918-8FF3949CE592"s);
+            std::string val("\x3\x13\0\0\0\0"s);
+            chr->set_value(val);
+            *(uint32_t *)(val.data() + 2) = (cmd + 385505047) ^ _rotl(cmd, cmd % 0xB);
+            chr->set_value(val);
+            const char *src = "Unknown";
+            switch (m_parent->m_bleSrc) {
+            case BLES_ZCA:
+                src = "ZC BLE";
+                break;
+            case BLES_BUILTIN:
+                src = "Native BLE";
+                break;
+            case BLES_ZH:
+                src = "HUB BLE";
+                break;
+            }
+            Log("EliteSteeringComponent::SendActivationCommand() Sending via %s", src);
+            BLEModule::Instance()->SendValueToDevice(req, m_parent->m_bleSrc);
+            m_field_30 = 2;
+        } else if (++m_field_40 > 4u) {
+            m_field_30 = 4;
+        }
+    }
+}
+void EliteSteeringComponent::SetCenter() {
+    if (m_parent) {
+        protobuf::BLEPeripheralRequest req;
+        req.set_type(protobuf::WRITE_CHARACTERISTIC_VALUE);
+        auto per = req.mutable_per();
+        per->set_device_id(m_parent->m_devId);
+        auto serv = req.add_servs();
+        serv->set_id("347B0001-7635-408B-8918-8FF3949CE592"s);
+        auto chr = serv->add_chars();
+        chr->set_id("347B0031-7635-408B-8918-8FF3949CE592"s);
+        chr->set_value("\x1"s);
+        if (m_parent) {
+            BLEDevice::LogBleTxPacket("EliteSteeringComponent::SetCenter", m_parent->m_name, req);
+            BLEModule::Instance()->SendValueToDevice(req, m_parent->m_bleSrc);
+        }
+    }
+}
+void EliteSteeringComponent::DisplayDialog(const char *title, const char *msg) {
+    /* TODO
+    result = GUI_CreateTwoButtonsDialog(
+             GetText("LOC_OK", nullptr),
+             0LL,
+             title,
+             msg,
+             0LL,
+             (__int64)DisplayedDialogCallback,
+             1,
+             0,
+             -1.0,
+             0.0,
+             0.0,
+             0.0);
+  if ( !result )
+    return result;
+  *(_DWORD *)(result + 388) = 1064849900;
+  *(_DWORD *)(result + 332) = 1053609165;*/
+}
+void EliteSteeringComponent::HandleNoResponse() {
+    char buffer[0x200];
+    this->m_field_30 = 5;
+    sprintf_s(buffer, GetText("LOC_FIRMWARE_UPDATE_MAY_BE_REQUIRED_FOR_NEW_VERSION_OF_ZWIFT"), m_parent->m_name);
+    EliteSteeringComponent::DisplayDialog(GetText("LOC_HARDWARE_PROBLEM_TITLE"), buffer);
+}
+void EliteSteeringComponent::SendActivationRequest(uint32_t rq) {
+    m_ts = timeGetTime();
+    if (!m_field_30 && m_parent) {
+        protobuf::BLEPeripheralRequest req;
+        req.set_type(protobuf::WRITE_CHARACTERISTIC_VALUE);
+        auto per = req.mutable_per();
+        per->set_device_id(m_parent->m_devId);
+        auto serv = req.add_servs();
+        serv->set_id("347B0001-7635-408B-8918-8FF3949CE592"s);
+        auto chr = serv->add_chars();
+        chr->set_id("347B0031-7635-408B-8918-8FF3949CE592"s);
+        std::string val("\x3\x12\0\0\0\0"s);
+        chr->set_value(val);
+        *(uint32_t *)(val.data() + 2) = rq;
+        chr->set_value(val);
+        BLEDevice::LogBleTxPacket("EliteSteeringComponent::SendActivationRequest", m_parent->m_name, req);
+        const char *src = "Unknown";
+        switch (m_parent->m_bleSrc) {
+        case BLES_ZCA:
+            src = "ZC BLE";
+            break;
+        case BLES_BUILTIN:
+            src = "Native BLE";
+            break;
+        case BLES_ZH:
+            src = "HUB BLE";
+            break;
+        }
+        Log("EliteSteeringComponent::SendActivationRequest() Sending via %s", src);
+        BLEModule::Instance()->SendValueToDevice(req, m_parent->m_bleSrc);
+        m_field_30 = 1;
+        m_field_34 = timeGetTime();
+    }
+}
+bool EliteSteeringComponent::FirmwareUpdateRequired() {
+    return false; //OMIT FWU
+}
+void EliteSteeringComponent::HandleActivationRequest() {
+    auto t = timeGetTime();
+    if (m_parent->IsPaired())
+        m_parent->m_last_time_ms = t;
+    if (m_field_30 != 3 && m_field_30 != 5) {
+        if (strstr(m_parent->m_name, "RIZER")) {
+            m_field_30 = 3;
+            return SetUpdateFrequency();
+        }
+        if (!FirmwareUpdateRequired()) {
+            if (m_field_30 == 4)
+                return HandleImpostor();
+            if (m_parent == FitnessDeviceManager::m_pSelectedSteeringDevice) {
+                if (t - m_ts > 30000)
+                    return HandleNoResponse();
+            } else {
+                m_ts = t;
+            }
+            if (t - m_field_34 > 2000) {
+                m_field_30 = 0;
+                SendActivationRequest(m_field_3C);
+            }
+        }
+    }
+}
+void EliteSteeringComponent::HandleImpostor() {
+    char buffer[0x200];
+    this->m_field_30 = 5;
+    sprintf_s(buffer, GetText("LOC_IMPOSTOR_HARDWARE_DETECTED"), m_parent->m_name);
+    EliteSteeringComponent::DisplayDialog(GetText("LOC_HARDWARE_PROBLEM_TITLE"), buffer);
+}
 
 TEST(SmokeTestBLE, Init_V1) {
     auto     evSysInst = EventSystem::GetInst();
     Experimentation::Initialize(evSysInst);
     auto exp = Experimentation::Instance();
-    exp->m_fsms[FID_BLEDLLV].m_enableStatus = EXP_DISABLED;
+    exp->m_fsms[FID_BLE_DL2].m_enableStatus = EXP_DISABLED;
     BLEModule::Initialize(exp);
     EXPECT_TRUE(BLEModule::IsInitialized());
     BLEModule::Instance()->InitializeBLE();
@@ -1628,7 +2367,7 @@ TEST(SmokeTestBLE, Init_V2) {
     auto     evSysInst = EventSystem::GetInst();
     Experimentation::Initialize(evSysInst);
     auto exp = Experimentation::Instance();
-    exp->m_fsms[FID_BLEDLLV].m_enableStatus = EXP_ENABLED;
+    exp->m_fsms[FID_BLE_DL2].m_enableStatus = EXP_ENABLED;
     BLEModule::Initialize(exp);
     BLEModule::Instance()->PurgeDeviceList(); //neg branch
     EXPECT_FALSE(BLEModule::Instance()->IsScanning()); //neg branch
@@ -1653,7 +2392,7 @@ TEST(SmokeTestBLE, Scan) {
     auto     evSysInst = EventSystem::GetInst();
     Experimentation::Initialize(evSysInst);
     auto exp = Experimentation::Instance();
-    exp->m_fsms[FID_BLEDLLV].m_enableStatus = EXP_ENABLED;
+    exp->m_fsms[FID_BLE_DL2].m_enableStatus = EXP_ENABLED;
     BLEModule::Initialize(exp);
     BLEModule::Instance()->PurgeDeviceList(); //neg branch
     EXPECT_FALSE(BLEModule::Instance()->IsScanning()); //neg branch

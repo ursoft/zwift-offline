@@ -316,13 +316,16 @@ bool TrainerControlComponent::IsFitTech() {
         return m_owner->m_field_11C == 1; //not sure
     return false;
 }
-
+FTMS_ControlComponent::FTMS_ControlComponent(BLEDevice *dev) : m_bleDevice(dev) {
+    m_protocolType = FTMS_V1;
+    assert(false); //later or OMIT
+}
 FTMS_ControlComponent_v3::FTMS_ControlComponent_v3(BLEDevice *dev) : m_bleDevice(dev) {
     m_protocolType = FTMS_V3;
     m_field_28 = 1;
     m_gradeLookAheadSecs = 1.5f;
     m_field_40 = 1.0f;
-    m_FID_FSF = Experimentation::Instance()->IsEnabled(FID_FSF);
+    m_FID_FTMS_SD_fix = Experimentation::Instance()->IsEnabled(FID_FTMS_SD);
     m_field_B18 = 60;
     m_field_B38 = -1;
     if (m_bleDevice) {
@@ -331,6 +334,9 @@ FTMS_ControlComponent_v3::FTMS_ControlComponent_v3(BLEDevice *dev) : m_bleDevice
     } else {
         Log("Device configured for new FTMS indoor bike trainer implementation (v3).");
     }
+}
+FTMS_ControlComponent_v2::FTMS_ControlComponent_v2(BLEDevice *) /* : m_bleDevice(dev)*/ {
+    assert(0); //later or OMIT
 }
 bool FitnessDeviceManager::TrainerSetGradeLookAheadSecs(float f) {
     if (m_pSelectedControllableTrainerDevice && timeGetTime() - m_pSelectedControllableTrainerDevice->m_last_time_ms >= 5000) {

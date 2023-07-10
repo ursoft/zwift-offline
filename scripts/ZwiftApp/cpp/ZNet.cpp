@@ -8365,7 +8365,7 @@ void ZNETWORK_INTERNAL_ProcessPhoneInput() {
             break;
         case protobuf::U_TURN:
             zassert(exp);
-            if (exp->IsEnabled(FID_ALLOWUT) || mainBike->m_bc->m_speed > 5.0f)
+            if (exp->IsEnabled(FID_EN_LSUT) || mainBike->m_bc->m_speed > 5.0f)
                 RouteComputer::FlipRoute(mainBike);
             break;
         case protobuf::FAN_VIEW: {

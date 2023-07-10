@@ -17,7 +17,7 @@ bool Thread::SetCurrentThreadName(LPCWSTR name) {
     return ret;
 }
 void Thread::Initialize(Experimentation *exp) {
-    exp->IsEnabled(FID_SETTHRE, [](ExpVariant val) {
+    exp->IsEnabled(FID_SET_TN, [](ExpVariant val) {
         if (val == EXP_ENABLED) {
             Thread::SetThreadNamingEnabled(true);
             Thread::SetCurrentThreadNameOnce(L"main");

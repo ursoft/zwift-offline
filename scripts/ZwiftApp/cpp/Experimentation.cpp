@@ -17,101 +17,101 @@ const FeatureMetadata g_featureMetadata[FID_CNT] = { //FillFeatureMetadata
     { FID_HIDE_HD, "game_1_28_display_pr_hud_in_dynamic_workouts", 0, 0, 2, 2, 7 }, //variants.txt simple bool.true
     { FID_FIXLEAD, "game_1_28_fix_leaderboard_hud_starting_display_road_time", 0, 0, 2, 2, 7 }, //variants.txt simple bool.true
     { FID_REND_P,  "game_1_28_render_profile_screen_drop_down_box_title_text", 0, 0, 2, 2, 7 }, //variants.txt simple bool.true
-    { FID_AVOIDAB, "game_1_28_avoid_aborting_current_timing_sector_when_minimizing", 0, 0, 2, 2, 7 }, //variants.txt simple bool.true
-    { FID_INTEGRA, "game_1_29_integrate_road_and_bike_type_into_braking_performance", 0, 0, 3, 3, 8 }, //variants.txt simple bool.false
-    { FID_USERELA, "game_1_29_use_relay_spline_time_in_meetup_position_late_joiner", 0, 0, 3, 3, 8 }, //variants.txt simple bool.true
+    { FID_AVOID_A, "game_1_28_avoid_aborting_current_timing_sector_when_minimizing", 0, 0, 2, 2, 7 }, //variants.txt simple bool.true
+    { FID_INTEG_B, "game_1_29_integrate_road_and_bike_type_into_braking_performance", 0, 0, 3, 3, 8 }, //variants.txt simple bool.false
+    { FID_USE_RST, "game_1_29_use_relay_spline_time_in_meetup_position_late_joiner", 0, 0, 3, 3, 8 }, //variants.txt simple bool.true
     { FID_IGNOREP, "game_1_29_ignore_private_meetups_in_group_event_processing_logic", 0, 0, 3, 3, 8 }, //variants.txt simple bool.true
-    { FID_CLEARPO, "game_1_30_clear_powerups_on_event_start", 0, 0, 5, 5, 9 }, //variants.txt simple bool.true
-    { FID_ENABLEA, "game_1_32_enable_autobraking_in_watopia", 0, 0, 7, 7, 9 }, //variants.txt simple bool.false
+    { FID_CLEAR_P, "game_1_30_clear_powerups_on_event_start", 0, 0, 5, 5, 9 }, //variants.txt simple bool.true
+    { FID_ENAB_BR, "game_1_32_enable_autobraking_in_watopia", 0, 0, 7, 7, 9 }, //variants.txt simple bool.false
     { FID_WNS,     "game_1_31_workout_network_service", 0, 1, 6, 6, 9 }, //variants.txt simple bool.false
     { FID_ENABLEJ, "game_1_31_enable_join_zwifter", 0, 0, 6, 6, 9 }, //variants.txt simple bool.true
     { FID_MRB_V2,  "game_1_32_meetups_rubberbanding_v2", 0, 0, 7, 7, 9 }, //variants.txt simple bool.false
     { FID_NINETYD, "game_1_26_ninety_day_prs" }, //variants.txt simple bool.true
-    { FID_DRAFTLO, "game_1_14_draftlock_fix" }, //variants.txt simple bool.false
+    { FID_DL_FIX,  "game_1_14_draftlock_fix" }, //variants.txt simple bool.false
     { FID_PPV,     "xplatform_partner_connection_vitality" }, //variants.txt simple bool.false
     { FID_ASSERTD, "game_1_15_assert_disable_abort" }, //variants.txt simple bool.true
     { FID_NOESISE, "game_1_17_noesis_enabled" }, //variants.txt "value": true, "values": { "fields": { "RenderDevice": { "varintValue": "0" } } }
-    { FID_SETTING, "game_1_14_settings_refactor" }, //variants.txt simple bool.true
+    { FID_SET_REF, "game_1_14_settings_refactor" }, //variants.txt simple bool.true
     { FID_HOMESCR, "game_1_20_home_screen" }, //variants.txt simple bool.true
     { FID_PERFANA, "game_1_21_perf_analytics" }, //variants.txt simple bool.true
     { FID_FORYOUC, "game_1_30_for_you_carousel" }, //variants.txt simple bool.false
     { FID_SYSTEMA, "game_1_19_system_alerts" }, //variants.txt simple bool.true
     { FID_BLEALT,  "game_1_16_2_ble_alternate_unpair_all_paired_devices" }, //variants.txt simple bool.true
     { FID_TDFFEM,  "game_1_17_1_tdf_femmes_yellow_jersey" }, //variants.txt simple bool.false
-    { FID_BLEDISA, "game_1_17_ble_disable_component_sport_filter" }, //variants.txt simple bool.true
+    { FID_BLE_NOF, "game_1_17_ble_disable_component_sport_filter" }, //variants.txt simple bool.true
     { FID_NEWWELC, "game_1_18_new_welcome_ride" }, //variants.txt simple bool.false
     { FID_HOLIDAY, "game_1_18_holiday_mode" }, //variants.txt simple bool.true
     { FID_PACKDY,  "game_1_18_0_pack_dynamics_2_5_collision_push_back_removal" }, //variants.txt simple bool.true
     { FID_OSXMON,  "game_1_18_0_osx_monterey_bluetooth_uart_fix" }, //variants.txt has also values.boolValue:false
-    { FID_DEFAUL,  "game_1_19_0_default_rubberbanding" }, //variants.txt simple bool.false
-    { FID_USETABB, "game_1_19_use_tabbed_settings" }, //variants.txt has also values.boolValue:false
-    { FID_HWEXPER, "game_1_20_hw_experiment_1" }, //variants.txt simple bool.true
-    { FID_PAIREDD, "game_1_19_paired_devices_alerts" }, //variants.txt simple bool.true
-    { FID_REALTIM, "game_1_19_real_time_unlocks" }, //variants.txt simple bool.true
-    { FID_BLEDATA, "game_1_21_ble_data_guard_v2" }, //variants.txt simple bool.false
-    { FID_MIX,     "game_1_20_disable_high_volume_send_mixpanel" }, //variants.txt simple bool.false
-    { FID_ADDDEVI, "game_1_21_add_device_jet_black_swb" }, //variants.txt simple bool.true
-    { FID_CLICKAB, "game_1_20_clickable_telemetry_box" }, //variants.txt simple bool.true
-    { FID_ENABLE,  "game_1_20_0_enable_stages_steering" }, //variants.txt has also values.boolValue:false
-    { FID_HUDHIG,  "game_1_21_0_hud_highlighter" }, //variants.txt simple bool.false
-    { FID_GPUDEP,  "game_1_21_0_gpu_deprecation_warning_message" }, //variants.txt simple bool.true
-    { FID_FTMS,    "game_1_21_ftms_set_rider_weight" }, //variants.txt simple bool.true
-    { FID_BLEDLLV, "game_1_27_ble_dll_v2" }, //variants.txt simple bool.true
-    { FID_ALLOWUT, "game_1_22_allow_uturns_at_low_speed" }, //variants.txt simple bool.false
-    { FID_FTMSSP,  "game_1_21_0_ftms_sport_filter" }, //variants.txt simple bool.false
-    { FID_FTMSBIK, "game_1_21_ftms_bike_trainer_v3" }, //variants.txt simple bool.true
+    { FID_DEF_RB,  "game_1_19_0_default_rubberbanding" }, //variants.txt simple bool.false
+    { FID_USE_TS,  "game_1_19_use_tabbed_settings" }, //variants.txt has also values.boolValue:false
+    { FID_HWEXP1,  "game_1_20_hw_experiment_1" }, //variants.txt simple bool.true
+    { FID_PAIR_DA, "game_1_19_paired_devices_alerts" }, //variants.txt simple bool.true
+    { FID_RT_UNL,  "game_1_19_real_time_unlocks" }, //variants.txt simple bool.true
+    { FID_BLE_DG2, "game_1_21_ble_data_guard_v2" }, //variants.txt simple bool.false
+    { FID_MIXP,    "game_1_20_disable_high_volume_send_mixpanel" }, //variants.txt simple bool.false
+    { FID_ADD_JB,  "game_1_21_add_device_jet_black_swb" }, //variants.txt simple bool.true
+    { FID_CLICK_T, "game_1_20_clickable_telemetry_box" }, //variants.txt simple bool.true
+    { FID_ENA_SS,  "game_1_20_0_enable_stages_steering" }, //variants.txt has also values.boolValue:false
+    { FID_HUD_HL,  "game_1_21_0_hud_highlighter" }, //variants.txt simple bool.false
+    { FID_GPU_DEP, "game_1_21_0_gpu_deprecation_warning_message" }, //variants.txt simple bool.true
+    { FID_FTMS_RW, "game_1_21_ftms_set_rider_weight" }, //variants.txt simple bool.true
+    { FID_BLE_DL2, "game_1_27_ble_dll_v2" }, //variants.txt simple bool.true
+    { FID_EN_LSUT, "game_1_22_allow_uturns_at_low_speed" }, //variants.txt simple bool.false
+    { FID_FTMS_SF, "game_1_21_0_ftms_sport_filter" }, //variants.txt simple bool.false
+    { FID_FTMS_V3, "game_1_21_ftms_bike_trainer_v3" }, //variants.txt simple bool.true
     { FID_LOG_BLE, "log_ble_packets" }, //variants.txt simple bool.false
     { FID_WAHOOD,  "game_1_23_3_wahoo_direct_connect_trainer" }, //variants.txt simple bool.true
     { FID_WAP,     "game_1_23_workout_auto_pause" }, //variants.txt "values": { "fields": { "workoutAutoPauseTime": { "numberValue": 3.0 }, "rampUpTime" : { "numberValue": 10.0 }, "minERGModeDisableTime" : { "numberValue": 5.0 }, "reenableERGPowerThreshold" : { "numberValue": 10.0 } } }
     { FID_WBE,     "game_1_24_workout_blocks_extendable" }, //variants.txt simple bool.false
-    { FID_UNIVERS, "game_1_23_universal_start_line_for_time_based_event" }, //variants.txt simple bool.true
-    { FID_BLE_EXC, "game_1_30_ble_cycling_speed_pairing_exception" }, //variants.txt simple bool.true
+    { FID_UNI_SL,  "game_1_23_universal_start_line_for_time_based_event" }, //variants.txt simple bool.true
+    { FID_BLE_CSE, "game_1_30_ble_cycling_speed_pairing_exception" }, //variants.txt simple bool.true
     { FID_DWOW,    "game_1_24_display_workout_of_the_week_card" }, //variants.txt simple bool.true
     { FID_DRWC,    "game_1_24_display_recommended_workout_cards" }, //variants.txt simple bool.true
-    { FID_PART,    "game_training_partners" }, //variants.txt "value": true, "values": { "fields": { "route_spawning_enabled": { "boolValue": false }, "screenshots_enabled" : { "boolValue": true }, "SOLO_WORKOUT_recording_disabled" : { "boolValue": false }, "spawn_enabled" : { "boolValue": true }, "route_recording_enabled" : { "boolValue": false }, "recording_enabled" : { "boolValue": true } } }
+    { FID_TR_PART, "game_training_partners" }, //variants.txt "value": true, "values": { "fields": { "route_spawning_enabled": { "boolValue": false }, "screenshots_enabled" : { "boolValue": true }, "SOLO_WORKOUT_recording_disabled" : { "boolValue": false }, "spawn_enabled" : { "boolValue": true }, "route_recording_enabled" : { "boolValue": false }, "recording_enabled" : { "boolValue": true } } }
     { FID_URR,     "game_upload_route_results_v2" }, //variants.txt simple bool.true
-    { FID_WDCERRO, "game_1_25_wdc_error_dialogs" }, //variants.txt simple bool.false
-    { FID_EXTENDE, "game_1_25_extended_pedal_asssit" }, //variants.txt "value": true, "values": { "fields": { "initialDropInTime": { "numberValue": 10000.0 }, "extendedDropInTime" : { "numberValue": 60000.0 }, "initialDropInFrames" : { "numberValue": 1000.0 } }
-    { FID_FLATGRA, "game_1_25_flat_grade_while_in_ui" }, //variants.txt simple bool.false
-    { FID_ANDROID, "game_1_25_android_ant_force_fec", 1, 0, 0, 0, 0 }, //variants.txt: not found - deprecated
-    { FID_WD,      "game_1_28_watchdog_timer" }, //variants.txt "values": { "fields": { "mainTimeoutInterval": { "numberValue": 30.0 }, "loadingTimeoutInterval" : { "numberValue": 60.0 }, "reportTimeoutsOnLoad" : { "boolValue": false }, "renderTimeoutInterval" : { "numberValue": 30.0 }, "abortEnabled" : { "boolValue": false } } }
+    { FID_WDC_ERD, "game_1_25_wdc_error_dialogs" }, //variants.txt simple bool.false
+    { FID_EXT_PAS, "game_1_25_extended_pedal_asssit" }, //variants.txt "value": true, "values": { "fields": { "initialDropInTime": { "numberValue": 10000.0 }, "extendedDropInTime" : { "numberValue": 60000.0 }, "initialDropInFrames" : { "numberValue": 1000.0 } }
+    { FID_FLAT_UI, "game_1_25_flat_grade_while_in_ui" }, //variants.txt simple bool.false
+    { FID_AND_FEC, "game_1_25_android_ant_force_fec", 1, 0, 0, 0, 0 }, //variants.txt: not found - deprecated
+    { FID_WDT,     "game_1_28_watchdog_timer" }, //variants.txt "values": { "fields": { "mainTimeoutInterval": { "numberValue": 30.0 }, "loadingTimeoutInterval" : { "numberValue": 60.0 }, "reportTimeoutsOnLoad" : { "boolValue": false }, "renderTimeoutInterval" : { "numberValue": 30.0 }, "abortEnabled" : { "boolValue": false } } }
     { FID_CLUBATT, "game_1_26_club_attribution" }, //variants.txt simple bool.true
-    { FID_FIXTRAI, "game_1_27_fix_training_plan_summary_no_stats" }, //variants.txt simple bool.false
+    { FID_FIX_TPS, "game_1_27_fix_training_plan_summary_no_stats" }, //variants.txt simple bool.false
     { FID_EVENTSU, "game_1_26_event_survey", 1, 0, 0, 0, 0 }, //variants.txt: not found - deprecated
     { FID_BLEMIDD, "game_1_29_ble_middleware" }, //variants.txt simple bool.false
-    { FID_MEMORAB, "game_1_26_memorable_screenshots" }, //variants.txt simple bool.true
-    { FID_ATVREMO, "game_1_27_atv_remote_gestures" }, //variants.txt "value": true, "values": { "fields": { "ATVPopDelay": { "numberValue": 0.15 }, "ATVPopInitDelay" : { "numberValue": 0.22 }, "ATVPopInitDist" : { "numberValue": 250.0 }, "ATVMoveSensitivity" : { "varintValue": "5" }, "ATVFriction" : { "numberValue": 0.9 }, "ATVPopDist" : { "numberValue": 175.0 } }
-    { FID_HARDWAR, "game_1_27_hardware_restriction" }, //variants.txt simple bool.true
-    { FID_GOALNOT, "game_1_27_goal_notable_moment" }, //variants.txt simple bool.true
-    { FID_HUBFIRM, "game_1_28_hub_firmware_update" }, //variants.txt simple bool.true
-    { FID_FSF,     "game_ftms_spindown_fix" }, //variants.txt simple bool.true
-    { FID_DYNAMIC, "game_1_27_dynamic_campaigns_filter" }, //variants.txt simple bool.false
-    { FID_BOUT,    "bike_override_using_triggers" }, //variants.txt simple bool.true
-    { FID_KOUT,    "kit_override_using_triggers" }, //variants.txt simple bool.false
-    { FID_GETSTAR, "game_1_29_get_started_workouts" }, //variants.txt simple bool.false
-    { FID_EVENTCO, "game_1_28_event_core_feed_service" }, //variants.txt simple bool.false
-    { FID_FTMSROA, "game_1_28_ftms_road_grade_lookahead_time_exposed" }, //variants.txt simple bool.false
-    { FID_WT2,     "workout_training_v2_release" }, //variants.txt simple bool.true
-    { FID_TRAININ, "game_1_29_training_partners_survey", 1, 0, 0, 0, 0 }, //variants.txt: not found - deprecated
+    { FID_MEM_SCR, "game_1_26_memorable_screenshots" }, //variants.txt simple bool.true
+    { FID_ATV_RG,  "game_1_27_atv_remote_gestures" }, //variants.txt "value": true, "values": { "fields": { "ATVPopDelay": { "numberValue": 0.15 }, "ATVPopInitDelay" : { "numberValue": 0.22 }, "ATVPopInitDist" : { "numberValue": 250.0 }, "ATVMoveSensitivity" : { "varintValue": "5" }, "ATVFriction" : { "numberValue": 0.9 }, "ATVPopDist" : { "numberValue": 175.0 } }
+    { FID_HW_RSTR, "game_1_27_hardware_restriction" }, //variants.txt simple bool.true
+    { FID_GOAL_NM, "game_1_27_goal_notable_moment" }, //variants.txt simple bool.true
+    { FID_HUB_FWU, "game_1_28_hub_firmware_update" }, //variants.txt simple bool.true
+    { FID_FTMS_SD, "game_ftms_spindown_fix" }, //variants.txt simple bool.true
+    { FID_DYNA_CF, "game_1_27_dynamic_campaigns_filter" }, //variants.txt simple bool.false
+    { FID_BO_TRIG, "bike_override_using_triggers" }, //variants.txt simple bool.true
+    { FID_KO_TRIG, "kit_override_using_triggers" }, //variants.txt simple bool.false
+    { FID_GS_WKO,  "game_1_29_get_started_workouts" }, //variants.txt simple bool.false
+    { FID_EV_CSF,  "game_1_28_event_core_feed_service" }, //variants.txt simple bool.false
+    { FID_FTMS_LA, "game_1_28_ftms_road_grade_lookahead_time_exposed" }, //variants.txt simple bool.false
+    { FID_WKO_TR2, "workout_training_v2_release" }, //variants.txt simple bool.true
+    { FID_TR_PRTS, "game_1_29_training_partners_survey", 1, 0, 0, 0, 0 }, //variants.txt: not found - deprecated
     { FID_HANDCYC, "game_1_29_hand_cycle" }, //variants.txt simple bool.true
     { FID_EVENTCA, "game_1_29_event_carousel" }, //variants.txt "value": true, "values": { "fields": { "NUM_CARDS": { "varintValue": "6" } } }
-    { FID_SETTHRE, "game_1_29_set_thread_names" }, //variants.txt simple bool.false
-    { FID_EVENTQU, "game_1_29_event_query_interval" }, //variants.txt "value": true, "values": { "fields": { "GROUP_EVENT_QUERY_RATE_SECONDS": { "numberValue": 15.0 } } }
-    { FID_BLECYCL, "game_1_30_ble_cycling_speed_pairing_opt" }, //variants.txt simple bool.true
-    { FID_NEWLOCA, "game_1_29_new_local_trainer_profile" }, //variants.txt simple bool.false
-    { FID_FIXSTUC, "game_1_29_fix_stuck_zpower" }, //variants.txt simple bool.true
-    { FID_CLIENTR, "game_1_29_client_recommendations" }, //variants.txt simple bool.true
+    { FID_SET_TN,  "game_1_29_set_thread_names" }, //variants.txt simple bool.false
+    { FID_EVENTQI, "game_1_29_event_query_interval" }, //variants.txt "value": true, "values": { "fields": { "GROUP_EVENT_QUERY_RATE_SECONDS": { "numberValue": 15.0 } } }
+    { FID_BLE_CSP, "game_1_30_ble_cycling_speed_pairing_opt" }, //variants.txt simple bool.true
+    { FID_NEW_LTP, "game_1_29_new_local_trainer_profile" }, //variants.txt simple bool.false
+    { FID_FIX_SZP, "game_1_29_fix_stuck_zpower" }, //variants.txt simple bool.true
+    { FID_CL_REC,  "game_1_29_client_recommendations" }, //variants.txt simple bool.true
     { FID_GWP,     "game_workout_partners" }, //variants.txt simple bool.false
     { FID_LEVEL60, "game_1_29_level_60_cap_raise" }, //variants.txt simple bool.true
     { FID_PLAYERH, "game_1_29_player_hightlight" }, //variants.txt simple bool.false
     { FID_POS_G,   "game_1_30_position_accuracy_over_network_global" }, //variants.txt simple bool.false
     { FID_POS_L,   "game_1_30_position_accuracy_over_network_london" }, //variants.txt simple bool.false
     { FID_LO_WM,   "game_1_29_logout_for_windows_and_mac" }, //variants.txt simple bool.true
-    { FID_PACKDYN, "game_1_30_pack_dynamics_v4" }, //variants.txt "value": true, "values": { "fields": { "reducedPowerPercentage": { "numberValue": 98.0 }, "powerCeilingPercentage" : { "numberValue": 110.0 }, "speedDifferenceHigh" : { "numberValue": 3.0 }, "brakingAmount" : { "numberValue": 0.5 }, "cdaPenaltyMultiplier" : { "numberValue": 1.0 }, "downhillSlopeLimit" : { "numberValue": -200.0 }, "minDraftLimitFlat" : { "varintValue": "39" }, "minSpeedLimitDown" : { "numberValue": 45.0 }, "minSpeedLimitFlat" : { "numberValue": 26.0 }, "minSpeedLimitShallowDown" : { "numberValue": 38.0 }, "minDraftLimitDown" : { "varintValue": "95" }, "minDraftLimitShallowDown" : { "varintValue": "44" } } }
-    { FID_CAMPAIG, "game_1_30_campaign_fullscreen_modal" }, //variants.txt "value": true, "values": { "fields": { "shortNames": { "stringValue": "tomi2022,tdz2023ride" } } }
-    { FID_ENABLES, "game_1_30_enable_scale_setting_for_mobile" }, //variants.txt simple bool.false
-    { FID_SETDEFA, "game_1_30_set_default_mobile_scale_to_small" }, //variants.txt simple bool.true
-    { FID_PD4,     "game_1_32_pack_dynamics_v4_global" } // "value": true, "values": { "fields": { "watopia": { "boolValue": false }, "auto_braking_visuals" : { "boolValue": false }, "double_draft_global" : { "boolValue": false }, "global" : { "boolValue": false }, "auto_braking_visuals_events" : { "boolValue": true }, "makuri" : { "boolValue": false } } }
+    { FID_PD_V4,   "game_1_30_pack_dynamics_v4" }, //variants.txt "value": true, "values": { "fields": { "reducedPowerPercentage": { "numberValue": 98.0 }, "powerCeilingPercentage" : { "numberValue": 110.0 }, "speedDifferenceHigh" : { "numberValue": 3.0 }, "brakingAmount" : { "numberValue": 0.5 }, "cdaPenaltyMultiplier" : { "numberValue": 1.0 }, "downhillSlopeLimit" : { "numberValue": -200.0 }, "minDraftLimitFlat" : { "varintValue": "39" }, "minSpeedLimitDown" : { "numberValue": 45.0 }, "minSpeedLimitFlat" : { "numberValue": 26.0 }, "minSpeedLimitShallowDown" : { "numberValue": 38.0 }, "minDraftLimitDown" : { "varintValue": "95" }, "minDraftLimitShallowDown" : { "varintValue": "44" } } }
+    { FID_CMP_FSM, "game_1_30_campaign_fullscreen_modal" }, //variants.txt "value": true, "values": { "fields": { "shortNames": { "stringValue": "tomi2022,tdz2023ride" } } }
+    { FID_MOB_SCA, "game_1_30_enable_scale_setting_for_mobile" }, //variants.txt simple bool.false
+    { FID_MOB_SMA, "game_1_30_set_default_mobile_scale_to_small" }, //variants.txt simple bool.true
+    { FID_PD_4GLB, "game_1_32_pack_dynamics_v4_global" } // "value": true, "values": { "fields": { "watopia": { "boolValue": false }, "auto_braking_visuals" : { "boolValue": false }, "double_draft_global" : { "boolValue": false }, "global" : { "boolValue": false }, "auto_braking_visuals_events" : { "boolValue": true }, "makuri" : { "boolValue": false } } }
 };
 const char *Feature::c_str() { return c_str(m_id); }
 const char *Feature::c_str(FeatureID id) {

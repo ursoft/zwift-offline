@@ -39,23 +39,24 @@ C:\Users\builder\AppData\Roaming\OpenCppCoverage\config.json
 
 current decompilation stats
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-future/lib/total code(kb): 9352/7012/16364, badNames=39764; libs/total: 55%: 34618/62119
-future/lib/total code(kb): 9173/7191/16364, badNames=38464; libs/total: 56%: 35017/62119
-future/lib/total code(kb): 9149/7214/16364, badNames=38269; libs/total: 56%: 35168/62119 - protobuf constructors
-future/lib/total code(kb): 9149/7214/16364, badNames=37623; libs/total: 56%: 35168/62119 - protobuf vtable names
-future/lib/total code(kb): 9110/7253/16364, badNames=37250; libs/total: 56%: 35246/62119 - 1:1 (1st iter)
-future/lib/total code(kb): 9094/7270/16364, badNames=37214; libs/total: 56%: 35346/62119 - done with TcpClient
-future/lib/total code(kb): 9068/7296/16364, badNames=37155; libs/total: 57%: 35419/62119 - done with AuxiliaryController
-future/lib/total code(kb): 8997/7367/16364, badNames=37100; libs/total: 57%: 35708/62119 - NetworkClientImpl 30%
-future/lib/total code(kb): 8959/7404/16364, badNames=37062; libs/total: 57%: 35846/62119 - NetworkClientImpl 70%
-future/lib/total code(kb): 8932/7432/16364, badNames=36989; libs/total: 57%: 35913/62119 - NetworkClientImpl 100%, NETWORK_* and DataRecorder 10%
-future/lib/total code(kb): 8888/7477/16365, badNames=36921; libs/total: 57%: 36025/62129 - NetworkService & RPCs: 100%
-future/lib/total code(kb): 8818/7546/16365, badNames=36895; libs/total: 58%: 36253/62129 - ZNet: 100%
-future/lib/total code(kb): 8810/7555/16365, badNames=36895; libs/total: 58%: 36265/62129 - DataRecorder 95%
-future/lib/total code(kb): 8776/7588/16364, badNames=36770; libs/total: 58%: 36345/62107 - ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute
-future/lib/total code(kb): 8756/7608/16364, badNames=36640; libs/total: 58%: 36395/62107 - ZNETWORK_INTERNAL_ProcessPhoneInput 50%
-future/lib/total code(kb): 8740/7624/16364, badNames=36609; libs/total: 58%: 36420/62107 - ZNETWORK_*: 100%, CNL unit tests 19%
-future/lib/total code(kb): 8735/7629/16364, badNames=36586; libs/total: 58%: 36443/62107 - XMLDoc unit tests 99%, CNL unit tests 38%
-future/lib/total code(kb): 8677/7687/16364, badNames=36412; libs/total: 59%: 36683/62107 - Started BLE
+future/lib/total code(kb): 9352/07012/16364, badNames=39764; libs/total: 55%: 34618/62119
+future/lib/total code(kb): 9173/07191/16364, badNames=38464; libs/total: 56%: 35017/62119
+future/lib/total code(kb): 9149/07214/16364, badNames=38269; libs/total: 56%: 35168/62119 - protobuf constructors
+future/lib/total code(kb): 9149/07214/16364, badNames=37623; libs/total: 56%: 35168/62119 - protobuf vtable names
+future/lib/total code(kb): 9110/07253/16364, badNames=37250; libs/total: 56%: 35246/62119 - 1:1 (1st iter)
+future/lib/total code(kb): 9094/07270/16364, badNames=37214; libs/total: 56%: 35346/62119 - done with TcpClient
+future/lib/total code(kb): 9068/07296/16364, badNames=37155; libs/total: 57%: 35419/62119 - done with AuxiliaryController
+future/lib/total code(kb): 8997/07367/16364, badNames=37100; libs/total: 57%: 35708/62119 - NetworkClientImpl 30%
+future/lib/total code(kb): 8959/07404/16364, badNames=37062; libs/total: 57%: 35846/62119 - NetworkClientImpl 70%
+future/lib/total code(kb): 8932/07432/16364, badNames=36989; libs/total: 57%: 35913/62119 - NetworkClientImpl 100%, NETWORK_* and DataRecorder 10%
+future/lib/total code(kb): 8888/07477/16365, badNames=36921; libs/total: 57%: 36025/62129 - NetworkService & RPCs: 100%
+future/lib/total code(kb): 8818/07546/16365, badNames=36895; libs/total: 58%: 36253/62129 - ZNet: 100%
+future/lib/total code(kb): 8810/07555/16365, badNames=36895; libs/total: 58%: 36265/62129 - DataRecorder 95%
+future/lib/total code(kb): 8776/07588/16364, badNames=36770; libs/total: 58%: 36345/62107 - ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute
+future/lib/total code(kb): 8756/07608/16364, badNames=36640; libs/total: 58%: 36395/62107 - ZNETWORK_INTERNAL_ProcessPhoneInput 50%
+future/lib/total code(kb): 8740/07624/16364, badNames=36609; libs/total: 58%: 36420/62107 - ZNETWORK_*: 100%, CNL unit tests 19%
+future/lib/total code(kb): 8735/07629/16364, badNames=36586; libs/total: 58%: 36443/62107 - XMLDoc unit tests 99%, CNL unit tests 38%
+future/lib/total code(kb): 8677/07687/16364, badNames=36412; libs/total: 59%: 36683/62107 - Started BLE
+future/lib/total code(kb): 5850/10514/16364, badNames=36389; libs/total: 66%: 41378/62107 - OMITted all BLE devices except FTMS, Elite steering and TACX
 
 NEXT: CNL unit tests, BLE & ANT, GFX

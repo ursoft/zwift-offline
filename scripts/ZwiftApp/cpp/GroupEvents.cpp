@@ -1,10 +1,10 @@
 #include "ZwiftApp.h"
 void GroupEvents::Initialize(Experimentation *exp) {
-    exp->IsEnabled(FID_EVENTCO, [](ExpVariant val) {
-        //TODO doClientTelemetryFID_EVENTCO
+    exp->IsEnabled(FID_EV_CSF, [](ExpVariant val) {
+        //OMIT doClientTelemetryFID_EVENTCO
         });
-    exp->IsEnabled(FID_EVENTQU, [](ExpVariant val) {
-        //TODO doClientTelemetryEVENTQU
+    exp->IsEnabled(FID_EVENTQI, [](ExpVariant val) {
+        //OMIT doClientTelemetryEVENTQU
         });
 }
 void GroupEvents::Shutdown() {

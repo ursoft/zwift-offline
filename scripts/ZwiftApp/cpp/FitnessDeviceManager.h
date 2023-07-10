@@ -34,7 +34,7 @@ struct WFTNPDeviceManager {
 };
 struct DeviceComponent { //24 (0x18) bytes
     ExerciseDevice *m_owner = nullptr;
-    enum ComponentType { CPT_SPD = 0, CPT_CAD = 1, CPT_RUN_SPD = 2, CPT_RUN_CAD = 3, CPT_HR = 4, CPT_5 = 5, CPT_PM = 6, CPT_7 = 7, CPT_CTRL = 8, CPT_9 = 9, CPT_STEER = 16 } m_type = CPT_SPD;
+    enum ComponentType { CPT_SPD = 0, CPT_CAD = 1, CPT_RUN_SPD = 2, CPT_RUN_CAD = 3, CPT_HR = 4, CPT_5 = 5, CPT_PM = 6, CPT_7 = 7, CPT_CTRL = 8, CPT_9 = 9, CPT_10 = 10, CPT_STEER = 16 } m_type = CPT_SPD;
     int m_packId = -999, m_packTs = 0, m_field_20 /*TODO:enum*/= 0;
     bool m_bInitState = true;
     DeviceComponent(ComponentType ct = CPT_SPD) : m_type(ct) {}
@@ -71,7 +71,7 @@ struct TrainerControlComponent : public DeviceComponent { //0x68 bytes
     virtual void ShiftChainRing(ShiftDirection) { /*empty*/ } //[15]
     virtual void Shift_EZTap_Event(bool, ShiftDirection) { /*empty*/ } //[16]
     virtual void Shift_ZTap_Event(bool, ShiftDirection) { /*empty*/ } //[17]
-    enum ProtocolType { P_0, P_1, P_2, FTMS_V3, P_4, ZAP_PROTOCOL = 5 } m_protocolType = P_0;
+    enum ProtocolType { P_0, FTMS_V1, FTMS_V2, FTMS_V3, P_4, ZAP_PROTOCOL = 5 } m_protocolType = P_0;
     ProtocolType GetProtocolType() { return m_protocolType; }
     TrainerControlComponent() : DeviceComponent(DeviceComponent::CPT_CTRL) {}
     bool IsFitTech();
@@ -79,7 +79,7 @@ struct TrainerControlComponent : public DeviceComponent { //0x68 bytes
     int64_t m_field_2C = -1;
     float m_gradeLookAheadSecs = 0.0f, m_riderWeightKG = 73.0f, m_gradePercent = 0.0f, m_field_40 = 0.0f, m_field_58 = 0.004f, m_field_5C = 0.368f, m_lastTimeSec = 0.0f;
     int m_field_20 = 11 /*TODO:enum*/, m_field_28 = 0, m_erg = 0;
-    bool m_field_34 = true, m_field_35 = true, m_field_36 = false;
+    bool m_field_34 = true, m_field_35 = true, m_field_36 = false, m_field_37 = false;
     char m_field_60 = 2;
 };
 struct SarisControlComponent : public TrainerControlComponent { //0x78 bytes, PC only
@@ -218,6 +218,7 @@ struct KICKR_BLEM_ControlComponent : public TrainerControlComponent { //0x78 byt
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
     void SetWindSpeed(float) override { /*empty*/ } //[09]
+    void StartRolldown(int) { /*TODO*/ }
 };
 struct KINETIC_BLE_ControlComponent : public TrainerControlComponent { //0x78 bytes
     void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
@@ -236,6 +237,8 @@ struct FTMS_ControlComponent : public TrainerControlComponent { //0x78 bytes
     void SetSimulationMode() override { /*empty*/ } //[04]
     void SetSimulationGrade(float) override {} //[08]
     void SetWindSpeed(float) override { /*empty*/ } //[09]
+    FTMS_ControlComponent(BLEDevice *dev);
+    BLEDevice *m_bleDevice;
 };
 struct FTMS_ControlComponent_v2 : public TrainerControlComponent { //0xA40 bytes
     void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
@@ -251,13 +254,14 @@ struct FTMS_ControlComponent_v2 : public TrainerControlComponent { //0xA40 bytes
     void Update(float) override {} //[10]
     float m_windSpeed = 0.0f;
     bool m_bSpinDown = false;
+    FTMS_ControlComponent_v2(BLEDevice *dev);
 };
 struct FTMS_ControlComponent_v3 : public TrainerControlComponent { //0xB40 bytes
     float m_windSpeed = 0.0f;
     int m_field_68 = 0; //TODO: enum
     void ProcessANTEvent(uint8_t) override { /*empty*/ } //[00]
     void InitSpindown() override { //[01]
-        if (m_FID_FSF) {
+        if (m_FID_FTMS_SD_fix) {
             if (m_field_68 > 8 && m_field_68 < 15)
                 return;
             m_bSpinDown = true;
@@ -270,7 +274,7 @@ struct FTMS_ControlComponent_v3 : public TrainerControlComponent { //0xB40 bytes
     void SetSimulationMode() override {} //[04]
     void SetSimulationGrade(float) override {} //[08]
     void SetWindSpeed(float f) override { //[09]
-        if (m_FID_FSF && m_field_20 <= 7)
+        if (m_FID_FTMS_SD_fix && m_field_20 <= 7)
             return;
         m_field_20 = 3;
         m_windSpeed = f;
@@ -278,7 +282,7 @@ struct FTMS_ControlComponent_v3 : public TrainerControlComponent { //0xB40 bytes
     void Update(float) override {} //[10]
     BLEDevice *m_bleDevice;
     int m_field_B18;
-    bool m_FID_FSF, m_bSpinDown = false;
+    bool m_FID_FTMS_SD_fix, m_bSpinDown = false, m_field_B3D = false;
     char m_field_B38;
     FTMS_ControlComponent_v3(BLEDevice *dev);
     /*FTMS_ControlComponent_v3::CheckState_BikeSimMode(float)
@@ -363,8 +367,9 @@ struct SensorValueComponent : public DeviceComponent { //40 (0x28) bytes
     float m_val = 0.f;
     int gap;
 };
-struct Component_7 : public DeviceComponent { //48 (0x30) bytes
+struct Component_7 : public DeviceComponent { //48 (0x30) bytes - AccelerationComponent?
     using DeviceComponent::DeviceComponent;
+    double m_prevSpeed = 0.0, m_curSpeed = 0.0, m_deltaSec = 0.0;
 };
 struct Component_9 : public DeviceComponent { //80 (0x50) bytes
     using DeviceComponent::DeviceComponent;
@@ -378,10 +383,30 @@ struct Bowflex_BLE_ControlComponent : public SensorValueComponent { //56 (0x38) 
 struct EliteSteeringComponent : public SensorValueComponent { //72 (0x48) bytes
     SensorType GetSensorType() override { return ST_ELITE_STEER; }
     BLEDevice *m_parent;
-    uint32_t m_ts = 0;
+    uint32_t m_ts, m_field_30 /*TODO:enum*/ = 0, m_field_34 = 0, m_field_40 = 0, m_field_3C;
     EliteSteeringComponent(BLEDevice *parent) : SensorValueComponent(CPT_STEER), m_parent(parent) {
-        //TODO
+        m_ts = timeGetTime();
+        srand(m_ts);
+        auto v5 = rand();
+        rand();
+        auto v6 = rand();
+        m_field_3C = (v5 << 16) | v6;
     }
+    void OnDeviceActivated() {
+        m_field_30 = 3;
+        SetUpdateFrequency();
+    }
+    void SendActivationCommand(uint32_t cmd);
+    void SetUpdateFrequency();
+    void SetCenter();
+    void SendActivationRequest(uint32_t rq);
+    //inlined void OnConnect();
+    void HandleNoResponse();
+    void HandleActivationRequest();
+    void HandleImpostor();
+    //inlined void OnDisconnect();
+    bool FirmwareUpdateRequired();
+    static void DisplayDialog(const char *, const char *);
 };
 struct JetBlackSteeringComponent : public SensorValueComponent { //72 (0x48) bytes
     SensorType GetSensorType() override { return ST_JB_STEER; }
@@ -397,13 +422,14 @@ struct ExerciseDevice { //0x290 bytes
     char m_nameIdBuf[128]{};
     std::vector<DeviceComponent *> m_components;
     //OMIT std::vector<std::string> m_devAnalytics;
-    std::string m_str1, m_str2, m_str3, m_str4, m_address;
+    std::string m_manufName, m_hwRev, m_swVersion, m_fwVersion, m_address;
     std::mutex m_mutex;
-    uint32_t m_last_time_ms = 0, m_rssiTime = 0;
-    int m_rssi = 0, m_field_11C = 0;
+    uint32_t m_last_time_ms = 0, m_rssiTime = 0, m_fwVersionInt = 0;
+    int m_rssi = 0, m_field_11C = 0, m_field_118 = 0;
     uint32_t m_prefsID = (uint32_t)-1;
     DeviceProtocol m_protocol = DP_UNKNOWN;
-    bool m_hidden = false, m_is560017 = false, m_field_1FE = false, m_field_1FC = false, m_field_1FD = false;
+    uint16_t m_modelNumber = 0;
+    bool m_hidden = false, m_is560017 = false, m_field_1FE = false, m_field_1FC = false, m_field_1FD = false, m_field_200 = false;
     void UpdateTimeStamp(uint32_t ts) { m_last_time_ms = ts; }
     int GetTimeSinceLastSeen(uint32_t ts) { return int(ts - m_last_time_ms); }
     void SetSignalStrength(int rssi) {
@@ -493,6 +519,7 @@ struct FitnessDeviceManager {
     static inline std::vector<ExerciseDevice *> m_DeviceList;
     static inline ExerciseDevice *m_pSelectedHRDevice, *m_pSelectedDi2Device, *m_pSelectedPowerDevice, *m_pSelectedSpeedDevice, *m_pSelectedCadenceDevice, *m_pSelectedRunSpeedDevice, *m_pSelectedRunCadenceDevice, *m_pSelectedControllableTrainerDevice, *m_pSelectedSteeringDevice, *m_pSelectedBrakingDevice, *m_pSelectedAuthoritativeDevice;
     static inline uint32_t m_lastBLESearchTime;
+    static inline float m_SpindownSpeedInMPH;
     static inline std::mutex g_FDM_DeviceListMutex;
     static void TrainerSetSimGrade(float v);
     static void Initialize();
