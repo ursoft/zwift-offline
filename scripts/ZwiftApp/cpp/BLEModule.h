@@ -1,4 +1,4 @@
-//UT Coverage: 100%, 4/4
+//UT Coverage: 82%, 9/11, ENOUGH
 #pragma once
 inline bool g_BLE_LoggingON;
 void InitializeBLESearchParameters(protobuf::BLEPeripheralRequest *rq);
@@ -9,7 +9,7 @@ struct BLEDevice : public ExerciseDevice { //0x360 bytes
     std::string m_devId, m_nameId, m_scharId;
     BLE_SOURCE m_bleSrc = BLES_BUILTIN;
     uint32_t m_charId = 0, m_hash = 0, m_lastCadTs = 0, m_lastSpdTs = 0, m_lastTorTs = 0, m_lastSpdTs2 = 0, m_cumulativeWheelRevolutions = 0, m_cumulativeCrankRevolutions = 0, 
-        m_cumulativeWheelRevolutionsPm = 0, m_cumulativeCrankRevolutionsPm = 0, m_swVersionInt = 0, m_torque = 0, m_field_118 = 0 /*TODO:enum*/;
+        m_cumulativeWheelRevolutionsPm = 0, m_cumulativeCrankRevolutionsPm = 0, m_swVersionInt = 0, m_torque = 0;
     uint16_t m_lastWheelEventTime = 0, m_lastCrankEventTime = 0, m_lastWheelEventTimePm = 0, m_lastCrankEventTimePm = 0, m_riderWeight = 0;
     bool m_isPaired = false, m_field_2CC = false, m_field_29D = false, m_field_29C = false, m_spdInitialized = false, m_cadInitialized = false;
     BLEDevice(const std::string &devId, const std::string &devName, uint32_t charId, uint32_t hash, BLE_SOURCE src);

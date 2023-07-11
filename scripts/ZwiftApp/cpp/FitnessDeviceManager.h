@@ -1,3 +1,4 @@
+//UT Coverage: 23%, 31/137, NEED_MORE
 #pragma once
 enum BLE_SOURCE { BLES_BUILTIN = 0, BLES_ZCA = 1, BLES_ZH = 2, BLES_WFTN = 3, BLES_CNT };
 enum BLE_ERROR_TYPE { BLER_0 = 0 };
@@ -425,7 +426,7 @@ struct ExerciseDevice { //0x290 bytes
     std::string m_manufName, m_hwRev, m_swVersion, m_fwVersion, m_address;
     std::mutex m_mutex;
     uint32_t m_last_time_ms = 0, m_rssiTime = 0, m_fwVersionInt = 0;
-    int m_rssi = 0, m_field_11C = 0, m_field_118 = 0;
+    int m_rssi = 0, m_field_11C = 0, m_field_118 = -1 /*TODO:enum*/;
     uint32_t m_prefsID = (uint32_t)-1;
     DeviceProtocol m_protocol = DP_UNKNOWN;
     uint16_t m_modelNumber = 0;

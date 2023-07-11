@@ -1,3 +1,4 @@
+//UT Coverage: 42%, 159/376, NEED_MORE
 #include "ZwiftApp.h"
 void FitnessDeviceManager::TrainerSetSimGrade(float v) { 
     /*TODO*/ 
@@ -18,7 +19,10 @@ void FitnessDeviceManager::HandleBLEError(uint32_t hash, BLE_ERROR_TYPE err, uin
     //TODO
 }
 ExerciseDevice *FitnessDeviceManager::FindDevice(uint32_t hash) {
-    //TODO
+    std::lock_guard l(g_FDM_DeviceListMutex);
+    for (auto i : m_DeviceList)
+        if (i->m_prefsID == hash)
+            return i;
     return nullptr;
 }
 const char *DeviceComponent::GetTypeName(ComponentType ct) {
@@ -37,16 +41,8 @@ const char *DeviceComponent::GetTypeName(ComponentType ct) {
 ExerciseDevice::ExerciseDevice() {
     /*TODO:
     std::vector<12byte> m_cont12;
-
-    *this->field_8 = 0i64;
-    this->field_118 = -1;
-    *this->field_11C = 0i64;
     *&this->field_11C[8] = -65536;
-    *&this->field_11C[16] = 0i64;
-    *&this->field_11C[24] = 0i64;
     this->field_13C = 1.0;
-    *&this->field_11C[12] = 0;
-    this->field_200 = 0;
     */
 }
 ExerciseDevice::SignalStrengthGroup ExerciseDevice::GetSignalStrengthGroup() {
@@ -76,7 +72,7 @@ void ExerciseDevice::AddComponent(DeviceComponent *devComp) {
     } else if (m_protocol < DP_CNT) {
         v6 = g_devProtocol[m_protocol];
     }
-    Log("\"%s\" adding component type: %d (%s)", m_name, devComp->m_type, v6);
+    Log("\"%s\" (0x%x) adding component type: %d (%s)", m_name, m_prefsID, devComp->m_type, v6);
     if (FitnessDeviceManager::m_PairingSport) {
         if (FitnessDeviceManager::m_PairingSport == protobuf::RUNNING) {
             if (devComp->m_type == DeviceComponent::CPT_RUN_SPD) {
@@ -453,7 +449,7 @@ void TACX_BLE_ControlComponent::SetRoadTexture(RoadFeelType ty, float strength) 
         auto t = timeGetTime();
         if (t - g_lastTs > 5000 || (g_cnt < 3 && t - g_lastTs > 250)) {
             g_lastTs = t;
-            LogTyped(LOG_ANT, "BLE: Tacx set road texture %d (time=%d)", tacxTy, t);
+            LogTyped(LOG_ANT, "BLE: Tacx set road texture %d (time=%u)", tacxTy, t);
             std::string val("\xA4\x09\x4E\x05\xFC\0\0\x64\0\0\0\0\0"s);
             val[9] = (char)tacxTy;
             auto outcomew = uint16_t(outcome + 0.5f);

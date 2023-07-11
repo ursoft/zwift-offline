@@ -152,7 +152,7 @@ void RecorderComponent::Init(float timeBetweenPoints, uint32_t reserve) {
 }
 bool check_float(float f) {
     int fpclass = _fpclass(f);
-    return fpclass == _FPCLASS_PN || fpclass & _FPCLASS_NN || fpclass & _FPCLASS_NZ || fpclass & _FPCLASS_PZ;
+    return (fpclass == _FPCLASS_PN) || (fpclass & _FPCLASS_NN) || (fpclass & _FPCLASS_NZ) || (fpclass & _FPCLASS_PZ);
 }
 void RecorderComponent::Update(float) {
     auto mb = BikeManager::Instance()->m_mainBike;

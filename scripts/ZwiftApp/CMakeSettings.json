@@ -51,6 +51,16 @@
                     "name": "CMAKE_BUILD_TYPE",
                     "value": "RelWithDebInfo",
                     "type": "STRING"
+                },
+                {
+                    "name": "CMAKE_C_FLAGS_RELWITHDEBINFO",
+                    "value": "/Zi /Od /Ob0 /DNDEBUG",
+                    "type": "STRING"
+                },
+                {
+                    "name": "CMAKE_CXX_FLAGS_RELWITHDEBINFO",
+                    "value": "/Zi /Od /Ob0 /DNDEBUG",
+                    "type": "STRING"
                 }
             ]
         }

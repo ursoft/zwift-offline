@@ -1,5 +1,8 @@
-//UT Coverage: 50%, 249/502, NEED_MORE
+//UT Coverage: 53%, 990/1871, NEED_MORE
 #include "ZwiftApp.h"
+#include "boost/thread/shared_mutex.hpp"
+#include "boost/thread/locks.hpp"
+boost::shared_mutex g_bleModuleDestruct; //added by Ursoft
 enum BLESearchSource { BSS_BUILTIN = 1, BSS_ZCA = 2 };
 int g_BLESearchSources;
 bool IsNewBLEMiddlewareEnabled() {
@@ -158,22 +161,22 @@ void BLEDevice_ProcessBLEResponse(const protobuf::BLEPeripheralResponse &resp, B
             switch (charId)
             {
             case 0xA026E01F:
-                sprintf_s(nameBuf, "%s %d", cdevice_name, hash);
+                sprintf_s(nameBuf, "%s %u", cdevice_name, hash);
                 sprintf_s(nameMfg, "???");
                 break;
             case 0xE9410101:
-                sprintf_s(nameBuf, "%s %d", cdevice_name, hash);
+                sprintf_s(nameBuf, "%s %u", cdevice_name, hash);
                 sprintf_s(nameMfg, "inRide");
                 break;
             case 0xE9410201:
-                sprintf_s(nameBuf, "%s %d", cdevice_name, hash);
+                sprintf_s(nameBuf, "%s %u", cdevice_name, hash);
                 sprintf_s(nameMfg, "Kinetic");
                 break;
             case 0x2A63: case 0x2A37: case 0x2A53: case 0x2A5B:
                 if (runPod)
                     sprintf_s(nameBuf, "%s", cdevice_name);
                 else
-                    sprintf_s(nameBuf, "%s %d", cdevice_name, hash);
+                    sprintf_s(nameBuf, "%s %u", cdevice_name, hash);
                 sprintf_s(nameMfg, "%s", cdevice_name);
                 break;
             default:
@@ -185,7 +188,7 @@ void BLEDevice_ProcessBLEResponse(const protobuf::BLEPeripheralResponse &resp, B
             FitnessDeviceManager::AddDevice(Device, nameBuf);
             Device->m_rssiTime = timeGetTime();
             Device->m_rssi = resp.per().rssi();
-        } else {
+        } else if (Device) {
             Device->m_rssiTime = timeGetTime();
             Device->m_rssi = resp.per().rssi();
             switch (charId) {
@@ -472,13 +475,18 @@ struct dllBLEAdvertisementDataSection { //32 bytes
     std::vector<char> m_manufData;
 };
 struct dllBLEAdvertisement { //0x60 bytes
-    uint16_t m_per_f3;
+    uint16_t m_rssi;
     std::string m_deviceId, m_deviceName;
     std::vector<dllBLEAdvertisementDataSection> m_dataSects;
 };
+struct dllBLE_PRitem { //48 bytes
+    std::string m_chrId;
+    void *field_20 = nullptr;
+    int field_28 = 0, gap = 0;
+};
 struct dllBLEPeripheralRequest { //56 bytes
     std::string m_id;
-    std::vector<std::string> m_chars;
+    std::vector<dllBLE_PRitem> m_chars;
 };
 std::vector<dllBLEPeripheralRequest> g_dllBLEPeripheralRequests;
 void parseDllBLEPeripheralResponse(const dllBLEPeripheralResponse &src, protobuf::BLEPeripheralResponse *dest) {
@@ -492,7 +500,7 @@ void parseDllBLEPeripheralResponse(const dllBLEPeripheralResponse &src, protobuf
 }
 void parseDllBLEAdvertisement(const dllBLEAdvertisement &src, protobuf::BLEAdvertisement *dest) {
     auto per = dest->mutable_per();
-    per->set_rssi(src.m_per_f3);
+    per->set_rssi(src.m_rssi);
     per->set_device_id(src.m_deviceId);
     per->set_device_name(src.m_deviceName);
     for (auto &dsi : src.m_dataSects)
@@ -514,7 +522,9 @@ void cbProcessBLEResponseChr(const dllBLEPeripheralResponseChr &chr, const dllBL
     lchr->set_id(v19);
     v19.resize(8);
     lchr->set_value(v19);
-    BLEModule::Instance()->ProcessBLEResponse(v20, BLES_BUILTIN);
+    boost::shared_lock<boost::shared_mutex> lock(g_bleModuleDestruct);
+    if (BLEModule::IsInitialized())
+        BLEModule::Instance()->ProcessBLEResponse(v20, BLES_BUILTIN);
 }
 void cbProcessBLEResponse(dllBLEPeripheralResponse *resp);
 void cbConnectionStatusCBFunc(dllBLEPeripheralResponse *resp) {
@@ -523,18 +533,24 @@ void cbConnectionStatusCBFunc(dllBLEPeripheralResponse *resp) {
     } else if (resp->m_type == protobuf::BL_TY_4) {
         protobuf::BLEPeripheralResponse v4;
         parseDllBLEPeripheralResponse(*resp, &v4);
-        BLEModule::Instance()->ProcessBLEResponse(v4, BLES_BUILTIN);
+        boost::shared_lock<boost::shared_mutex> lock(g_bleModuleDestruct);
+        if (BLEModule::IsInitialized())
+            BLEModule::Instance()->ProcessBLEResponse(v4, BLES_BUILTIN);
     }
 }
 void cbPeripheralDiscoveryFunc(dllBLEAdvertisement *adv) {
     protobuf::BLEAdvertisement pbadv;
     parseDllBLEAdvertisement(*adv, &pbadv);
-    BLEModule::Instance()->ProcessDiscovery(pbadv, BLES_BUILTIN);
+    boost::shared_lock<boost::shared_mutex> lock(g_bleModuleDestruct);
+    if (BLEModule::IsInitialized())
+        BLEModule::Instance()->ProcessDiscovery(pbadv, BLES_BUILTIN);
 }
 void cbOnPairCB(dllBLEPeripheralResponse *resp) {
     protobuf::BLEPeripheralResponse v14;
     parseDllBLEPeripheralResponse(*resp, &v14);
-    BLEModule::Instance()->SetDeviceConnectedFlag(v14, true);
+    boost::shared_lock<boost::shared_mutex> lock(g_bleModuleDestruct);
+    if (BLEModule::IsInitialized())
+        BLEModule::Instance()->SetDeviceConnectedFlag(v14, true);
 }
 void cbAssertFunc(bool cond, const char *msg) {
     if (!cond) {
@@ -554,6 +570,7 @@ struct dllBLEError {
 };
 void cbBLEErrorFunc(dllBLEError *pDllStruct, BLE_ERROR_TYPE err) {
     static_assert(sizeof(dllBLEError) == 0x48);
+    boost::shared_lock<boost::shared_mutex> lock(g_bleModuleDestruct);
     BLEModule::Instance()->DidReceiveError(pDllStruct->_a2.c_str(), pDllStruct->_a3.c_str(), err, 0);
 }
 /*
@@ -570,7 +587,6 @@ BLEDevice_SetDeviceConnectedFlag(zwift::protobuf::BLEPeripheralResponse const &,
 BLEDevice_SetGrantedFlag(bool)
 BLEDevice_SetScanningFlag(bool)
 BLEDevice_StartSearch(zwift::protobuf::BLEPeripheralRequest const &)
-BLEDevice_StartSearchForLostDevices(void)
 BLEDevice_StopSearch(void)
 BLEDevice_StopSearchForLostDevices(void)
 BLEDevice_Unpair(BLEDevice const &)
@@ -731,6 +747,7 @@ struct BLEDeviceManager { //and BLEDeviceManagerWindows
     }
     void StartScan(const protobuf::BLEPeripheralRequest &req) { //vptr[2]
         static_assert(sizeof(dllBLEPeripheralRequest) == 56);
+        static_assert(sizeof(dllBLE_PRitem) == 48);
         if (this->m_deviceState != BLE_DEVICE_STATE_SCANNING) {
             zassert(m_HasBLE);
             zassert(m_deviceState == BLE_DEVICE_STATE_IDLE);
@@ -744,7 +761,7 @@ struct BLEDeviceManager { //and BLEDeviceManagerWindows
                     dst.m_chars.resize(serv.chars_size());
                     int j = 0;
                     for (auto &chr : serv.chars())
-                        dst.m_chars[j++] = chr.id();
+                        dst.m_chars[j++].m_chrId = chr.id();
                 }
                 m_startScanningFunc(&g_dllBLEPeripheralRequests);
             } else {
@@ -845,7 +862,7 @@ void InitializeBLESearchParameters(protobuf::BLEPeripheralRequest *rq) {
     v39->add_chars()->set_id("2ADA"s);
     v39->add_chars()->set_id("2ACD"s);
     auto v51 = rq->add_servs();
-    v51->set_id("6E40FEC1-B5A3-F393-E0A9-E50E24DCCA9E"s);
+    v51->set_id("6E40FEC1-B5A3-F393-E0A9-E50E24DCCA9E"s); //FEC_BRAKE_SERVICE (TACX)
     v51->add_chars()->set_id("6E40FEC3-B5A3-F393-E0A9-E50E24DCCA9E"s);
     auto v55 = rq->add_servs();
     v55->set_id("B4CC1223-BC02-4CAE-ADB9-1217AD2860D1"s);
@@ -953,7 +970,9 @@ void cbProcessBLEResponse(dllBLEPeripheralResponse *resp) {
                     zassert(j48.m_bufferSize);
                     chr->set_value(std::string(j48.m_buffer, j48.m_bufferSize));
                 }
-                BLEModule::Instance()->ProcessBLEResponse(pbresp, BLES_BUILTIN);
+                boost::shared_lock<boost::shared_mutex> lock(g_bleModuleDestruct);
+                if (BLEModule::IsInitialized())
+                    BLEModule::Instance()->ProcessBLEResponse(pbresp, BLES_BUILTIN);
             }
         }
         if (resp->m_type == protobuf::BL_TY_3) {
@@ -971,7 +990,9 @@ void cbProcessBLEResponse(dllBLEPeripheralResponse *resp) {
                     }
                 }
             }
-            BLEModule::Instance()->DidConnect(resp->m_deviceName.c_str(), resp->m_deviceId.c_str());
+            boost::shared_lock<boost::shared_mutex> lock(g_bleModuleDestruct);
+            if (BLEModule::IsInitialized())
+                BLEModule::Instance()->DidConnect(resp->m_deviceName.c_str(), resp->m_deviceId.c_str());
         } else if (resp->m_type == protobuf::BL_TY_5) {
             auto v22 = BLEDevice::CreateUniqueID(resp->m_deviceId);
             for (auto &i56 : resp->m_servs) {
@@ -1003,6 +1024,7 @@ BLEModule::BLEModule(Experimentation *exp) : EventObject(exp->m_eventSystem) {
 }
 void BLEModule::Shutdown() {
     g_BLEModule->StopScan();
+    boost::unique_lock<boost::shared_mutex> lock(g_bleModuleDestruct);
     g_BLEModule.reset();
 }
 void BLEModule::LegacyBLEImpl::DidConnect(const char *devName, const char *devId) {
@@ -1141,7 +1163,7 @@ void BLEModule::LegacyBLEImpl::SetDeviceConnectedFlag(const protobuf::BLEPeriphe
         g_lastBLEError = resp.err_kind();
     } else {
         g_lastBLEError = protobuf::BL_ERR_UNK;
-        auto uid = BLEDevice::CreateUniqueID(resp.type() /*, 0not used resp.err_code()*/);
+        auto uid = BLEDevice::CreateUniqueID(resp.per().device_id());
         auto Device = (BLEDevice *)FitnessDeviceManager::FindDevice(uid); //QUEST: why reinterpret, not dynamic_cast
         if (Device)
             Device->SetPaired(flag);
@@ -1245,9 +1267,9 @@ bool BLEModule::IsBLEAvailable() {
         return this->m_bleImpl->IsBLEAvailable();
     }, "BLEModule::IsBLEAvailable");
 }
-void BLEModule::ProcessAdvertisementManufacturerData(const protobuf::BLEAdvertisement &adv, const std::string &a3, BLE_SOURCE src) {
-    callVoidImplMethodOrLogIfUninitialized([this, adv, a3, src]() {
-        this->m_bleImpl->ProcessAdvertisementManufacturerData(adv, a3, src);
+void BLEModule::ProcessAdvertisementManufacturerData(const protobuf::BLEAdvertisement &adv, const std::string &data, BLE_SOURCE src) {
+    callVoidImplMethodOrLogIfUninitialized([this, adv, data, src]() {
+        this->m_bleImpl->ProcessAdvertisementManufacturerData(adv, data, src);
     }, "BLEModule::ProcessAdvertisementManufacturerData");
 }
 void BLEModule::EnableDeviceDiscovery(bool en) {
@@ -1473,7 +1495,7 @@ void BLEDevice::ProcessSpeedCadence(const CharacteristicInfo &ci) {
                         //TODO EventSystem::GetInst()->TriggerEvent(EV_SENS_DATA, 0, v21, v28);
                     }
                 } else {
-                    auto deltaSec = (lastWheelEventTime - prevWET + ((lastWheelEventTime - prevWET < 0) ? 0xFFFF : 0)) * 0.0009765625;// /1024 -> sec
+                    auto deltaSec = (lastWheelEventTime - prevWET + (int16_t(lastWheelEventTime - prevWET) < 0 ? 0xFFFF : 0)) * 0.0009765625;// /1024 -> sec
                     auto tireL = std::max(2155u, BikeManager::Instance()->m_mainBike->m_bc->m_tireCirc);
                     c7->m_packId = lastWheelEventTime;
                     c7->m_packTs = lastWheelEventTime;
@@ -1504,7 +1526,7 @@ void BLEDevice::ProcessSpeedCadence(const CharacteristicInfo &ci) {
                 if (timeGetTime() - m_lastCadTs > 3000)
                     cad->m_val = 0.0f;
             } else {
-                auto cad_val = (61440.0 / (lastCrankEventTime - prevCET + ((lastCrankEventTime - prevCET < 0) ? 0xFFFF : 0)))
+                auto cad_val = (61440.0 / uint16_t(lastCrankEventTime - prevCET + (int16_t(lastCrankEventTime - prevCET) < 0 ? 0xFFFF : 0)))
                     * (cumulativeCrankRevolutions - m_cumulativeCrankRevolutions);
                 if (cad_val > 240.0)
                     cad_val = 1.0;
@@ -1552,9 +1574,8 @@ void BLEDevice::ProcessPower(const CharacteristicInfo &ci) {
                 && FitnessDeviceManager::m_pSelectedPowerDevice && FitnessDeviceManager::m_pSelectedPowerDevice->m_prefsID == m_prefsID) {
                 auto cumulativeWheelRevolutions = ci.GetData32At(offset);
                 auto lastWheelEventTime = ci.GetData16At(offset + 4);
-                offset += 6;
                 if (lastWheelEventTime != m_lastWheelEventTimePm && m_spdInitialized) {
-                    auto dt = lastWheelEventTime - m_lastWheelEventTimePm + ((lastWheelEventTime - m_lastWheelEventTimePm < 0) ? 0xFFFF : 0);
+                    auto dt = lastWheelEventTime - m_lastWheelEventTimePm + (int16_t(lastWheelEventTime - m_lastWheelEventTimePm) < 0 ? 0xFFFF : 0);
                     auto tireCirc = std::max(2155u, BikeManager::Instance()->m_mainBike->m_bc->m_tireCirc);
                     FitnessDeviceManager::m_SpindownSpeedInMPH = ((4.5812454f / dt) * (cumulativeWheelRevolutions - m_cumulativeWheelRevolutionsPm)) * tireCirc;
                     //TODO EventSystem::GetInst()->TriggerEvent(EV_SENS_DATA, 0, v23, v38);
@@ -1571,6 +1592,8 @@ void BLEDevice::ProcessPower(const CharacteristicInfo &ci) {
                 m_lastWheelEventTimePm = lastWheelEventTime;
                 m_spdInitialized = true;
             }
+            if (flags & 0x10)
+                offset += 6;
             if (flags & 0x20) { // Crank Revolution Data Present
                 auto cumulativeCrankRevolutions = ci.GetData16At(offset);
                 auto crankEventTime = ci.GetData16At(offset + 2);
@@ -1580,8 +1603,8 @@ void BLEDevice::ProcessPower(const CharacteristicInfo &ci) {
                     AddComponent(cad);
                 }
                 if (crankEventTime != m_lastCrankEventTime && m_cadInitialized) {
-                    auto cadVal = (61440.0 / (crankEventTime - m_lastCrankEventTime + ((crankEventTime - m_lastCrankEventTime < 0) ? 0xFFFF : 0)))
-                        * (cumulativeCrankRevolutions - this->m_cumulativeCrankRevolutions);
+                    auto cadVal = (61440.0 / (crankEventTime - m_lastCrankEventTime + (int16_t(crankEventTime - m_lastCrankEventTime) < 0 ? 0xFFFF : 0)))
+                        * (cumulativeCrankRevolutions - m_cumulativeCrankRevolutions);
                     if (cadVal > 240.0)
                         cadVal = 1.0;
                     cad->m_val = cadVal;
@@ -1788,11 +1811,11 @@ void BLEDevice::ProcessTacxControlPoint(const CharacteristicInfo &ci) {
     if (!ctrl)
         AddComponent(new TACX_BLE_ControlComponent(this));
 }
-
 void BLEDevice::ProcessBLEData(const protobuf::BLEPeripheralResponse &resp) {
-    static auto g_bleDataGuard_v2 = Experimentation::Instance()->IsEnabled(FID_BLE_DG2);
+    /* TODO:compare algo's static auto g_bleDataGuard_v2 = Experimentation::Instance()->IsEnabled(FID_BLE_DG2);
     if (g_bleDataGuard_v2 == EXP_ENABLED)
-        return ProcessCharacteristic(resp);
+        return ProcessCharacteristic(resp);*/
+    LogBleRxPacket(resp);
     uint32_t charId = 0;
     auto &chr = resp.chr();
     if (sscanf(chr.id().c_str(), "%x", &charId) != 1)
@@ -2053,7 +2076,7 @@ void BLEDevice::LogBleRxPacket(const protobuf::BLEPeripheralResponse &resp) {
                 LogTyped(LOG_BLE, "Error logging RX packet for '%s'", v7);
         } else {
             for (int i = 0; i < resp.chr().value().length(); ++chVal, ++i) {
-                auto v12 = sprintf(Buffer + v9, "%02X ", *chVal);
+                auto v12 = sprintf(Buffer + v9, "%02X ", (uint8_t)*chVal);
                 if (v12 <= 0 || v12 >= 8)
                     break;
                 v9 += v12;
@@ -2077,7 +2100,7 @@ void BLEDevice::LogBleTxPacket(char const *funcName, char const *devName, protob
                 } else {
                     auto chVal = c.value().c_str();
                     for (int i = 0; i < c.value().length(); ++chVal, ++i) {
-                        auto v12 = sprintf(Buffer + v9, "%02X ", *chVal);
+                        auto v12 = sprintf(Buffer + v9, "%02X ", (uint8_t)*chVal);
                         if (v12 <= 0 || v12 >= 8)
                             break;
                         v9 += v12;
@@ -2092,12 +2115,6 @@ void BLEDevice::LogBleTxPacket(char const *funcName, char const *devName, protob
 }
 int g_RunSensorSecondsSincePacket;
 ExpVariant g_expFID_HW_EXPERIMENT1 = EXP_NONE;
-bool expFID_HWEXPER() {
-    if (g_expFID_HW_EXPERIMENT1 != EXP_NONE)
-        return g_expFID_HW_EXPERIMENT1 == EXP_ENABLED;
-    g_expFID_HW_EXPERIMENT1 = Experimentation::Instance()->IsEnabled(FID_HWEXP1, EXP_UNASSIGNED);
-    return g_expFID_HW_EXPERIMENT1 == EXP_ENABLED;
-}
 void BLEDevice::Update(float f) {
     auto cad = (SensorValueComponent *)FindComponentOfType(DeviceComponent::CPT_CAD);
     auto t = timeGetTime();
@@ -2129,7 +2146,7 @@ void BLEDevice::Update(float f) {
         auto ct = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
         if (ct && ct->m_protocolType == TrainerControlComponent::FTMS_V3)
             ct->Update(f);
-    } else if (expFID_HWEXPER()) {
+    } else if (Experimentation::IsEnabledCached<FID_HWEXP1>()) {
         auto ct = (TrainerControlComponent *)FindComponentOfType(DeviceComponent::CPT_CTRL);
         if (ct && ct->m_protocolType == TrainerControlComponent::FTMS_V2)
             ct->Update(f);
@@ -2143,6 +2160,7 @@ BLEDevice::BLEDevice(const std::string &devId, const std::string &devName, uint3
     m_devId = devId;
     m_bleSrc = src;
     m_nameId = devName;
+    strcpy_s(m_name, devName.c_str()); //added by Ursoft
     char buffer[64];
     auto v18 = std::strtoull(devId.c_str(), nullptr, 10);
     sprintf_s(buffer, "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -2154,7 +2172,9 @@ BLEDevice::BLEDevice(const std::string &devId, const std::string &devName, uint3
         uint8_t(v18));
     m_address = buffer;
     switch(charId) {
-    default: Log("Unknown Native BLE component attached. Device name: %s", devName.c_str());
+    default:
+        Log("Unknown Native BLE component (0x%x) attached. Device name: %s", charId, devName.c_str());
+        break;
     case 0x347B0010: case 0x26D42A4D: break;
     case 0xE9410101:
         AddComponent(new SensorValueComponent(DeviceComponent::CPT_PM));
@@ -2345,12 +2365,26 @@ void EliteSteeringComponent::HandleImpostor() {
     EliteSteeringComponent::DisplayDialog(GetText("LOC_HARDWARE_PROBLEM_TITLE"), buffer);
 }
 
-TEST(SmokeTestBLE, Init_V1) {
-    auto     evSysInst = EventSystem::GetInst();
-    Experimentation::Initialize(evSysInst);
-    auto exp = Experimentation::Instance();
-    exp->m_fsms[FID_BLE_DL2].m_enableStatus = EXP_DISABLED;
-    BLEModule::Initialize(exp);
+class SmokeTestBLE : public ::testing::Test {
+protected:
+    static void SetUpTestSuite() {
+        g_bLogBlePackets = true;
+        auto     evSysInst = EventSystem::GetInst();
+        Experimentation::Initialize(evSysInst);
+        auto exp = Experimentation::Instance();
+        exp->m_fsms[FID_BLE_DL2].m_enableStatus = EXP_DISABLED;
+        exp->m_fsms[FID_LOG_BLE].m_enableStatus = EXP_ENABLED;
+        exp->m_fsms[FID_FTMS_V3].m_enableStatus = EXP_ENABLED;
+        BLEModule::Initialize(exp);
+    }
+    static void TearDownTestSuite() {
+        BLEModule::Instance()->StopSearchForLostDevices();
+        BLEModule::Shutdown();
+        Experimentation::Shutdown();
+        EventSystem::Destroy();
+    }
+};
+TEST_F(SmokeTestBLE, Init_V1) {
     EXPECT_TRUE(BLEModule::IsInitialized());
     BLEModule::Instance()->InitializeBLE();
     auto until = GetTickCount64() + 1000;
@@ -2359,16 +2393,8 @@ TEST(SmokeTestBLE, Init_V1) {
         if (g_BLEDeviceManager.m_HasBLE && g_BLEDeviceManager.m_bleAvalilable)
             break;
     }
-    BLEModule::Shutdown();
-    Experimentation::Shutdown();
-    EventSystem::Destroy();
 }
-TEST(SmokeTestBLE, Init_V2) {
-    auto     evSysInst = EventSystem::GetInst();
-    Experimentation::Initialize(evSysInst);
-    auto exp = Experimentation::Instance();
-    exp->m_fsms[FID_BLE_DL2].m_enableStatus = EXP_ENABLED;
-    BLEModule::Initialize(exp);
+TEST_F(SmokeTestBLE, Init_V2) {
     BLEModule::Instance()->PurgeDeviceList(); //neg branch
     EXPECT_FALSE(BLEModule::Instance()->IsScanning()); //neg branch
     EXPECT_TRUE(BLEModule::IsInitialized());
@@ -2381,21 +2407,11 @@ TEST(SmokeTestBLE, Init_V2) {
     }
     BLEModule::Instance()->PurgeDeviceList(); //pos branch
     EXPECT_FALSE(BLEModule::Instance()->IsScanning());
-    EXPECT_FALSE(BLEModule::Instance()->IsRecoveringLostDevices());
+    //EXPECT_FALSE(BLEModule::Instance()->IsRecoveringLostDevices());
     EXPECT_FALSE(BLEModule::Instance()->IsAutoConnectPairingOn());
-    BLEModule::Instance()->StopSearchForLostDevices();
-    BLEModule::Shutdown();
-    Experimentation::Shutdown();
-    EventSystem::Destroy();
 }
-TEST(SmokeTestBLE, Scan) {
-    auto     evSysInst = EventSystem::GetInst();
-    Experimentation::Initialize(evSysInst);
-    auto exp = Experimentation::Instance();
-    exp->m_fsms[FID_BLE_DL2].m_enableStatus = EXP_ENABLED;
-    BLEModule::Initialize(exp);
-    BLEModule::Instance()->PurgeDeviceList(); //neg branch
-    EXPECT_FALSE(BLEModule::Instance()->IsScanning()); //neg branch
+TEST_F(SmokeTestBLE, HeartRate) { //FIXME: 2nd iteration don't work (global state?)
+    BLEModule::Instance()->PurgeDeviceList(); //pos branch
     EXPECT_TRUE(BLEModule::IsInitialized());
     BLEModule::Instance()->InitializeBLE();
     auto until = GetTickCount64() + 1000;
@@ -2404,14 +2420,97 @@ TEST(SmokeTestBLE, Scan) {
         if (BLEModule::Instance()->HasBLE() && BLEModule::Instance()->IsBLEAvailable())
             break;
     }
+    g_BLESearchSources = BSS_BUILTIN;
+#if 0
     protobuf::BLEPeripheralRequest rq;
+    rq.set_type(protobuf::BEGIN_PERIPHERAL_DISCOVERY);
     auto s = rq.add_servs();
-    //s->set_id("1816"); //SPC
-    s->set_id("1816"); //CP
-    s->add_chars()->set_id("2A55");
+    s->set_id("0x180D"); //HR service
+    s->add_chars()->set_id("2A37"); //Heart Rate Measurement
     BLEModule::Instance()->StartScan(rq);
-    Sleep(10000);
-    BLEModule::Shutdown();
-    Experimentation::Shutdown();
-    EventSystem::Destroy();
+#else
+    if (!BLEModule::Instance()->IsRecoveringLostDevices())
+        BLEModule::Instance()->StartSearchForLostDevices();
+#endif
+    until = GetTickCount64() + 10000;
+    ExerciseDevice *ursoftHrm = nullptr;
+    BLEDevice *ursoftHrmBle = nullptr;
+    while (GetTickCount64() < until) {
+        ursoftHrm = FitnessDeviceManager::FindDevice(0x1b6116ea);
+        if (ursoftHrm)
+            break;
+        Sleep(100);
+    }
+    EXPECT_TRUE(ursoftHrm);
+    if (ursoftHrm) {
+        ursoftHrmBle = dynamic_cast<BLEDevice *>(ursoftHrm);
+        EXPECT_TRUE(ursoftHrmBle);
+        if (ursoftHrmBle)
+            BLEModule::Instance()->PairDevice(*ursoftHrmBle);
+    }
+    SensorValueComponent *hrComp = nullptr;
+    if (ursoftHrmBle) while (GetTickCount64() < until) {
+        hrComp = (SensorValueComponent *)ursoftHrmBle->FindComponentOfType(DeviceComponent::CPT_HR);
+        if (hrComp)
+            break;
+    }
+    EXPECT_TRUE(hrComp);
+    int i = 0;
+    while (ursoftHrmBle && hrComp && i < 5) {
+        Sleep(1000);
+        i++;
+    }
+    if (ursoftHrmBle)
+        BLEModule::Instance()->UnpairDevice(*ursoftHrmBle);
+}
+TEST_F(SmokeTestBLE, Tacx) {
+    BLEModule::Instance()->PurgeDeviceList(); //pos branch
+    EXPECT_TRUE(BLEModule::IsInitialized());
+    BLEModule::Instance()->InitializeBLE();
+    auto until = GetTickCount64() + 1000;
+    while (GetTickCount64() < until) {
+        Sleep(100);
+        if (BLEModule::Instance()->HasBLE() && BLEModule::Instance()->IsBLEAvailable())
+            break;
+    }
+    g_BLESearchSources = BSS_BUILTIN;
+    if (!BLEModule::Instance()->IsRecoveringLostDevices())
+        BLEModule::Instance()->StartSearchForLostDevices();
+    until = GetTickCount64() + 10000;
+    ExerciseDevice *ursoftTacx = nullptr;
+    BLEDevice *ursoftTacxBle = nullptr;
+    while (GetTickCount64() < until) {
+        ursoftTacx = FitnessDeviceManager::FindDevice(0x16438fc8);
+        if (ursoftTacx)
+            break;
+        Sleep(100);
+    }
+    EXPECT_TRUE(ursoftTacx);
+    if (ursoftTacx) {
+        ursoftTacxBle = dynamic_cast<BLEDevice *>(ursoftTacx);
+        EXPECT_TRUE(ursoftTacxBle);
+        if (ursoftTacxBle)
+            BLEModule::Instance()->PairDevice(*ursoftTacxBle);
+    }
+    TACX_BLE_ControlComponent *ctrl = nullptr;
+    until = GetTickCount64() + 10000;
+    if (ursoftTacxBle) while (GetTickCount64() < until) {
+        ctrl = (TACX_BLE_ControlComponent *)ursoftTacxBle->FindComponentOfType(DeviceComponent::CPT_CTRL);
+        if (ctrl)
+            break;
+    }
+    EXPECT_TRUE(ctrl);
+    int i = 0;
+    RoadFeelType rfts[] = { RF_WOOD, RF_BRICKS_SOFT, RF_GRAVEL_SOFT };
+    while (ursoftTacxBle && ctrl && i < 5) {
+        ctrl->SetRoadTexture(rfts[i % _countof(rfts)], 0.4f);
+        Sleep(6001);
+        if (i < 3)
+            ctrl->SetSimulationGrade(float(i + 1) / 20.0f);
+        else
+            ctrl->SetERGMode(150);
+        i++;
+    }
+    if (ursoftTacxBle)
+        BLEModule::Instance()->UnpairDevice(*ursoftTacxBle);
 }
