@@ -1,7 +1,7 @@
 #pragma once
 struct BikeEntity;
 struct PrivateAttributesHelper;
-struct BikeManager {
+struct BikeManager { //0x9E98 bytes
     inline static std::unique_ptr<BikeManager> g_pBikeManager;
     std::vector<BikeEntity *> m_field_9D08, m_field_9CD8, m_field_9CF0;
     BikeManager(/*EventSystem *, bool*/);
@@ -47,7 +47,6 @@ BikeManager::GetNetworkBike(int)
 BikeManager::GetRoadBounds(RoadSegment *,float,float *,float *,float *,float *,bool)
 BikeManager::GroupAIsHere(int,double,bool)
 BikeManager::InitCameraAngleSwitchAroundPlayer(std::vector<VEC3> const&,VEC3 const&,float)
-BikeManager::Initialize(Experiment::IExperimentation<Experiment::Feature> &)
 BikeManager::InitializePackDynamicsConfig(Experiment::Variant)
 BikeManager::IsFeatureFlagEnabled(Experiment::Feature)
 BikeManager::IsPackDynamicsV4AutoBrakeVisualsEnabled(void)

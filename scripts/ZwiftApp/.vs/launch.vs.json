@@ -8,9 +8,9 @@
       "projectTarget": "ZwiftApp.exe (Install)",
       "name": "ZwiftApp.exe (Install)",
         "env": {
-            "ZWIFT_UT": "1",
+            "ZWIFT_UT": "0",
             "GTEST_ALSO_RUN_DISABLED_TESTS": "1",
-            "ZWIFT_GAME": "0",
+            "ZWIFT_GAME": "1",
             "NO__GL_SHADER_DISK_CACHE": "1",
             "NO__GL_SHADER_DISK_CACHE_SKIP_CLEANUP": "0",
             "NO__GL_SHADER_DISK_CACHE_PATH": "g:\\Zwift_GLCache",

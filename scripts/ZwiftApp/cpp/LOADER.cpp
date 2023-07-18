@@ -115,7 +115,7 @@ void GDE_UpgradeMesh(GDE_Mesh_VERT_BUF *pMesh) {
 bool GFX_PerfPenalty() {
     return (g_GFX_PerformanceFlags & (GPF_BIG_PERF_PENALTY | GPF_SMALL_PERF_PENALTY)) != 0;
 }
-int Internal_LOAD_CHARACTER_FromGdeFileInWad(char *name) {
+int Internal_LOAD_CHARACTER_FromGdeFileInWad(const char *name) {
     struct _stat64i32 st;
     int sr;
     time_t wadTouchTime = 0;
@@ -124,7 +124,7 @@ int Internal_LOAD_CHARACTER_FromGdeFileInWad(char *name) {
         return LOAD_CHARACTER_SkinGdeFile_LEAN((GDE_Header_360 *)wad->FirstChar(), name, wad->m_fileLength, -1);
     return -1;
 }
-int Internal_LOAD_CHARACTER_FromGdeFileOnDisk(char *name, int handle) {
+int Internal_LOAD_CHARACTER_FromGdeFileOnDisk(const char *name, int handle) {
     auto f = fopen(GAMEPATH(name), "rb");
     if (!f)
         return -1;
@@ -138,7 +138,7 @@ int Internal_LOAD_CHARACTER_FromGdeFileOnDisk(char *name, int handle) {
     free(h);
     return ret;
 }
-int LOAD_CHARACTER_SkinGdeFile(char *name) {
+int LOAD_CHARACTER_SkinGdeFile(const char *name) {
     auto handle = GDEMESH_Internal_FindLoadedMesh(name, false);
     if ((unsigned)handle < _countof(g_ENG_InstanceResources))
     {
@@ -1206,7 +1206,7 @@ bool GDE_CheckSkin(GDE_Header_360 *file, const char *name, bool createVB, bool s
     ShiftPointer(&file->m_shaders, file);
     return true;
 }
-int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, char *name, uint32_t fileLength, int handle) {
+int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fileLength, int handle) {
     if (handle == -1) {
         handle = GDEMESH_GetFreeMeshResourceHandle();
         if (handle == -1)
@@ -1364,7 +1364,8 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, char *name, uint32_t f
             }
         }
         if (lod >= mesh->m_lodMax) {
-            memset(newMesh->gap, 0, sizeof(newMesh->gap));
+            newMesh->m_morphCnt = 0;
+            newMesh->m_morphData = nullptr;
             for(int v80 = 0; v80 < _countof(file->m_pSkelInfo); v80++) {
                 auto src = file->m_pSkelInfo[v80];
                 if (src) {
@@ -1416,4 +1417,112 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, char *name, uint32_t f
         LogTyped(LOG_ERROR, "Out of memory! (SKIN)");
     }
     return -1;
+}
+struct GDE_AnimationHeaderSubItem1 { //0x10 bytes
+    uint8_t *m_subPtr;
+    uint64_t m_subData;
+};
+struct GDE_AnimationHeaderSubItem2 { //0x20 bytes
+    uint8_t *m_subPtr;
+    char field_8[4];
+    uint32_t m_deformerSig;
+    uint8_t m_weightId;
+    char m_morphIdx;
+    char field_12[14];
+};
+struct GDE_AnimationHeaderItem { //0x80 bytes
+    uint64_t m_someval, field_8;
+    GDE_AnimationHeaderSubItem1 *m_field_10;
+    uint8_t field_18[40];
+    GDE_AnimationHeaderSubItem2 *m_field_40;
+    char field_48[24];
+    uint8_t m_counts1[6], m_counts2;
+    char field_67[25];
+};
+struct GDE_AnimationHeader {
+    GDE_AnimationHeaderItem *m_items;
+    float m_version;
+    uint8_t m_cnt;
+};
+void *LOAD_CHARACTER_FixupAnim_chk(const GDE_Header_360 *gde, uint8_t *buf, const char *name) {
+    auto ah = (GDE_AnimationHeader *)buf;
+    if (ah->m_version < 23.0f || ah->m_version > 24.0f)
+        Log("Game expects anim file version %.3f, but anim file \"%s\" is actually version %.3f.", 24.0, name, ah->m_version);
+    else if (LOAD_CHARACTER_FixupAnim(buf, gde))
+       return buf;
+    return nullptr;
+}
+void *LOAD_CHARACTER_Anim(const GDE_Header_360 *gde, const char *name) {
+    time_t wadTouchTime;
+    auto wadh = g_WADManager.GetWadFileHeaderByItemName(name + 5, WAD_ASSET_TYPE::GLOBAL, &wadTouchTime);
+    if (wadh) {
+        struct _stat64i32 v8;
+        auto v6 = _stat64i32(name, &v8);
+        if (v8.st_mtime < wadTouchTime || v6) {
+            auto result = LOAD_CHARACTER_FixupAnim_chk(gde, wadh->FirstChar(), name);
+            if (result)
+                return result; 
+        }
+    }
+    FILE *f = nullptr;
+    auto e = fopen_s(&f, GAMEPATH(name), "rb"); (void)e;
+    if (!f)
+        return f;
+    fseek(f, 0, SEEK_END);
+    auto v7 = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    auto buf = (uint8_t *)malloc(v7);
+    fread(buf, 1, v7, f);
+    fclose(f);
+    return LOAD_CHARACTER_FixupAnim_chk(gde, buf, name);
+}
+template <class T> void FixupPointer(T **src, void *base) {
+    *src = (T *)((UINT_PTR)*src + (UINT_PTR)base);
+}
+bool LOAD_CHARACTER_FixupAnim(void *buf_, const GDE_Header_360 *gde) {
+    static_assert(sizeof(GDE_AnimationHeaderItem) == 128);
+    static_assert(sizeof(GDE_AnimationHeaderSubItem1) == 16);
+    static_assert(sizeof(GDE_AnimationHeaderSubItem2) == 32);
+    if (!buf_)
+        return false;
+    auto buf = (GDE_AnimationHeader *)buf_;
+    if (buf->m_items > (GDE_AnimationHeaderItem *)0x100000)
+        return true;
+    FixupPointer(&buf->m_items, buf);
+    for (int i = 0; i < buf->m_cnt; i++) {
+        auto ptrI = buf->m_items + i;
+        ptrI->m_someval = 0;
+        FixupPointer(&ptrI->m_field_10, buf);
+        for (int j = 0; j < 6; j++) {
+            auto count = ptrI->m_counts1[j];
+            for (int k = 0; k < count; k++)
+                FixupPointer(&ptrI->m_field_10[k].m_subPtr, buf);
+        }
+        if (ptrI->m_field_40) {
+            FixupPointer(&ptrI->m_field_40, buf);
+            for (int m = 0; m < ptrI->m_counts2; m++) {
+                auto &pm = ptrI->m_field_40[m];
+                FixupPointer(&pm.m_subPtr, buf);
+                pm.m_morphIdx = -1;
+                uint32_t morphIdx = 0;
+                if (gde && gde->m_meshKind == GMK_SKIN) {
+                    for (;;morphIdx++) {
+                        if (morphIdx >= gde->m_mesh.SKIN->m_morphCnt) {
+                            morphIdx = pm.m_morphIdx;
+                            break;
+                        }
+                        auto &pMorph = gde->m_mesh.SKIN->m_morphData[morphIdx];
+                        if (pMorph.m_deformerSig == pm.m_deformerSig && pMorph.m_weightId == pm.m_weightId) {
+                            pm.m_morphIdx = morphIdx;
+                            break;
+                        }
+                    }
+                    if ((uint8_t)morphIdx != 0xFF)
+                        continue;
+                }
+                Log("Failed to find matching morph target with deformerSig 0x%08x and weightId %d", pm.m_deformerSig, pm.m_weightId);
+            }
+        }
+    }
+    return true;
 }

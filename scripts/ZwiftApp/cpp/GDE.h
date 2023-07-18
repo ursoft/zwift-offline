@@ -20,12 +20,15 @@ struct GDE_Animators { //0x20 bytes
     uint8_t *m_field_18;
 };
 struct GDE_Material { //0x170 (368) bytes
-    char field_0[116];
+    char field_0[96];
+    char m_name[20];
     int m_field_74;
     GDE_Animators *m_pAnimators;
     GDE_Usage m_pUsage[4];
     bool m_hasAnimators;
-    char field_101[15];
+    char field_101[3];
+    float m_field_104;
+    char field_108[8];
     uint8_t m_texIdx[6];
     char field_116[58];
     void *m_field_150;
@@ -196,11 +199,17 @@ struct GDE_SkinVB_Item { //96 bytes
 struct GDE_SkinVB { //40 bytes
     GDE_SkinVB_Item *m_pItems, *m_field_8, *m_field_10, *m_field_18, *m_pEndItem;
 };
+struct GDE_Mesh_SKIN_Morph { //0x18 bytes
+    int m_deformerSig;
+    int m_weightId;
+    char field_8[16];
+};
 struct GDE_Mesh_SKIN { //0x108 (264) bytes, GMK_SKIN
     uint32_t m_version, m_unk;
     GDE_SkinVB m_vbs[6];
     int m_lodMax;
-    char gap[12];
+    uint32_t m_morphCnt;
+    GDE_Mesh_SKIN_Morph *m_morphData;
 };
 struct GDE_Mesh_VERT_BUF { //0x1F8 (504) bytes
     uint32_t m_version;

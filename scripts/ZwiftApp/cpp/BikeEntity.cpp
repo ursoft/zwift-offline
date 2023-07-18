@@ -2,7 +2,7 @@
 void BikeEntity::AdjustRandomXZ() {
     //TODO
 }
-BikeEntity::BikeEntity() : m_pah(this) {
+BikeEntity::BikeEntity(BikeManager *bm, bool bIsNetworked, bool bIsPlayer) : m_pah(this) {
     //TODO
     m_bc = new VirtualBikeComputer(); //delme
 }

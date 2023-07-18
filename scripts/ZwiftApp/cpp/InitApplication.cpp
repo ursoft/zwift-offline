@@ -188,8 +188,9 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     Downloader::Instance()->Download("MapSchedule_v2.xml", 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
     //OMIT: check GFX driver if no "<data>\Zwift\olddriver.ok" exist
     Downloader::Instance()->Update();
+    //moved up so logging early stages is available too
     //ZMUTEX_SystemInitialize();
-    //LogInitialize(); //TODO: move up so logging early stages is available too
+    //LogInitialize();
     OS_Initialize();
     u_setDataDirectory("data");
     InitICUBase();

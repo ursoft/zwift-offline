@@ -347,3 +347,14 @@ public FECTrainerControlComponent : //CPT_CTRL
 [15] TrainerControlComponent::ShiftChainRing(ShiftDirection)
 [16] TrainerControlComponent::Shift_EZTap_Event(bool,ShiftDirection)
 [17] TrainerControlComponent::Shift_ZTap_Event(bool,ShiftDirection)
+
+StaticAssetLoader
+[00] dtr
+[01] StaticAssetLoader::LoadGdeFile(char const*,bool) = LOADER_LoadGdeFile
+[02] StaticAssetLoader::CreateTextureFromTGAFile(char const*)
+[03] StaticAssetLoader::CreateShaderFromFile(char const*)
+[04] StaticAssetLoader::AddMesh(InstancedObjects *,char const*,ulong long)
+[05] StaticAssetLoader::SkinGdeFile(std::string const&)
+[06] StaticAssetLoader::GetMesh(int)
+[07] StaticAssetLoader::GetDefaultNormalTexture(Accessory::Type,Gender)
+[08] StaticAssetLoader::LoadWADFile(const char *)

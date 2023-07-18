@@ -44,8 +44,6 @@ void CheckEnvironment() {
     CloseHandle(Toolhelp32Snapshot);
 }
 void doFrameWorldID(zwiftUpdateContext *ptr);
-//TODO: __declspec(thread) - see tls0_dtr (GameAssertHandler::PushContext), TlsCallbackDtr
-//TODO: global variables ctrs/dtrs: _initterm, some_global_ctr
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd) {
     non_zwift::ConsoleHandler nz_ch(1024);
     bool testsResult = true;

@@ -1,16 +1,21 @@
 #pragma once
-struct InstancedObjects {};
+struct InstancedObjects {
+    bool m_field_20 = true;
+    InstancedObjects();
+    ~InstancedObjects();
+};
+inline InstancedObjects g_BikeInstancedObjects;
+//inlined void INSTANCING_AddPreculledInstance(InstancedObjects *, int, MATRIX44 *, VEC4, int);
+void INSTANCING_EndFrame(bool);
+//inlined void INSTANCING_GetDistanceToGridCellBounds(int, VEC3*, VEC3*, VEC3);
 struct BillBoardedSpriteInfo;
 void INSTANCING_AddInstance(InstancedObjects *, int, MATRIX44, VEC4);
-void INSTANCING_AddMesh(InstancedObjects *, const char *, uint64_t, float, BillBoardedSpriteInfo *, VEC4);
-void INSTANCING_AddPreculledInstance(InstancedObjects *, int, MATRIX44 *, VEC4, int);
-void INSTANCING_ClearInstances(InstancedObjects *);
+uint32_t INSTANCING_AddMesh(InstancedObjects *, const char *, uint64_t, float, BillBoardedSpriteInfo *, const VEC4 &);
+void INSTANCING_ClearInstances();
 void INSTANCING_CreateDitherTex();
-void INSTANCING_EndFrame(bool);
-void INSTANCING_GetDistanceToGridCellBounds(int, VEC3*, VEC3*, VEC3);
-void INSTANCING_GetGridIDForPosition(VEC3);
+//inlined void INSTANCING_GetGridIDForPosition(VEC3);
 void INSTANCING_OptimizeGrids(InstancedObjects *);
-void INSTANCING_ReleaseMutex();
+//inlined void INSTANCING_ReleaseMutex();
 void INSTANCING_RenderAll(InstancedObjects *, GFX_RenderPass, int);
-void INSTANCING_TakeMutex();
+bool INSTANCING_TakeMutex();
 void INSTANCING_UnloadAll();

@@ -1,7 +1,7 @@
 #include "ZwiftApp.h"
 BikeManager::BikeManager() {
     //TODO
-    m_mainBike = new BikeEntity(); //delme
+    m_mainBike = new BikeEntity(nullptr, false, false); //delme
 }
 void BikeManager::Initialize(Experimentation *exp) {
     //TODO

@@ -163,14 +163,16 @@ struct IncomingPlayerStateComponent {
     protobuf::PlayerState m_pbState;
     protobuf::PowerType m_pty = protobuf::PT_VIRTUAL;
 };
+struct BikeManager;
 struct BikeEntity : public Entity { //0x1948 bytes
+    static inline StaticAssetLoader s_staticAssetLoader;
     struct RideOnAnim { //0x30 bytes
         float m_f0 = 0.0f, m_f1 = 0.0f, m_f2 = 500.0f, m_f3 = 0.0f;
         float m_f4 = 0.001f, m_f5 = 0.0f, m_f6 = -18.0f, m_f7 = 0.0f;
         int64_t m_fromPlayerId;
         bool m_field_28 = false, m_field_29 = false;
     };
-    BikeEntity();
+    BikeEntity(BikeManager *bm, bool bIsNetworked, bool bIsPlayer);
     ~BikeEntity();
     int64_t m_curEventId = 0, m_cheatBits = 0;
     VirtualBikeComputer *m_bc = nullptr;
@@ -430,7 +432,6 @@ void CalculateETAInSeconds(double,double,std::atomic<double> *,std::atomic<doubl
 void CalculateCassetteLOD(uint,float,float);
 void ByPassBikeOverride(void);
 void BroadcastAction(BikeEntity::USER_ACTION);
-void BikeEntity(BikeManager &,bool,bool);
 void BikeAnimCallback(AnimTuning_Event *,void *);
 void AutoSelectRoad(IntersectionMarkerEntity *,float);
 void ApplyHeadingClamps(float,float &,float &);
