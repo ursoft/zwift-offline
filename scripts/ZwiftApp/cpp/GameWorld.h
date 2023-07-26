@@ -1,17 +1,17 @@
 #pragma once
-enum WorldIDs { WID_0, WID_1, WID_2 }; //TODO
+enum WORLD_ID { WID_NONE, WID_WATOPIA, WID_RICHMOND, WID_LONDON, WID_NYC, WID_INNSBRUCK, WID_BOLOGNA, WID_YORKSHIRE, WID_CRIT_CITY, WID_JAPAN, WID_FRANCE, WID_PARIS, WID_GRAVEL_MOUNTAIN };
 struct GameWorld { //0x28 bytes
-    WorldIDs m_WorldID;
+    WORLD_ID m_WorldID;
 public:
     struct WorldDef { //0x30 bytes
-        WorldIDs m_WorldID;
-        WorldDef(WorldIDs aWorldID) : m_WorldID(aWorldID) {
+        WORLD_ID m_WorldID;
+        WorldDef(WORLD_ID aWorldID) : m_WorldID(aWorldID) {
         }
         float m_seaLevel = 0.0;
     };
     GameWorld();
     ~GameWorld();
-    WorldIDs WorldID();
+    WORLD_ID WorldID();
     WorldDef *GetWorldDef();
     float GetSeaLevel();
     static void LoadWorldsData();

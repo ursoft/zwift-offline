@@ -5,7 +5,7 @@ inline GameWorld::GameWorld() {
 GameWorld::~GameWorld() { //onGameWorldDtr
     //TODO
 }
-WorldIDs GameWorld::WorldID() {
+WORLD_ID GameWorld::WorldID() {
     zassert(m_WorldID < g_WORLD_COUNT);
     return m_WorldID;
 }

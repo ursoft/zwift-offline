@@ -7,6 +7,7 @@ struct GNSceneCreateParams {
 struct GNView;
 struct GNSceneSSR {};
 struct GNScene {
+    int m_tier = 0;
     void AddLight(uint32_t);
     void AddModel(uint32_t);
     void BeginFrame();

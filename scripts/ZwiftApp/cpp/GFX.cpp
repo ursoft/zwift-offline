@@ -675,7 +675,7 @@ void GFX_Internal_fixupShaderAddresses(GFX_ShaderPair *pShader) {
         auto ul = glGetAttribLocation(pShader->m_program, n);
         *pAttrLoc++ = ul;
     }
-    for (auto &i : pShader->m_field_16C)
+    for (auto &i : pShader->m_uniformLocations)
         i = 0x80000000;
     glUseProgram(0);
     g_pGFX_CurrentStates->m_shader = (uint32_t)-1;
@@ -1310,6 +1310,83 @@ void GFX_UpdateMatrices(bool force) {
     }
     if (updMask || force)
         GFX_UploadShaderMAT4(GSM_1, mx_2, g_MatrixContext.m_applUpdatesCnt);
+}
+VEC4 g_ShadowPixelParams;
+MATRIX44 g_ShadowmapMatrices[4];
+VEC4 g_ShadowBounds[4];
+void SetupLightmaps(bool spotLight) {
+    int v3;
+    if (spotLight) {
+        for (int v2 = 0; v2 < g_nShadowMaps; ++v2)
+            VRAM_RenderFromDepth(g_RT_ShadowMaps + v2, v2 + 10, nullptr, true);
+        VRAM_RenderFromDepth(&g_RT_SpotlightShadowMap, 13, nullptr, true);
+        v3 = g_HeadlightTexture;
+    } else {
+        if (g_bUseEmptyShadowMapsHack) {
+            for (int v2 = 0; v2 < g_nShadowMaps; ++v2)
+                VRAM_RenderFromDepth(&g_RT_EmptyShadowMap, v2 + 10, nullptr, true);
+            VRAM_RenderFromDepth(&g_RT_EmptyShadowMap, 13, nullptr, true);
+        } else {
+            for (int v2 = 0; v2 < g_nShadowMaps; ++v2)
+                GFX_ActivateTexture(g_WhiteHandle, v2 + 10, nullptr, TWM_REPEAT);
+            GFX_ActivateTexture(g_WhiteHandle, 13, nullptr, TWM_REPEAT);
+        }
+        v3 = g_WhiteHandle;
+    }
+    GFX_ActivateTexture(v3, 9, nullptr, TWM_CLAMP_TO_EDGE);
+    g_ShadowPixelParams.m_data[2] = (float)(GFX_GetFrameCount() & 3);
+    g_ShadowPixelParams.m_data[0] = (float)SHADOWMAP_WIDTH;
+    g_ShadowPixelParams.m_data[1] = 1.0f / (float)SHADOWMAP_WIDTH;
+    g_ShadowPixelParams.m_data[3] = 0.0f;
+    GFX_UploadShaderVEC4(GSR_11, g_ShadowPixelParams, 0);
+    for (int v2 = 0; v2 < g_nShadowMaps; ++v2) {
+        GFX_UploadShaderMAT4((GFX_SHADER_MATRICES)(v2 + 5), g_ShadowmapMatrices[v2], 0);
+        GFX_UploadShaderVEC4((GFX_SHADER_REGISTERS)(v2 + 14), g_ShadowBounds[v2], 0);
+    }
+#if 0 //TODO
+    v4 = qword_7FF66E65F720;                      // GameWorld::GetAllowWaterCaustics inlined
+    v5 = *(_QWORD *)(qword_7FF66E65F720 + 8);
+    while (!*(_BYTE *)(v5 + 25))
+    {
+        if (*(_DWORD *)(v5 + 32) >= g_pGameWorld->m_WorldID)
+        {
+            v4 = v5;
+            v5 = *(_QWORD *)v5;
+        } else
+        {
+            v5 = *(_QWORD *)(v5 + 16);
+        }
+    }
+    if (*(_BYTE *)(v4 + 25)
+        || g_pGameWorld->m_WorldID < *(_DWORD *)(v4 + 32)
+        || v4 == qword_7FF66E65F720
+        || (v6 = *(_QWORD *)sub_7FF66D4AFCC0(v4, (int *)&g_pGameWorld->m_WorldID)) == 0
+        || (v7 = *(_BYTE *)(v6 + 84) == 0, v8 = g_CausticTexture, v7))
+    {
+        v8 = g_WhiteHandle;
+    }
+    GFX_ActivateTexture(v8, 6u, 0i64, TWM_REPEAT);
+    GFX_UploadShaderMAT4(GSM_4, &what, 0i64);
+    GFX_UploadShaderVEC4(GSR_5, &stru_7FF66E633E88, 0i64);
+    GFX_UploadShaderVEC3(6, (float *)&qword_7FF66E633F10);
+#endif
+}
+void GFX_UploadShaderVEC4(const GFX_UserRegister &r, const VEC4 &v, uint64_t skipTag) { //GFX_UploadShaderVEC4_0
+    GFX_RegisterRef ref{ .m_ty = GFX_RegisterRef::Ty::User, .m_offset = (uint16_t)r.m_offset, .m_cnt = 1 };
+    g_pGFX_CurrentStates->SetUniform(ref, v, skipTag);
+    if (g_pCurrentShader) {
+        int UniformLocation;
+        if (r.m_offset >= 8) {
+            UniformLocation = glGetUniformLocation(g_pCurrentShader->m_program, r.m_name);
+        } else {
+            auto &ul = g_pCurrentShader->m_uniformLocations[r.m_offset];
+            if (ul == (int)0x80000000)
+                ul = glGetUniformLocation(g_pCurrentShader->m_program, r.m_name);
+            UniformLocation = ul;
+        }
+        if (UniformLocation >= 0)
+            glUniform4fv(UniformLocation, 1, v.m_data);
+    }
 }
 void GFX_UploadShaderVEC4(GFX_SHADER_REGISTERS a1, const VEC4 &a2, uint64_t a3) {
     g_pGFX_CurrentStates->SetUniform(GFX_StateBlock::s_registerRefs[a1], a2, a3);
@@ -2098,7 +2175,10 @@ void GFX_SetTextureFilter(uint32_t tn, GFX_FILTER filter) {
     }
     g_pGFX_CurrentStates->m_filters[tn] = filter;
 }
-int32_t GFX_GetStateU32(int idx) { return ((int32_t *)&g_pGFX_CurrentStates->m_depthTest)[idx]; }
+int32_t GFX_GetStateU32(GFX_STATE idx) { 
+    assert((int)idx == 4 || (int)idx == 12);
+    return idx == 4 ? g_pGFX_CurrentStates->m_cullIdx1 : g_pGFX_CurrentStates->m_scissorTest;
+}
 void GFX_SetupUIProjection() {
     auto pRT = VRAM_GetCurrentRT();
     if (pRT) {
@@ -3507,6 +3587,8 @@ void GFX_Draw2DQuad(float a1, float a2, float a3, float a4, float a5, float a6, 
 void GFX_Draw2DQuad_720p(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8, int color, float a10, int a11, int a12) {
     GFX_Draw2DQuad(a1, a2, a3, a4, a5, a6, a7, a8, color, a10, a11, true, a12);
 }
+/*TODO: int GFX_GetVertexHandle<DRAW_VERT_POS_COLOR_2UV_NORM_TAN_PACKED>();
+int GFX_GetVertexHandle<DRAW_VERT_POS_COLOR_UV_NORM_TAN>();*/
 template <> int GFX_GetVertexHandle<DRAW_VERT_POS_COLOR_1UV>() {
     static int stDRAW_VERT_POS_COLOR_1UV = -1;
     if (stDRAW_VERT_POS_COLOR_1UV == -1)
@@ -3572,6 +3654,48 @@ void GFX_SetTextureWrap(uint32_t tn, GFX_TEXTURE_WRAP_MODE t, GFX_TEXTURE_WRAP_M
             g_pGFX_CurrentStates->m_actTex = GL_TEXTURE0;
         }
     }
+}
+uint8_t *GFXAPI_MapBuffer(int bufId, const GFX_MapBufferParams &p) {
+    g_pGFX_CurrentStates->BindVertexBuffer(bufId);
+    if ((p.m_access & p.BUF_READ_WRITE) == p.BUF_READ_WRITE)
+        return p.m_offset + (uint8_t *)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_WRITE);
+    if (p.m_access & p.BUF_READ)
+        return p.m_offset + (uint8_t *)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
+    if (p.m_access & p.BUF_WRITE)
+        return p.m_offset + (uint8_t *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+    return nullptr;
+}
+uint8_t *GFX_MapBuffer(int bufId, const GFX_MapBufferParams &p) {
+    if (bufId == -1)
+        return nullptr;
+    else
+        return GFXAPI_MapBuffer(bufId, p);
+}
+void GFX_SetShadowParameters(float sp) {
+    //TODO
+}
+void GFXAPI_CreateTexture(int, const GFX_TextureDef &, const GFX_TextureBytes &, uint64_t) {
+    //TODO
+}
+int GFX_CreateTexture(const GFX_TextureDef &def, const GFX_TextureBytes &ptr, uint64_t) {
+    //TODO
+    return 0;
+}
+int GFX_CreateTextureFromLuminanceF32(uint32_t, uint32_t, float *) {
+    //TODO
+    return 0;
+}
+void GFXAPI_UnmapBuffer(int bufId) {
+    g_pGFX_CurrentStates->BindVertexBuffer(bufId);
+    glUnmapBuffer(GL_ARRAY_BUFFER);
+}
+void GFX_UnmapBuffer(int bufId) {
+    if (bufId != -1)
+        GFXAPI_UnmapBuffer(bufId);
+}
+bool GFX_AABBInCurrentFrustum(const VEC3 &, const VEC3 &, float *) {
+    //TODO
+    return false;
 }
 
 //Unit Tests

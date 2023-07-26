@@ -6394,7 +6394,7 @@ void FinishLateJoin(int64_t lateJoinPlayerId_notused, int32_t decisionIndex, int
                 if (true /* TODO ((((v43 - y) * (v43 - y)) + ((v42 - x) * (v42 - x))) + ((v44 - z) * (v44 - z))) <= 36000000.0*/) {
 #if 0 //TODO
                     v21 = -1.797693134862316e308;
-                    if (WorldID(g_pGameWorld) == 6)
+                    if (g_pGameWorld->WorldID() == WID_BOLOGNA)
                         v21 = 0.03139999881386757;
                     v22 = (*(*g_pRoadManager + 8i64))(g_pRoadManager, v39[0]);
                     v23 = v22;

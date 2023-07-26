@@ -1,13 +1,38 @@
 #pragma once
-struct VEC4 { float m_data[4]; };
-struct VEC3 {
-    float m_data[3];
-    float lenSquared() { return m_data[0] * m_data[0] + m_data[1] * m_data[1] + m_data[2] * m_data[2]; }
+template <class T, int dim>
+struct tVEC {
+    T m_data[dim];
+    T lenSquared() { 
+        T ret{};
+        for (auto i : m_data)
+            ret += i * i;
+        return ret;
+    }
     float len() { return sqrt(lenSquared()); }
 };
-inline VEC3 operator-(const VEC3 &a, const VEC3 &b) { return VEC3{a.m_data[0] - b.m_data[0], a.m_data[1] - b.m_data[1], a.m_data[2] - b.m_data[2] }; }
-inline VEC3 operator+(const VEC3 &a, const VEC3 &b) { return VEC3{a.m_data[0] + b.m_data[0], a.m_data[1] + b.m_data[1], a.m_data[2] + b.m_data[2] }; }
-struct VEC2 { float m_data[2]; };
+template <class T, int dim>
+tVEC<T, dim> operator-(const tVEC<T, dim> &a, const tVEC<T, dim> &b) { 
+    tVEC<T, dim> ret;
+    for (int i = 0; i < dim; i++)
+        ret.m_data[i] = a.m_data[i] - b.m_data[i];
+    return ret;
+}
+template <class T, int dim>
+tVEC<T, dim> operator+(const tVEC<T, dim> &a, const tVEC<T, dim> &b) { 
+    tVEC<T, dim> ret;
+    for (int i = 0; i < dim; i++)
+        ret.m_data[i] = a.m_data[i] + b.m_data[i];
+    return ret;
+}
+template<class T> using tVEC2 = tVEC<T, 2>;
+template<class T> using tVEC3 = tVEC<T, 3>;
+template<class T> using tVEC4 = tVEC<T, 4>;
+using VEC4  = tVEC4<float>;
+using VEC3  = tVEC3<float>;
+using VEC2  = tVEC2<float>;
+using VEC4i = tVEC4<int>;
+using VEC3i = tVEC3<int>;
+using VEC2i = tVEC2<int>;
 struct MATRIX44 { VEC4 m_data[4]; };
 struct MATRIX43 { VEC4 m_data[3]; };
 struct MATRIX33 { VEC3 m_data[3]; };

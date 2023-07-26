@@ -211,11 +211,15 @@ struct GDE_Mesh_SKIN { //0x108 (264) bytes, GMK_SKIN
     uint32_t m_morphCnt;
     GDE_Mesh_SKIN_Morph *m_morphData;
 };
+struct Sphere { //16 bytes
+    VEC3 m_center;
+    float m_radius;
+};
 struct GDE_Mesh_VERT_BUF { //0x1F8 (504) bytes
     uint32_t m_version;
     int32_t m_lodMax;
     GDE_Mesh_VERT_BUFi m_data[6];
-    VEC4 m_bounds;
+    Sphere m_bounds;
 };
 struct GDE_Cluster { //72 bytes
     char field_0;
@@ -361,7 +365,7 @@ struct GDE_MaterialUsage {};
 enum InstanceResourceState { IRS_UNLOADED = 0, IRS_NEED_LOAD = 1, IRS_LOAD_FAILED = 2, IRS_3 = 3, IRS_4 = 4, IRS_INITIAL = 5 };
 struct InstanceResource { //72 bytes
     GDE_Header_360 *m_gdeFile;
-    VEC4 m_bounds;
+    Sphere m_bounds;
     bool m_manyInstances, m_isSkin, m_heapUsed;
     uint8_t field_1B;
     int field_1C;
@@ -381,7 +385,8 @@ struct InstanceResource { //72 bytes
     char field_46;
     char field_47;
 };
-
+struct GDE_360_INDEXBUFFER {};
+struct GDE_360_VERTEXBUFFER {};
 inline InstanceResource g_ENG_InstanceResources[6500];
 inline int g_ScreenMeshHandle, g_TrainerMeshHandle, g_HandCycleTrainerMeshHandle, g_TreadmillMeshHandle, g_PaperMeshHandle, g_ENG_nResources;
 inline int g_hGDE_TRI_VERT, g_hTRI_VERT_COLOR1_UV1, g_hTRI_VERT_COLOR1_UV2, g_hTRI_VERT_COLOR2_UV1, g_hTRI_VERT_COLOR2_UV2, g_hDEFORM_SKIN_VERT_GL, g_hGDE_RIGID_SKIN_VERT;
@@ -391,6 +396,6 @@ void GDEMESH_Initialize();
 int GDEMESH_Internal_FindLoadedMesh(const char *name, bool manyInstances);
 int GDEMESH_GetFreeMeshResourceHandle();
 GDE_Header_360 *GDEMESH_GetMesh(int handle);
-VEC4 *GDEMESH_GetMeshBounds(VEC4 *ret, int handle);
+Sphere *GDEMESH_GetMeshBounds(Sphere *ret, int handle);
 void GDE_FreeRuntime(GDE_Header_360 *h);
 void GDE_NormalizeVector(VEC3 *dest, VEC3 *src);

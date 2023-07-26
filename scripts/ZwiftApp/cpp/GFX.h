@@ -1,7 +1,17 @@
 #pragma once
-//_mm_shuffle_ps(v66, v66, 255) -> v66[3] in all
-//_mm_shuffle_ps(v2, v2, 85) -> v2[1], v2[0], v2[3], v2[2]
-//_mm_shuffle_ps(v2, v2, 170) -> v2[2], v2[3], v2[0], v2[1]
+//__m128 _mm_shuffle_ps(__m128 lo, __m128 hi, _MM_SHUFFLE(hi3, hi2, lo1, lo0)) 
+// Interleave inputs into low 2 floats and high 2 floats of output. Basically
+// out[0] = lo[lo0];
+// out[1] = lo[lo1];
+// out[2] = hi[hi2];
+// out[3] = hi[hi3];
+// For example, _mm_shuffle_ps(a, a, _MM_SHUFFLE(i, i, i, i)) copies the float a[i] into all 4 output floats.
+//_MM_SHUFFLE(dd, cc, bb, aa) just packs the low 2 bits of each arg into a 0bddccbbaa.
+// 
+//_mm_shuffle_ps(v2, v2, 225=0b11100001) -> v2[1] v2[0] v2[2] v2[3]
+//_mm_shuffle_ps(v2, v2, 255=0b11111111) -> v2[3] in all
+//_mm_shuffle_ps(v2, v2, 85 =0b01010101) -> v2[1] in all
+//_mm_shuffle_ps(v2, v2, 170=0b10101010) -> v2[2] in all
 enum GFX_RenderPass { GRP_CNT };
 enum AssetCategory : uint32_t { AC_UNK, AC_1, AC_2, AC_CNT };
 enum GFX_FILL_MODE { GFM_POINT, GFM_LINE, GFM_FILL, GFM_FALSE, GFM_CNT };
@@ -29,6 +39,7 @@ struct DRAW_VERT_POS_COLOR { //16 bytes
     uint32_t m_color;
 };
 struct DRAW_VERT_POS_COLOR_UV_NORM  { enum { MULT = 44, VAO = 3 }; };
+struct DRAW_VERT_POS_COLOR_UV_NORM_TAN {};
 struct DRAW_VERT_POS_COLOR_UV_NORM_TAN_PACKED { enum { MULT = 32, VAO = 5 };};
 struct GFX_InitializeParams {
     int WINWIDTH, WINHEIGHT;
@@ -75,8 +86,8 @@ struct GFX_RegisterRef {
     enum class Ty : uint8_t { Scene, Object, Draw, User, CNT } m_ty;
     uint16_t m_offset, m_cnt;
 };
-enum GFX_SHADER_REGISTERS { GSR_0 = 0, GSR_24 = 24, GSR_CNT = 29 };
-enum GFX_SHADER_MATRICES { GSM_0 = 0, GSM_1, GSM_2, GSM_3, GSM_CNT = 9 };
+enum GFX_SHADER_REGISTERS { GSR_0 = 0, GSR_5 = 5, GSR_11 = 11, GSR_24 = 24, GSR_CNT = 29 };
+enum GFX_SHADER_MATRICES { GSM_0 = 0, GSM_1, GSM_2, GSM_3, GSM_4, GSM_CNT = 9 };
 struct GFX_BlendFunc {
     bool operator == (const GFX_BlendFunc &peer) { return m_mode == peer.m_mode && m_srcFactor == peer.m_srcFactor && m_dstFactor == peer.m_dstFactor; }
     bool operator != (const GFX_BlendFunc &peer) { return !(*this == peer); }
@@ -166,7 +177,7 @@ namespace GameShaders {
 }
 struct GFX_ShaderPair { //440 bytes
     int m_vshId, m_fshId, m_program;
-    int m_attribLocations[12], m_locations[GSR_CNT], m_matLocations[GSM_CNT], m_matArrLocations[2], m_samplers[16], m_texHandles[16], m_field_16C[18];
+    int m_attribLocations[12], m_locations[GSR_CNT], m_matLocations[GSM_CNT], m_matArrLocations[2], m_samplers[16], m_texHandles[16], m_uniformLocations[18];
     uint16_t m_vertIdx, m_fragIdx;
     uint8_t m_modelIndex;
 };
@@ -178,8 +189,7 @@ struct GFX_VertexAttr { //4 byte
 struct GFX_Stride {
     char m_strideIdx;
     char m_strideCnt;
-    char field_2;
-    char field_3;
+    bool m_field_2, m_field_3;
 };
 struct GFX_CreateVertexParams { //136 (0x88) bytes
     uint64_t m_attrCnt;
@@ -302,9 +312,9 @@ inline int g_SimpleShaderHandle = -1, g_WorldNoLightingHandle = -1, g_ShadowmapS
     g_VegetationShaderHandle = -1, g_VegetationShaderInstancedTerrainConformHandle = -1, g_VegetationShaderInstancedHandle = -1, g_VegetationShadowmapShaderHandle = -1, g_VegetationShadowmapInstancedShaderHandle = -1,
     g_WireShaderHandle = -1, g_WireShadowShaderHandle = -1, g_BikeShaderInstancedHandle = -1, g_HairShaderHandle = -1, g_SkinShader = -1, g_ShadowmapSkinShader = -1, g_SkinShaderHologram = -1, g_grayScaleShader = -1;
 inline bool g_bUseTextureHeightmaps = true;
-inline int g_ButterflyTexture = -1, g_RedButterflyTexture = -1, g_MonarchTexture = -1, g_FireflyTexture = -1, g_CausticTexture = -1, g_GrassTexture = -1, g_GravelMtnGrassTexture,
-    g_InnsbruckConcreteTexture = -1, g_ParisConcreteTexture = -1, g_DefaultNormalMapNoGloss, g_RoadDustTexture = -1, g_GravelDustTexture = -1, g_SandTexture = -1, g_SandNormalTexture,
-    g_RockTexture = -1, g_FranceRockTexture = -1, g_FranceRockNTexture = -1, g_RockNormalTexture = -1, g_ShowroomFloorTexture = -1, g_HeadlightTexture = -1, g_VignetteTexture = -1, g_FFtextureHandle;
+inline int g_ButterflyTexture = -1, g_RedButterflyTexture = -1, g_MonarchTexture = -1, g_FireflyTexture = -1, g_CausticTexture = -1, g_GrassTexture = -1, g_GravelMtnGrassTexture = -1,
+    g_InnsbruckConcreteTexture = -1, g_ParisConcreteTexture = -1, g_DefaultNormalMapNoGloss, g_RoadDustTexture = -1, g_GravelDustTexture = -1, g_SandTexture = -1, g_SandNormalTexture = -1,
+    g_RockTexture = -1, g_FranceRockTexture = -1, g_FranceRockNTexture = -1, g_RockNormalTexture = -1, g_ShowroomFloorTexture = -1, g_HeadlightTexture = -1, g_VignetteTexture = -1, g_FFtextureHandle = -1, g_GFX_rp;
 inline uint32_t g_TextureTimeThisFrame, g_MeshTimeThisFrame;
 inline GFX_MatrixContext g_MatrixContext;
 inline VEC4 g_frustumPlanes[6], g_Vec4White{1.0, 1.0, 1.0, 1.0};
@@ -418,7 +428,9 @@ void GFX_SetDepthWrite(bool en);
 void GFX_SetCullMode(GFX_CULL cm);
 void GFX_Internal_SetActiveTexture(int glHandle);
 void GFXAPI_ActivateTexture(int handle, int glOffset, const char *uniformName, GFX_TEXTURE_WRAP_MODE wm);
-int32_t GFX_GetStateU32(int idx);
+enum GFX_STATE { GFX_STATE_4, GFX_STATE_12 };
+int32_t GFX_GetStateU32(GFX_STATE idx);
+//inlined void GFX_SetState(GFX_STATE, uint32_t);
 void GFX_SetDepthTestFunc(GFX_COMPARE_FUNC fu);
 void GFX_SetDepthBias(float b);
 void GFX_SetIndexBuffer(int ib);
@@ -482,3 +494,459 @@ template <typename T> void GFX_DrawPrimitive(GFX_PRIM_TYPE t, const T *data, uin
 }
 inline void GFX_Draw2DQuad_UI(float l, float t, float w, float h, int color) { GFX_Draw2DQuad(l, t, w, h, color, true); }
 inline float GFX_UI_GetCurrentSpaceWidth() { return g_CurrentUISpace_Width; }
+void GFX_SetShadowParameters(float sp);
+struct GFX_TextureDef {
+    int m_2w;
+    int m_field_C;
+    uint16_t m_w1;
+    uint16_t m_h1;
+    uint16_t m_field_14;
+    char field_16[42];
+    uint16_t m_w2;
+    uint16_t m_h2;
+    int m_field_44;
+    int m_field_48;
+    int m_field_4C;
+    uint16_t m_field_50;
+    char m_field_52;
+};
+struct GFX_TextureBytes {
+    int16_t *m_data;
+    GFX_TextureDef m_def;
+};
+int GFX_CreateTexture(const GFX_TextureDef &def, const GFX_TextureBytes &ptr, uint64_t);
+enum GFX_QueryType { GQT_0 };
+void GFXAPI_BeginQuery(GFX_QueryType, int);
+void GFXAPI_DrawIndexedPrimitive(GFX_PRIM_TYPE, const void *, uint32_t, GFX_IndexFormat, const void *);
+void GFXAPI_EndQuery(GFX_QueryType);
+struct GFX_MapBufferParams {
+    enum Access { BUF_READ = 1, BUF_WRITE = 2, BUF_READ_WRITE = 3 };
+    uint64_t m_field_0, m_offset;
+    uint64_t m_access, field_18, field_20;
+};
+uint8_t *GFXAPI_MapBuffer(int, const GFX_MapBufferParams &);
+struct GFX_ReadPixelsParams {};
+void GFXAPI_ReadPixels(const GFX_ReadPixelsParams &);
+struct GFX_UpdateBufferParams {};
+void GFXAPI_UpdateBuffer(int, const GFX_UpdateBufferParams &);
+struct GFX_UpdateSubBufferParams {};
+void GFXAPI_UpdateSubBuffer(int, const GFX_UpdateSubBufferParams &);
+enum GFX_PixelFormat { GPF_0 };
+void GFXU_ConvertImage(uint8_t *, GFX_PixelFormat, GFX_PixelFormat, const tVEC2<uint32_t> &);
+void GFXU_DownsampleImage(uint8_t *, tVEC2<uint32_t> &, GFX_PixelFormat, const tVEC2<uint32_t> &);
+void GFXU_FlipImageY(uint8_t *, const tVEC2<uint32_t> &, GFX_PixelFormat);
+void GFXU_SaveTGA(FILE *, tVEC2<uint32_t> const &, const uint8_t *, GFX_PixelFormat);
+bool GFX_AABBInCurrentFrustum(const VEC3 &, const VEC3 &, float *);
+struct Plane {};
+void GFX_AABBInFrustum(VEC3, VEC3, Plane *, float *);
+void GFX_ActivateAnimatedTexture_INTERNAL(int, int, const char *, GFX_TEXTURE_WRAP_MODE);
+void GFX_ActivateTexture(int, int, const char *, GFX_TEXTURE_WRAP_MODE);
+void GFX_AddPerformanceFlagChange(uint64_t);
+void GFX_BEGIN_2DUISpace();
+void GFX_Begin();
+void GFX_BeginCapture();
+void GFX_BeginQuery(GFX_QueryType, int);
+void GFX_BitsPerPixel(GFX_PixelFormat);
+void GFX_Calculate3DTVProjMatrices(float *, float *, const float *, float, float);
+void GFX_CalculateOVRProjMatrices(float *, float *, const float *, float, float);
+void GFX_CheckForAllRequiredExtensions();
+void GFX_CheckFramebufferStatus();
+void GFX_ComponentsPerPixel(GFX_PixelFormat);
+void GFX_ComputeClipInfo(float, float);
+void GFX_CreateAnimatedTextureFromTGAFiles(const char *, int);
+struct GFX_CreateDepthStencilStateParams {};
+void GFX_CreateDepthStencilState_Base(const GFX_CreateDepthStencilStateParams &);
+struct GDE_360_INDEXBUFFER;
+void GFX_CreateIndexBuffer(GDE_360_INDEXBUFFER *, uint32_t, void *);
+struct GfxPipelineDesc {};
+void GFX_CreatePipeline_Base(const GfxPipelineDesc &);
+void GFX_CreateQuery();
+void GFX_CreateTextureFromJPEGFile(const char *);
+int GFX_CreateTextureFromLuminanceF32(uint32_t, uint32_t, float *);
+int GFX_CreateTextureFromLuminanceR8(GLsizei w, GLsizei h, const GLvoid *d);
+void GFX_CreateTextureFromRGB(uint32_t, uint32_t, void *);
+void GFX_CreateTextureFromRGBA(uint32_t, uint32_t, void *, bool);
+void GFX_CreateTextureFromTGA(void *, int);
+void GFX_CreateTextureFromTGAFile(const char *, int, bool, bool);
+void GFX_CreateTextureFromTGAX(void *, int);
+void GFX_CreateTextureFromZTX(void *, int, int);
+void GFX_CreateThread();
+struct GDE_360_VERTEXBUFFER;
+void GFX_CreateVertexBuffer(GDE_360_VERTEXBUFFER *, uint32_t, void *, uint32_t);
+void GFX_DestroyBuffer(int &);
+void GFX_DestroyIndexBuffer(GDE_360_INDEXBUFFER *);
+void GFX_DestroyQuery(int &);
+void GFX_DestroyShader(int &);
+void GFX_DestroyThread();
+void GFX_DestroyVertex(int &);
+void GFX_DestroyVertexBuffer(GDE_360_VERTEXBUFFER *);
+void GFX_DisableShaderProgramOverride();
+void GFX_DisableVideoCapture();
+void GFX_Draw2DOffsetRotatedQuad(float, float, float, float, float, float, float, float, uint32_t, uint32_t, uint32_t, uint32_t, float, float, float, int, bool, float);
+void GFX_Draw2DPie(float, float, float, float, uint32_t, float, int, bool, float);
+void GFX_Draw2DPixeledQuadV(float, float, float, float, uint32_t, uint32_t, bool);
+void GFX_Draw2DQuad(float, float, float, float, float *, uint32_t *, float, int, bool);
+void GFX_Draw2DQuad(float, float, float, float, float, float, float, float, uint32_t, float, int, bool, float);
+void GFX_Draw2DQuad(float, float, float, float, float, float, float, float, uint32_t, uint32_t, uint32_t, uint32_t, float, int, bool, float);
+void GFX_Draw2DQuad(float, float, float, float, uint32_t, bool);
+void GFX_Draw2DQuad(float, float, float, float, uint32_t, uint32_t, uint32_t, uint32_t, bool);
+void GFX_Draw2DQuad_720p(float, float, float, float, float, float, float, float, uint32_t, float, int, float);
+void GFX_Draw2DQuad_720p(float, float, float, float, float, float, float, float, uint32_t, uint32_t, uint32_t, uint32_t, float, int);
+void GFX_Draw2DQuad_720p(float, float, float, float, uint32_t);
+void GFX_Draw2DQuad_720p(float, float, float, float, uint32_t, uint32_t, uint32_t, uint32_t);
+void GFX_Draw2DTrapezoid(float, float, float, float, float, uint32_t, bool);
+void GFX_DrawArcedCapsule(float, float, float, float, uint32_t, float, float, float, int, bool);
+void GFX_DrawBuffers(uint64_t);
+void GFX_DrawCapsule(float, float, float, float, uint32_t);
+void GFX_DrawCircle(float, float, float, float, uint32_t);
+void GFX_DrawFlip();
+void GFX_DrawIndexedInstancedPrimitive(GFX_PRIM_TYPE, uint32_t, uint32_t, GFX_IndexFormat, uint32_t, uint32_t, uint32_t, uint32_t);
+void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE, DRAW_VERT_POS_COLOR_1UV *, uint32_t, uint32_t *, uint32_t);
+void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE, DRAW_VERT_POS_COLOR_1UV const *, uint32_t, uint16_t const *, uint32_t);
+void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE, DRAW_VERT_POS_COLOR_UV *, uint32_t, uint32_t *, uint32_t);
+void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE, DRAW_VERT_POS_COLOR_UV_NORM_TAN *, uint32_t, uint32_t *, uint32_t);
+void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE, DRAW_VERT_POS_COLOR_UV_NORM_TAN_PACKED *, uint32_t, uint16_t *, uint32_t);
+void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE, uint32_t, uint32_t, GFX_IndexFormat, uint32_t);
+void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE, const void *, uint32_t, GFX_IndexFormat, const void *);
+void GFX_DrawInit();
+void GFX_DrawInstancedPrimitive(GFX_PRIM_TYPE, uint32_t, uint32_t, uint32_t, uint32_t);
+void GFX_DrawPrimitive_OGL(GFX_PRIM_TYPE, DRAW_VERT_POS_COLOR_UV *, uint32_t);
+enum RENDER_BUFFER { RB_0 };
+struct RenderTarget;
+struct RECT2 {};
+void GFX_DrawRenderTarget(const RECT2 &, const RECT2 &, RenderTarget *, RENDER_BUFFER, const VEC4 &, GFX_TEXTURE_WRAP_MODE);
+void GFX_DrawRenderTarget(RenderTarget *, RenderTarget *, RENDER_BUFFER, const VEC4 &, GFX_TEXTURE_WRAP_MODE);
+void GFX_DrawRenderTarget2(float, float, float, float, RenderTarget *, RENDER_BUFFER, const VEC4 &, GFX_TEXTURE_WRAP_MODE);
+void GFX_DrawRenderTargetDepth(float, float, float, float, RenderTarget *, RENDER_BUFFER, GFX_TEXTURE_WRAP_MODE);
+void GFX_DrawSphere(const VEC3 &, float, uint32_t, uint32_t);
+void GFX_END_2DUISpace();
+void GFX_EnableShaderProgramOverride(uint32_t);
+//TODO void GFX_EnableVideoCapture(std::weak_ptr<GFX_VideoCaptureHandler> const &);
+void GFX_EndCapture();
+void GFX_EndFrame();
+void GFX_EndQuery(GFX_QueryType);
+void GFX_Flush();
+void GFX_GLFWErrorCallback(int, const char *);
+void GFX_GaussianBlur(RenderTarget *, RenderTarget *, RenderTarget *, float, GFX_TEXTURE_WRAP_MODE);
+struct GaussianTap {};
+void GFX_GaussianTaps(GaussianTap *, uint64_t, uint64_t &, uint64_t, float, bool);
+void GFX_GetAPI();
+void GFX_GetAPIVersion();
+void GFX_GetCurrentMonitorHash();
+void GFX_GetDepthTestFunc();
+void GFX_GetDestBlend();
+void GFX_GetDisplayCategory();
+void GFX_GetError();
+void GFX_GetInstantaniousFPS();
+void GFX_GetMaxFPSOnBattery();
+void GFX_GetMemory();
+void GFX_GetPerformanceGroupName();
+void GFX_GetPrimCount(GFX_PRIM_TYPE, uint32_t);
+void GFX_GetPxlShaderConstantHandleByName(const char *);
+void GFX_GetPxlShaderConstantHandleByRegister(uint32_t);
+void GFX_GetQueryResult(int, uint64_t &, uint64_t);
+void GFX_GetScreenDPI();
+void GFX_GetShaderProgram();
+void GFX_GetShaderProgramOverride();
+void GFX_GetShaderVEC4(GFX_SHADER_REGISTERS);
+void GFX_GetSmoothedFPS();
+void GFX_GetSrcBlend();
+void GFX_GetTargetSize(RenderTarget *);
+void GFX_GetTexture(uint32_t);
+void GFX_GetTextureDef(int);
+void GFX_GetTextureHeight(int);
+void GFX_GetTextureWidth(int);
+void GFX_GetThread();
+void GFX_GetThreadList();
+void GFX_GetTotalAppTimeSeconds();
+void GFX_GetUIScissor();
+void GFX_GetViewport(int &, int &, uint32_t &, uint32_t &);
+enum VrtShaderConstantId { VSC_0 };
+void GFX_GetVrtShaderConstantHandleById(VrtShaderConstantId);
+void GFX_GetVrtShaderConstantHandleByName(const char *);
+void GFX_GetVrtShaderConstantHandleByRegister(uint32_t);
+void GFX_InitDrawPrimVAOs();
+void GFX_Initialize(uint32_t, uint32_t, bool, bool, uint32_t, const char *, const char *);
+void GFX_Internal_GetNextTextureHandle();
+void GFX_Internal_LoadOnDemandMeshHandle(int, uint32_t);
+void GFX_Internal_LoadOnDemandTextureHandle(int);
+void GFX_Internal_LoadTextureFromTGAFile(const char *, int, bool);
+void GFX_Internal_LoadTextureFromWADFile(const char *, int);
+void GFX_Internal_SetActiveTexture(uint32_t);
+void GFX_Internal_UnloadTexture(int, TEX_STATE);
+void GFX_Internal_UpdateVertexArrayAttribEnable(uint64_t);
+void GFX_Internal_fixupShaderAddresses(GFX_ShaderPair *);
+void GFX_InvPerspective(MATRIX44 *, float, float, float, float);
+void GFX_InvalidateCachedTextureState();
+void GFX_InvalidateIndexBuffer(GDE_360_INDEXBUFFER *);
+void GFX_InvalidateMatrixStack();
+void GFX_InvalidateVertexBuffer(GDE_360_VERTEXBUFFER *);
+void GFX_IsAnimatedTexture(int);
+enum TEX_FORMATS { TF_0 };
+void GFX_IsCompressed(TEX_FORMATS);
+void GFX_IsLowVRAMDevice();
+void GFX_IsVideoCaptureSupported();
+void GFX_LineWidth(float);
+void GFX_LoadIdentity();
+void GFX_LoadMatrix(const MATRIX44 &);
+void GFX_LookAt(const VEC3 &, const VEC3 &, const VEC3 &);
+uint8_t *GFX_MapBuffer(int, const GFX_MapBufferParams &);
+void GFX_MatrixMode(GFX_MatrixType);
+void GFX_MatrixStackInitialize();
+void GFX_MeshSystem_Update(float);
+void GFX_MulMatrix(const MATRIX44 &);
+void GFX_MulMatrixInternal(MATRIX44 *, const MATRIX44 &);
+struct GFX_Noesis {
+    /*void GFX_Noesis::BeginRender(bool);
+    void GFX_Noesis::BeginTile(const Noesis::Tile &, uint32_t, uint32_t);
+    void GFX_Noesis::CloneRenderTarget(const char *, Noesis::RenderTarget *);
+    void GFX_Noesis::CreateRenderTarget(const char *, uint32_t, uint32_t, uint32_t);
+    void GFX_Noesis::CreateTexture(const char *, uint32_t, uint32_t, uint32_t, Noesis::TextureFormat::Enum, const void **);
+    void GFX_Noesis::DrawBatch(const Noesis::Batch &);
+    void GFX_Noesis::EndRender();
+    void GFX_Noesis::EndTile();
+    void GFX_Noesis::GetCaps();
+    void GFX_Noesis::MapIndices(uint32_t);
+    void GFX_Noesis::MapVertices(uint32_t);
+    void GFX_Noesis::OffscreenRender();
+    void GFX_Noesis::OnscreenRender();
+    void GFX_Noesis::ResolveRenderTarget(Noesis::RenderTarget *, Noesis::Tile const *, uint32_t);
+    void GFX_Noesis::SetRenderTarget(Noesis::RenderTarget *);
+    void GFX_Noesis::UnmapIndices();
+    void GFX_Noesis::UnmapVertices();
+    void GFX_Noesis::UpdateTexture(Noesis::Texture *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, const void *);
+    void GFX_Noesis::~GFX_Noesis();*/
+};
+void GFX_NoesisCreateDevice(bool, int);
+struct GFX_NoesisDevice {
+    /*void GFX_NoesisDevice::BeginRender(bool);
+void GFX_NoesisDevice::BeginTile(Noesis::Tile const &, uint32_t, uint32_t);
+void GFX_NoesisDevice::CloneRenderTarget(const char *, Noesis::RenderTarget *);
+void GFX_NoesisDevice::CreateRenderTarget(const char *, uint32_t, uint32_t, uint32_t);
+void GFX_NoesisDevice::CreateTexture(const char *, uint32_t, uint32_t, uint32_t, Noesis::TextureFormat::Enum, const void **);
+void GFX_NoesisDevice::DrawBatch(Noesis::Batch const &);
+void GFX_NoesisDevice::EndRender();
+void GFX_NoesisDevice::EndTile();
+void GFX_NoesisDevice::GFX_NoesisDevice(bool);
+void GFX_NoesisDevice::GetCaps();
+void GFX_NoesisDevice::MapIndices(uint32_t);
+void GFX_NoesisDevice::MapVertices(uint32_t);
+void GFX_NoesisDevice::ResolveRenderTarget(Noesis::RenderTarget *, Noesis::Tile const *, uint32_t);
+void GFX_NoesisDevice::SetRenderTarget(Noesis::RenderTarget *);
+void GFX_NoesisDevice::UnmapIndices();
+void GFX_NoesisDevice::UnmapVertices();
+void GFX_NoesisDevice::UpdateTexture(Noesis::Texture *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, const void *);
+void GFX_NoesisDevice::~GFX_NoesisDevice();
+*/
+};
+struct GFX_NoesisGFX {
+    GFX_NoesisGFX(bool);
+    ~GFX_NoesisGFX();
+};
+struct GFX_NoesisOGL {
+    GFX_NoesisOGL(bool);
+    void OffscreenRender();
+    void OnscreenRender();
+    ~GFX_NoesisOGL();
+};
+void GFX_NoesisOffscreenRender(Noesis::RenderDevice *);
+void GFX_NoesisOnscreenRender(Noesis::RenderDevice *);
+struct GFX_NoesisRenderTarget {
+    GFX_NoesisRenderTarget(const char *, const GFX_NoesisRenderTarget *);
+    GFX_NoesisRenderTarget(const char *, uint32_t, uint32_t, uint32_t);
+    void GetTexture();
+    void RenderTo();
+    ~GFX_NoesisRenderTarget();
+};
+enum GFX_SHADER_SAMPLERS { GSS_0 };
+struct GFX_NoesisRenderTargetTexture {
+    GFX_NoesisRenderTargetTexture(const char *, RenderTarget *);
+    void Bind(GFX_SHADER_SAMPLERS, const Noesis::SamplerState &);
+    void GetHeight();
+    void GetWidth();
+    void HasMipMaps();
+    void IsInverted();
+    void Update(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, const void *);
+    ~GFX_NoesisRenderTargetTexture();
+};
+struct GFX_NoesisTexture2D {
+    GFX_NoesisTexture2D(const char *, uint32_t, uint32_t, uint32_t, Noesis::TextureFormat::Enum, const void **);
+    void Bind(GFX_SHADER_SAMPLERS, Noesis::SamplerState const &);
+    void GetHeight();
+    void GetWidth();
+    void HasMipMaps();
+    void IsInverted();
+    void Update(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, const void *);
+    ~GFX_NoesisTexture2D();
+};
+struct GFX_NoesisTexture {
+    GFX_NoesisTexture(const char *);
+    ~GFX_NoesisTexture();
+};
+void GFX_Ortho(float, float, float, float, float, float);
+void GFX_Ortho3D(float, float, float, float, float, float);
+void GFX_Perspective(float, float, float, float);
+void GFX_PointSize(float);
+void GFX_PopMatrix();
+void GFX_PopStates();
+void GFX_PopUIScissor();
+void GFX_Present();
+void GFX_PushMatrix();
+void GFX_PushStates();
+void GFX_PushUIScissor();
+enum GFX_API { GA_0 };
+struct GFX_API_Version {};
+void GFX_QueryAPI(GFX_API, GFX_API_Version *);
+void GFX_ReadPixels(const GFX_ReadPixelsParams &);
+void GFX_ReplaceTextureWithRGBA(int, uint32_t, uint32_t, void *);
+void GFX_RotateX(float);
+void GFX_RotateY(float);
+void GFX_RotateZ(float);
+void GFX_Scale(const VEC3 &);
+void GFX_Scissor(int, int, uint32_t, uint32_t);
+void GFX_SetAlphaBlendEnable(bool);
+void GFX_SetAnimatedTextureFrame(int, int);
+void GFX_SetAnimatedTextureFramerate(int, float);
+void GFX_SetBlendColor(float, float, float, float);
+void GFX_SetBlendFunc(GFX_BLEND_OP, GFX_BLEND, GFX_BLEND);
+void GFX_SetClearColor(float, float, float, float);
+void GFX_SetClearDepth(float);
+void GFX_SetClipPlane(uint64_t, const Plane &, const MATRIX44 &);
+void GFX_SetClipPlaneEnable(uint64_t, bool);
+void GFX_SetColorMask(uint64_t, uint8_t);
+void GFX_SetCullMode(GFX_CULL);
+void GFX_SetCurrentAniso(float);
+void GFX_SetDepthBias(float);
+void GFX_SetDepthTestEnable(bool);
+void GFX_SetDepthTestFunc(GFX_COMPARE_FUNC);
+void GFX_SetDepthWrite(bool);
+void GFX_SetFillMode(GFX_FILL_MODE);
+void GFX_SetFlipRenderTexture(bool);
+void GFX_SetIndexBuffer(int);
+void GFX_SetLoadedAssetMode(bool);
+void GFX_SetMaxFPSOnBattery(float);
+void GFX_SetMipBias(float);
+struct GFX_UserRegister {
+    uint64_t m_offset;
+    const char *m_name;
+};
+void SetupLightmaps(bool a1);
+void GFX_SetPxlShaderConstByName_Vec4(const GFX_UserRegister &, const VEC4 &);
+void GFX_SetPxlShaderConst_Bool(uint32_t, bool);
+void GFX_SetPxlShaderConst_Float(uint32_t, float);
+void GFX_SetPxlShaderConst_Int(uint32_t, int);
+void GFX_SetPxlShaderConst_Int2(uint32_t, int, int);
+void GFX_SetPxlShaderConst_Int3(uint32_t, int, int, int);
+void GFX_SetPxlShaderConst_Mat4x4(uint32_t, const MATRIX44 &);
+void GFX_SetPxlShaderConst_Vec4(uint32_t, const VEC4 &);
+void GFX_SetScissorTestEnable(bool);
+void GFX_SetSelfIllumDayNightLerpVal(float);
+void GFX_SetSelfIllumIntensityBias(float);
+enum GFX_SHADER_COLORSPACE { GSC_0 };
+void GFX_SetShaderColorSpace(GFX_SHADER_COLORSPACE);
+void GFX_SetShadowParameters(float);
+void GFX_SetSlopeScaleDepthBias(float);
+void GFX_SetStencilFunc(bool, GFX_COMPARE_FUNC, uint8_t, uint8_t, GFX_StencilOp, GFX_StencilOp, GFX_StencilOp);
+void GFX_SetStencilRef(uint8_t);
+struct GFX_SetBufferParams {};
+void GFX_SetStorageBuffer(const GFX_SetBufferParams *, uint64_t);
+void GFX_SetTextureFilter(uint32_t, GFX_FILTER);
+void GFX_SetTextureFilterCap(GFX_FILTER);
+void GFX_SetTextureLodBias(uint32_t, float);
+void GFX_SetTextureWrap(uint32_t, GFX_TEXTURE_WRAP_MODE, GFX_TEXTURE_WRAP_MODE);
+void GFX_SetUIScissor(float, float, float, float, bool);
+void GFX_SetVAO(int);
+void GFX_SetVertex(int);
+void GFX_SetVertexBuffer(int, uint64_t, uint64_t);
+void GFX_SetVrtShaderConstByName_Vec4(const GFX_UserRegister &, const VEC4 &);
+void GFX_SetVrtShaderConst_Bool(uint32_t, bool);
+void GFX_SetVrtShaderConst_Float(uint32_t, float);
+void GFX_SetVrtShaderConst_Int(uint32_t, int);
+void GFX_SetVrtShaderConst_Int2(uint32_t, int, int);
+void GFX_SetVrtShaderConst_Int3(uint32_t, int, int, int);
+void GFX_SetVrtShaderConst_Mat4x4(uint32_t, const MATRIX44 &);
+void GFX_SetVrtShaderConst_Vec4(uint32_t, const VEC4 &);
+void GFX_SetWideAspectAwareUI(bool);
+void GFX_SetupUIProjection();
+enum GFX_ShaderModel { GSHM_0 };
+void GFX_ShaderModelValue(GFX_ShaderModel);
+void GFX_Shadow(MATRIX44 *);
+void GFX_Shutdown();
+struct GFX_SortKeyParams {};
+struct GFX_SortKey {
+    void SetDistance(const VEC3 &, const GFX_SortKeyParams &);
+};
+void GFX_SphereInCurrentFrustum(float, float, float, float);
+void GFX_SphereInCurrentFrustumDist(float, float, float, float);
+void GFX_SphereInFrustum(float, float, float, float, Plane *);
+void GFX_SphereInFrustumDist(float, float, float, float, Plane *);
+void GFX_SphereInFrustumDistFromSides(float, float, float, float);
+struct Sphere;
+void GFX_SpheresInCurrentFrustumDist(Sphere *, int, float *);
+void GFX_SpheresInFrustumDist(Sphere *, int, float *, Plane *);
+void GFX_StoreMatrix(MATRIX44 *);
+void GFX_StreamMalloc(uint64_t, uint64_t);
+void GFX_TestInitGL(int, int, bool);
+void GFX_TexPerspective(float, float, float, float, float, float);
+void GFX_TextureSys_Initialize();
+void GFX_TextureSys_Update(float);
+struct GFX_Thread {
+    GFX_Thread();
+    ~GFX_Thread();
+};
+void GFX_TransformPoint(const VEC3 &);
+void GFX_Translate(const VEC3 &);
+void GFX_UI_GetCurrentSpaceHeight();
+void GFX_UI_GetLeftEdgePad();
+void GFX_UI_GetRightEdgePad();
+void GFX_UI_GetWideSpaceHeight();
+void GFX_UI_GetWideSpaceWidth();
+void GFX_UnloadTexture(int);
+void GFX_UnmapBuffer(int bufId);
+void GFX_UnsetShader();
+void GFX_UpdateBuffer(int, const GFX_UpdateBufferParams &);
+void GFX_UpdateMatrices(bool);
+void GFX_UpdateStack_internal();
+void GFX_UpdateSubBuffer(int, const GFX_UpdateSubBufferParams &);
+enum GFX_MatrixSlot { GMS_0 };
+void GFX_UploadMatrix(GFX_MatrixSlot, const MATRIX44 &);
+void GFX_UploadShaderFloat(GFX_SHADER_REGISTERS, float);
+void GFX_UploadShaderFloat(const GFX_UserRegister &, float);
+void GFX_UploadShaderMAT4(const GFX_UserRegister &, const MATRIX44 &, uint64_t);
+enum GFX_SHADER_MATRIX_ARRAYS { GSMA_0 };
+void GFX_UploadShaderMAT4ARRAY(GFX_SHADER_MATRIX_ARRAYS, uint32_t, const MATRIX44 &, uint64_t);
+void GFX_UploadShaderMAT4ARRAY(const GFX_UserRegister &, uint32_t, const MATRIX44 &, uint64_t);
+void GFX_UploadShaderVEC2(GFX_SHADER_REGISTERS, const VEC2 &);
+void GFX_UploadShaderVEC2(const GFX_UserRegister &, const VEC2 &);
+void GFX_UploadShaderVEC2ARRAY(GFX_SHADER_REGISTERS, uint32_t, const VEC2 &);
+void GFX_UploadShaderVEC2ARRAY(const GFX_UserRegister &, uint32_t, const VEC2 &);
+void GFX_UploadShaderVEC3(GFX_SHADER_REGISTERS, const VEC3 &);
+void GFX_UploadShaderVEC3(const GFX_UserRegister &, const VEC3 &);
+void GFX_UploadShaderVEC4(GFX_SHADER_REGISTERS, const VEC4 &, uint64_t);
+void GFX_UploadShaderVEC4(const GFX_UserRegister &, const VEC4 &, uint64_t);
+void GFX_UploadShaderVEC4ARRAY(GFX_SHADER_REGISTERS, uint32_t, const VEC4 &);
+void GFX_UploadShaderVEC4ARRAY(const GFX_UserRegister &, uint32_t, const VEC4 &, uint64_t);
+void GFX_VHSGaussianBlur(RenderTarget *, RenderTarget *, RenderTarget *, float, GFX_TEXTURE_WRAP_MODE);
+void GFX_Viewport(int, int, uint32_t, uint32_t);
+void GFX_internal_DrawIndexedPrimitive(GFX_PRIM_TYPE, GFX_IndexFormat, const void *, uint32_t);
+void GFX_internal_DrawPrimitive(GFX_PRIM_TYPE, uint32_t, uint32_t);
+enum GFX_TextureType { GTT_0 };
+void GFXtoOGLTarget(GFX_TextureType);
+//GFXAPI_UpdateSubTexture(int, uint, uint, uint, uint, uint, void const *, ulong long, ulong long)
+//GFXAPI_UnloadTexture(int, TEX_STATE)
+//GFXAPI_StreamMalloc(ulong long, ulong long)
+//GFXAPI_Shutdown(void)
+//GFXAPI_SetFlipbookTextureIndexOverride(int)
+//GFXAPI_SetFlipRenderTexture(bool)
+//GFXAPI_ReplaceTextureWithRGBA(int, uint, uint, void const *)
+//GFXAPI_NoesisCreateDevice(bool, int)
+//GFXAPI_GetTargetSize(RenderTarget *)
+//GFXAPI_GetQueryResult(int, ulong long &, ulong long)
+//GFXAPI_GenerateTextureMips(int)
+//GFXAPI_DestroyQuery(int)
+//GFXAPI_CreateTextureFromRGB(int, uint, uint, void const *)
+//GFXAPI_CreateTextureFromLuminanceU8(int, uint, uint, uchar const *)
+//GFXAPI_CreateTextureFromLuminanceF32(int, uint, uint, float const *)
+//GFXAPI_CreateShaderFromFile(int, char const *)
+//GFXAPI_CreateQuery(int)
+//GFXAPI_Build2dMipmaps(int, uint, uint, uchar const *, ulong long)

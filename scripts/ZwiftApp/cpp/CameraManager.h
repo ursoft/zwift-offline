@@ -31,7 +31,7 @@ Camera::UpdateLocalCameraOffsets(float)*/
         }
     }
     int64_t m_playerId = -1;
-    float field_1C[16]{};
+    float m_field_1C[16]{};
     VEC3 field_8{};
     CAMTYPE m_type;
     bool field_18 = true, field_5C = true, field_A4 = false, field_A5 = false, field_A6 = false, field_A7 = false, field_C0 = false, m_isElastic = false, field_C8 = false;

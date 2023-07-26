@@ -203,3 +203,6 @@ void VRAM_EndRenderTo(uint8_t flags) {
         GFX_Clear(flags);
     }
 }
+void VRAM_RenderFromDepth(RenderTarget *, int, const char *, bool) {
+    //TODO
+}

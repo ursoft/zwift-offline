@@ -1,5 +1,6 @@
 #include "ZwiftApp.h"
-int g_textureToHandleTable[1024]; //TODO
+const int textureToHandleTableSize = 1024;
+//int g_textureToHandleTable[1024];
 template<class T>
 void GDE_PackIndices(uint32_t **dest, int offset, T *src, unsigned int numIndices) {
     **dest = offset + *src;
@@ -18,29 +19,31 @@ void GDE_PackIndices(uint32_t **dest, int offset, T *src, unsigned int numIndice
     }
 }
 void LOADER_COLInit(uint32_t) {
-    //TODO
+    //OMIT - not used?
 }
 void LOADER_CompressToFile(const char *, const char *, const char *) {
-    //TODO
+    //OMIT - not used?
 }
 void LOADER_ContainsGamepath(const char *) {
-    //TODO
+    //OMIT - not used?
 }
 void LOADER_DebugGetName(uint32_t, WAD_ASSET_TYPE) {
-    //TODO
+    //OMIT - not used?
 }
 void LOADER_DecompressFileToMemory(std::string, void **, int &, uint32_t) {
     //unused
     assert(false);
 }
 void LOADER_DecompressToFile(void *, int, const char *) {
-    //TODO
+    //OMIT - not used?
 }
 void LOADER_DecompressToMemory(void *, int, void **, int &, uint32_t) {
-    //TODO
+    //OMIT - not used?
 }
-void LOADER_FileExists(std::string) {
-    //TODO
+bool LOADER_FileExists(const std::string &fileName) {
+    struct _stat64i32 v7{};
+    auto ret = _stat64i32(GAMEPATH(fileName.c_str()), &v7) == 0;
+    return ret;
 }
 WAD_FILE_HEADER *LOADER_FindAssetsBySignature(uint32_t crc, WAD_ASSET_TYPE wat) { //QUEST: how these pointers are filled???
     WAD_FILE_HEADER *result = WAD_FindAssetsBySignature(crc, wat, g_levelWadGroup);
@@ -89,22 +92,22 @@ WAD_FILE_HEADER *LOADER_FindAssetsBySignature(uint32_t crc, WAD_ASSET_TYPE wat) 
     return result;
 }
 void LOADER_FindAssetsByType(WAD_ASSET_TYPE) {
-    //TODO
+    //OMIT - not used?
 }
 void LOADER_GetFileModifiedTime(std::string) {
-    //TODO
+    //OMIT - not used?
 }
 void LOADER_GetHashedFileName(std::string, std::string) {
-    //TODO
+    //OMIT - not used?
 }
 void LOADER_HashAndCompressXML(std::string) {
-    //TODO
+    //OMIT - string "_list.txt" not found
 }
 bool LOADER_IsValidCompAssetHeader(const char *data /*ZCompAssetHeader **/) {
     return data && data[0] == 'Z' && data[1] == 'H' && data[2] == 'R' && data[3] == 1; //*.ztx
 }
 void LOADER_ListMeshResourceSizes() {
-    //TODO
+    //OMIT - not used ?
 }
 void GDE_UpgradeMesh(GDE_Mesh_VERT_BUF *pMesh) {
     if (pMesh->m_version == 9) {
@@ -368,10 +371,10 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
     headerCopy->m_materials = (GDE_Material *)malloc(sizeof(GDE_Material) * file->m_materialsCnt);
     headerCopy->m_textures = (GDE_Tex *)malloc(sizeof(GDE_Tex) * file->m_texturesCnt);
     headerCopy->m_shaders = (GDE_Shader *)malloc(sizeof(GDE_Shader) * file->m_shadersCnt);
-    zassert(file->m_texturesCnt < _countof(g_textureToHandleTable));
+    zassert(file->m_texturesCnt < textureToHandleTableSize);
     auto destTextures = headerCopy->m_textures;
     auto srcTextures = file->m_textures;
-    int texHandles[_countof(g_textureToHandleTable)];
+    int texHandles[textureToHandleTableSize];
     for (uint32_t t = 0; t < file->m_texturesCnt; t++) {
         if (srcTextures[t].m_name) {
             memmove(destTextures + t, srcTextures + t, sizeof(GDE_Tex));
@@ -429,9 +432,8 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
         headerCopy->m_mesh.VERT_BUF = newMesh;
         auto mesh = file->m_mesh.VERT_BUF;
         *newMesh = *mesh;
-        if (mesh->m_version != 10) {
+        if (mesh->m_version != 10)
             LogDebug("LOADER_LoadGdeFile_LEAN() Loading old version of mesh, %s, filesize, %d", name, fileSize);
-        }
         g_ENG_InstanceResources[handle].m_bounds = mesh->m_bounds;
         GDE_UpgradeMesh(mesh);
         auto optLod = GDE_OptimizeLod(0, mesh->m_lodMax);
@@ -590,10 +592,10 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
                 ++curSubItem;
                 ++stripIdx;
             }
-            newMesh->m_bounds.m_data[0] = (minCoord.m_data[0] + maxCoord.m_data[0]) * 0.5;
-            newMesh->m_bounds.m_data[1] = (minCoord.m_data[1] + maxCoord.m_data[1]) * 0.5;
-            newMesh->m_bounds.m_data[2] = (minCoord.m_data[1] + maxCoord.m_data[1]) * 0.5;
-            newMesh->m_bounds.m_data[3] = sqrtf((maxCoord.m_data[1] - minCoord.m_data[1]) * 0.5 * (maxCoord.m_data[1] - minCoord.m_data[1]) * 0.5 + (maxCoord.m_data[0] - minCoord.m_data[0]) * 0.5 * (maxCoord.m_data[0] - minCoord.m_data[0]) * 0.5 + (maxCoord.m_data[2] - minCoord.m_data[2]) * 0.5 * (maxCoord.m_data[2] - minCoord.m_data[2]) * 0.5);
+            newMesh->m_bounds.m_center.m_data[0] = (minCoord.m_data[0] + maxCoord.m_data[0]) * 0.5;
+            newMesh->m_bounds.m_center.m_data[1] = (minCoord.m_data[1] + maxCoord.m_data[1]) * 0.5;
+            newMesh->m_bounds.m_center.m_data[2] = (minCoord.m_data[1] + maxCoord.m_data[1]) * 0.5;
+            newMesh->m_bounds.m_radius = sqrtf((maxCoord.m_data[1] - minCoord.m_data[1]) * 0.5 * (maxCoord.m_data[1] - minCoord.m_data[1]) * 0.5 + (maxCoord.m_data[0] - minCoord.m_data[0]) * 0.5 * (maxCoord.m_data[0] - minCoord.m_data[0]) * 0.5 + (maxCoord.m_data[2] - minCoord.m_data[2]) * 0.5 * (maxCoord.m_data[2] - minCoord.m_data[2]) * 0.5);
             GDE_StoreStat(GS_VERT_BUF, fileSize, file); //QUEST: why not outside loop?
         }
     }
@@ -627,9 +629,9 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
     ShiftPointer(&file->m_materials, file);
     ShiftPointer(&file->m_textures, file);
     ShiftPointer(&file->m_shaders, file);
-    zassert(file->m_texturesCnt < _countof(g_textureToHandleTable));
+    zassert(file->m_texturesCnt < textureToHandleTableSize);
     auto srcTextures = file->m_textures;
-    int texHandles[_countof(g_textureToHandleTable)];
+    int texHandles[textureToHandleTableSize];
     for (uint32_t t = 0; t < file->m_texturesCnt; t++) {
         if (srcTextures[t].m_name) {
             ShiftPointer(&srcTextures[t].m_name, file);
@@ -973,17 +975,17 @@ int LOADER_LoadGdeFile(const char *name, bool manyInstances) {
     return handle;
 }
 int LOADER_LoadGdeFileWFH(WAD_FILE_HEADER *, bool) {
-    //TODO
+    //OMIT - not used?
     return 0;
 }
 void LOADER_LoadNavMesh() {
-    //TODO
+    //empty (android)
 }
 void LOADER_LoadTexture(uint32_t, WAD_ASSET_TYPE) {
-    //TODO
+    //OMIT - not used?
 }
 void LOADER_SetFatBitVertexStreamIfNecessary(GDE_360_TIE *) {
-    //TODO
+    //OMIT - not used?
 }
 void LOADER_UnloadGdeFile(int handle) {
     auto &obj = g_ENG_InstanceResources[handle];
@@ -1092,7 +1094,7 @@ void LOADER_UnloadGdeFile(int handle) {
     obj.m_state = IRS_NEED_LOAD;
 }
 void LOADER_UpdateFileList(std::string, std::string, std::string &) {
-    //TODO
+    //OMIT - called only from LOADER_HashAndCompressXML
 }
 void LOADER_UseHWInstancing(bool en) {
     g_UseHWInstancing = en;
@@ -1238,7 +1240,7 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint
         LogTyped(LOG_ERROR, "Out of memory (shaders)!");
         return -1;
     }
-    int texHandles[_countof(g_textureToHandleTable)];
+    int texHandles[textureToHandleTableSize];
     auto srcTextures = file->m_textures, destTextures = headerCopy->m_textures;
     for (uint32_t t = 0; t < file->m_texturesCnt; t++) {
         if (srcTextures[t].m_name) {
@@ -1476,9 +1478,6 @@ void *LOAD_CHARACTER_Anim(const GDE_Header_360 *gde, const char *name) {
     fclose(f);
     return LOAD_CHARACTER_FixupAnim_chk(gde, buf, name);
 }
-template <class T> void FixupPointer(T **src, void *base) {
-    *src = (T *)((UINT_PTR)*src + (UINT_PTR)base);
-}
 bool LOAD_CHARACTER_FixupAnim(void *buf_, const GDE_Header_360 *gde) {
     static_assert(sizeof(GDE_AnimationHeaderItem) == 128);
     static_assert(sizeof(GDE_AnimationHeaderSubItem1) == 16);
@@ -1488,21 +1487,21 @@ bool LOAD_CHARACTER_FixupAnim(void *buf_, const GDE_Header_360 *gde) {
     auto buf = (GDE_AnimationHeader *)buf_;
     if (buf->m_items > (GDE_AnimationHeaderItem *)0x100000)
         return true;
-    FixupPointer(&buf->m_items, buf);
+    ShiftPointer(&buf->m_items, buf);
     for (int i = 0; i < buf->m_cnt; i++) {
         auto ptrI = buf->m_items + i;
         ptrI->m_someval = 0;
-        FixupPointer(&ptrI->m_field_10, buf);
+        ShiftPointer(&ptrI->m_field_10, buf);
         for (int j = 0; j < 6; j++) {
             auto count = ptrI->m_counts1[j];
             for (int k = 0; k < count; k++)
-                FixupPointer(&ptrI->m_field_10[k].m_subPtr, buf);
+                ShiftPointer(&ptrI->m_field_10[k].m_subPtr, buf);
         }
         if (ptrI->m_field_40) {
-            FixupPointer(&ptrI->m_field_40, buf);
+            ShiftPointer(&ptrI->m_field_40, buf);
             for (int m = 0; m < ptrI->m_counts2; m++) {
                 auto &pm = ptrI->m_field_40[m];
-                FixupPointer(&pm.m_subPtr, buf);
+                ShiftPointer(&pm.m_subPtr, buf);
                 pm.m_morphIdx = -1;
                 uint32_t morphIdx = 0;
                 if (gde && gde->m_meshKind == GMK_SKIN) {

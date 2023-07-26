@@ -116,8 +116,8 @@ GDE_Header_360 *GDEMESH_GetMesh(int handle) {
     m.m_creationTime = g_MeshTimeThisFrame;
     return m.m_gdeFile;
 }
-VEC4 g_defMeshBounds{0.0f, 0.0f, 0.0f, 1.0f};
-VEC4 *GDEMESH_GetMeshBounds(VEC4 *ret, int handle) {
+Sphere g_defMeshBounds{ {0.0f, 0.0f, 0.0f}, 1.0f };
+Sphere *GDEMESH_GetMeshBounds(Sphere *ret, int handle) {
     if ((unsigned)handle >= _countof(g_ENG_InstanceResources))
         *ret = g_defMeshBounds;
     else
