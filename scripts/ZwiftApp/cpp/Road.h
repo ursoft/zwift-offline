@@ -1,14 +1,18 @@
 #pragma once
+struct RoadMarkerEntity;
 struct RoadSegment {
     int m_segmentId = 0;
     VEC3 CalculateRoadPositionAtTime(double, bool);
+    VEC3 CalculateRoadPositionAtTimeF(float, bool);
+    float GetRoadWidth(double, bool, float *, float *, const RoadMarkerEntity **);
+    float GetRiderBoundsRatio();
+    virtual double FindClosestPointOnRoad(const VEC3 &, double, int) {}
+    virtual void CalculateRoadPositionByDist(double, double, VEC3 *) {}
     /*RoadSegment::AddMarkers(Entity *,int *)
 RoadSegment::AddPOI(POIEntity *)
 RoadSegment::AddSpeedGate(SpeedGateEntity *)
 RoadSegment::AllowFullWidthSteering(void)
 RoadSegment::CalcPosByShortDistWithOffset(double,double,double,double,VEC3 *)
-RoadSegment::CalculateRoadPositionAtTimeF(float,bool)
-RoadSegment::CalculateRoadPositionByDist(double,double,VEC3 *)
 RoadSegment::CalculateSplinePoints(void)
 RoadSegment::CheckForPOI(float)
 RoadSegment::CheckForSpeedGates(float,float,bool)
@@ -17,7 +21,6 @@ RoadSegment::ConvertRoadTimeToDistance(double)
 RoadSegment::CreateEntityObject(tinyxml2::XMLElement &)
 RoadSegment::CreateRoadNodeEntity(tinyxml2::XMLElement &)
 RoadSegment::CreateRoadNodeEntity(void)
-RoadSegment::FindClosestPointOnRoad(VEC3 const&,double,int)
 RoadSegment::FindClosestPointOnRoad2D(VEC3,float,int)
 RoadSegment::FindClosestPointOnRoadF(VEC3 const&,float,int)
 RoadSegment::GenerateNavRoadMesh(void)
@@ -64,7 +67,6 @@ RoadSegment::GetNeighboringRoadNodes(RoadNode *,RoadNode **,RoadNode **)
 RoadSegment::GetNodeBasedOnRoadTime(double)
 RoadSegment::GetPaddockExitRoadTime(void)
 RoadSegment::GetPhysicSlope(void)
-RoadSegment::GetRiderBoundsRatio(void)
 RoadSegment::GetRiderOffsetBlendDistance(void)
 RoadSegment::GetRoadColor(double)
 RoadSegment::GetRoadEdge(VEC3 const&,VEC3,double,float)
@@ -78,7 +80,6 @@ RoadSegment::GetRoadPointLinearDistanceAt(int)
 RoadSegment::GetRoadSamplePoints(void)
 RoadSegment::GetRoadTextureLength(void)
 RoadSegment::GetRoadTextureWidthScale(void)
-RoadSegment::GetRoadWidth(double,bool,float *,float *,RoadMarkerEntity const**)
 RoadSegment::GetSecondLastNode(void)
 RoadSegment::GetSecondNode(void)
 RoadSegment::GetShoulderHalfWidth(double)
@@ -215,7 +216,6 @@ RoadSegmentWorld::AllowFullWidthSteering(void)
 RoadSegmentWorld::CalcPosByShortDistWithOffset(double,double,double,double,VEC3 *)
 RoadSegmentWorld::CalculateRoadPositionAtTime(double,bool)
 RoadSegmentWorld::CalculateRoadPositionAtTimeF(float,bool)
-RoadSegmentWorld::CalculateRoadPositionByDist(double,double,VEC3 *)
 RoadSegmentWorld::CalculateSplinePoints(void)
 RoadSegmentWorld::CheckForPOI(float)
 RoadSegmentWorld::CheckForSpeedGates(float,float,bool)
@@ -339,6 +339,15 @@ RoadSegmentWorld::SnapMarkersToTesselation(void)
 RoadSegmentWorld::Update(float)
 RoadSegmentWorld::UpdateCyclistWheelAltitudesAtRoadTime(VEC3 &,double,VEC3 &,double,bool)
 RoadSegmentWorld::~RoadSegmentWorld()*/
+};
+struct RoadSegmentWorld : public RoadSegment {
+    double FindClosestPointOnRoad(const VEC3 &, double, int) override {
+        //TODO
+        return 0.0;
+    }
+    void CalculateRoadPositionByDist(double, double, VEC3 *dest) override {
+        //TODO
+    }
 };
 struct RoadManager {
     std::vector<RoadSegment *> m_segments;

@@ -9,6 +9,12 @@ struct tVEC {
         return ret;
     }
     float len() { return sqrt(lenSquared()); }
+    tVEC operator -() {
+        tVEC ret{ *this };
+        for (auto &i : m_data)
+            i = -i;
+        return ret;
+    }
 };
 template <class T, int dim>
 tVEC<T, dim> operator-(const tVEC<T, dim> &a, const tVEC<T, dim> &b) { 

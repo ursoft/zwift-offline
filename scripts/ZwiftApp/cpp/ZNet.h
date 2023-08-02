@@ -799,3 +799,4 @@ void ZNETWORK_UpdateDropInWorldsStatus();
 
 inline bool g_IsOnProductionServer = true;
 inline NetworkClient *g_networkClient;
+inline time_t g_lastBroadcastLocalPlayerFlagged, g_CachedWorldTime;

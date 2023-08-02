@@ -58,5 +58,6 @@ future/lib/total code(kb): 8740/07624/16364, badNames=36609; libs/total: 58%: 36
 future/lib/total code(kb): 8735/07629/16364, badNames=36586; libs/total: 58%: 36443/62107 - XMLDoc unit tests 99%, CNL unit tests 38%
 future/lib/total code(kb): 8677/07687/16364, badNames=36412; libs/total: 59%: 36683/62107 - Started BLE
 future/lib/total code(kb): 5850/10514/16364, badNames=36389; libs/total: 66%: 41378/62107 - OMITted all BLE devices except FTMS, Elite steering and TACX
+future/lib/total code(kb): 5839/10523/16363, badNames=35604; libs/total: 66%: 41412/62107 - names from vtbls
 
 NEXT: CNL unit tests, BLE & ANT, GFX

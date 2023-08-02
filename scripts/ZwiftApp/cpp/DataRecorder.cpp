@@ -168,8 +168,7 @@ void RecorderComponent::Update(float) {
                     AddDataPoint(val, m_curTime);
                     break;
                 case T_RIDE_SPEED:
-                    if (check_float(bc->m_speed))
-                        val = bc->m_speed;
+                    val = bc->GetSpeed();
                     AddDataPoint(val, m_curTime);
                     break;
                 case T_3:
@@ -193,8 +192,7 @@ void RecorderComponent::Update(float) {
                     break;
                 case T_RUN_SPEED:
                     if (bc->m_sport == protobuf::RUNNING) {
-                        if (check_float(bc->m_speed))
-                            val = bc->m_speed;
+                        val = bc->GetSpeed();
                         AddDataPoint(val, m_curTime);
                     }
                     break;

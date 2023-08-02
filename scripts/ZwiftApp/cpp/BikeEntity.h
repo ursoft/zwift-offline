@@ -2,6 +2,7 @@
 using ZSPORT = protobuf::Sport;
 struct VirtualBikeComputer {
     float GetDistance(UnitType ut, bool) { /*TODO*/ return 0.0; }
+    float GetSpeed();
     void SetTireSize(uint32_t tireCirc) { m_tireCirc = tireCirc; }
     uint64_t m_lastPower = 0;
     uint32_t m_tireCirc = 2105, m_powerSmoothing = 1, m_field_118 = 0, m_field_128 = 0;
@@ -10,6 +11,62 @@ struct VirtualBikeComputer {
         m_heart_f2 = 0.0f;
     protobuf::Sport m_sport = protobuf::CYCLING;
     bool m_bool = false, m_bool1 = false, m_workoutPaused = false;
+/*VirtualBikeComputer::AcceptedNewBestTimes(void)
+VirtualBikeComputer::AccumulateDistance(float)
+VirtualBikeComputer::AccumulateDrops(float,float,float)
+VirtualBikeComputer::CalculatePowerByDurationWindow(float)
+VirtualBikeComputer::CalculateVirtualPower(ZwiftPower *)
+VirtualBikeComputer::CheckLostCadence(float)
+VirtualBikeComputer::CheckLostHeartRate(float)
+VirtualBikeComputer::Configure(uint,uint,uint,uchar *,uchar *)
+VirtualBikeComputer::Destroy(void)
+VirtualBikeComputer::DumpSlippingWarningLog(void)
+VirtualBikeComputer::GetCurrentSplitSeconds(std::vector<float> *)
+VirtualBikeComputer::GetDistance(UNIT_TYPE,bool)
+VirtualBikeComputer::GetDistanceForWholeSession(UNIT_TYPE)
+VirtualBikeComputer::GetDistanceFromLastSplit(std::vector<float> *)
+VirtualBikeComputer::GetGearRatios(uchar *,uchar *)
+VirtualBikeComputer::GetJoystickProvider(void)
+VirtualBikeComputer::GetProjectedRemainingSeconds(float)
+VirtualBikeComputer::GetProjectedRemainingSplitTime(std::vector<float> *)
+VirtualBikeComputer::GetSplitAverageHeartRate(std::vector<float> *,uint)
+VirtualBikeComputer::GetSplitLength(std::vector<float> *)
+VirtualBikeComputer::GetSplitUnits(std::vector<float> *)
+VirtualBikeComputer::GetTireSize(void)
+VirtualBikeComputer::GuessGearRatios(void)
+VirtualBikeComputer::HandleEvent(EVENT_ID,std::__va_list)
+VirtualBikeComputer::HardResetForNewSession(void)
+VirtualBikeComputer::Init(bool)
+VirtualBikeComputer::InitializeBestTimeDistances(BikeEntity *,bool)
+VirtualBikeComputer::LoadLastSport(void)
+VirtualBikeComputer::OnSplitEnd(std::vector<float> *)
+VirtualBikeComputer::PowerEquationSimple(double,float const*)
+VirtualBikeComputer::PowerEquationWithAcceleration(double,double,float const*)
+VirtualBikeComputer::Reset(bool,bool,bool)
+VirtualBikeComputer::ResetBestTimeDistances(void)
+VirtualBikeComputer::ResetSplitData(void)
+VirtualBikeComputer::RouteHashSet(uint,uint)
+VirtualBikeComputer::SampleHeartRate(float)
+VirtualBikeComputer::SaveBestTimeDistances(BikeEntity *)
+VirtualBikeComputer::SaveLastSport(void)
+VirtualBikeComputer::SetCurrentSport(VirtualBikeComputer::ZSPORT)
+VirtualBikeComputer::SetJoystickProvider(VirtualBikeComputer::JoystickProvider const*)
+VirtualBikeComputer::SetPlayer(bool)
+VirtualBikeComputer::SetPower(float)
+VirtualBikeComputer::SetTireSize(uint)
+VirtualBikeComputer::StateSnapshot_Make(void)
+VirtualBikeComputer::StateSnapshot_Restore(void)
+VirtualBikeComputer::StateSnapshot_Valid(void)
+VirtualBikeComputer::Update(float)
+VirtualBikeComputer::UpdateAverages(float)
+VirtualBikeComputer::UpdateBestTimeDistances(float)
+VirtualBikeComputer::UpdateCadence(float)
+VirtualBikeComputer::UpdateRealTime(float)
+VirtualBikeComputer::UpdateSplits(float)
+VirtualBikeComputer::VirtualBikeComputer(void)
+VirtualBikeComputer::bCanAccumulateDrops(void)
+VirtualBikeComputer::~VirtualBikeComputer()
+*/
 };
 struct SaveGame;
 struct ConfettiComponent {
@@ -26,12 +83,10 @@ UpdateWhileSleeping(BikeEntity &, float, zwift::context::UpdateContext &, float)
 UpdateWhileSleeping(BikeEntity &, float, zwift::context::UpdateContext &, float)
 ~ConfettiComponent()*/
 struct Heading {
-    float m_cos;
-    int32_t m_heading2;
-    float m_sin, m_angleRad;
+    float m_cos, m_heading2, m_sin, m_angleRad;
     Heading() {
         m_cos = 1.0f;
-        m_heading2 = 0;
+        m_heading2 = 0.0f;
         m_sin = -0.0f; //QUEST: what for
         m_angleRad = 0.0f;
     }
@@ -53,7 +108,7 @@ struct Heading {
         m_angleRad = NormalizeRadians(rad);
         float sinx;
         __libm_sse2_sincosf_(m_angleRad, &sinx, &m_cos);
-        m_heading2 = 0;
+        m_heading2 = 0.0f;
         m_sin = -sinx;
     }
     static float InterpolateRadians(float a2, float a3, float a4) {
@@ -196,6 +251,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
     protobuf::POWERUP_TYPE m_pendPU = protobuf::POWERUP_NONE;
     int32_t m_skillWKG = -1, m_eventPos = 0, m_field_11DC = 0, m_msToLeader = 0;
     float m_field_59C = 0.0f, m_field_5A0 = 1.0f;
+    VEC3 m_field_528{};
     bool m_writable = false, m_isCheater = false, m_isSandbagger = false, m_sensor_f11 = false, m_field_806 = false,
         m_immuneFromCheating = false, m_boolCheatSmth = false, m_joinedWorld = false, m_field_488 = false, m_field_3D8 = false, m_field_3D9 = false,
         m_field_8B8 = false, m_field_CC1 = false;
@@ -218,6 +274,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
     void Respawn(int segment, double a2, bool a3, bool a4);
     void AdjustRandomXZ(/*float*/);
     void ActivatePowerUp();
+    bool UpdateAnimation(float);
     /* TODO:
 void WakeupAnim(void);
 void UpdateWhileSleeping(zwiftUpdateContext &,float);
@@ -251,7 +308,6 @@ void UpdateCachedRoadStyle(void);
 void UpdateBranchingRoad(float);
 void UpdateBikeOverrides(long);
 void UpdateAttachmentData(void);
-void UpdateAnimation(float);
 void UpdateAnimFileMap(void);
 void Update(zwiftUpdateContext &,float);
 void Update(float);

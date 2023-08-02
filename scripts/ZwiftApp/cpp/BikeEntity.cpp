@@ -12,6 +12,11 @@ BikeEntity::~BikeEntity() {
 void BikeEntity::SaveProfile(bool, bool) {
     //TODO
 }
+float VirtualBikeComputer::GetSpeed() {
+    if (check_float(m_speed))
+        return m_speed;
+    return 0.0f;
+}
 int64_t BikeEntity::GetEventID() {
     if (m_field_C98) {
         if (g_currentPrivateEvent)
@@ -22,6 +27,10 @@ int64_t BikeEntity::GetEventID() {
 }
 void BikeEntity::ActivatePowerUp() {
     //TODO
+}
+bool BikeEntity::UpdateAnimation(float dt) {
+    //TODO
+    return true;
 }
 float BikeEntity::GetFTP(bool *bEstimated /*= nullptr*/) {
     if (m_profile.has_ftp()) {

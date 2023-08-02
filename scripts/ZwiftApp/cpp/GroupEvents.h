@@ -1,7 +1,8 @@
 #pragma once
 inline int64_t g_GroupEventsActive_CurrentLeader, g_GroupEventsActive_CurrentSweeper, g_GroupEventsActive_BroadcastEventId;
-struct PrivateEventV2 { //0x108 bytes
+struct PrivateEventV2 { //>0x108 bytes
     int64_t m_eventId = 0, m_leaderId = 0;
+    int m_field_1C4 = 0; //TODO:enum
     static void ReportUserResult(const protobuf::SegmentResult &);
     /*PrivateEventV2::AcceptInvitation(void)
 PrivateEventV2::BeginPrivateEvent(void)

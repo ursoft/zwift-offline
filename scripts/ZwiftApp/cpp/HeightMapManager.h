@@ -13,9 +13,9 @@ struct HeightMapTile { //0x418 bytes
     uint8_t *m_AOData = nullptr;
     float m_dyNorm[8][8]{}; //нормированный перепад высот
     int m_buffers[4], m_texs2[2], m_texs6[6], m_idx /*TODO: enum?*/, m_field_0 = 0;
-    float *m_heights = nullptr, m_columns, m_rows, m_dx, m_dz, m_centerX, m_centerZ, m_centerXscaled, m_centerZscaled, m_minX, m_minZ, m_maxX, m_maxZ,
+    float *m_heights = nullptr, m_columns, m_rows, m_dx, m_dz, m_centerXscaled, m_centerZscaled, m_minX, m_minZ, m_maxX, m_maxZ,
         m_minY = 1'000'000'000.0f, m_maxY = -1'000'000'000.0f;
-    VEC2 m_rangesY[8][8];
+    VEC2 m_rangesY[8][8], m_centerXZ;
     VEC3 m_worldCenter, m_boundMin3, m_boundMax3;
     VEC4 m_terrainVec1, m_terrainVec2, m_terrainVec3;
     Sphere m_spheres[8][8];

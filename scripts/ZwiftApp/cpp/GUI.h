@@ -903,7 +903,7 @@ GUI_ZwiftShop::sPurchaseButtonRenderer(GUI_Button *)
 GUI_ZwiftShop::~GUI_ZwiftShop()
 */
 struct UI_FriendsList { //1280 bytes
-    bool m_changeCamera = false, m_fanView = false;
+    bool m_field_428 = false, m_changeCamera = false, m_fanView = false;
     void FanView(BikeEntity *be, bool);
     /*UI_FriendsList::AddToFriendlist(BikeEntity *,BikeEntity *,std::vector<friendsListBike> &,float)
 UI_FriendsList::AutoFanView(bool)

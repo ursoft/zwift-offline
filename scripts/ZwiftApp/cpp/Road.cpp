@@ -15,6 +15,18 @@ VEC3 RoadSegment::CalculateRoadPositionAtTime(double, bool) {
     //TODO
     return VEC3();
 }
+VEC3 RoadSegment::CalculateRoadPositionAtTimeF(float, bool) {
+    //TODO
+    return VEC3();
+}
+float RoadSegment::GetRoadWidth(double, bool, float *, float *, const RoadMarkerEntity **) {
+    //TODO
+    return 0.0f;
+}
+float RoadSegment::GetRiderBoundsRatio() {
+    //TODO
+    return 0.0f;
+}
 void RouteComputer::FlipRoute(BikeEntity *be) {
     //TODO
 }

@@ -52,10 +52,10 @@ void HeightMapManager::DoneLoading() {
     AutoStitchTilesHeightmap();
     int i = 0;
     for (auto v15 : m_heightMapTiles) {
-        m_bounds[i].m_data[0] = v15->m_centerX - v15->m_dx * 0.5f;
-        m_bounds[i].m_data[1] = v15->m_centerZ - v15->m_dz * 0.5f;
-        m_bounds[i].m_data[2] = v15->m_dz * 0.5f + v15->m_centerZ;
-        m_bounds[i].m_data[3] = v15->m_dx * 0.5f + v15->m_centerX;
+        m_bounds[i].m_data[0] = v15->m_centerXZ.m_data[0] - v15->m_dx * 0.5f;
+        m_bounds[i].m_data[1] = v15->m_centerXZ.m_data[1] - v15->m_dz * 0.5f;
+        m_bounds[i].m_data[2] = v15->m_dz * 0.5f + v15->m_centerXZ.m_data[1];
+        m_bounds[i].m_data[3] = v15->m_dx * 0.5f + v15->m_centerXZ.m_data[0];
         m_scaledTileBounds[i].m_data[0] = int(v15->m_centerXscaled - v15->m_columns * 0.5f);
         m_scaledTileBounds[i].m_data[1] = int(v15->m_centerZscaled - v15->m_rows * 0.5f);
         m_scaledTileBounds[i].m_data[2] = int(v15->m_rows * 0.5f + v15->m_centerZscaled);
@@ -152,15 +152,17 @@ bool HeightMapManager::LoadHeightMap(const char *hmFile, const char *aoFile, con
 }
 struct HeightMapTileSorter : VEC2 {
     bool operator()(HeightMapTile *a, HeightMapTile *b) const {
-        //TODO return a < b; 
-        return false;
+        //return a < b:
+        auto da = a->m_centerXZ - *this;
+        auto db = b->m_centerXZ - *this;
+        return da.lenSquared() - db.lenSquared();
     }
 };
 void HeightMapManager::Render(int a2) {
     zassert(m_heightMapTiles.size() > 0 && "HeightMapManager Asserted; No height map tile initialized");
     if (m_heightMapTiles.size() > 0) {
         auto cam = g_CameraManager.GetSelectedCamera();
-        HeightMapTileSorter v20{ cam->m_field_1C[0], cam->m_field_1C[2] };
+        HeightMapTileSorter v20{ cam->m_pos.m_data[0], cam->m_pos.m_data[2] };
         std::vector<HeightMapTile *> heightMapTiles(m_heightMapTiles);
         std::sort(heightMapTiles.begin(), heightMapTiles.end(), v20);
         bool rp = g_GFX_rp > 3 || g_GFX_rp < 2;
@@ -416,18 +418,18 @@ bool HeightMapTile::LoadHeightMap(int idx, const char *fileName, int sz, const V
         m_worldCenter = worldCenter;
         zassert(ret && "HeightMapManager::LoadHeightMap Asserted; possible data corruption in WAD or loose heightmap file");
         if (ret) {
-            m_centerX = worldCenter.m_data[0];
-            m_centerZ = worldCenter.m_data[2];
+            m_centerXZ.m_data[0] = worldCenter.m_data[0];
+            m_centerXZ.m_data[1] = worldCenter.m_data[2];
             m_dx = 240'000.0f;
             m_dz = 240'000.0f;
             m_centerXscaled = worldCenter.m_data[0] * 0.0021333334f;
             m_centerZscaled = worldCenter.m_data[2] * 0.0021333334f;
             m_minX = worldCenter.m_data[0] - 120'000.0f;
-            m_minZ = m_centerZ - 120'000.0f;
+            m_minZ = m_centerXZ.m_data[1] - 120'000.0f;
             m_boundMin3.m_data[1] = m_boundMax3.m_data[0] = m_maxX = worldCenter.m_data[0] + 120'000.0;
-            m_boundMax3.m_data[2] = m_maxZ = m_centerZ + 120'000.0f;
+            m_boundMax3.m_data[2] = m_maxZ = m_centerXZ.m_data[1] + 120'000.0f;
             m_boundMin3.m_data[0] = worldCenter.m_data[0] - 120'000.0f;
-            m_boundMin3.m_data[2] = m_centerZ - 120'000.0f;
+            m_boundMin3.m_data[2] = m_centerXZ.m_data[1] - 120'000.0f;
             m_boundMax3.m_data[1] = 100'000.0f;
             m_idx = idx;
         }
@@ -941,7 +943,7 @@ void HeightMapTile::DestroyTerrainTextures() {
 bool HeightMapTile::IsNearTileByWorldPos(float x, float z, float d) {
     auto halfX = m_dx / 2;
     auto halfZ = m_dz / 2;
-    return (x + d) >= (m_centerX - halfX) && (x - d) <= (m_centerX + halfX) && (z + d) >= (m_centerZ - halfZ) && (z - d) <= (m_centerZ + halfZ);
+    return (x + d) >= (m_centerXZ.m_data[0] - halfX) && (x - d) <= (m_centerXZ.m_data[0] + halfX) && (z + d) >= (m_centerXZ.m_data[1] - halfZ) && (z - d) <= (m_centerXZ.m_data[1] + halfZ);
 }
 void HeightMapTile::LoadOverridenTextures(const TextureOverrides &overr) {
     static_assert(_countof(overr.m_texName) == _countof(m_texs6));
@@ -981,8 +983,8 @@ void HeightMapTile::UpdateTerrainVerts() {
                         auto v35 = (v27 - 256) * s_TerrainScale;
                         *(float *)(v63 + 4 * v21) = v28;
                         *(float *)(v63 + 4 * v21 + 8) = v35;
-                        v28 += m_centerX;
-                        v35 += m_centerZ;
+                        v28 += m_centerXZ.m_data[0];
+                        v35 += m_centerXZ.m_data[1];
                         *(float *)(v63 + 4 * v21 + 4) = GetHeightAtLocation(VEC2{ v28, v35 });
                         // GetTexelNormalIncludingRoad inlined
                         int v36 = 512;
@@ -994,13 +996,13 @@ void HeightMapTile::UpdateTerrainVerts() {
                         int v42 = 512;
                         if (v24 + 1 < 511)
                             v42 = v24 + 1;
-                        auto v44 = (v39 - 256) * s_TerrainScale + m_centerX;
+                        auto v44 = (v39 - 256) * s_TerrainScale + m_centerXZ.m_data[0];
                         int v46 = 512;
                         if (v24 - 1 < 511)
                             v46 = v24 - 1;
-                        auto v40 = (v36 - 256) * s_TerrainScale + m_centerX;
-                        auto v49 = m_centerZ + (v42 - 256) * s_TerrainScale;
-                        auto v50 = (v46 - 256) * s_TerrainScale + m_centerZ;
+                        auto v40 = (v36 - 256) * s_TerrainScale + m_centerXZ.m_data[0];
+                        auto v49 = m_centerXZ.m_data[1] + (v42 - 256) * s_TerrainScale;
+                        auto v50 = (v46 - 256) * s_TerrainScale + m_centerXZ.m_data[1];
                         v35 = GetHeightAtLocation(VEC2{ v44, v35 }) - GetHeightAtLocation(VEC2{ v40, v35 });
                         v50 = GetHeightAtLocation(VEC2{ v28, v50 }) - GetHeightAtLocation(VEC2{ v28, v49 });
                         auto v53 = 1.0f / sqrtf(s_TerrainScale * s_TerrainScale * 4.0f + v35 * v35 + v50 * v50);

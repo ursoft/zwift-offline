@@ -6281,7 +6281,6 @@ void NetworkClient::globalInitialize() { curl_global_init(CURL_GLOBAL_ALL); }
 void NetworkClient::globalCleanup() { curl_global_cleanup(); }
 void NetworkClient::initialize(const std::string &server, const std::string &certs, const std::string &version) { m_pImpl->initialize(server, certs, version); }
 NetworkRequestOutcome ZNETWORK_ClearPlayerPowerups() { return g_networkClient->m_pImpl->sendClearPowerUpCommand(); }
-time_t g_lastBroadcastLocalPlayerFlagged, g_CachedWorldTime;
 std::future<NetworkResponse<int64_t>> g_BroadcastLocalPlayerFlaggedFuture, g_SendPacePartnerInfoFuture;
 struct BroadcastLocalPlayerFlagged { //32 bytes
     uint16_t m_ver, m_len;

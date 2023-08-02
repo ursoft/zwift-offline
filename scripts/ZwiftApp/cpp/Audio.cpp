@@ -13,7 +13,74 @@ public:
     CAkFilePackageLowLevelIOBlocking() {}
     virtual ~CAkFilePackageLowLevelIOBlocking() {}
 } *g_pLowLevelIO;
-
+void AUDIO_SetObjectPosition(int, const VEC3 &, const VEC3 &) {
+    //TODO
+}
+void AUDIO_SetListenerPosition(int id, const VEC3 &p1, const VEC3 &p2) {
+    if (g_soundInitialized) {
+        ++g_audio_queue_failsafe;
+        if (g_audio_queue_failsafe > 11 && g_audio_queue_failsafe <= 40)
+            AK::SoundEngine::RenderAudio(true);
+        AUDIO_SetObjectPosition(id, p1, p2);
+    }
+}
+void AUDIO_UpdatePosition(int, const VEC3 &) {
+    //TODO
+}
+void AUDIO_Update(const VEC3 &, const VEC3 &, float) {
+    //TODO
+}
+void AUDIO_UnregisterObject(int) {
+    //TODO
+}
+void AUDIO_UnloadLevel(int) {
+    //TODO
+}
+void AUDIO_StopEvent(const char *, int, uint32_t) {
+    //TODO
+}
+void AUDIO_StopCapture() {
+    //TODO
+}
+//void AUDIO_StartCapture(std::weak_ptr<AUDIO_CaptureHandler> const &)
+void AUDIO_SetVolume(int, float) {
+    //TODO
+}
+void AUDIO_SetVariableOnObject(const char *, float, uint32_t) {
+    //TODO
+}
+void AUDIO_SetPitch(int, float) {
+    //TODO
+}
+void AUDIO_ResumeEvent(const char *, int, uint32_t) {
+    //TODO
+}
+void AUDIO_ResumeAllAudio() {
+    //TODO
+}
+void AUDIO_RegisterNewObject(const char *) {
+    //TODO
+}
+//void AUDIO_Queue(float, char const *, int, uint, void *, char const *);
+void AUDIO_PauseEvent(const char *, int, uint32_t) {
+    //TODO
+}
+void AUDIO_PauseAllAudio() {
+    //TODO
+}
+//void AUDIO_Log(AK::Monitor::ErrorCode, char const *, AK::Monitor::ErrorLevel, uint, ulong)
+void AUDIO_LoadLevel(int) {
+    //TODO
+}
+void AUDIO_HandleFailsafe() {
+    //TODO
+}
+void AUDIO_GetNumObjects() {
+    //TODO
+}
+void AUDIO_Event(uint32_t, int) {
+    //TODO
+}
 void AUDIO_SetVariable(const char *name, float val) {
     if (g_soundInitialized && AK::SoundEngine::SetRTPCValue(name, val) != AK_Success) {
         assert(false);

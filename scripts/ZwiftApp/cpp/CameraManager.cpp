@@ -2,137 +2,613 @@
 void SetupGameCameras() {
     auto mainBike = BikeManager::Instance()->m_mainBike;
     g_FollowCam = g_CameraManager.CreateCamera(mainBike, CT_2);
-    g_FollowCam->field_68 = -150.0f;
-    g_FollowCam->field_6C = 200.0f;
-    g_FollowCam->field_70 = 0.0f;
-    g_FollowCam->field_74 = 200.0f;
-    g_FollowCam->field_78 = 150.0f;
-    g_FollowCam->field_7C = 0.0f;
-    g_FollowCam->field_B0 = 0.1f;
-    g_FollowCam->field_B4 = 0.5f;
+    g_FollowCam->m_bikeLocalPos = VEC3{ -150.0f, 200.0f, 0.0f };
+    g_FollowCam->m_field_74 = VEC3{ 200.0f, 150.0f, 0.0f };
+    g_FollowCam->m_field_B0 = 0.1f;
+    g_FollowCam->m_field_B4 = 0.5f;
     g_FollowCam->m_isElastic = true; //Camera::SetElasticity(1)
-    g_FollowCam->field_90 = 0.0f;
-    g_FollowCam->field_90 = 0.0f;
-    g_FollowCam->field_94 = 0.0f;
-    g_CameraManager.m_hasElasticCams = true;
+    g_CameraManager.m_needSort = true;
     g_SideCam = g_CameraManager.CreateCamera(mainBike, CT_2);
-    g_SideCam->field_68 = 200.0f;
-    g_SideCam->field_6C = 100.0f;
-    g_SideCam->field_70 = -200.0f;
-    g_SideCam->field_74 = 50.0f;
-    g_SideCam->field_78 = 80.0f;
-    g_SideCam->field_7C = 100.0f;
-    g_SideCam->field_B0 = 0.1f;
-    g_SideCam->field_B4 = 0.5f;
+    g_SideCam->m_bikeLocalPos = VEC3{ 200.0f, 100.0f, -200.0f };
+    g_SideCam->m_field_74 = VEC3{ 50.0f, 80.0f, 100.0f };
+    g_SideCam->m_field_B0 = 0.1f;
+    g_SideCam->m_field_B4 = 0.5f;
     g_SideCam->m_isElastic = true;
-    g_SideCam->field_90 = 0.0f;
-    g_SideCam->field_94 = 0.0f;
-    g_SideCam->field_98 = 0.0f;
-    g_SideCam->field_100 = 23.0f;
-    g_SideCam->field_104 = 46.0f;
+    g_SideCam->m_field_100 = 23.0f;
+    g_SideCam->m_field_104 = 46.0f;
     g_pTitleCamera = g_CameraManager.CreateCamera(nullptr, CT_6);
-    g_pTitleCamera->field_B0 = 1.002f;
-    g_pTitleCamera->field_B4 = 0.25f;
+    g_pTitleCamera->m_field_B0 = 1.002f;
+    g_pTitleCamera->m_field_B4 = 0.25f;
     g_HeadCam = g_CameraManager.CreateCamera(mainBike, CT_2);
-    g_HeadCam->field_68 = 45.0f;
-    g_HeadCam->field_6C = 150.0f;
-    g_HeadCam->field_70 = 0.0f;
-    g_HeadCam->field_74 = 200.0f;
-    g_HeadCam->field_78 = 140.0f;
-    g_HeadCam->field_7C = 0.0f;
-    g_HeadCam->field_B0 = 0.03f;
-    g_HeadCam->field_B4 = 0.5f;
+    g_HeadCam->m_bikeLocalPos = VEC3{ 45.0f, 150.0f, 0.0f };
+    g_HeadCam->m_field_74 = VEC3{ 200.0f, 140.0f, 0.0f };
+    g_HeadCam->m_field_B0 = 0.03f;
+    g_HeadCam->m_field_B4 = 0.5f;
     g_DollyCam = g_CameraManager.CreateCamera(mainBike, CT_3);
-    g_DollyCam->field_68 = 2000.0f;
-    g_DollyCam->field_6C = 80.0f;
-    g_DollyCam->field_70 = 425.0f;
-    g_DollyCam->field_74 = 0.0f;
-    g_DollyCam->field_78 = 110.0f;
-    g_DollyCam->field_7C = 0.0f;
-    g_DollyCam->field_9C = 200.0f;
-    g_DollyCam->field_A0 = 0.0f;
-    g_DollyCam->field_A4 = false;
+    g_DollyCam->m_bikeLocalPos = VEC3{ 2000.0f, 80.0f, 425.0f };
+    g_DollyCam->m_field_74 = VEC3{ 0.0f, 110.0f, 0.0f };
+    g_DollyCam->m_localVec = VEC3{ 200.0f, 0.0f, 0.0f };
     g_HeliCam = g_CameraManager.CreateCamera(mainBike, CT_3);
-    g_HeliCam->field_68 = 32000.0f;
-    g_HeliCam->field_6C = 20000.0f;
-    g_HeliCam->field_70 = 4000.0f;
-    g_HeliCam->field_74 = 40.0f;
-    g_HeliCam->field_78 = 100.0f;
-    g_HeliCam->field_7C = 0.0f;
-    g_HeliCam->field_80 = 2.0f;
-    g_HeliCam->field_84 = 2.0f;
-    g_HeliCam->field_B0 = 1.1f;
-    g_HeliCam->field_B4 = 0.4f;
-    g_HeliCam->field_88 = 1000.0f;
-    g_HeliCam->field_BC = 1.0f;
-    g_HeliCam->field_C0 = true;
+    g_HeliCam->m_bikeLocalPos = VEC3{ 32000.0f, 20000.0f, 4000.0f };
+    g_HeliCam->m_field_74 = VEC3{ 40.0f, 100.0f, 0.0f };
+    g_HeliCam->m_field_80 = 2.0f;
+    g_HeliCam->m_field_84 = 2.0f;
+    g_HeliCam->m_field_B0 = 1.1f;
+    g_HeliCam->m_field_B4 = 0.4f;
+    g_HeliCam->m_field_88 = 1000.0f;
+    g_HeliCam->m_field_BC = 1.0f;
+    g_HeliCam->m_field_C0 = true;
     g_OrbitCam = g_CameraManager.CreateCamera(mainBike, CT_7);
-    g_OrbitCam->field_68 = 500.0f;
-    g_OrbitCam->field_6C = 0.0f;
-    g_OrbitCam->field_70 = 0.0f;
-    g_OrbitCam->field_74 = 0.0f;
-    g_OrbitCam->field_78 = 110.0f;
-    g_OrbitCam->field_7C = 0.0f;
+    g_OrbitCam->m_bikeLocalPos = VEC3{ 500.0f, 0.0f, 0.0f };
+    g_OrbitCam->m_field_74 = VEC3{ 0.0f, 110.0f, 0.0f };
     g_CloseCam = g_CameraManager.CreateCamera(mainBike, CT_2);
-    g_CloseCam->field_68 = -100.0f;
-    g_CloseCam->field_6C = 180.0f;
-    g_CloseCam->field_70 = 0.0f;
-    g_CloseCam->field_74 = 15.0f;
-    g_CloseCam->field_78 = 170.0f;
-    g_CloseCam->field_7C = 0.0f;
-    g_CloseCam->field_B0 = 0.08f;
-    g_CloseCam->field_B4 = 0.5f;
+    g_CloseCam->m_bikeLocalPos = VEC3{ -100.0f, 180.0f, 0.0f };
+    g_CloseCam->m_field_74 = VEC3{ 15.0f, 170.0f, 0.0f };
+    g_CloseCam->m_field_B0 = 0.08f;
+    g_CloseCam->m_field_B4 = 0.5f;
     g_CloseCam->m_isElastic = true;
-    g_CloseCam->field_90 = 0.0f;
-    g_CloseCam->field_94 = 0.0f;
-    g_CloseCam->field_98 = 0.0f;
     g_WheelCam = g_CameraManager.CreateCamera(mainBike, CT_2);
-    g_WheelCam->field_68 = -92.0f;
-    g_WheelCam->field_6C = 70.0f;
-    g_WheelCam->field_70 = 35.0f;
-    g_WheelCam->field_74 = 200.0f;
-    g_WheelCam->field_78 = 120.0f;
-    g_WheelCam->field_7C = 25.0f;
-    g_WheelCam->field_80 = 90.0f;
-    g_WheelCam->field_84 = 90.0f;
+    g_WheelCam->m_bikeLocalPos = VEC3{ -92.0f, 70.0f, 35.0f };
+    g_WheelCam->m_field_74 = VEC3{ 200.0f, 120.0f, 25.0f };
+    g_WheelCam->m_field_80 = 90.0f;
+    g_WheelCam->m_field_84 = 90.0f;
     g_WheelCam->m_isElastic = true;
-    g_WheelCam->field_90 = 0.0f;
-    g_WheelCam->field_94 = 0.0f;
-    g_WheelCam->field_98 = 0.0f;
-    g_WheelCam->field_100 = 23.0f;
-    g_WheelCam->field_104 = 46.0f;
+    g_WheelCam->m_field_100 = 23.0f;
+    g_WheelCam->m_field_104 = 46.0f;
     g_LeadCam = g_CameraManager.CreateCamera(mainBike, CT_2);
-    g_LeadCam->field_68 = 500.0f;
-    g_LeadCam->field_6C = 170.0f;
-    g_LeadCam->field_70 = 0.0f;
-    g_LeadCam->field_74 = -80.0f;
-    g_LeadCam->field_78 = 150.0f;
-    g_LeadCam->field_7C = 0.0f;
-    g_LeadCam->field_B0 = 0.2f;
-    g_LeadCam->field_B4 = 0.5f;
+    g_LeadCam->m_bikeLocalPos = VEC3{ 500.0f, 170.0f, 0.0f };
+    g_LeadCam->m_field_74 = VEC3{ -80.0f, 150.0f, 0.0f };
+    g_LeadCam->m_field_B0 = 0.2f;
+    g_LeadCam->m_field_B4 = 0.5f;
     g_LeadCam->m_isElastic = true;
-    g_LeadCam->field_90 = 0.0f;
-    g_LeadCam->field_94 = 0.0f;
-    g_LeadCam->field_98 = 0.0f;
-    g_LeadCam->field_D0 = 4000.0f;
-    g_LeadCam->field_100 = 30.0f;
-    g_LeadCam->field_104 = 46.0f;
+    g_LeadCam->m_field_D0 = 4000.0f;
+    g_LeadCam->m_field_100 = 30.0f;
+    g_LeadCam->m_field_104 = 46.0f;
     g_ClassicCam = g_CameraManager.CreateCamera(mainBike, CT_2);
-    g_ClassicCam->field_68 = -400.0f;
-    g_ClassicCam->field_6C = 1000.0f;
-    g_ClassicCam->field_70 = 0.0f;
-    g_ClassicCam->field_74 = 60.0f;
-    g_ClassicCam->field_78 = 0.0f;
-    g_ClassicCam->field_7C = 0.0f;
-    g_ClassicCam->field_B0 = 0.08f;
-    g_ClassicCam->field_B4 = 0.5f;
+    g_ClassicCam->m_bikeLocalPos = VEC3{ -400.0f, 1000.0f, 0.0f };
+    g_ClassicCam->m_field_74 = VEC3{ 60.0f, 0.0f, 0.0f };
+    g_ClassicCam->m_field_B0 = 0.08f;
+    g_ClassicCam->m_field_B4 = 0.5f;
     g_FreeCam = g_CameraManager.CreateCamera(nullptr, CT_1);
 }
 Camera *CameraManager::GetSelectedCamera() {
-    //TODO
-    return nullptr;
+    return m_cameras[m_selIdx];
 }
 Camera *CameraManager::CreateCamera(Entity *e, CAMTYPE ty) {
+    auto ret = new Camera(e, ty);
+    m_cameras.push_back(ret);
+    return ret;
+}
+CameraManager::~CameraManager() {
+    for (auto c : m_cameras)
+        delete c;
+}
+VEC3 CameraManager::GetCameraPos() {
+    bool oculus = g_tweakArray[TWI_BENABLEOCULUS].IntValue() == 1;
+    if (oculus) {
+        auto c = GetSelectedCamera();
+        if (c) {
+            auto e = c->GetLookAtEntity();
+            if (e)
+                return e->m_pos;
+        }
+    }
+    return m_pos;
+}
+int CameraManager::FindCamera(Camera *cam) {
+    for (int idx = 0; idx < m_cameras.size(); idx++)
+        if (m_cameras[idx] == cam)
+            return idx;
+    return 0; //QUEST: why not -1
+}
+void CameraManager::CutToCamera(Camera *cam, float cut) {
+    auto idx = FindCamera(cam);
+    if (m_selIdx != idx) {
+        AUDIO_SetVariable("camera_type", (float)idx);
+        m_prevSelIdx = m_selIdx;
+        m_selIdx = idx;
+        m_cut = cut;
+        m_cutInv = (cut == 0.0f) ? 1.0f : 0.0f;
+        cam->m_bCut = true;
+        cam->m_field_B8 = 0.0f;
+        if (g_tweakArray[TWI_BENABLEOCULUS].IntValue() == 1)
+            m_pos = cam->m_pos;
+    }
+    cam->m_field_80 = cam->m_field_84;
+}
+bool SortElasticFirst(Camera *a1, Camera *a2) {
+    return a1->m_isElastic && !a2->m_isElastic;
+}
+void CameraManager::Update(float dt) {
+    if (m_disabledElast) {
+        if (m_disabledElastVal)
+            m_disabledElastVal--;
+        else
+            m_disabledElast = false;
+    }
+    if (m_needSort) {
+        std::ranges::sort(m_cameras, SortElasticFirst);
+        m_needSort = false;
+    }
+    int v8 = 0;
+    for (auto i : m_cameras) {
+        zassert(i && "Camera is set to nullptr!");
+        if (!i->m_isElastic)
+            break;
+        auto v14 = (i == GetSelectedCamera()) ? 1 / 60.0f : 1 / 30.0f;
+        auto v15 = int(dt * v14);
+        float v17;
+        if (dt - v15 * v14 == 0.0f)
+            v17 = 0.0f;
+        else
+            v17 = 1.0f;
+        i->m_field_EC = i->m_bikeWorldPos;
+        for (int s = 0; s < v15; s++)
+            i->Update(v14, s / (v15 + v17));
+        i->Update(dt - v14 * v15, 1.0f);
+        v8++;
+    }
+    auto sc = GetSelectedCamera();
+    if (v8 <= m_selIdx)
+        sc->Update(dt, 1.0f);
+    if (m_cutInv >= 1.0f) {
+        m_pos = sc->m_pos;
+        m_field_50 = sc->m_field_34;
+    } else {
+        m_cutInv = dt / m_cut + m_cutInv;
+        auto prev_cam = m_cameras[m_prevSelIdx];
+        m_pos.m_data[0] = (sc->m_pos.m_data[0] - prev_cam->m_pos.m_data[0]) * m_cutInv + prev_cam->m_pos.m_data[0];
+        m_pos.m_data[1] = (sc->m_pos.m_data[1] - prev_cam->m_pos.m_data[1]) * m_cutInv + prev_cam->m_pos.m_data[1];
+        m_pos.m_data[2] = (sc->m_pos.m_data[2] - prev_cam->m_pos.m_data[2]) * m_cutInv + prev_cam->m_pos.m_data[2];
+        m_field_50.m_data[0] = (sc->m_field_34.m_data[0] - prev_cam->m_field_34.m_data[0]) * m_cutInv + prev_cam->m_field_34.m_data[0];
+        m_field_50.m_data[1] = (sc->m_field_34.m_data[1] - prev_cam->m_field_34.m_data[1]) * m_cutInv + prev_cam->m_field_34.m_data[1];
+        m_field_50.m_data[2] = (sc->m_field_34.m_data[2] - prev_cam->m_field_34.m_data[2]) * m_cutInv + prev_cam->m_field_34.m_data[2];
+    }
+    auto v71 = sc->m_field_34 - sc->m_pos;
+    auto v53 = v71.len();
+    if (v53 != 0.0f && v53 != 1.0f) {
+        auto v54 = 1.0f / v53;
+        v71.m_data[2] *= v54;
+        v71.m_data[1] *= v54;
+        v71.m_data[0] *= v54;
+    }
+    bool oculus = g_tweakArray[TWI_BENABLEOCULUS].IntValue() == 1;
+    if (oculus)
+        v71 = VEC3{ 1.0f, 0.0f, 0.0f };
+    AUDIO_SetListenerPosition(1, sc->m_pos, v71);
+    m_tmpCamVal -= dt;
+}
+void CameraManager_Update(float dt) {
+    if (!g_DesiredCam)
+        g_DesiredCam = g_FollowCam;
+    if (g_friendsListGUIObj) {
+        static Camera *g_camArray[] = { g_FollowCam, g_SideCam, g_DollyCam, g_HeliCam, g_WheelCam, g_LeadCam };
+        static float g_accTime;
+        static int g_randCamIdx;
+        bool v5 = false;
+        auto SubgroupEvent = GroupEvents::FindSubgroupEvent(g_GroupEventsActive_CurrentEventId);
+        if (SubgroupEvent && SubgroupEvent->m_field_198 == 7)
+            v5 = true;
+        else if (g_currentPrivateEvent)
+            v5 = g_currentPrivateEvent->m_field_1C4 == 4;
+        if ((g_friendsListGUIObj->m_field_428 || v5) && !g_friendsListGUIObj->m_changeCamera) {
+            g_accTime += dt;
+            if (g_accTime > 7.0f) {
+                g_accTime -= 7.0f;
+                while (true) {
+                    int v10 = rand() % _countof(g_camArray);
+                    if (v10 != g_randCamIdx) {
+                        g_randCamIdx = v10;
+                        break;
+                    }
+                }
+                g_DesiredCam = g_camArray[g_randCamIdx];
+                if (g_DesiredCam == g_HeliCam) {
+                    g_DesiredCam->m_field_80 = 1.0f;
+                    g_DesiredCam->m_field_84 = 1.0f;
+                    g_DesiredCam->m_field_BC = 2.0f;
+                }
+            }
+        }
+        if (g_friendsListGUIObj->m_fanView) {
+            g_accTime = 0.0f;
+            g_friendsListGUIObj->m_fanView = false;
+            g_friendsListGUIObj->m_changeCamera = false;
+            g_DesiredCam = g_FollowCam;
+        }
+    }
+    bool v12 = false;
+    bool camChanged = false;
+    VEC3 io{}, pos{};
+    auto pSK = g_CameraManager.GetSelectedCamera();
+    if (g_CameraManager.m_tmpCam && g_CameraManager.m_tmpCamVal > 0.0f) {
+        v12 = true;
+        g_CameraManager.m_tmpCam->SetLookAtEntity(pSK->GetLookAtEntity());
+        g_CameraManager.CutToCamera(g_CameraManager.m_tmpCam, 0.0f);
+        pSK = g_CameraManager.GetSelectedCamera();
+    } else {
+        if (g_DesiredCam == g_DollyCam || g_DesiredCam == g_FollowCam) {
+            auto &ents = EntityManager::GetInst()->m_ents_photocam;
+            if (!ents.empty()) {
+                std::vector<PhotoCamEntity *> v192(ents);
+                std::vector<PhotoCamEntity *> v191;
+                bool breaked = false;
+                for (auto v24 : v192) {
+                    auto v25 = (BikeEntity *)g_DollyCam->GetLookAtEntity();
+                    if (v25) {
+                        //PhotoCamEntity::Available(PhotoCamEntity *this, BikeEntity*) inlined
+                        auto &p = v24->m_field_310 ? v24->m_field_314 : v24->m_pos;
+                        auto v28 = (v25->GetPosition() - p).len();
+                        if (v28 < v24->m_field_2B8.m_data[1] && (
+                            v24->m_field_30C == -1 || (v24->m_field_30C == 1 && v25->m_field_8B8) || (v24->m_field_30C == 0 && !v25->m_field_8B8)
+                            )) {
+                            if (v24->m_field_2D2) {
+                                if (!v24->m_field_2D3)
+                                    v24->m_camera2 = g_FollowCam;
+                                v24->m_field_2D3 = v24->m_field_2D4 = true;
+                            }
+                        } else {
+                            if (!v24->m_field_2D2 || !v24->m_field_2D3)
+                                continue;
+                            v24->m_field_2D4 = false;
+                        }
+                        if (!v24->m_field_2D2) {
+                            if (g_DesiredCam == g_DollyCam) {
+                                v191.push_back(v24);
+                                v24->m_camera1->SetLookAtEntity(g_DollyCam->GetLookAtEntity());
+                            }
+                            continue;
+                        }
+                        v12 = true;
+                        auto c = v24->m_camera1;
+                        c->SetLookAtEntity(g_DollyCam->GetLookAtEntity());
+                        g_CameraManager.CutToCamera(c, 0.0f);
+                        pSK = g_CameraManager.GetSelectedCamera();
+                        v24->Update(0.0f /*QUEST: not used or why 0*/);
+                        breaked = true;
+                        break;
+                    }
+                }
+                if (breaked == false) {
+                    v12 = io.m_data[0] != 0.0f || io.m_data[1] != 0.0f;
+                    auto v37 = v191.size();
+                    if (v37) {
+                        auto v38 = (g_CachedWorldTime / 15'000) % v37;
+                        v12 = true;
+                        g_CameraManager.CutToCamera(v191[v38]->m_camera1, 0.0f);
+                        pSK = g_CameraManager.GetSelectedCamera();
+                        v191[v38]->Update(0.0f /*QUEST: not used or why 0*/);
+                    }
+                }
+                camChanged = false;
+            }
+        }
+        if (!v12) {
+            if (pSK != g_DesiredCam) {
+                auto v41 = 0.0f;
+                if ((pSK == g_CloseCam && (g_DesiredCam == g_WheelCam || g_DesiredCam == g_SideCam || g_DesiredCam == g_FollowCam)) ||
+                    (pSK == g_SideCam && (g_DesiredCam == g_CloseCam || g_DesiredCam == g_FollowCam || g_DesiredCam == g_LeadCam)) ||
+                    (pSK == g_FollowCam && (g_DesiredCam == g_CloseCam || g_DesiredCam == g_SideCam))) {
+                    AUDIO_Event("Play_SFX_GAM_CameraAngleChange", 1, false);
+                    v41 = 0.5f;
+                }
+                g_CameraManager.CutToCamera(g_DesiredCam, v41);
+                pSK = g_CameraManager.GetSelectedCamera();
+                camChanged = true;
+            }
+        }
+    }
+    if (pSK == g_DollyCam) {
+        io.m_data[1] = io.m_data[2] = 0.0f;
+        auto v45 = (BikeEntity *)g_DollyCam->GetLookAtEntity();
+        if (camChanged || v45) {
+            if (camChanged || (g_DollyCam->m_pos - v45->GetPosition()).lenSquared() > 16'000'000.0f) {
+                io.m_data[0] = g_DollyCam->m_bikeLocalPos.m_data[0];
+                g_DollyCam->BikeLocalToWorldPos(&io);
+                g_DollyCam->m_pos = io;
+                g_DollyCam->ResetMovement();
+                if (v45) {
+                    uint32_t v55 = 0;
+                    if (v45->m_road)
+                        v55 = v45->m_road->m_segmentId;
+                    auto v57 = g_pRoadManager->GetRoadSegment(v55);
+                    if (v57) {
+                        auto pt = v57->FindClosestPointOnRoad(g_DollyCam->m_pos, 0.0, 10);
+                        float dir = -1.0f;
+                        if (v45->UpdateAnimation(dt))
+                            dir = 1.0f;
+                        auto v194 = v57->CalculateRoadPositionAtTime(pt, false);
+                        auto rw = v57->GetRoadWidth(pt, true, nullptr, nullptr, nullptr);
+                        auto maneur = (rw * 0.5f - 80.0f) * dir;
+                        VEC3 v196;
+                        v57->CalculateRoadPositionByDist(pt, v45->m_field_8B8 ? 1000.0 : -1000.0, &v196);
+                        pos = v196 - v194;
+                        auto sq = pos.lenSquared();
+                        float v77, v79;
+                        if (sq >= 1.0f) {
+                            auto v85 = 1.0f / sqrtf(sq);
+                            v77 = -v85 * pos.m_data[2];
+                            v79 = v85 * pos.m_data[0];
+                        } else {
+                            v57->CalculateRoadPositionByDist(pt, v45->m_field_8B8 ? -1000.0 : 1000.0, &v196);
+                            pos = v196 - v194;
+                            auto v71 = pos.len();
+                            if (v71 == 0.0f) {
+                                v77 = pos.m_data[2];
+                                v79 = -pos.m_data[0];
+                            } else {
+                                auto v73 = 1.0f / v71;
+                                v77 = v73 * pos.m_data[2];
+                                v79 = -v73 * pos.m_data[0];
+                            }
+                        }
+                        g_DollyCam->m_pos.m_data[0] = v77 * maneur + v196.m_data[0];
+                        g_DollyCam->m_pos.m_data[1] = v196.m_data[1] + 120.0f;
+                        g_DollyCam->m_pos.m_data[2] = v79 * maneur + v196.m_data[2];
+                    }
+                }
+            } else if (camChanged || v45) {
+                uint32_t v90 = 0;
+                if (v45->m_road)
+                    v90 = v45->m_road->m_segmentId;
+                auto v91 = g_pRoadManager->GetRoadSegment(v90);
+                if (v91) {
+                    auto pt = v91->FindClosestPointOnRoad(g_DollyCam->m_pos, 0.0, 10);
+                    pos = g_DollyCam->m_pos;
+                    float dir = -1.0f;
+                    if (v45->UpdateAnimation(dt))
+                        dir = 1.0f;
+                    auto v194 = v91->CalculateRoadPositionAtTime(pt, false);
+                    auto rw = v91->GetRoadWidth(pt, true, nullptr, nullptr, nullptr);
+                    auto maneur = (rw * 0.5f - 80.0f) * dir;
+                    VEC3 v196;
+                    v91->CalculateRoadPositionByDist(pt, v45->m_field_8B8 ? 1000.0 : -1000.0, &v196);
+                    pos = v196 - v194;
+                    auto sq = pos.lenSquared();
+                    float v77, v79;
+                    if (sq >= 1.0f) {
+                        auto v85 = 1.0f / sqrtf(sq);
+                        v77 = -v85 * pos.m_data[2];
+                        v79 = v85 * pos.m_data[0];
+                    } else {
+                        v91->CalculateRoadPositionByDist(pt, v45->m_field_8B8 ? -1000.0 : 1000.0, &v196);
+                        pos = v196 - v194;
+                        auto v71 = pos.len();
+                        if (v71 == 0.0f) {
+                            v77 = pos.m_data[2];
+                            v79 = -pos.m_data[0];
+                        } else {
+                            auto v73 = 1.0f / v71;
+                            v77 = v73 * pos.m_data[2];
+                            v79 = -v73 * pos.m_data[0];
+                        }
+                    }
+                    auto v124_ = VEC3{ v77 * maneur + v196.m_data[0], v196.m_data[1] + 120.0f, v79 * maneur + v196.m_data[2] } - g_DollyCam->m_pos;
+                    auto sq124 = v124_.lenSquared();
+                    if (sq124 <= 0.0f) {
+                        g_DollyCam->m_localVec = {};
+                        g_DollyCam->ResetMovement();
+                        pos.m_data[0] = v45->m_field_528.m_data[0] * 10.0f;
+                        pos.m_data[1] = v45->m_field_528.m_data[1] * 10.0f;
+                        pos.m_data[2] = v45->m_field_528.m_data[2] * 10.0f;
+                        auto v149 = pos.lenSquared();
+                        if (v149 > 0.0f) {
+                            auto speed = v45->m_bc->GetSpeed();
+                            g_DollyCam->m_pos.m_data[0] += pos.m_data[0] * speed * 14.0f * dt;
+                            g_DollyCam->m_pos.m_data[1] += pos.m_data[1] * speed * 14.0f * dt;
+                            g_DollyCam->m_pos.m_data[2] += pos.m_data[2] * speed * 14.0f * dt;
+                        }
+                    } else {
+                        sq124 = 1.0f / sqrtf(sq124);
+                        auto speed = v45->m_bc->GetSpeed();
+                        g_DollyCam->m_localVec = {};
+                        g_DollyCam->ResetMovement();
+                        g_DollyCam->m_pos.m_data[0] += speed * v124_.m_data[0] * 14.0f * dt * sq124;
+                        g_DollyCam->m_pos.m_data[1] += speed * v124_.m_data[1] * 14.0f * dt * sq124;
+                        g_DollyCam->m_pos.m_data[2] += speed * v124_.m_data[2] * 14.0f * dt * sq124;
+                    }
+                }
+            }
+        }
+        if (!v12) {
+            g_DollyCam->m_field_80 = g_DollyCam->m_field_84 = JoyY2() * dt + g_DollyCam->m_field_80;
+            g_CameraManager.CutToCamera(g_DollyCam, 0.0f);
+        }
+    } else if (pSK == g_HeliCam) {
+        if (camChanged) {
+            pos = g_HeliCam->m_bikeLocalPos;
+            g_HeliCam->BikeLocalToWorldPos(&pos);
+            g_HeliCam->m_pos = pos;
+            g_HeliCam->ResetMovement();
+            g_HeliCam->m_field_80 = 1.0f;
+            g_HeliCam->m_field_84 = 1.0f;
+        }
+        static float g_accTime2;
+        g_accTime2 += dt;
+        if (g_accTime2 > 3600.0f)
+            g_accTime2 -= 360.0f;
+        auto wid = g_pGameWorld->WorldID();
+        if (wid == WID_RICHMOND || wid == WID_LONDON || wid == WID_INNSBRUCK || wid == WID_NYC) {
+            auto v174 = g_HeliCam->GetLookAtEntity();
+            if (v174) {
+                auto v175 = v174->GetPosition();
+                g_HeliCam->m_pos.m_data[0] = 9000.0f + v175.m_data[0];
+                g_HeliCam->m_pos.m_data[1] = 20000.0f + v175.m_data[1];
+                g_HeliCam->m_pos.m_data[2] = 5000.0f + v175.m_data[2];
+            }
+            g_HeliCam->m_field_84 = g_HeliCam->m_field_80 = 4.5f - sinf(g_accTime2 * 0.1f) * 1.5f;
+        } else {
+            g_HeliCam->m_field_84 = g_HeliCam->m_field_80 = 13.0f - sinf(g_accTime2 * 0.1f) * 12.0f;
+        }
+        g_HeliCam->m_field_BC = 0.0f;
+    } else {
+        pSK = g_CameraManager.GetSelectedCamera();
+        if (pSK && pSK->GetLookAtEntity()) {
+            auto bc = ((BikeEntity *)pSK->GetLookAtEntity())->m_bc;
+            g_FollowCam->m_field_80 = g_FollowCam->m_field_84 = bc->GetSpeed() * 0.15534274f + 65.0f;
+        }
+    }
+    if (g_CameraManager.GetSelectedCamera() == g_FreeCam)
+        dt = 0.016666668f;
+    g_CameraManager.Update(dt);
+}
+bool g_enableJoystick = true; //QUEST originally false - let's test it
+float JoyY2() {
+    int cnt;
+    if (g_enableJoystick) {
+        auto JoystickAxes = glfwGetJoystickAxes(-1, &cnt);
+        if (cnt > 4) {
+            auto v1 = JoystickAxes[3];
+            if (v1 < -0.176f)
+                return (v1 * 1.2135923f) + 0.21359225f;
+            if (v1 > 0.176f)
+                return (v1 - 0.176f) * 1.2135923f;
+        }
+    }
+    return 0.0f;
+}
+Camera::Camera(Entity *e, CAMTYPE ty) : m_type(ty) {
+    if (e) {
+        if (e->m_entityType == Entity::ET_BIKE) {
+            m_playerId = 0;
+            if (!e->m_field_C98)
+                m_playerId = e->m_playerIdTx;
+        } else {
+            zassert(0);
+        }
+    }
+}
+Entity *Camera::GetLookAtEntity() {
+    return BikeManager::Instance()->FindBikeWithNetworkID(m_playerId, true);
+}
+void Camera::SetLookAtEntity(Entity *e) {
+    zassert(e->m_entityType == Entity::ET_BIKE);
+    auto be = (BikeEntity *)e;
+    m_playerId = be->m_playerIdTx;
+    m_field_80 = m_field_84;
+    if (m_isElastic) {
+        m_field_CC = 10.0f;
+        auto speed = be->m_bc->GetSpeed();
+        m_pos = m_bikeLocalPos;
+        BikeLocalToWorldPos(&m_pos);
+        m_bikeWorldPos = m_pos;
+        m_field_D4 = VEC3{};
+        m_field_E0 = VEC3{ speed * be->m_heading.m_cos * 30.0f, speed * be->m_heading.m_heading2 * 30.0f, speed * be->m_heading.m_sin * 30.0f };
+    }
+    m_field_B8 = 0.0f;
+}
+void Camera::BikeLocalToWorldPos(VEC3 *io) {
+    auto be = BikeManager::Instance()->FindBikeWithNetworkID(m_playerId, true);
+    if (be) {
+        VEC4 dest{ io->m_data[0], io->m_data[1], io->m_data[2], 1.0f };
+        MAT_MulVecXYZW(&dest, dest, be->m_matrix);
+        io->m_data[0] = dest.m_data[0];
+        io->m_data[2] = dest.m_data[2];
+        io->m_data[1] = dest.m_data[1];
+    }
+}
+void Camera::Update(float, float) {
     //TODO
-    return new Camera(e, ty);
+}
+void Camera::UpdateFreeRideCamera(float dt) {
+    if (this != g_FollowCam)
+        return;
+    if (m_field_110 > 0.0f) {
+        m_accTime += dt;
+        auto v5 = m_accTime / m_field_110;
+        if (v5 < 1.0f) {
+            m_bikeLocalPos.m_data[0] = (1.0f - v5) * m_field_118.m_data[0] + v5 * m_field_130.m_data[0];
+            m_bikeLocalPos.m_data[1] = (1.0f - v5) * m_field_118.m_data[1] + v5 * m_field_130.m_data[1];
+            m_bikeLocalPos.m_data[2] = (1.0f - v5) * m_field_118.m_data[2] + v5 * m_field_130.m_data[2];
+            m_field_74.m_data[0] = (1.0f - v5) * m_field_124.m_data[0] + v5 * m_field_13C.m_data[0];
+            m_field_74.m_data[1] = (1.0f - v5) * m_field_124.m_data[1] + v5 * m_field_13C.m_data[1];
+            m_field_74.m_data[2] = (1.0f - v5) * m_field_124.m_data[2] + v5 * m_field_13C.m_data[2];
+        } else {
+            m_field_74 = m_field_13C;
+            m_bikeLocalPos = m_field_130;
+            m_field_110 = 0.0f;
+            m_accTime = 0.0f;
+            m_field_130 = m_field_13C = VEC3{};
+        }
+    }
+    auto mainBike = BikeManager::g_pBikeManager->m_mainBike;
+    RoadSegment *road = nullptr;
+    int v16 = 0;
+    if (mainBike) {
+        if (g_pRoadManager) {
+            road = mainBike->m_road;
+            if (!road)
+                road = g_pRoadManager->GetRoadSegment(0);
+        }
+        if (g_pGameWorld && road && road->m_segmentId == 96 && g_pGameWorld->WorldID() == WID_WATOPIA) {
+            auto v15 = mainBike->m_field_888;
+            if (v15 < 0.94f && v15 > 0.85f)
+                v16 = 1;
+            if ((v15 < 0.83f && v15 > 0.79f) || (v15 < 0.6f && v15 > 0.48f))
+                v16 = 1;
+            if ((v15 < 0.7f && v15 > 0.61f) || (v15 < 0.37f && v15 > 0.25f) || (v15 < 0.235f && v15 > 0.07f))
+                v16 = 2;
+        }
+    }
+    if (v16 == m_field_148 || m_field_110 > 0.0f)
+        return;
+    m_field_148 = v16;
+    switch (v16) {
+    case 0:
+        m_field_130.m_data[0] = -150.0f;
+        m_field_130.m_data[1] = 200.0f;
+        m_field_13C.m_data[0] = 200.0f;
+        m_field_13C.m_data[1] = 150.0f;
+        break;
+    case 1:
+        m_field_130.m_data[0] = -100.0f;
+        m_field_130.m_data[1] = 300.0f;
+        m_field_13C.m_data[0] = 300.0f;
+        m_field_13C.m_data[1] = 75.0f;
+        break;
+    case 2:
+        m_field_130.m_data[0] = -120.0f;
+        m_field_130.m_data[1] = 170.0f;
+        m_field_13C.m_data[0] = 200.0f;
+        m_field_13C.m_data[1] = 190.0f;
+        break;
+    }
+    m_field_130.m_data[2] = 0.0f;
+    m_field_13C.m_data[2] = 0.0f;
+    m_field_118 = m_bikeLocalPos;
+    m_field_124 = m_field_74;
+    m_field_110 = 3.0f;
+}
+void Camera::ResetMovement() {
+    m_worldVec = m_localVec;
+    auto be = BikeManager::Instance()->FindBikeWithNetworkID(m_playerId, true);// Camera::LocalToWorldVec inlined
+    if (be) {
+        VEC4 dest{ m_worldVec.m_data[0], m_worldVec.m_data[1], m_worldVec.m_data[2], 1.0f };
+        MAT_MulVecXYZW(&dest, dest, be->m_matrix);
+        VEC4 v11{ g_cident3 };
+        MAT_MulVecXYZW(&v11, v11, be->m_matrix);
+        m_worldVec.m_data[0] = dest.m_data[0] - v11.m_data[0];
+        m_worldVec.m_data[1] = dest.m_data[1] - v11.m_data[1];
+        m_worldVec.m_data[2] = dest.m_data[2] - v11.m_data[2];
+    }
+}
+void Camera::RoadLocalToWorldPos(VEC3 *io) {
+    auto be = BikeManager::Instance()->FindBikeWithNetworkID(m_playerId, true);
+    if (be && g_pRoadManager) {
+        auto road = be->m_road;
+        if (!road)
+            road = g_pRoadManager->GetRoadSegment(0);
+        if (road) {
+            auto v16 = road->CalculateRoadPositionAtTimeF(be->m_field_888, false);
+            auto v7 = road->GetRoadWidth(be->m_field_888, false, nullptr, nullptr, nullptr) * 0.5f * (1.0f - road->GetRiderBoundsRatio());
+            VEC3 v15 = be->m_field_8B8 ? be->m_field_528 : -be->m_field_528;
+            auto v8 = -v15.m_data[2], v9 = io->m_data[2];
+            auto v10 = v7 * v8 * 0.5f + v16.m_data[0] + v15.m_data[0] * io->m_data[0] - v15.m_data[0] * v15.m_data[1] * io->m_data[1] + v9 * v8;
+            auto v12 = v7 * v15.m_data[0] * 0.5f + v16.m_data[2] + v15.m_data[2] * io->m_data[0] + v8 * v15.m_data[1] * io->m_data[1] + v9 * v15.m_data[0];
+            auto v13 = (be->m_pos.m_data[2] - v12) * v15.m_data[0] + (be->m_pos.m_data[0] - v10) * v8;
+            io->m_data[0] = (v8 * v13) + v10;
+            io->m_data[1] = (v15.m_data[0] * v15.m_data[0] - v8 * v15.m_data[2]) * io->m_data[1] + v15.m_data[1] * io->m_data[0] + v16.m_data[1];
+            io->m_data[2] = (v15.m_data[0] * v13) + v12;
+        }
+    }
 }
