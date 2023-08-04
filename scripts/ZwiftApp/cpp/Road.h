@@ -8,6 +8,8 @@ struct RoadSegment {
     float GetRiderBoundsRatio();
     virtual double FindClosestPointOnRoad(const VEC3 &, double, int) {}
     virtual void CalculateRoadPositionByDist(double, double, VEC3 *) {}
+    virtual float GetCyclistAltitudeAtRoadTime(const VEC3 &, double, bool) { return 0.0f; }
+    virtual bool IsPlaceholder() { return true; }
     /*RoadSegment::AddMarkers(Entity *,int *)
 RoadSegment::AddPOI(POIEntity *)
 RoadSegment::AddSpeedGate(SpeedGateEntity *)
@@ -38,7 +40,6 @@ RoadSegment::GetCourseDistanceBetweenSplineTimes(double,double,bool,double *)
 RoadSegment::GetCourseHeightAtDistance(float)
 RoadSegment::GetCourseLength(void)
 RoadSegment::GetCurvePointCount(void)
-RoadSegment::GetCyclistAltitudeAtRoadTime(VEC3 const&,double,bool)
 RoadSegment::GetDefaultLoiterOffset(void)
 RoadSegment::GetDefaultOffset(void)
 RoadSegment::GetDefaultRoadStyleIndex(void)
@@ -130,7 +131,6 @@ RoadSegment::~RoadSegment()
 RoadSegmentPlaceholder::GetSportAllowed(void)
 RoadSegmentPlaceholder::IsAvailable(void)
 RoadSegmentPlaceholder::IsPaddock(void)
-RoadSegmentPlaceholder::IsPlaceholder(void)
 RoadSegmentPlaceholder::IsSportAllowOnRoad(ulong long)
 RoadSegmentPlaceholder::RoadSegmentPlaceholder(int)
 RoadSegmentPlaceholder::~RoadSegmentPlaceholder()
@@ -241,7 +241,6 @@ RoadSegmentWorld::GetCourseDistanceBetweenSplineTimes(double,double,bool,double 
 RoadSegmentWorld::GetCourseHeightAtDistance(float)
 RoadSegmentWorld::GetCourseLength(void)
 RoadSegmentWorld::GetCurvePointCount(void)
-RoadSegmentWorld::GetCyclistAltitudeAtRoadTime(VEC3 const&,double,bool)
 RoadSegmentWorld::GetDefaultLoiterOffset(void)
 RoadSegmentWorld::GetDefaultOffset(void)
 RoadSegmentWorld::GetDefaultRoadStyleIndex(void)
@@ -306,7 +305,6 @@ RoadSegmentWorld::IsLastNode(RoadNode const*)
 RoadSegmentWorld::IsLooped(void)
 RoadSegmentWorld::IsOneWay(void)
 RoadSegmentWorld::IsPaddock(void)
-RoadSegmentWorld::IsPlaceholder(void)
 RoadSegmentWorld::IsPointInRoadRegion(VEC3 const&)
 RoadSegmentWorld::IsPointInRoadRegion2D(VEC3 const&)
 RoadSegmentWorld::IsPreviousNodeStraight(RoadNode const*)
@@ -348,6 +346,11 @@ struct RoadSegmentWorld : public RoadSegment {
     void CalculateRoadPositionByDist(double, double, VEC3 *dest) override {
         //TODO
     }
+    float GetCyclistAltitudeAtRoadTime(const VEC3 &, double, bool) override {
+        //TODO
+        return 0.0f; 
+    }
+    bool IsPlaceholder() { return false; }
 };
 struct RoadManager {
     std::vector<RoadSegment *> m_segments;

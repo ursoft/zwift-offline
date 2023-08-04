@@ -9,11 +9,35 @@ struct tVEC {
         return ret;
     }
     float len() { return sqrt(lenSquared()); }
+    void Normalize() {
+        auto lsq = lenSquared();
+        if (lsq != 0.0f) {
+            lsq = sqrtf(lsq);
+            for (auto &i : m_data)
+                i /= lsq;
+        }
+    }
+    tVEC Normalized() const {
+        tVEC ret(*this);
+        auto lsq = ret.lenSquared();
+        if (lsq != 0.0f) {
+            lsq = sqrtf(lsq);
+            for (auto &i : ret.m_data)
+                i /= lsq;
+        }
+        return ret;
+    }
     tVEC operator -() {
         tVEC ret{ *this };
         for (auto &i : m_data)
             i = -i;
         return ret;
+    }
+    bool Empty() const {
+        for (auto i : m_data)
+            if (i != 0.0f)
+                return false;
+        return true;
     }
 };
 template <class T, int dim>

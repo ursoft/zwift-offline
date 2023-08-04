@@ -106,10 +106,8 @@ struct Heading {
     static float NormalizeRadians(float rad) { return doNorm(fmodf(rad, 6.2832f)); }
     void SetRadians(float rad) {
         m_angleRad = NormalizeRadians(rad);
-        float sinx;
-        __libm_sse2_sincosf_(m_angleRad, &sinx, &m_cos);
+        __libm_sse2_sincosf_(-m_angleRad, &m_sin, &m_cos);
         m_heading2 = 0.0f;
-        m_sin = -sinx;
     }
     static float InterpolateRadians(float a2, float a3, float a4) {
         float v7 = NormalizeRadians(a2);
@@ -245,7 +243,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
     VEC3 m_teleportPos{};
     UChar m_uname[824/2]; //TODO: really not too big
     int m_rxRideons = 0, m_field_1814 = -1 /*not sure*/, m_field_8F0 = 0, m_field_940 = 0;
-    float m_field_AA8 = 0.0f, m_field_8EC = 0.0f;
+    float m_field_AA8 = 0.0f, m_field_8EC = 0.0f, m_field_500 = 0.0f;
     int32_t m_field_AAC = 0, m_field_3D4 = 0 /*enum*/, m_field_3CC = 0 /*enum*/, m_field_13C = 0;
     uint32_t m_race_f14 = 0, m_fwGdeSignature = 0, m_rwGdeSignature = 0, m_yellowJersey = 0;
     protobuf::POWERUP_TYPE m_pendPU = protobuf::POWERUP_NONE;
@@ -254,7 +252,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
     VEC3 m_field_528{};
     bool m_writable = false, m_isCheater = false, m_isSandbagger = false, m_sensor_f11 = false, m_field_806 = false,
         m_immuneFromCheating = false, m_boolCheatSmth = false, m_joinedWorld = false, m_field_488 = false, m_field_3D8 = false, m_field_3D9 = false,
-        m_field_8B8 = false, m_field_CC1 = false;
+        m_field_8B8 = false, m_field_CC1 = false, m_field_8BB = false;
     void SaveProfile(bool, bool);
     bool IsPacerBot() { return m_profile.player_type() == protobuf::PlayerType::PACER_BOT; }
     int64_t GetEventID();
