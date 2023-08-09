@@ -104,7 +104,7 @@ struct Experimentation : public EventObject { //sizeof=0x1E48; vtblExperimentati
     ExpVariant IsEnabled(FeatureID id, ExpVariant overrideIfUn);                     //vtblExp+2
     bool IsEnabled(FeatureID id);                                                    //vtblExp+3
     void HandleLogout();                                                             //vtblExp+4
-    //todo void Unregister(Experiment::CallbackID<Experiment::Feature>)              //vtblExp+5
+    //TODO void Unregister(Experiment::CallbackID<Experiment::Feature>)              //vtblExp+5
     template <class T> FeatureValue<T> Get(FeatureID id, const std::string &name) {  //vtblExp+6: bool, vtblExp+7: int64, vtblExp+8: double, vtblExp+9: String
         return m_fsms[id].GetFeatureVariable<T>(name);
     }

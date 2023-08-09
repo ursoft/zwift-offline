@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing
 uint32_t SIG_CalcCaseInsensitiveSignature(const char *str);
 uint32_t SIG_CalcCaseSensitiveSignature(const char *str);
 extern const uint32_t g_crc32Table[];

@@ -1,5 +1,6 @@
-#pragma once
+#pragma once //READY for testing
 struct SimplexNoise {
+    static const uint8_t perm[512];
     static float Generate(float, float, float);
 /*grad(int, float, float, float, float)
 grad(int, float, float, float)
@@ -40,7 +41,7 @@ struct Camera { //0x150 bytes
 inline Camera *g_DesiredCam, *g_HeadCam, *g_FollowCam, *g_WheelCam, *g_SideCam, *g_LeadCam, *g_DollyCam, *g_pTitleCamera, *g_HeliCam, *g_OrbitCam, *g_CloseCam, *g_ClassicCam, *g_FreeCam;
 inline VEC4 g_cident3{0.0f, 0.0f, 0.0f, 1.0f};
 struct CameraManager { //0x98 bytes
-    std::string m_reg = "{\"registered\":false,\"registrationStatus\":2}"s;
+    //std::string m_reg = "{\"registered\":false,\"registrationStatus\":2}"s;
     VEC3 m_pos{}, m_field_50{};
     std::deque<Camera *> m_cameras;
     Camera *m_tmpCam = nullptr;
@@ -55,8 +56,8 @@ struct CameraManager { //0x98 bytes
     int FindCamera(Camera *);
     void Update(float dt);
     CameraManager() {}
-        /*inlined/not used DebugApplyCameraPosition(VEC3 const&,VEC3 const&), CameraManager::DeleteCamera(Camera *), DisableElasticity(uint), GetCameraRotMatrix(MATRIX33 &)
-            GetTemporaryCamera(), IsElasticityEnabled(), PasteCameraPositionFromClipboard(), RegisterCommands(), Self(), SetSteeringMode(SteeringMode,bool), SetTemporaryCamera(Camera *,float), UpdateGlobalElasticity() */
+/*inlined/not used DebugApplyCameraPosition(VEC3 const&,VEC3 const&), CameraManager::DeleteCamera(Camera *), DisableElasticity(uint), GetCameraRotMatrix(MATRIX33 &)
+GetTemporaryCamera(), IsElasticityEnabled(), PasteCameraPositionFromClipboard(), RegisterCommands(), Self(), SetSteeringMode(SteeringMode,bool), SetTemporaryCamera(Camera *,float), UpdateGlobalElasticity() */
 };
 inline CameraManager g_CameraManager;
 float JoyY2();

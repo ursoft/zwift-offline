@@ -1,4 +1,4 @@
-#include "CRC.h"
+#include "CRC.h" //READY for testing
 const uint32_t g_crc32Table[256] = {
     0, 0x77073096, 0xEE0E612C, 0x990951BA, 0x76DC419, 0x706AF48F,
     0xE963A535, 0x9E6495A3, 0xEDB8832, 0x79DCB8A4, 0xE0D5E91E,

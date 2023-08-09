@@ -490,7 +490,7 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
                         p4[i].gap = p4src_i->gap;
                         p4[i].m_color1 = GDE_Color(p4src_i->m_color1);
                         p4[i].m_color2 = GDE_Color(p4src_i->m_color2);
-                        GDE_NormalizeVector(&p4src_i->m_pointN, &p4src_i->m_pointN);
+                        p4src_i->m_pointN.Normalize();
                         p4[i].m_pointN = p4src_i->m_pointN;
                         p4[i].m_field_27 = 0;
                         p4[i].m_point1 = p4src_i->m_point1;

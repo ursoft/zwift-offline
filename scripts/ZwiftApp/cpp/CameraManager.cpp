@@ -452,47 +452,6 @@ void CameraManager_Update(float dt) {
         dt = 0.016666668f;
     g_CameraManager.Update(dt);
 }
-bool g_enableJoystick = true; //QUEST originally false - let's test it
-float JoyY2() {
-    int cnt;
-    if (g_enableJoystick) {
-        auto JoystickAxes = glfwGetJoystickAxes(-1, &cnt);
-        if (cnt > 4) {
-            auto v1 = JoystickAxes[3]; //GLFW_GAMEPAD_AXIS_RIGHT_Y ?
-            if (v1 < -0.176f)
-                return v1 * 1.2135923f + 0.21359225f;
-            if (v1 > 0.176f)
-                return (v1 - 0.176f) * 1.2135923f;
-        }
-    }
-    return 0.0f;
-}
-float JoyTrg1() {
-    int cnt;
-    if (g_enableJoystick) {
-        auto JoystickAxes = glfwGetJoystickAxes(-1, &cnt);
-        if (cnt > 4) {
-            auto v1 = JoystickAxes[4]; //GLFW_GAMEPAD_AXIS_LEFT_TRIGGER ?
-            if (v1 < -0.176f)
-                return -v1 * 1.2135923f - 0.21359225f;
-            if (v1 > 0.176f)
-                return (0.176f - v1) * 1.2135923f;
-        }
-    }
-    return 0.0f;
-}
-float JoyX2() {
-    int cnt;
-    if (g_enableJoystick) {
-        auto JoystickAxes = glfwGetJoystickAxes(-1, &cnt);
-        if (cnt > 4) {
-            auto v1 = JoystickAxes[2]; //GLFW_GAMEPAD_AXIS_RIGHT_X ?
-            if (v1 < -0.176f)
-                return -1.2135923f * (v1 + 0.176f);
-        }
-    }
-    return 0.0f;
-}
 Camera::Camera(Entity *e, CAMTYPE ty) : m_type(ty) {
     if (e) {
         if (e->m_entityType == Entity::ET_BIKE) {
@@ -533,55 +492,145 @@ void Camera::BikeLocalToWorldPos(VEC3 *io) {
         io->m_data[1] = dest.m_data[1];
     }
 }
-struct RegionEntityBaseCommon {
-    bool IsInRegion(const VEC3 &) {
-        //TODO
-        return true;
-    }
-    /*RegionEntityBaseCommon::~RegionEntityBaseCommon()
-RegionEntityBaseCommon::UseRadius(void)
-RegionEntityBaseCommon::UpdateTransform(void)
-RegionEntityBaseCommon::RegionEntityBaseCommon(Entity::EType)
-RegionEntityBaseCommon::IsGlobal(void)
-RegionEntityBaseCommon::InitializeEnd(void)
-RegionEntityBaseCommon::GetRadius(void)
-RegionEntityBaseCommon::GetAABB(void)*/
-};
-struct FogRegionEntity : public RegionEntityBaseCommon {
-    int m_field_2B4 = 0; //TODO:enum
-    /*FogRegionEntity::~FogRegionEntity()
-FogRegionEntity::Update(float)
-FogRegionEntity::TransitionTimeOffset(float,float,float &,float)
-FogRegionEntity::TransitionRoadWetness(float,float)
-FogRegionEntity::StopApplyingTime(float)
-FogRegionEntity::StopApplyingRoadWetness(float)
-FogRegionEntity::RampUpTimeCommon(float,float,float &,float,std::list<FogRegionEntity*> &,bool &,float)
-FogRegionEntity::RampUpRoadWetness(float)
-FogRegionEntity::RampUpGlobalTime(float)
-FogRegionEntity::RampUpFogOnlyTime(float)
-FogRegionEntity::RampUpEffect(std::list<FogRegionEntity*> &,bool &,std::function<bool ()(void)>)
-FogRegionEntity::RampDownTimeCommon(float,float &,float,std::list<FogRegionEntity*> &,bool &)
-FogRegionEntity::RampDownRoadWetness(float)
-FogRegionEntity::RampDownGlobalTime(float)
-FogRegionEntity::RampDownFogOnlyTime(float)
-FogRegionEntity::RampDownEffect(float &,std::list<FogRegionEntity*> &,bool &,std::function<bool ()(void)>)
-FogRegionEntity::InitializeEnd(void)
-FogRegionEntity::InitReflection(void)
-FogRegionEntity::GetSkyFogOpacity(void)
-FogRegionEntity::GetEffectBlend(void)
-FogRegionEntity::GetDensityMax(void)
-FogRegionEntity::GetDensity(void)
-FogRegionEntity::FogRegionEntity(void)
-FogRegionEntity::FogColorSaturation(double,VEC4)
-FogRegionEntity::ApplyTime(float)
-FogRegionEntity::ApplyRoadWetness(float)*/
-};
-std::list<FogRegionEntity *> g_FogRegionsEffectingCamera;
 float g_camUpdX;
 int g_seed = 0x7b;
-float SimplexNoise::Generate(float, float, float) {
-    //TODO
-    return 0.0f;
+const uint8_t SimplexNoise::perm[512] = { 151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30,
+ 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177,
+ 33, 88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166, 77, 146, 158, 231, 83, 111, 229, 122,
+ 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244, 102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89,
+ 18, 169, 200, 196, 135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123, 5, 202, 38, 147, 118, 126,
+ 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42, 223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153,
+ 101, 155, 167, 43, 172, 9, 129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228, 251, 34, 242, 193,
+ 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107, 49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121,
+ 50, 45, 127, 4, 150, 254, 138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180, 151, 160, 137, 91,
+ 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148, 247, 120,
+ 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33, 88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175,
+ 74, 165, 71, 134, 139, 48, 27, 166, 77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244, 102,
+ 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196, 135, 130, 116, 188, 159, 86, 164, 100, 109, 198,
+ 173, 186, 3, 64, 52, 217, 226, 250, 124, 123, 5, 202, 38, 147, 118, 126, 255, 82, 85, 212,207, 206, 59, 227, 47, 16, 58, 17, 182, 189,
+ 28, 42, 223, 183, 170, 213, 119, 248, 152, 2,44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9, 129, 22, 39, 253, 19, 98, 108, 110, 
+ 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228, 251, 34, 242, 193, 238, 210, 144, 12,191, 179, 162, 241, 81, 51, 145, 235, 249, 14,
+ 239, 107, 49, 192, 214, 31, 181, 199, 106, 157,184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254, 138, 236, 205, 93, 222, 114, 67, 29,
+ 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180 };
+float SimplexNoise::Generate(float a2, float a3, float a4) {
+    float v4 = (a2 + a3 + a4) * 0.33333f, v5 = v4 + a2, v6 = v4 + a3, v8 = v4 + a4;
+    int v11 = int(v5) - (v5 <= 0.0), v12 = int(v6) - (v6 <= 0.0f), v13 = int(v8) - (v8 <= 0.0f);
+    float v14 = (v11 + v12 + v13) * 0.16667f, v38 = 0.0f, v40 = 0.0f, v44, v54, v55;
+    float v15 = a2 - float(v11) + v14, v16 = a3 - float(v12) + v14, v17 = a4 - float(v13) + v14;
+    bool v18, v20, v21, v23, v22, v19;
+    if (v15 >= v16) {
+        if (v16 >= v17) {
+            v19 = v21 = v23 = false;
+            v22 = v18 = v20 = true;
+        } else {
+            v19 = v22 = false;
+            v23 = v15 < v17;
+            v20 = v15 >= v17;
+            v18 = v21 = true;
+        }
+    } else if (v16 >= v17) {
+        v23 = v20 = false;
+        v22 = v19 = true;
+        v21 = v15 < v17;
+        v18 = v15 >= v17;
+    } else {
+        v18 = v20 = v19 = false;
+        v21 = v23 = v22 = true;
+    }
+    uint32_t v25 = v11 - ((v11 >= 0 ? v11 : v11 + 255) & 0xFFFFFF00);
+    uint32_t v27 = v12 - ((v12 >= 0 ? v12 : v12 + 255) & 0xFFFFFF00);
+    uint32_t v29 = v13 - ((v13 >= 0 ? v13 : v13 + 255) & 0xFFFFFF00);
+    int v30 = ((v25 >> 23) & 0x100) + v25;
+    int v31 = ((v27 >> 23) & 0x100) + v27;
+    int v32 = ((v29 >> 23) & 0x100) + v29;
+    float v33 = (v15 - v20) + 0.16667f;
+    float v34 = (v16 - v19) + 0.16667f;
+    float v35 = (v17 - v23) + 0.16667f;
+    float v37 = 0.6f - v15 * v15 - v16 * v16 - v17 * v17;
+    if (v37 >= 0.0f) {
+        float v42 = v16;
+        uint8_t v43 = perm[perm[perm[v32] + v31] + v30];
+        if ((v43 & 0xFu) >= 8)
+            v44 = v16;
+        else
+            v44 = v15;
+        if ((v43 & 0xFu) >= 4) {
+            if ((v43 & 0xD | 2) == 14)
+                v42 = v15;
+            else
+                v42 = v17;
+        }
+        if (perm[perm[perm[v32] + v31] + v30] & 1)
+            v44 = -v44;
+        if (perm[perm[perm[v32] + v31] + v30] & 2)
+            v42 = -v42;
+        v40 = v37 * v37 * v37 * v37 * (v44 + v42);
+    }
+    float v47 = 0.6f - v33 * v33 - v34 * v34 - v35 * v35;
+    if (v47 >= 0.0f) {
+        uint8_t v53 = perm[perm[perm[v23 + v32] + (v19 + v31)] + (v20 + v30)];
+        if ((v53 & 0xFu) >= 8)
+            v54 = v34;
+        else
+            v54 = v33;
+        if ((v53 & 0xFu) >= 4) {
+            if ((v53 & 0xD | 2) == 14)
+                v34 = v33;
+            else
+                v34 = v35;
+        }
+        if (v53 & 1)
+            v54 = -v54;
+        if (v53 & 2)
+            v55 = -v34;
+        else
+            v55 = v34;
+        v38 = v47 * v47 * v47 * v47 * (v54 + v55);
+    }
+    float v49 = v15 - v18 + 0.33333f, v51 = v17 - v21 + 0.33333f, v50 = v16 - v22 + 0.33333f;
+    v15 -= 0.5f;
+    v17 -= 0.5f;
+    float v56 = 0.6f - v49 * v49 - v50 * v50 - v51 * v51, v57 = v16 - 0.5f, v58 = 0.0f, v59 = 0.0f, v62, v63;
+    if (v56 >= 0.0f) {
+        uint8_t v61 = perm[perm[perm[v21 + v32] + (v22 + v31)] + (v18 + v30)];
+        if ((v61 & 0xFu) >= 8)
+            v62 = v50;
+        else
+            v62 = v49;
+        if ((v61 & 0xFu) >= 4) {
+            if ((v61 & 0xD | 2) == 14)
+                v50 = v49;
+            else
+                v50 = v51;
+        }
+        v63 = -v62;
+        if ((v61 & 1) == 0)
+            v63 = v62;
+        if (v61 & 2)
+            v50 = -v50;
+        v59 = v56 * v56 * v56 * v56 * (v63 + v50);
+    }
+    float v64 = 0.6f - v15 * v15 - v57 * v57 - v17 * v17, v67, v68;
+    if (v64 < 0.0f)
+        return (v40 + v38 + v59 + v58) * 32.0f;
+    uint8_t v66 = perm[perm[perm[v32 + 1] + 1 + v31] + 1 + v30];
+    if ((v66 & 0xFu) >= 8)
+        v67 = v57;
+    else
+        v67 = v15;
+    if ((v66 & 0xFu) >= 4) {
+        if ((v66 & 0xD | 2) == 14)
+            v57 = v15;
+        else
+            v57 = v17;
+    }
+    v68 = -v67;
+    if ((perm[perm[perm[v32 + 1] + 1 + v31] + 1 + v30] & 1) == 0)
+        v68 = v67;
+    if (perm[perm[perm[v32 + 1] + 1 + v31] + 1 + v30] & 2)
+        v57 = -v57;
+    v58 = v64 * v64 * v64 * v64 * (v68 + v57);
+    return (v40 + v38 + v59 + v58) * 32.0f;
 }
 void Camera::Update(float dt, float a3) {
     BikeEntity *be;
@@ -595,54 +644,30 @@ void Camera::Update(float dt, float a3) {
                         if (r->IsInRegion(be->GetPosition()))
                             g_DesiredCam = g_FollowCam;
         }
-        float /*v33[2],*/ v51 = 0.0f, v52 = 0.0f, v55 = 0.0f, v56 = 0.0f, v179, v261 = 0.0f, v262 = 0.0f, v264 = 0.0f, v80;
+        float /*v33[2],*/ v51 = 0.0f, v52 = 0.0f, v55 = 0.0f, v56 = 0.0f, v179, v261 = 0.0f, v262 = 0.0f, v263 = 0.0f, v264 = 0.0f, v80;
         m_bikeWorldPos = m_pos;
         m_field_40 = m_field_34;
         auto io = m_pos;
-        auto v10 = m_field_34;
-        VEC3 wpos = m_field_34;
+        VEC3 wpos = m_field_34, tmp;
         switch (this->m_type) {
         case CT_FREE:
+            if ((getJoystickButtons() & 0x1000) == 0) {
+                if (getJoystickButtons() & 0x8000)
+                    v261 = 84000.0f;
+                else if (getJoystickButtons() & 0x100)
+                    v261 = 30.0f;
+                else
+                    v261 = 3000.0f;
+                v263 = 3.0;
+            }
+            wpos = wpos - io;//v20=v23, v21, v22
+            tmp = SafeNormalized(&wpos); //v26, v27, v25
 #if 0 //TODO
-            if ((getJoystickButtons() & 0x8000) != 0) {
-                v261 = 84000.0;
-            } else if ((getJoystickButtons() & 0x100) != 0) {
-                v261 = 30.0;
-            } else {
-                v261 = 3000.0;
-            }
-            v263 = 3.0;
-            if ((getJoystickButtons() & 0x1000) != 0) {
-                v263 = 0.0;
-                v261 = 0.0;
-            }
-            v20 = wpos.m_data[0] - io.m_data[0];
-            v21 = wpos.m_data[1] - io.m_data[1];
-            v22 = wpos.m_data[2] - io.m_data[2];
-            v23 = wpos.m_data[0] - io.m_data[0];
-            if ((float)(wpos.m_data[0] - io.m_data[0]) == 0.0 && v21 == 0.0 && v22 == 0.0)
-                v23 = 1.0;
-            wpos.m_data[0] = v23;
-            wpos.m_data[1] = wpos.m_data[1] - io.m_data[1];
-            wpos.m_data[2] = wpos.m_data[2] - io.m_data[2];
-            v24 = sqrtf((float)((float)(v21 * v21) + (float)(v23 * v23)) + (float)(v22 * v22));
-            if (v24 == 0.0) {
-                v25 = wpos.m_data[2];
-                v26 = wpos.m_data[0];
-                LODWORD(v27) = _mm_shuffle_ps(
-                    (__m128) * (unsigned __int64 *)wpos.m_data,
-                    (__m128) * (unsigned __int64 *)wpos.m_data,
-                    85).m128_u32[0];
-            } else {
-                v26 = v23 * (float)(1.0 / v24);
-                v25 = (float)(1.0 / v24) * v22;
-                v27 = (float)(1.0 / v24) * v21;
-            }
             v266 = v26;
             v265 = v26 * v27;
             v262 = -v25;
-            vec2.m_data[0] = -(float)((float)-v25 * v27);
-            v272 = (float)((float)-v25 * v25) - (float)(v26 * v26);
+            vec2.m_data[0] = v25 * v27);
+            v272 = -v25 * v25 - v26 * v26;
             JoyTrg1();
             v28 = -JoyY2();
             v274 = 1065353216i64;
@@ -668,8 +693,6 @@ void Camera::Update(float dt, float a3) {
                 vec2.m_data[0],
                 (float)((float)-v26 * dt) * v263);
             sub_7FF66CEA3A00((__int64)&v282, -v25, 0.0, v26, (float)(v28 * dt) * v263);
-            if (v20 == 0.0 && v21 == 0.0 && v22 == 0.0)
-                v20 = 1.0;
             v29 = (float)((float)((float)(v20 * *(float *)&v274) + (float)(v276 * v21)) + (float)(*(float *)&v278 * v22))
                 + *(float *)&v280;
             v30 = (float)((float)((float)(v20 * *((float *)&v274 + 1)) + (float)(*(float *)&v277 * v21))
@@ -701,46 +724,10 @@ void Camera::Update(float dt, float a3) {
                 v37 = (float)(1.0 / v38) * v37;
                 v263 = (float)(1.0 / v38) * v36;
             }
-            if (g_enableJoystick
-                && (JoystickAxes = glfwGetJoystickAxes(0xFFFFFFFF, (int *)&v271), SLODWORD(v271) > 4)
-                && (v40 = *((float *)JoystickAxes + 2), v40 > 0.176)) {
-                v41 = (float)(v40 - 0.176) * 1.2135923;
-            } else {
-                v41 = 0.0;
-            }
-            v42 = v41 - JoyX2();
-            if (g_enableJoystick) {
-                v45 = glfwGetJoystickAxes(0xFFFFFFFF, (int *)&v270);
-                v43 = -0.0;
-                if (SLODWORD(v270) <= 0) {
-                    v44 = -0.0;
-                } else {
-                    v46 = *(float *)v45;
-                    if (*(float *)v45 >= -0.176) {
-                        if (v46 <= 0.176)
-                            v44 = 0.0;
-                        else
-                            v44 = (float)(v46 - 0.176) * 1.2135923;
-                    } else {
-                        v44 = (float)(v46 * 1.2135923) + 0.21359225;
-                    }
-                }
-                if (g_enableJoystick) {
-                    v47 = glfwGetJoystickAxes(0xFFFFFFFF, (int *)&v267);
-                    if ((int)v267 > 1) {
-                        v48 = *((float *)v47 + 1);
-                        if (v48 >= -0.176) {
-                            if (v48 > 0.176)
-                                v43 = (float)(v48 - 0.176) * -1.2135923;
-                        } else {
-                            v43 = -0.21359225 - (float)(v48 * 1.2135923);
-                        }
-                    }
-                }
-            } else {
-                v43 = -0.0;
-                v44 = -0.0;
-            }
+            v41 = JoyX2p();
+            v42 = v41 - JoyX2m();
+            v44 = JoyX1();
+            v43 = JoyY1();
             v49 = (__m128)LODWORD(v265);
             v50 = (__m128)LODWORD(v272);
             v50 = (float)(v272 * v42) + (float)(v43 * v37);
@@ -763,30 +750,8 @@ void Camera::Update(float dt, float a3) {
             v56 = v54 + io.m_data[2];
             v261 = v55;
             wpos.m_data[2] = v55 - this->m_pos.m_data[2];
-            v57 = sqrtf(
-                (float)((float)(v53 * v53) + (float)(wpos.m_data[0] * wpos.m_data[0]))
-                + (float)(wpos.m_data[2] * wpos.m_data[2]));
-            if (v57 == 0.0)
-            {
-                v58 = *(_QWORD *)wpos.m_data;
-                v64 = wpos.m_data[2];
-                *(_QWORD *)this->m_field_8.m_data = v58;
-                this->m_field_8.m_data[2] = v64;
-            } else {
-                v59 = 1.0 / v57;
-                v60 = (float)(1.0 / v57) * wpos.m_data[0];
-                v61 = (float)(1.0 / v57) * wpos.m_data[2];
-                wpos.m_data[2] = v61;
-                v62 = (__m128) * (unsigned __int64 *)wpos.m_data;
-                v62 = v60;
-                v63 = _mm_shuffle_ps(v62, v62, 225);
-                v63 = v59 * v53;
-                v58 = _mm_shuffle_ps(v63, v63, 225).m128_u64[0];
-                v64 = wpos.m_data[2];
-                *(_QWORD *)this->m_field_8.m_data = v58;
-                this->m_field_8.m_data[2] = v64;
-            }
 #endif
+            m_field_8 = wpos.Normalized();
             break;
         case CT_BIKE:
             UpdateFreeRideCamera(dt);
@@ -833,14 +798,12 @@ void Camera::Update(float dt, float a3) {
                 v80 = wpos.m_data[1];
                 v262 = wpos.m_data[1];
             }
-            wpos.m_data[1] = v80 - v52;
             v261 = v55 = wpos.m_data[2];
             v264 = wpos.m_data[0];
             wpos.m_data[0] -= v51;
+            wpos.m_data[1] = v80 - v52;
             wpos.m_data[2] -= v56;
-            if (wpos.Empty())
-                wpos.m_data[0] = 1.0f;
-            m_field_8 = wpos.Normalized();
+            m_field_8 = SafeNormalized(&wpos);
             break;
         case CT_BIGBRO:
             v262 = wpos.m_data[1];
@@ -855,9 +818,7 @@ void Camera::Update(float dt, float a3) {
             wpos.m_data[0] -= v51;
             wpos.m_data[1] -= v52;
             wpos.m_data[2] -= v56;
-            if (wpos.Empty())
-                wpos.m_data[0] = 1.0f;
-            m_field_8 = wpos.Normalized();
+            m_field_8 = SafeNormalized(&wpos);
             break;
         case CT_TITLE:
             v55 = m_field_4C.m_data[2];
@@ -1206,16 +1167,8 @@ void Camera::Update(float dt, float a3) {
         case CT_8:
             if (!BikeManager::Instance()->FindBikeWithNetworkID(m_playerId, true) || !m_field_5C)
                 return;
-            m_field_34 = m_field_74;
             BikeLocalToWorldPos(&m_field_34);
-            v262 = wpos.m_data[1];
-            v264 = wpos.m_data[0];
-            v55 = wpos.m_data[2];
-            v261 = wpos.m_data[2];
-            v51 = io.m_data[0];
-            v52 = io.m_data[1];
-            v56 = io.m_data[2];
-            break;
+        //no break here
         default:
             v264 = wpos.m_data[0];
             v262 = wpos.m_data[1];

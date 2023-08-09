@@ -136,16 +136,6 @@ void GDE_FreeRuntime(GDE_Header_360 *h) {
     }
     h->m_runtime = nullptr;
 }
-void GDE_NormalizeVector(VEC3 *dest, VEC3 *src) {
-    auto leng = sqrt(src->m_data[0] * src->m_data[0] + src->m_data[1] * src->m_data[1] + src->m_data[2] * src->m_data[2]);
-    if (leng == 0.0 && dest != src) {
-        *dest = *src;
-    } else {
-        dest->m_data[0] = src->m_data[0] / leng;
-        dest->m_data[1] = src->m_data[1] / leng;
-        dest->m_data[2] = src->m_data[2] / leng;
-    }
-}
 GDE_MeshItemData2_ext &GDE_MeshItemData2_ext::operator=(const GDE_MeshItemData2 &src) {
     m_point = src.m_point;
     m_color1 = src.m_color1;

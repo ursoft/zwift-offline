@@ -1,4 +1,4 @@
-//UT Coverage: 100%, 5/5
+//UT Coverage: 100%, 5/5 READY for testing
 #pragma once
 struct XMLDoc { //1736 bytes
     tinyxml2::XMLDocument m_tiny_doc;

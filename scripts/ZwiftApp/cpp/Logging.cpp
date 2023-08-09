@@ -1,4 +1,4 @@
-#include "ZwiftApp.h"
+#include "ZwiftApp.h" //READY for testing
 LOG_TYPE   g_LogLineTypes[LOGC_LINES];
 char       *g_LogLines[LOGC_LINES];
 LOG_LEVEL  g_MinLogLevel = LL_CNT; // NOT_SET_YET;
@@ -11,7 +11,7 @@ const char *g_logTypeNames[LOG_CNT] = { "", "WARN : ", "ERROR: ", "> ", "", "FIL
                                         "VIDEO_CAPTURE : ", "BRAKING: ", "AUTOBRAKING: ", "AUTOMATION: " };
 struct LogType { //40 bytes
     std::string m_name;
-    bool        m_enabled, m_bool2 /* TODO: find where used */;
+    bool        m_enabled, m_bool2 /* QUEST: find where used */;
 };
 LogType g_LogTypes[LOG_CNT] = {
     { "LOG_GENERAL", true, true },            //00

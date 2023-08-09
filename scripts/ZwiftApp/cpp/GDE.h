@@ -398,4 +398,3 @@ int GDEMESH_GetFreeMeshResourceHandle();
 GDE_Header_360 *GDEMESH_GetMesh(int handle);
 Sphere *GDEMESH_GetMeshBounds(Sphere *ret, int handle);
 void GDE_FreeRuntime(GDE_Header_360 *h);
-void GDE_NormalizeVector(VEC3 *dest, VEC3 *src);

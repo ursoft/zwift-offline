@@ -1,4 +1,6 @@
-#include "ZwiftApp.h"
+#include "WADManager.h" //READY for testing
+#include "CRC.h"
+#include "Logging.h"
 const char *AssetType(WAD_ASSET_TYPE at) {
     const char *assetNames[(int)WAD_ASSET_TYPE::CNT + 1] = { "gde", "sky", "coll", "bog", "snd", "entity", "moby",
         "tie", "shrub", "texture", "shader", "particle", "ui", "global", "nav", "pvar_include",

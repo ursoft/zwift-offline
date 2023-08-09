@@ -49,6 +49,50 @@ struct BlimpEntity : public Entity {
         //TODO
     }
 };
+struct RegionEntityBaseCommon {
+    bool IsInRegion(const VEC3 &) {
+        //TODO
+        return true;
+    }
+    /*RegionEntityBaseCommon::~RegionEntityBaseCommon()
+RegionEntityBaseCommon::UseRadius(void)
+RegionEntityBaseCommon::UpdateTransform(void)
+RegionEntityBaseCommon::RegionEntityBaseCommon(Entity::EType)
+RegionEntityBaseCommon::IsGlobal(void)
+RegionEntityBaseCommon::InitializeEnd(void)
+RegionEntityBaseCommon::GetRadius(void)
+RegionEntityBaseCommon::GetAABB(void)*/
+};
+struct FogRegionEntity : public RegionEntityBaseCommon {
+    int m_field_2B4 = 0; //TODO:enum
+    /*FogRegionEntity::~FogRegionEntity()
+FogRegionEntity::Update(float)
+FogRegionEntity::TransitionTimeOffset(float,float,float &,float)
+FogRegionEntity::TransitionRoadWetness(float,float)
+FogRegionEntity::StopApplyingTime(float)
+FogRegionEntity::StopApplyingRoadWetness(float)
+FogRegionEntity::RampUpTimeCommon(float,float,float &,float,std::list<FogRegionEntity*> &,bool &,float)
+FogRegionEntity::RampUpRoadWetness(float)
+FogRegionEntity::RampUpGlobalTime(float)
+FogRegionEntity::RampUpFogOnlyTime(float)
+FogRegionEntity::RampUpEffect(std::list<FogRegionEntity*> &,bool &,std::function<bool ()(void)>)
+FogRegionEntity::RampDownTimeCommon(float,float &,float,std::list<FogRegionEntity*> &,bool &)
+FogRegionEntity::RampDownRoadWetness(float)
+FogRegionEntity::RampDownGlobalTime(float)
+FogRegionEntity::RampDownFogOnlyTime(float)
+FogRegionEntity::RampDownEffect(float &,std::list<FogRegionEntity*> &,bool &,std::function<bool ()(void)>)
+FogRegionEntity::InitializeEnd(void)
+FogRegionEntity::InitReflection(void)
+FogRegionEntity::GetSkyFogOpacity(void)
+FogRegionEntity::GetEffectBlend(void)
+FogRegionEntity::GetDensityMax(void)
+FogRegionEntity::GetDensity(void)
+FogRegionEntity::FogRegionEntity(void)
+FogRegionEntity::FogColorSaturation(double,VEC4)
+FogRegionEntity::ApplyTime(float)
+FogRegionEntity::ApplyRoadWetness(float)*/
+};
+inline std::list<FogRegionEntity *> g_FogRegionsEffectingCamera;
 struct EntityManager { //0x5F8 bytes
     std::vector<std::vector<Entity>> m_ents_bt;
     std::vector<PhotoCamEntity *> m_ents_photocam;

@@ -8,10 +8,9 @@
   },
   "ExpandedNodes": [
     "",
-    "\\cmake",
     "\\cpp",
     "\\res"
   ],
-  "SelectedNode": "\\CMakeLists.txt",
+  "SelectedNode": "\\cpp\\MAT.h",
   "PreviewInSolutionExplorer": false
 }

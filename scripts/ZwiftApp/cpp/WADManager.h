@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing
 enum class WAD_ASSET_TYPE { GDE, SKY, COLL, BOG, SND, ENTITY, MOBY, TIE, SHRUB, TEXTURE, SHADER, PARTICLE, UI, GLOBAL, NAV, PVAR_INCLUDE, TUNING_INCLUDE, CNT, LINK_TO = 25 };
 const char *AssetType(WAD_ASSET_TYPE at);
 const int FILE_PATH_SIZE = 96, WAD_VERSION = 11, HASH_BUCKETS = 1024;

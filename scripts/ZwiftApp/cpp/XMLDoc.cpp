@@ -1,4 +1,4 @@
-//UT Coverage: 99%, 636/639, ENOUGH (3 indulgenced)
+//UT Coverage: 99%, 636/639, ENOUGH (3 indulgenced) READY for testing
 #include "ZwiftApp.h"
 XMLDoc::XMLDoc() {
     //empty
@@ -448,7 +448,7 @@ bool XMLDoc::Load(const char *aName, time_t *aTime) {
     auto WadFileHeaderByItemName = g_WADManager.GetWadFileHeaderByItemName(aName + offset, WAD_ASSET_TYPE::GLOBAL, &wadTouchTime);
     struct _stat64i32 v63{};
     if (_stat64i32(saName.c_str(), &v63) /*no such file*/ && offset == 0) {
-        saName = "data/" + saName;
+        saName = "data/" + saName; //ZStringUtil::PrependFolder
         if (_stat64i32(saName.c_str(), &v63) /*no such file*/ && !WadFileHeaderByItemName)
             return ret;
     }

@@ -306,7 +306,7 @@ void MsgBoxAndExit(const char *lpText) {
 }
 
 //Unit Tests
-TEST(SmokeTestNet, Linkage) {                                        //testing if libs are linked properly
+TEST(SmokeTestNet, Linkage) { //testing if libs are linked properly
     AK::MemoryMgr::GetDefaultSettings(g_memSettings);             //Wwize, not debuggable
     Noesis::GUI::SetLicense("NS_LICENSE_NAME", "NS_LICENSE_KEY"); //NOESIS, not debuggable
     EXPECT_TRUE(g_memSettings.pfAllocVM != nullptr) << "AK::MemoryMgr";

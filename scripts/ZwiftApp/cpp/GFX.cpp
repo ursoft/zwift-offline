@@ -955,13 +955,13 @@ void GFX_LookAt(VEC3 *a1, VEC3 *a2, VEC3 *a3) {
     src.m_data[0] = a1->m_data[0] - a2->m_data[0];
     src.m_data[1] = a1->m_data[1] - a2->m_data[1];
     src.m_data[2] = a1->m_data[2] - a2->m_data[2];
-    GDE_NormalizeVector(&dest, &src);
+    dest = src.Normalized();
     float v8_x = dest.m_data[0], v8_y = dest.m_data[1];
     float v8_z = dest.m_data[2];
     src.m_data[0] = a3->m_data[1] * v8_z - a3->m_data[2] * v8_y;
     src.m_data[1] = a3->m_data[2] * v8_x - a3->m_data[0] * v8_z;
     src.m_data[2] = a3->m_data[0] * v8_y - a3->m_data[1] * v8_x;
-    GDE_NormalizeVector(&dest, &src);
+    dest = src.Normalized();
     m2.m_data[0].m_data[3] = 0.0f;
     m2.m_data[1].m_data[3] = 0.0f;
     m2.m_data[2].m_data[3] = 0.0f;
@@ -3528,7 +3528,7 @@ void GFX_Draw2DQuad(float a1, float a2, float a3, float a4, float a5, float a6, 
             GFX_LoadIdentity();
             if (a10 != 0.0f) {
                 GFX_Translate(VEC3{ (a3 * 0.5f) + a1, (a4 * 0.5f) + a2 });
-                GFX_RotateZ((a10 / 180.0f) * 3.1415927f);
+                GFX_RotateZ((a10 / 180.0f) * std::numbers::pi_v<float>);
                 GFX_Translate(VEC3{ -(a3 * 0.5f + a1), -a2 - (a4 * 0.5f) });
             }
             GFX_UpdateMatrices(0);

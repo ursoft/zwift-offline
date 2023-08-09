@@ -96,14 +96,7 @@ struct Heading {
     }
     void SetDir(const VEC3 &a2) { SetDir(a2.m_data[2], a2.m_data[0]); }
     float GetRadians() { return m_angleRad; }
-    static float doNorm(float rad) {
-        if (rad < -3.1416f)
-            return rad + 6.2832f;
-        else if (rad >= 3.1416f)
-            return rad - 6.2832f;
-        return rad;
-    }
-    static float NormalizeRadians(float rad) { return doNorm(fmodf(rad, 6.2832f)); }
+    static float NormalizeRadians(float rad) { return MU_NormalizeAngle(fmodf(rad, std::numbers::pi_v<float> + std::numbers::pi_v<float>)); }
     void SetRadians(float rad) {
         m_angleRad = NormalizeRadians(rad);
         __libm_sse2_sincosf_(-m_angleRad, &m_sin, &m_cos);
@@ -112,7 +105,7 @@ struct Heading {
     static float InterpolateRadians(float a2, float a3, float a4) {
         float v7 = NormalizeRadians(a2);
         float v9 = NormalizeRadians(a3);
-        float d = doNorm(v9 - v7);
+        float d = MU_NormalizeAngle(v9 - v7);
         float result = a4 * d + v7;
         return NormalizeRadians(result);
     }

@@ -37,6 +37,7 @@
 #include <filesystem>
 #include <fstream>
 #include <random>
+#include <numbers>
 
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>
@@ -62,3 +63,12 @@ void __libm_sse2_sincosf_(float, float *, float *);
 #include <gtest/gtest.h>
 
 using std::string_literals::operator""s;
+#define GLFW_EXPOSE_NATIVE_WIN32
+#define GLFW_EXPOSE_NATIVE_WGL
+#define OVR_OS_WIN32
+#define GLFW_INCLUDE_GLCOREARB
+#define GL_GLEXT_PROTOTYPES
+#include "GL/glew.h"
+#include "glfw/include/GLFW/glfw3.h"
+#include "glfw/include/GLFW/glfw3native.h"
+#include "squish.h"
