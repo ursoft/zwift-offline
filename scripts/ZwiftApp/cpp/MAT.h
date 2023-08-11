@@ -24,6 +24,11 @@ struct tVEC {
             i /= div;
         return *this;
     }
+    tVEC &operator -=(const tVEC &b) {
+        for (int i = 0; i < dim; i++)
+            m_data[i] -= b.m_data[i];
+        return *this;
+    }
     float len() const { return sqrt(lenSquared()); }
     void Normalize() {
         auto lsq = lenSquared();
@@ -91,6 +96,11 @@ using VEC2i = tVEC2<int>;
 struct MATRIX44 { VEC4 m_data[4]; };
 struct MATRIX43 { VEC4 m_data[3]; };
 struct MATRIX33 { VEC3 m_data[3]; };
+inline VEC3 operator *(const MATRIX44 &mx, const VEC3 &v) {
+    return VEC3{ v.m_data[0] * mx.m_data[0].m_data[0] + mx.m_data[1].m_data[0] * v.m_data[1] + mx.m_data[2].m_data[0] * v.m_data[2] + mx.m_data[3].m_data[0],
+                 v.m_data[0] * mx.m_data[0].m_data[1] + mx.m_data[1].m_data[1] * v.m_data[1] + mx.m_data[2].m_data[1] * v.m_data[2] + mx.m_data[3].m_data[1],
+                 v.m_data[0] * mx.m_data[0].m_data[2] + mx.m_data[1].m_data[2] * v.m_data[1] + mx.m_data[2].m_data[2] * v.m_data[2] + mx.m_data[3].m_data[2] };
+}
 
 void MAT_GetEulerZXY(VEC3 *, const MATRIX33 &);
 float MAT_GetRotX(const MATRIX33 &);

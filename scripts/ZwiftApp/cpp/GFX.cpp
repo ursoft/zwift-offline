@@ -3697,6 +3697,12 @@ bool GFX_AABBInCurrentFrustum(const VEC3 &, const VEC3 &, float *) {
     //TODO
     return false;
 }
+void GFX_SpheresInCurrentFrustumDist(Sphere *, int, float *) {
+    //TODO
+}
+void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE, uint32_t, uint32_t, GFX_IndexFormat, uint32_t) {
+    //TODO
+}
 
 //Unit Tests
 TEST(SmokeTest, DISABLED_VertexArray) {

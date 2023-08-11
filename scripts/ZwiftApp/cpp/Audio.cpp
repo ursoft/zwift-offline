@@ -1,4 +1,4 @@
-#include "ZwiftApp.h"
+#include "ZwiftApp.h" //READY for testing
 #include "AK/SoundEngine/Common/AkSoundEngine.h"
 #include "AK/SoundEngine/Common/AkStreamMgrModule.h"
 #include "AkDefaultIOHookBlocking.h"
@@ -13,167 +13,203 @@ public:
     CAkFilePackageLowLevelIOBlocking() {}
     virtual ~CAkFilePackageLowLevelIOBlocking() {}
 } *g_pLowLevelIO;
-void AUDIO_SetObjectPosition(int, const VEC3 &, const VEC3 &) {
-    //TODO
+bool AUDIO_SetObjectPosition(int objId, const VEC3 &a2, VEC3 a3) {
+    if (!g_soundInitialized || objId == -1)
+        return false;
+    static_assert(sizeof(AkSoundPosition) == sizeof(VEC3[3]));
+    union { AkSoundPosition v46; float f[9]; } par;
+    a3.Normalize();
+    par.f[6] = -a2.m_data[0] * 0.01f;
+    par.f[7] = a2.m_data[1] * 0.01f;
+    par.f[8] = a2.m_data[2] * 0.01f;
+    VEC3 tmp{ -a3.m_data[1] * a3.m_data[0], a3.m_data[0] * a3.m_data[0] + a3.m_data[2] * a3.m_data[2], -a3.m_data[1] * a3.m_data[2] };
+    tmp.Normalize();
+    par.f[0] = -a3.m_data[0];
+    par.f[1] = a3.m_data[1];
+    par.f[2] = a3.m_data[2];
+    par.f[3] = -tmp.m_data[0];
+    par.f[4] = tmp.m_data[1];
+    par.f[5] = tmp.m_data[2];
+    if (AK_Success == AK::SoundEngine::SetPosition(objId, par.v46))
+        return true;
+    static std::set<int> gmap_AUDIO_SetObjectPosition;
+    if (!gmap_AUDIO_SetObjectPosition.contains(objId)) {
+        gmap_AUDIO_SetObjectPosition.insert(objId);
+        Log("AK::SoundEngine::SetPosition(objectID:%d): Failed...", objId);
+    }
+    return false;
 }
 void AUDIO_SetListenerPosition(int id, const VEC3 &p1, const VEC3 &p2) {
     if (g_soundInitialized) {
-        ++g_audio_queue_failsafe;
-        if (g_audio_queue_failsafe > 11 && g_audio_queue_failsafe <= 40)
-            AK::SoundEngine::RenderAudio(true);
+        AUDIO_HandleFailsafe();
         AUDIO_SetObjectPosition(id, p1, p2);
     }
 }
-void AUDIO_UpdatePosition(int, const VEC3 &) {
-    //TODO
+struct audioQueueEntry { //0x88 bytes - 2x pointers (prev, next)
+    uint32_t m_ebId;
+    float m_time;
+    int m_objId;
+    int field_1C;
+    std::string m_eventName;
+    std::string m_flatName;
+    bool m_hasInfo;
+    char field_61;
+    char field_62;
+    char field_63;
+    int field_64;
+    AkExternalSourceInfo m_info;
+};
+std::list<audioQueueEntry> g_audioQueue;
+wchar_t *FileName2AkName(const char *name) {
+    const char *end = name + std::max(1023, (int)strlen(name));
+    while (--end >= name)
+        if (*end == '/' || *end == '\\')
+            break;
+    UChar buf[1024];
+    if (end > name) {
+        u_uastrncpy(buf, name, int32_t(end - name));
+        buf[end - name] = 0;
+        g_pLowLevelIO->AddBasePath((AkOSChar *)buf);
+    }
+    static UChar sbuf[1024];
+    return (wchar_t *)u_uastrncpy(sbuf, end + 1, _countof(sbuf) - 1);
 }
-void AUDIO_Update(const VEC3 &, const VEC3 &, float) {
-    //TODO
+struct AUDIO_LoadedExternalSourceBuffers {
+    uint32_t m_id;
+    uint32_t m_playId;
+    uint64_t field_8;
+    void *field_10;
+    void *m_pCookie;
+    void (*m_cbFunc)(uint32_t, uint32_t, int);
+};
+std::list<AUDIO_LoadedExternalSourceBuffers> g_audioEBs;
+void AUDIO_ExternalCB(AkCallbackType in_eType, AkCallbackInfo *in_pCallbackInfo) {
+    if (AK_EndOfEvent == in_eType)
+        g_audioEBs.remove_if([in_pCallbackInfo](auto &i) { return i.m_pCookie == in_pCallbackInfo->pCookie; });
 }
-void AUDIO_UnregisterObject(int) {
-    //TODO
+void AUDIO_Update(float dt) {
+    if (g_soundInitialized) {
+        g_audio_queue_failsafe = 0;
+        if (!g_audioQueue.empty()) {
+            auto &i = g_audioQueue.front();
+            i.m_time -= dt;
+            if (i.m_time <= 0.0f) {
+                if (i.m_hasInfo) {
+                    i.m_info.szFile = FileName2AkName(i.m_flatName.c_str());
+                    static_assert(sizeof(AkExternalSourceInfo) == 32);
+                    auto v30 = AK::SoundEngine::PostEvent(i.m_eventName.c_str(), i.m_objId, AK_EndOfEvent, AUDIO_ExternalCB, (void *)(intptr_t)i.m_ebId, 1, &i.m_info);
+                    for (auto &j : g_audioEBs) {
+                        if (i.m_ebId == j.m_id) {
+                            j.m_playId = v30;
+                            if (j.m_cbFunc)
+                                j.m_cbFunc(j.m_id, v30, 0);
+                            break;
+                        }
+                    }
+                } else {
+                    AUDIO_Event(i.m_eventName.c_str(), i.m_objId, false);
+                }
+                g_audioQueue.pop_front();
+            }
+        }
+        AK::SoundEngine::RenderAudio(true);
+    }
 }
-void AUDIO_UnloadLevel(int) {
-    //TODO
+void AUDIO_UnregisterObject(int oid) {
+    if (g_soundInitialized && oid >= 2) {
+        AK::SoundEngine::StopAll(oid);
+        AK::SoundEngine::UnregisterGameObj(oid);
+        --g_NumSoundObjects;
+    }
 }
-void AUDIO_StopEvent(const char *, int, uint32_t) {
-    //TODO
+void AUDIO_UnloadLevel(int wid) {
+    if (g_soundInitialized)  {
+        AK::SoundEngine::RenderAudio(true);
+        g_audioQueue.clear();
+        AK::SoundEngine::StopAll();
+        AK::SoundEngine::UnregisterAllGameObj();
+        g_NumSoundObjects = 0;
+        AK::SoundEngine::RenderAudio(true);
+        g_TitleMusic = -1;
+        char s[1024];
+        sprintf_s(s, "World%d.bnk", wid);
+        AK::SoundEngine::UnloadBank(s, nullptr);
+        AK::SoundEngine::RenderAudio(true);
+    }
 }
-void AUDIO_StopCapture() {
-    //TODO
+void AUDIO_StopEvent(const char *name, int oid, uint32_t plId) { //Name:"ExternalEventTemplate"
+    if (g_soundInitialized)
+        AK::SoundEngine::ExecuteActionOnEvent(name, AK::SoundEngine::AkActionOnEventType_Stop, oid, 0, AkCurveInterpolation_Linear, plId);
 }
-//void AUDIO_StartCapture(std::weak_ptr<AUDIO_CaptureHandler> const &)
-void AUDIO_SetVolume(int, float) {
-    //TODO
+void AUDIO_SetVolume(int oid, float vol) {
+    AUDIO_SetVariableOnObject("sfx_volume", vol, oid);
 }
-void AUDIO_SetVariableOnObject(const char *, float, uint32_t) {
-    //TODO
+bool AUDIO_SetVariableOnObject(const char *name, float val, uint32_t oid) {
+    if (!g_soundInitialized)
+        return false;
+    return AK::SoundEngine::SetRTPCValue(AK::SoundEngine::GetIDFromString(name), val, oid) == AK_Success;
 }
-void AUDIO_SetPitch(int, float) {
-    //TODO
+int g_nextObjectID = 2;
+int AUDIO_RegisterNewObject(char *name) {
+    if (g_soundInitialized) {
+        auto v3 = g_nextObjectID++;
+        AUDIO_HandleFailsafe();
+        if (AK::SoundEngine::RegisterGameObj(v3) == AK_Success) {
+            ++g_NumSoundObjects;
+            return v3;
+        }
+        Log("AUDIO: Failed to register GameObj ID %d (%s)", v3, name ? name : "(NULL)");
+    }
+    return -1;
 }
-void AUDIO_ResumeEvent(const char *, int, uint32_t) {
-    //TODO
+AkBankID g_curWorldBank;
+void AUDIO_LoadLevel(int wid) {
+    if (g_soundInitialized) {
+        char s[1024];
+        g_pLowLevelIO->AddBasePath(L"data/Audio/PC/");
+        sprintf_s(s, "World%d.bnk", wid);
+        auto bank = AK::SoundEngine::LoadBank(s, g_curWorldBank);
+        AK::SoundEngine::RenderAudio(true);
+        if (bank != AK_Success)
+            Log("AK::LoadBank(%s) failed: %d", s, bank);
+        if (AK::SoundEngine::RegisterGameObj(1) != AK_Success)
+            Log("AK::SoundEngine::RegisterGameObj failed");
+        AkGameObjectID oid = 1;
+        AK::SoundEngine::SetDefaultListeners(&oid, 1u);
+        sprintf_s(s, "world_%d_init", wid);
+        AUDIO_Event(s, 1, false);
+        AK::SoundEngine::RenderAudio(true);
+    }
 }
-void AUDIO_ResumeAllAudio() {
-    //TODO
+int AUDIO_GetNumObjects() {
+    return g_NumSoundObjects;
 }
-void AUDIO_RegisterNewObject(const char *) {
-    //TODO
-}
-//void AUDIO_Queue(float, char const *, int, uint, void *, char const *);
-void AUDIO_PauseEvent(const char *, int, uint32_t) {
-    //TODO
-}
-void AUDIO_PauseAllAudio() {
-    //TODO
-}
-//void AUDIO_Log(AK::Monitor::ErrorCode, char const *, AK::Monitor::ErrorLevel, uint, ulong)
-void AUDIO_LoadLevel(int) {
-    //TODO
-}
-void AUDIO_HandleFailsafe() {
-    //TODO
-}
-void AUDIO_GetNumObjects() {
-    //TODO
-}
-void AUDIO_Event(uint32_t, int) {
-    //TODO
+void AUDIO_Event(uint32_t eid, int oid) {
+    if (!g_soundInitialized || oid == -1) {
+        static std::set<uint32_t> gmap_AUDIO_Event1;
+        if (!gmap_AUDIO_Event1.contains(eid)) {
+            gmap_AUDIO_Event1.insert(eid);
+            Log("AUDIO_Event() early return! eventID = %d", eid);
+        }
+    } else {
+        AUDIO_HandleFailsafe();
+        if (AK_Success != AK::SoundEngine::PostEvent(eid, oid)) {
+            static std::set<uint32_t> gmap_AUDIO_Event2;
+            if (!gmap_AUDIO_Event2.contains(eid)) {
+                gmap_AUDIO_Event2.insert(eid);
+                Log("AUDIO_Event(eventID:%d) failed!", eid);
+            }
+        }
+    }
 }
 void AUDIO_SetVariable(const char *name, float val) {
     if (g_soundInitialized && AK::SoundEngine::SetRTPCValue(name, val) != AK_Success) {
-        assert(false);
-#if 0 //TODO
-        if (dword_7FF6D151CD60 > *(_DWORD *)(*(_QWORD *)NtCurrentTeb()->ThreadLocalStoragePointer + 192i64)) {
-            Init_thread_header(&dword_7FF6D151CD60);
-            if (dword_7FF6D151CD60 == -1) {
-                v14 = operator new(0x28ui64);
-                *v14 = v14;
-                v14[1] = v14;
-                v14[2] = v14;
-                *((_WORD *)v14 + 12) = 257;
-                qword_7FF6D151E9D0 = (__int64)v14;
-                atexit(sub_7FF6D0C81A60);
-                Init_thread_footer(&dword_7FF6D151CD60);
-            }
+        static std::set<uint32_t> gmap_AUDIO_SetVariable;
+        auto sig = SIG_CalcCaseInsensitiveSignature(name);
+        if (!gmap_AUDIO_SetVariable.contains(sig)) {
+            gmap_AUDIO_SetVariable.insert(sig);
+            Log("AUDIO_SetVariable error:  for  %s at val %f", name, val);
         }
-        v3 = SIG_CalcCaseInsensitiveSignature(name);
-        v4 = qword_7FF6D151E9D0;
-        v5 = *(_QWORD *)(qword_7FF6D151E9D0 + 8);
-        *(_QWORD *)&v18 = v5;
-        DWORD2(v18) = 0;
-        v6 = qword_7FF6D151E9D0;
-        while (!*(_BYTE *)(v5 + 25))
-        {
-            *(_QWORD *)&v18 = v5;
-            if (*(_DWORD *)(v5 + 28) >= v3)
-            {
-                DWORD2(v18) = 1;
-                v6 = v5;
-                v5 = *(_QWORD *)v5;
-            } else
-            {
-                DWORD2(v18) = 0;
-                v5 = *(_QWORD *)(v5 + 16);
-            }
-        }
-        if (*(_BYTE *)(v6 + 25) || v3 < *(_DWORD *)(v6 + 28))
-        {
-            if (qword_7FF6D151E9D8 == 0x666666666666666i64)
-                std::vector<void *>::_Xlen();
-            v7 = operator new(0x28ui64);
-            v7[7] = v3;
-            *((_BYTE *)v7 + 32) = 0;
-            *(_QWORD *)v7 = v4;
-            *((_QWORD *)v7 + 1) = v4;
-            *((_QWORD *)v7 + 2) = v4;
-            *((_WORD *)v7 + 12) = 0;
-            v15 = v18;
-            v6 = sub_7FF6CFCBA910((__int64 **)&qword_7FF6D151E9D0, (__int64)&v15, (__int64)v7);
-        }
-        if (!*(_BYTE *)(v6 + 32))
-        {
-            v8 = SIG_CalcCaseInsensitiveSignature(name);
-            v10 = qword_7FF6D151E9D0;
-            v11 = *(_QWORD *)(qword_7FF6D151E9D0 + 8);
-            *(_QWORD *)&v19 = v11;
-            DWORD2(v19) = 0;
-            v12 = qword_7FF6D151E9D0;
-            while (!*(_BYTE *)(v11 + 25))
-            {
-                *(_QWORD *)&v19 = v11;
-                if (*(_DWORD *)(v11 + 28) >= v8)
-                {
-                    DWORD2(v19) = 1;
-                    v12 = v11;
-                    v11 = *(_QWORD *)v11;
-                } else
-                {
-                    DWORD2(v19) = 0;
-                    v11 = *(_QWORD *)(v11 + 16);
-                }
-            }
-            if (*(_BYTE *)(v12 + 25) || v8 < *(_DWORD *)(v12 + 28))
-            {
-                if (qword_7FF6D151E9D8 == 0x666666666666666i64)
-                    std::vector<void *>::_Xlen();
-                v16 = &qword_7FF6D151E9D0;
-                v17 = 0i64;
-                v13 = operator new(0x28ui64);
-                v13[7] = v8;
-                *((_BYTE *)v13 + 32) = 0;
-                *(_QWORD *)v13 = v10;
-                *((_QWORD *)v13 + 1) = v10;
-                *((_QWORD *)v13 + 2) = v10;
-                *((_WORD *)v13 + 12) = 0;
-                v18 = v19;
-                v12 = sub_7FF6CFCBA910((__int64 **)&qword_7FF6D151E9D0, (__int64)&v18, (__int64)v13);
-            }
-            *(_BYTE *)(v12 + 32) = 1;
-            Log("AUDIO_SetVariable error:  for  %s at val %f", (int)name, COERCE_UNSIGNED_INT64(val), v9);
-        }
-#endif
     }
 }
 void AUDIO_LoadData() {
@@ -260,68 +296,79 @@ void AUDIO_Shutdown() {
         g_soundInitialized = false;
     }
 }
-void GAME_AudioUpdate(GameWorld *, Camera *camera, float a3) {
+float g_AudioTime, g_audioRand = 352637.94f, g_audioNextTime = 25.0f;
+void GAME_AudioUpdate(GameWorld *, Camera *camera, float dtime) {
     if (camera && g_pGameWorld) {
-        //TODO
-    }
-}
-struct audioQueueEntry { //0x88 bytes - 2x pointers (prev, next)
-    uint32_t m_ebId;
-    float m_time;
-    int field_18;
-    int field_1C;
-    std::string m_eventName;
-    std::string m_flatName;
-    bool m_hasData;
-    char field_61;
-    char field_62;
-    char field_63;
-    int field_64;
-    char m_data[32];
-};
-std::list<audioQueueEntry> g_audioQueue;
-void AUDIO_Queue(float tm, const char *eventName, int a3 /*AUDIO_PlayFlatFile:1, AUDIO_Event:a2 */, uint32_t ebId /*counter, 0*/, void *data/*,0*/, const char *flatName /*,""*/) {
-    if (g_soundInitialized) {
-        auto &v13 = g_audioQueue.emplace_back(audioQueueEntry{ ebId, tm, a3, 0, eventName, flatName, data != nullptr });
-        if (data)
-            memmove(v13.m_data, data, sizeof(v13.m_data));
-    }
-}
-void AUDIO_Event(const char *name, int a2, bool vital) {
-    //TODO
-}
-wchar_t *FileName2AkName(const char *name) {
-    const char *end = name + std::max(1023, (int)strlen(name));
-    while (--end >= name)
-        if (*end == '/' || *end == '\\')
+        auto wd = g_pGameWorld->GetWorldDef();
+        auto v7 = camera->m_pos.m_data[1] - (wd ? wd->m_seaLevel : 0.0f);
+        float v14, v15;
+        AUDIO_SetVariable("player_altitude", v7);
+        auto v9 = IsUnderWater(camera->m_pos);
+        AUDIO_SetVariable("underwater", v9);
+        AUDIO_SetVariable("rain_intensity", fmaxf((Weather::GetRainEffect() - 0.3333f) * 150.0f, 0.0f));
+        g_AudioTime += dtime;
+        switch (wd->m_WorldID) {
+        case WID_WATOPIA:
+            v14 = (VEC3{ -41478.875f, 12043.274f, 535491.38f } - camera->m_pos).len() / g_audioRand;
+            AUDIO_SetVariable("DesertScalar", v14);
+            if (g_AudioTime <= g_audioNextTime)
+                return;
+            g_AudioTime = 0.0f;
+            g_seed = 214013 * g_seed + 2531011;
+            v15 = (float)(HIWORD(g_seed) & 0x7FFF);
+            if (v14 < 1.0f) {
+                g_audioNextTime = v15 * 0.0051881466f + 30.0f;
+            } else {
+                g_audioNextTime = v15 * 0.0027466659f + 30.0f;
+                if (v9 <= 0.5f) {
+                    if (v7 < 1400.0f)
+                        AUDIO_Event("Play_Ambient_Coastal_Oneshots", 1, false);
+                    else if (v7 < 3500.0)
+                        AUDIO_Event("Play_Ambient_Forest_Oneshots", 1, true);
+                }
+            }
             break;
-    UChar buf[1024];
-    if (end > name) {
-        u_uastrncpy(buf, name, int32_t(end - name));
-        buf[end - name] = 0;
-        g_pLowLevelIO->AddBasePath((AkOSChar *)buf);
+        case WID_RICHMOND:
+            if(g_AudioTime > g_audioNextTime) {
+                g_AudioTime = 0.0f;
+                g_seed = 214013 * g_seed + 2531011;
+                g_audioNextTime = (HIWORD(g_seed) & 0x7FFF) * 0.00061037019f + 15.0f;
+                if (v7 < 1400.0f)
+                    AUDIO_Event("Play_Ambient_Coastal_Oneshots", 1, false);
+                else if (v7 < 3500.0f)
+                    AUDIO_Event("Play_Ambient_Forest_Oneshots", 1, true);
+            }
+            break;
+        default:
+            break;
+        }
     }
-    static UChar sbuf[1024];
-    return (wchar_t *)u_uastrncpy(sbuf, end + 1, _countof(sbuf) - 1);
+}
+void AUDIO_Queue(float tm, const char *eventName, int objId /*AUDIO_PlayFlatFile:1, AUDIO_Event:a2 */, uint32_t ebId /*counter, 0*/, void *data/*,0*/, const char *flatName /*,""*/) {
+    if (g_soundInitialized) {
+        auto &v13 = g_audioQueue.emplace_back(audioQueueEntry{ ebId, tm, objId, 0, eventName, flatName, data != nullptr });
+        if (data)
+            memmove(&v13.m_info, data, sizeof(v13.m_info));
+    }
+}
+void AUDIO_Event(const char *name, int objId, bool vital) {
+    static std::set<uint32_t> gmap_AUDIO_Event;
+    if (objId != -1 && g_soundInitialized) {
+        if (AUDIO_HandleFailsafe()) {
+            if (vital)
+                AUDIO_Queue(g_audio_queue_failsafe * 0.0025f, name, objId, 0, nullptr, "");
+            return;
+        }
+        if (!AK::SoundEngine::PostEvent(name, objId)) {
+            auto sig = SIG_CalcCaseInsensitiveSignature(name);
+            if (!gmap_AUDIO_Event.contains(sig)) {
+                gmap_AUDIO_Event.insert(sig);
+                Log("AUDIO_Event(eventName:%s) failed!", name);
+            }
+        }
+    }
 }
 int g_pffCounter;
-struct AUDIO_LoadedExternalSourceBuffers {
-    uint32_t m_id;
-    uint32_t m_playId;
-    uint64_t field_8;
-    void *field_10;
-    void *m_pCookie;
-    void *m_cbFunc;
-};
-struct UI_AudioControl { //256 (0x100) bytes
-    UI_AudioControl(uint32_t playId) {
-        //TODO
-    }
-    virtual ~UI_AudioControl() {
-        //TODO
-    }
-};
-std::unique_ptr<UI_AudioControl> g_pAudioController;
 void HandleEventAudioCB(uint32_t id, uint32_t playId, int state) {
     float vol = 50.0f;
     switch (state) {
@@ -338,17 +385,18 @@ void HandleEventAudioCB(uint32_t id, uint32_t playId, int state) {
     }
     AUDIO_SetVariable("ambient_volume", vol);
 }
-std::list<AUDIO_LoadedExternalSourceBuffers> g_audioEBs;
-void AUDIO_ExternalCB(AkCallbackType in_eType, AkCallbackInfo *in_pCallbackInfo) {
-    if (AK_EndOfEvent == in_eType)
-        g_audioEBs.remove_if([in_pCallbackInfo](auto &i) { return i.m_pCookie == in_pCallbackInfo->pCookie; });
+bool AUDIO_HandleFailsafe() {
+    if (g_audio_queue_failsafe++ >= 11) {
+        if (g_audio_queue_failsafe > 40)
+            return true;
+        AK::SoundEngine::RenderAudio(true);
+    }
+    return false;
 }
 bool AUDIO_PlayFlatFile(const char *name, float tm) {
     if (!g_soundInitialized)
         return false;
-    g_audio_queue_failsafe++;
-    if (g_audio_queue_failsafe > 11 && g_audio_queue_failsafe <= 40)
-        AK::SoundEngine::RenderAudio(true);
+    AUDIO_HandleFailsafe();
     AkExternalSourceInfo v48(FileName2AkName(name), AK::SoundEngine::GetIDFromString("External_Source"), AKCODECID_VORBIS);
     AUDIO_LoadedExternalSourceBuffers v51{};
     v51.m_id = g_pffCounter++;

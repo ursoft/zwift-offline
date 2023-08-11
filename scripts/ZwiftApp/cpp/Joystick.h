@@ -4,4 +4,6 @@ float JoyY2();
 float JoyTrg1();
 float JoyX2p();
 float JoyX2m();
+float JoyX1();
+float JoyY1();
 uint16_t getJoystickButtons();

@@ -1,4 +1,4 @@
-#include "ZwiftApp.h"
+#include "ZwiftApp.h" //READY for testing
 void HeightMapManager::AutoStitchTilesHeightmap() {
     for (int i = 0; i < (int)m_heightMapTiles.size(); ++i) {
         for (int v8 = 0; v8 < (int)m_heightMapTiles.size(); ++v8) {
@@ -658,260 +658,80 @@ void HeightMapTile::Render(int a2) {
             GFX_UploadShaderVEC4({4, "terrainParm3" }, m_terrainVec3, 0);
         }
     }
-#if 0 //TODO
-    v4 = 0;
-    v5 = 3;
-    if (a2 < 3)
-        v5 = a2;
-    SeaLevel = GameWorld::GetSeaLevel((__int64)g_pGameWorld);
-    if (*(_QWORD *)(SeaLevel + 104))
-    {
-        v9 = (_QWORD *)(SeaLevel + 88);
-        v51 = *(_DWORD *)&this->field_3D4;
-        if (*(_QWORD *)(sub_7FF66D07B550((_QWORD *)(SeaLevel + 88), (unsigned __int8 *)&v51) + 16))
-            GFX_ActivateTexture(this->m_texs6[0], 0, 0i64, TWM_REPEAT);
-        v51 = *(_DWORD *)&this->field_3D4;
-        if (*(_QWORD *)(sub_7FF66D07B550(v9, (unsigned __int8 *)&v51) + 48))
-            GFX_ActivateTexture(this->m_texs6[1], 2u, 0i64, TWM_REPEAT);
-        v51 = *(_DWORD *)&this->field_3D4;
-        if (*(_QWORD *)(sub_7FF66D07B550(v9, (unsigned __int8 *)&v51) + 80))
-            GFX_ActivateTexture(this->m_texs6[2], 4u, 0i64, TWM_REPEAT);
-        v51 = *(_DWORD *)&this->field_3D4;
-        if (*(_QWORD *)(sub_7FF66D07B550(v9, (unsigned __int8 *)&v51) + 112))
-            GFX_ActivateTexture(this->m_texs6[3], 1u, 0i64, TWM_REPEAT);
-        v51 = *(_DWORD *)&this->field_3D4;
-        if (*(_QWORD *)(sub_7FF66D07B550(v9, (unsigned __int8 *)&v51) + 144))
-            GFX_ActivateTexture(this->m_texs6[4], 3u, 0i64, TWM_REPEAT);
-        v51 = *(_DWORD *)&this->field_3D4;
-        if (*(_QWORD *)(sub_7FF66D07B550(v9, (unsigned __int8 *)&v51) + 176))
-            GFX_ActivateTexture(this->m_texs6[5], 5u, 0i64, TWM_REPEAT);
-    }
-    CameraManager::GetCameraPos((__int64)&g_CameraManager, (__int64)&v59);
-    v10 = GameWorld::GetSeaLevel((__int64)g_pGameWorld);
-    if (v10 && *(_BYTE *)(v10 + 84))
-    {
-        v11 = GameWorld::GetSeaLevel((__int64)g_pGameWorld);
-        v12 = v11 ? *(float *)(v11 + 76) : 0.0;
-        if (*((float *)&v59 + 1) < v12)
-        {
-            v13 = g_CausticTexture;
-        LABEL_37:
-            GFX_ActivateTexture(v13, 0xFFFFFFFF, 0i64, TWM_REPEAT);
-            goto LABEL_38;
+    a2 = std::max(3, a2);
+    auto wd = g_pGameWorld->GetWorldDef();
+    auto toi = wd->m_texOverrides.find(m_texOverrideKey);
+    const int offsets[] = {0, 2, 4, 1, 3, 5};
+    if (toi != wd->m_texOverrides.end()) {
+        for (int i = 0; i < _countof(m_texs6); i++) {
+            if (toi->second.m_texName[i].size())
+                GFX_ActivateTexture(m_texs6[i], offsets[i], nullptr, TWM_REPEAT);
         }
     }
-    if (g_pGameWorld->WorldID() == WID_CRIT_CITY)
-    {
-        v13 = g_InnsbruckConcreteTexture;
-        goto LABEL_37;
+    if (wd->m_allowWaterCaustics && g_CameraManager.GetCameraPos().m_data[1] < wd->m_waterLevel) {
+        GFX_ActivateTexture(g_CausticTexture, -1, nullptr, TWM_REPEAT);
+    } else if (g_pGameWorld->WorldID() == WID_CRIT_CITY) {
+        GFX_ActivateTexture(g_InnsbruckConcreteTexture, -1, nullptr, TWM_REPEAT);
     }
-LABEL_38:
-    if (g_bUseTextureHeightmaps)
-    {
-        v14 = this->m_texs2[0];
-        if (v14 == -1 || this->m_texs2[1] == -1)
-        {
-            HeightMapTile::GenerateTerrainTextures(this);
-            v14 = this->m_texs2[0];
-        }
-        GFX_ActivateTexture(v14, 0xEu, 0i64, TWM_CLAMP_TO_EDGE);
-        GFX_ActivateTexture(this->m_texs2[1], 0xFu, 0i64, TWM_CLAMP_TO_EDGE);
-    } else if (this->m_buffers[0] == -1)
-    {
-        HeightMapTile::GenerateTerrainVerts(this);
-        HeightMapTile::UpdateTerrainVerts(this);
+    if (g_bUseTextureHeightmaps) {
+        if (m_texs2[0] == -1 || m_texs2[1] == -1)
+            GenerateTerrainTextures();
+        GFX_ActivateTexture(m_texs2[0], 0xE, nullptr, TWM_CLAMP_TO_EDGE);
+        GFX_ActivateTexture(m_texs2[1], 0xF, nullptr, TWM_CLAMP_TO_EDGE);
+    } else if (m_buffers[0] == -1) {
+        GenerateTerrainVerts();
+        UpdateTerrainVerts();
     }
-    v53 = 1i64;
-    v54 = "tileTint";
-    GFX_UploadShaderVEC4_0(&v53, &g_Vec4White, 0i64);
-    if (v5 == -1)
-    {
-        v69 = xmmword_7FF66E16F1D0;
-        v15 = (*((__int64(__fastcall **)(CameraManager *))g_CameraManager.m_vptr + 1))(&g_CameraManager);
-        v16 = *(float *)(v15 + 36);
-        v17 = *(float *)(v15 + 28);
-        v18 = (float)(this->m_maxX - this->m_minX) * 0.125;
-        v19 = (float)(this->m_maxZ - this->m_minZ) * 0.125;
-        GFX_SpheresInCurrentFrustumDist(this->m_spheres, 64, v70);
-        if (dword_7FF66E6F0428 > *(_DWORD *)(*(_QWORD *)NtCurrentTeb()->ThreadLocalStoragePointer + 192i64))
-        {
-            Init_thread_header(&dword_7FF66E6F0428);
-            if (dword_7FF66E6F0428 == -1)
-            {
-                `eh vector constructor iterator'(
-                    byte_7FF66E6F0430,
-                    16i64,
-                    4i64,
-                    (void(__fastcall *)(void *))std::_Tree<std::_Tmap_traits<std::pair<int, int>, bool, std::less<std::pair<int, int>>, std::allocator<std::pair<std::pair<int, int> const, bool>>, 0>>::_Tree<std::_Tmap_traits<std::pair<int, int>, bool, std::less<std::pair<int, int>>, std::allocator<std::pair<std::pair<int, int> const, bool>>, 0>>);
-                    atexit(sub_7FF66DE54F10);
-                    Init_thread_footer(&dword_7FF66E6F0428);
-            }
-        }
-        v20 = (int *)byte_7FF66E6F0430;
-        v21 = 0i64;
-        do
-        {
-            v22 = *(_QWORD **)v20;
-            v23 = *(_QWORD **)(*(_QWORD *)v20 + 8i64);
-            while (!*((_BYTE *)v23 + 25))
-            {
-                std::_Tree_val<std::_Tree_simple_types<google::protobuf::Descriptor const *>>::_Erase_tree<std::allocator<std::_Tree_node<google::protobuf::Descriptor const *, void *>>>(
-                    (__int64)v20,
-                    (__int64)v20,
-                    (__int64 *)v23[2]);
-                v24 = v23;
-                v23 = (_QWORD *)*v23;
-                j_j_free(v24);
-            }
-            v22[1] = v22;
-            *v22 = v22;
-            v22[2] = v22;
-            *((_QWORD *)v20 + 1) = 0i64;
-            v20 += 4;
-        } while (v20 != &dword_7FF66E6F0470);
-        v62 = (char *)this - (char *)v70;
-        v51 = 0;
-        v25 = 0i64;
-        v57 = 0i64;
-        v26 = v70;
-        *(_QWORD *)m_worldCenter.m_data = v70;
-        do
-        {
-            v27 = 0;
-            LODWORD(v55) = 0;
-            v28 = 0i64;
-            v63 = 0i64;
-            v29 = v25;
-            v64 = v25;
-            v30 = v26;
-            v31 = (char *)this->m_dyNorm - (char *)v70;
-            v61 = v31;
-            do
-            {
-                if (*v30 > 0.0)
-                {
-                    m_spheres = this->m_spheres;
-                    v33 = *(_QWORD *)((char *)m_spheres->m_center.m_data + v29);
-                    v68 = *(float *)((char *)&m_spheres->m_center.m_data[2] + v29);
-                    v67 = v33;
-                    v34 = fsqrt(
-                        (float)((float)(v16 - v68) * (float)(v16 - v68))
-                        + (float)((float)(v17 - *(float *)&v33) * (float)(v17 - *(float *)&v33)));
-                    for (i = 0; i < 4; ++i)
-                    {
-                        if (LOBYTE(this->m_field_3D8) && i < this->m_field_3DC)
-                            i = this->m_field_3DC;
-                        if (v34 < (float)(v70[i - 4] - (float)(*(float *)((char *)v30 + v31) * 40000.0)))
-                            break;
-                    }
-                    v59 = *(_QWORD *)((char *)m_spheres->m_center.m_data + v29);
-                    v60 = *(_DWORD *)((char *)&m_spheres->m_center.m_data[2] + v29);
-                    if (!sub_7FF66CF472C0((__int64)&v59, fmaxf(v18, v19) * 0.70709997))
-                    {
-                        v37 = (__int64 **)&byte_7FF66E6F0430[16 * v36];
-                        v38 = v55 + v51;
-                        v39 = *v37;
-                        v53 = (__int64)v37;
-                        v54 = 0i64;
-                        v40 = (char *)operator new(0x28ui64);
-                        v54 = v40;
-                        *((float *)v40 + 7) = v34;
-                        *((_DWORD *)v40 + 8) = v38;
-                        *(_QWORD *)v40 = v39;
-                        *((_QWORD *)v40 + 1) = v39;
-                        *((_QWORD *)v40 + 2) = v39;
-                        *((_WORD *)v40 + 12) = 0;
-                        v41 = (*v37)[1];
-                        v65 = v41;
-                        v66 = 0;
-                        while (!*(_BYTE *)(v41 + 25))
-                        {
-                            v65 = v41;
-                            if (v34 >= *(float *)(v41 + 28))
-                            {
-                                v66 = 0;
-                                v41 = *(_QWORD *)(v41 + 16);
-                            } else
-                            {
-                                v66 = 1;
-                                v41 = *(_QWORD *)v41;
+    GFX_UploadShaderVEC4({1, "tileTint"}, g_Vec4White, 0);
+    if (a2 == -1) {
+        bool v4 = false;
+        static std::map<float, uint32_t> s_heightMapRenderMap[4];
+        for (auto &i : s_heightMapRenderMap)
+            i.clear();
+        //VEC4 v66{ 60'000.0f, 100'000.0f, 140'000.0f, 180'000.0f }; //can't find usage
+        auto sc = g_CameraManager.GetSelectedCamera();
+        VEC2 campos{ sc->m_pos.m_data[0], sc->m_pos.m_data[2] };
+        auto occ = fmaxf((m_maxX - m_minX) * 0.125f, (m_maxZ - m_minZ) * 0.125f) * 0.70709997f;
+        float v67[64];
+        GFX_SpheresInCurrentFrustumDist(&m_spheres[0][0], 64, v67);
+        auto v26 = v67;
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                if (*v26 > 0.0f) {
+                    auto cpos = m_spheres[row][col].m_center;
+                    auto v34 = (campos - VEC2{cpos.m_data[0], cpos.m_data[2]}).len();
+                    for (int i = 0; i < 4; ++i) {
+                        if (m_field_3D8) {
+                            if (i < m_field_3DC)
+                                i = m_field_3DC;
+                        }
+                        if (v34 < v67[i - 4] - m_dyNorm[row][col] * 40'000.0f) {
+                            if (!OCCLUSION_IsBoundsOccluded(cpos, occ)) {
+                                s_heightMapRenderMap[i][v34] = col + row * 8;
+                                v4 = true;
                             }
+                            break;
                         }
-                        if (v37[1] == (__int64 *)0x666666666666666i64)
-                            std::vector<void *>::_Xlen();
-                        v54 = 0i64;
-                        vec_stuff_30(v37, (__int64)&v65, (__int64)v40);
-                        v4 = 1;
-                        v29 = v64;
-                        v28 = v63;
-                        v27 = v55;
-                    }
-                    v31 = v61;
-                }
-                LODWORD(v55) = ++v27;
-                v63 = ++v28;
-                v29 += 16i64;
-                v64 = v29;
-                ++v30;
-            } while (v28 < 8);
-            v51 += 8;
-            v25 = v57 + 128;
-            v57 += 128i64;
-            v26 = (float *)(*(_QWORD *)m_worldCenter.m_data + 32i64);
-            *(_QWORD *)m_worldCenter.m_data += 32i64;
-        } while (v51 < 64);
-        if (v4)
-        {
-            v42 = (char *)this - (char *)HeightMapTile::s_GroundVBOHandles;
-            v43 = 0i64;
-            v44 = byte_7FF66E6F0430;
-            do
-            {
-                v45 = &HeightMapTile::s_GroundVBOHandles[v43];
-                if (g_bUseTextureHeightmaps)
-                    v46 = *v45;
-                else
-                    v46 = *(int *)((char *)v45 + v42 + 136);
-                GFX_SetVertexBuffer(v46, 0i64, 0i64);
-                GFX_SetIndexBuffer(HeightMapTile::s_GroundIBOHandles[v43]);
-                GFX_SetVertex(HeightMapTile::s_GroundVAOHandle);
-                v47 = **(__int64 ***)v44;
-                while (!*((_BYTE *)v47 + 25))
-                {
-                    GFX_DrawIndexedPrimitive(
-                        GPT_TRIANGLE_STRIP,
-                        0,
-                        *(_DWORD *)&HeightMapTile::s_nGroundSubtileIndices[v43 * 4],
-                        (GFX_IndexFormat)1,
-                        4 * HeightMapTile::s_GroundSubtileIndexOffset[v21 + *((unsigned int *)v47 + 8)]);
-                    v48 = (__int64 **)v47[2];
-                    if (*((_BYTE *)v48 + 25))
-                    {
-                        for (j = (__int64 *)v47[1]; !*((_BYTE *)j + 25); j = (__int64 *)j[1])
-                        {
-                            if (v47 != (__int64 *)j[2])
-                                break;
-                            v47 = j;
-                        }
-                        v47 = j;
-                    } else
-                    {
-                        v47 = (__int64 *)v47[2];
-                        for (k = *v48; !*((_BYTE *)k + 25); k = (__int64 *)*k)
-                            v47 = k;
                     }
                 }
-                v44 += 16;
-                v21 += 64i64;
-                ++v43;
-            } while ((__int64)v44 < (__int64)&dword_7FF66E6F0470);
+                ++v26;
+            }
         }
-    } else
-    {
-        HeightMapTile::SetupVertexArrays(this, v5);
-        GFX_DrawIndexedPrimitive(GPT_TRIANGLE_STRIP, 0, dword_7FF66E631F60[v5], (GFX_IndexFormat)1, 0);
+        if (v4) {
+            for (int i = 0; i < 4; i++) {
+                GFX_SetVertexBuffer(g_bUseTextureHeightmaps ? s_GroundVBOHandles[i] : m_buffers[i], 0, 0);
+                GFX_SetIndexBuffer(s_GroundIBOHandles[i]);
+                GFX_SetVertex(s_GroundVAOHandle);
+                for(auto &mi : s_heightMapRenderMap[i]) {
+                    GFX_DrawIndexedPrimitive(GPT_TRIANGLE_STRIP, 0, s_nGroundSubtileIndices[i], GIF_INT,
+                        4 * s_GroundSubtileIndexOffset[64 * i + mi.second]);
+                }
+            }
+        }
+    } else {
+        SetupVertexArrays(a2);
+        GFX_DrawIndexedPrimitive(GPT_TRIANGLE_STRIP, 0, s_nGroundIndices[a2], GIF_INT, 0);
     }
-#endif
     if (isInnsbruck)
         GFX_SetDepthBias(0.0f);
     GFX_MatrixMode(GMT_0);
@@ -1029,5 +849,135 @@ void HeightMapTile::UpdateTerrainVerts() {
             }
         }
         v3 *= 2;
+    }
+}
+VEC3 g_camPos;
+bool g_bBypassOcclusion, g_bCurrentOcclusionIsValid;
+uint32_t *g_pOcculusionDB, *g_pCurrentOcclusion;
+bool OCCLUSION_IsCellOccluded(int a1) {
+    if (!g_bBypassOcclusion)
+        if (g_bCurrentOcclusionIsValid)
+            if (a1 <= 0x1FF)
+                if (g_pCurrentOcclusion)
+                    return (g_pCurrentOcclusion[a1 >> 5] & (1 << a1)) == 0;
+    return false;
+}
+float g_FOVX = 40.0f;
+bool OCCLUSION_IsBoundsOccluded(const VEC3 &a1, float a2) {
+    if (!g_bBypassOcclusion && g_FOVX >= 6.0f && a2 <= 20000.0f) {
+        if (OCCLUSION_IsPointOccluded(a1)) {
+            if (a2 <= 2500.0f)
+                return true;
+            VEC3 pos{ a1.m_data[0] + a2, a1.m_data[1], a1.m_data[2] };
+            if (OCCLUSION_IsPointOccluded(pos)) {
+                pos.m_data[0] = a1.m_data[0] - a2;
+                if (OCCLUSION_IsPointOccluded(pos)) {
+                    pos.m_data[0] = a1.m_data[0];
+                    pos.m_data[2] += a2;
+                    if (OCCLUSION_IsPointOccluded(pos)) {
+                        pos.m_data[2] = a1.m_data[2] - a2;
+                        return OCCLUSION_IsPointOccluded(pos);
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+uint32_t *Internal_ODB_GetCellDataForPosition(const VEC3 &pos) {
+    if (g_pOcculusionDB) {
+        auto v2 = int((pos.m_data[0] - g_worldXMin) / (g_worldXMax - g_worldXMin) * 128.0f);
+        auto v3 = int((pos.m_data[2] - g_worldZMin) / (g_worldZMax - g_worldZMin) * 128.0f);
+        if (v2 <= 0x7F && v3 <= 0x7F) {
+            auto v4 = v2 + (v3 << 7);
+            if (v4 >= 0)
+                return g_pOcculusionDB + 16 * v4;
+        }
+    }
+    return nullptr;
+}
+bool OCCLUSION_IsPointOccluded(const VEC3 &pos) {
+    if (!g_bBypassOcclusion && g_bCurrentOcclusionIsValid) {
+        auto cd = Internal_ODB_GetCellDataForPosition(g_camPos);
+        if (cd) {
+            auto v3 = int((pos.m_data[0] - g_worldXMin) / (g_worldXMax - g_worldXMin) * 32.0f);
+            auto v4 = int((pos.m_data[2] - g_worldZMin) / (g_worldZMax - g_worldZMin) * 16.0f);
+            return v3 <= 0x1F && v4 <= 0xF && (((cd[v4] >> v3) & 1) == 0);
+        }
+    }
+    return false;
+}
+int OCCLUSION_GetCellIDForPosition(const VEC3 &pos) {
+    int result = -1;
+    auto v4 = (pos.m_data[2] - g_worldZMin) / (g_worldZMax - g_worldZMin) * 16.0f;
+    if (v4 < 16.0f) {
+        auto v5 = (pos.m_data[0] - g_worldXMin) / (g_worldXMax - g_worldXMin) * 32.0f;
+        if (v5 >= 0.0f && v5 < 32.0f && v4 >= 0.0f)
+            return (int)v5 + 32 * (int)v4;
+    }
+    return result;
+}
+float g_OCCL_HeightRange[16][32][2]; //min-max
+void OCCLUSION_Initialize() {
+    g_worldXMin = 1'000'000'000.0f;
+    g_worldXMax = -1'000'000'000.0f;
+    g_worldZMin = 1'000'000'000.0f;
+    g_worldZMax = -1'000'000'000.0f;
+    for (int v0 = 0; v0 < g_pRoadManager->GetRoadCount(); ++v0) {
+        auto v2 = g_pRoadManager->GetRoadSegment(v0);
+        if (v2 && !v2->IsPlaceholder()) {
+            auto mine = v2->GetMinExtents();
+            g_worldXMin = std::min(g_worldXMin, mine.m_data[0]);
+            g_worldZMin = std::min(g_worldZMin, mine.m_data[2]);
+            auto maxe = v2->GetMaxExtents();
+            g_worldXMax = std::max(g_worldXMax, maxe.m_data[0]);
+            g_worldZMax = std::max(g_worldZMax, maxe.m_data[2]);
+        }
+    }
+    g_worldXMax += 10'000.0f;
+    g_worldZMax += 10'000.0f;
+    g_worldZMin -= 10'000.0f;
+    g_worldXMin -= 10'000.0f;
+    auto dx = (g_worldXMax - g_worldXMin) * 0.03125f;
+    auto dz = (g_worldZMax - g_worldZMin) * 0.0625f;
+    for (int row = 0; row < 16; ++row) {
+        auto curZo = row * dz;
+        for (int col = 0; col < 32; col++) {
+            g_OCCL_HeightRange[row][col][0] = 9.9999998e10f;
+            g_OCCL_HeightRange[row][col][1] = -9.9999998e10f;
+            auto curZ = curZo + g_worldZMin;
+            auto curX = col * dx + g_worldXMin;
+            for (int v13 = 0; v13 < 11; v13++) {
+                auto v17 = v13 * 0.1f * dz + curZ;
+                for (int v16 = 0; v16 < 11; v16++) {
+                    auto h = HeightMapManager::GetInst()->GetHeightAtLocation(VEC2{v16 * 0.1f * dx + curX, v17});
+                    if (g_pGameWorld->m_WorldID == WID_WATOPIA && curX < 70'000.0f && curZ > -245'000.0f) {
+                        if ((curX > -34'000.0f && curZ < -120'000.0f) || (curX > -282'000.0f && curX < -217'000.0f && curZ > 150'000.0f && curZ < 230'000.0f)) {
+                            h = 36'000.0;
+                            g_OCCL_HeightRange[row][col][0] = 0.0f;
+                            g_OCCL_HeightRange[row][col][1] = 36'000.0f;
+                            continue;
+                        }
+                    }
+                    if (h < g_OCCL_HeightRange[row][col][0])
+                        g_OCCL_HeightRange[row][col][0] = h;
+                    if (h > g_OCCL_HeightRange[row][col][1])
+                        g_OCCL_HeightRange[row][col][1] = h;
+                }
+            }
+        }
+    }
+    if (g_pOcculusionDB) {
+        free(g_pOcculusionDB);
+        g_pOcculusionDB = nullptr;
+        g_pCurrentOcclusion = nullptr;
+    }
+    g_pOcculusionDB = (uint32_t *)calloc(0x100'000, 1); // _Internal_ODB_ReadFromDisk inlined
+    char buf[260];
+    sprintf_s(buf, "data/Worlds/world%d/visdb.dat", g_pGameWorld->WorldID());
+    auto v23 = fopen(GAMEPATH(buf), "rb");
+    if (v23) {
+        fread(g_pOcculusionDB, 1i64, 0x100'000, v23);
+        fclose(v23);
     }
 }

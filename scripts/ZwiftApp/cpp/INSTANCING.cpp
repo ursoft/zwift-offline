@@ -20,7 +20,6 @@ void vec_x_mx(VEC3 *ret, const VEC3 &vec, const MATRIX44 &mx) {
     ret->m_data[1] = mx.m_data[0].m_data[1] * x + mx.m_data[1].m_data[1] * y + mx.m_data[2].m_data[1] * z + mx.m_data[3].m_data[1];
     ret->m_data[2] = mx.m_data[0].m_data[2] * x + mx.m_data[1].m_data[2] * y + mx.m_data[2].m_data[2] * z + mx.m_data[3].m_data[2];
 }
-float g_maxBillboardPixelSize, g_billboardFadeBandPixels, g_worldXMin = 1.0e9, g_worldZMin = 1.0e9, g_worldXMax = -1.0e9, g_worldZMax = -1.0e9;
 void INSTANCING_AddInstance(InstancedObjects * /*always g_WorldProps*/, int key, const MATRIX44 &mx, const VEC4 &vec) {
     static_assert(sizeof(WorldProp) == 92);
     static_assert(sizeof(Sphere) == 16);

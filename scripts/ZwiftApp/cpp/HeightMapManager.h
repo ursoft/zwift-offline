@@ -1,7 +1,4 @@
-#pragma once
-struct TextureOverrides {
-    std::string m_texName[6];
-};
+#pragma once //READY for testing
 struct HeightMapTile { //0x418 bytes
     static inline int s_GroundVBOHandles[]{ -1,-1,-1,-1 }, s_GroundIBOHandles[]{ -1,-1,-1,-1 }, s_GroundVAOHandle{ -1 }, s_nGroundVertices[4], s_nGroundSubtileIndices[4], s_nGroundIndices[4], s_GroundSubtileIndexOffset[256],
         s_GroundSubtileMinIndex[256], s_GroundSubtileMaxIndex[256];
@@ -12,13 +9,14 @@ struct HeightMapTile { //0x418 bytes
     uint64_t m_time = 0;
     uint8_t *m_AOData = nullptr;
     float m_dyNorm[8][8]{}; //нормированный перепад высот
-    int m_buffers[4], m_texs2[2], m_texs6[6], m_idx /*TODO: enum?*/, m_field_0 = 0;
+    int m_buffers[4], m_texs2[2], m_texs6[6], m_idx /*TODO: enum?*/, m_field_0 = 0, m_texOverrideKey = 0, m_field_3DC = 0;
     float *m_heights = nullptr, m_columns, m_rows, m_dx, m_dz, m_centerXscaled, m_centerZscaled, m_minX, m_minZ, m_maxX, m_maxZ,
         m_minY = 1'000'000'000.0f, m_maxY = -1'000'000'000.0f;
     VEC2 m_rangesY[8][8], m_centerXZ;
     VEC3 m_worldCenter, m_boundMin3, m_boundMax3;
     VEC4 m_terrainVec1, m_terrainVec2, m_terrainVec3;
     Sphere m_spheres[8][8];
+    bool m_field_3D8 = false;
     static void InitStaticVertexData();
     float GetAOAtLocation(VEC2 loc);
     float GetTexelHeight(int, int);
@@ -87,3 +85,14 @@ struct HeightMapManager { //120 bytes (0x78)
     void IsInHeightMapByWorldRect(float, float, float, float, bool **);
     void IsTileSideConnected(HeightMapTile *, HeightMapTile *);*/
 };
+inline float g_maxBillboardPixelSize, g_billboardFadeBandPixels, g_worldXMin = 1.0e9, g_worldZMin = 1.0e9, g_worldXMax = -1.0e9, g_worldZMax = -1.0e9;
+//inlined void OCCLUSION_DoFrame();
+//empty void OCCLUSION_GenerateFrame(const VEC3 &, const VEC3 &);
+int OCCLUSION_GetCellIDForPosition(const VEC3 &);
+//not used void OCCLUSION_GetHeightRnage(int);
+void OCCLUSION_Initialize();
+bool OCCLUSION_IsBoundsOccluded(const VEC3 &, float);
+bool OCCLUSION_IsCellOccluded(int);
+bool OCCLUSION_IsPointOccluded(const VEC3 &);
+//inlined void OCCLUSION_SetEnabled(bool);
+//empty void OCCLUSION_ShutDown();

@@ -8,6 +8,10 @@ RoadSegment *RoadManager::GetRoadSegment(int32_t segmId) {
         return nullptr;
     return m_segments[segmId];
 }
+int RoadManager::GetRoadCount() {
+    //TODO
+    return 0;
+}
 void RoadManager::FindClosestPointOnRoad(const VEC3 &, int32_t, int32_t *, uint64_t, bool, int32_t/*, bool, ERoadMeasureLocation*/) {
     //TODO
 }
@@ -30,3 +34,12 @@ float RoadSegment::GetRiderBoundsRatio() {
 void RouteComputer::FlipRoute(BikeEntity *be) {
     //TODO
 }
+VEC3 RoadSegment::GetMaxExtents() {
+    //TODO
+    return VEC3{};
+}
+VEC3 RoadSegment::GetMinExtents() {
+    //TODO
+    return VEC3{};
+}
+

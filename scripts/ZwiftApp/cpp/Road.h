@@ -10,7 +10,9 @@ struct RoadSegment {
     virtual void CalculateRoadPositionByDist(double, double, VEC3 *) {}
     virtual float GetCyclistAltitudeAtRoadTime(const VEC3 &, double, bool) { return 0.0f; }
     virtual bool IsPlaceholder() { return true; }
-    /*RoadSegment::AddMarkers(Entity *,int *)
+    virtual VEC3 GetMaxExtents();
+    virtual VEC3 GetMinExtents();
+        /*RoadSegment::AddMarkers(Entity *,int *)
 RoadSegment::AddPOI(POIEntity *)
 RoadSegment::AddSpeedGate(SpeedGateEntity *)
 RoadSegment::AllowFullWidthSteering(void)
@@ -56,12 +58,10 @@ RoadSegment::GetLastNode(void)
 RoadSegment::GetLoiterHalfWidth(double)
 RoadSegment::GetMarkerInfluence(double,RoadMarkerEntity const*)
 RoadSegment::GetMaxAltitude(void)
-RoadSegment::GetMaxExtents(void)
 RoadSegment::GetMaxGradient(void)
 RoadSegment::GetMaxInstersectionTime(bool,ulong long,uint)
 RoadSegment::GetMetersClimbed(void)
 RoadSegment::GetMinAltitude(void)
-RoadSegment::GetMinExtents(void)
 RoadSegment::GetMinimumTessellationDistance(void)
 RoadSegment::GetNavDrawLayer(void)
 RoadSegment::GetNeighboringRoadNodes(RoadNode *,RoadNode **,RoadNode **)
@@ -357,6 +357,7 @@ struct RoadManager {
     enum ERoadMeasureLocation { EML_0 = 0 };
     static void FindClosestPointOnRoad(const VEC3 &, int32_t, int32_t *, uint64_t, bool, int32_t/*, bool, ERoadMeasureLocation*/);
     RoadSegment *GetRoadSegment(int32_t id);
+    int GetRoadCount();
 
     /*RoadManager::AddFindPosNode(VEC3 const&,int,double,std::vector<RoadFindPosNode> &)
 RoadManager::AdjustRoadDistance(float *,RoadSegment const*,double,RoadManager::ERoadMeasureLocation)
@@ -380,7 +381,6 @@ RoadManager::GetClosestIntersectionOnRoad(RoadSegment *,double,IntersectionMarke
 RoadManager::GetInst(void)
 RoadManager::GetPhysicalRoadCount(void)
 RoadManager::GetRoad(int)
-RoadManager::GetRoadCount(void)
 RoadManager::GetRoadName(int)
 RoadManager::GetRoadSegment(VEC3)
 RoadManager::GetRoadSegmentStyle(int)

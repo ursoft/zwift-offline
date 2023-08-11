@@ -935,3 +935,12 @@ UI_FriendsList::rideonButtonPressed(void *,void *,float,float)
 UI_FriendsList::~UI_FriendsList()*/
 };
 inline UI_FriendsList *g_friendsListGUIObj;
+struct UI_AudioControl { //256 (0x100) bytes
+    UI_AudioControl(uint32_t playId) {
+        //TODO
+    }
+    virtual ~UI_AudioControl() {
+        //TODO
+    }
+};
+inline std::unique_ptr<UI_AudioControl> g_pAudioController;

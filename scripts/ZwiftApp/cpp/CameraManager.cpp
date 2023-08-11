@@ -1,4 +1,4 @@
-#include "ZwiftApp.h"
+#include "ZwiftApp.h" //READY for testing
 void SetupGameCameras() {
     auto mainBike = BikeManager::Instance()->m_mainBike;
     g_FollowCam = g_CameraManager.CreateCamera(mainBike, CT_BIKE);
@@ -493,7 +493,6 @@ void Camera::BikeLocalToWorldPos(VEC3 *io) {
     }
 }
 float g_camUpdX;
-int g_seed = 0x7b;
 const uint8_t SimplexNoise::perm[512] = { 151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30,
  69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177,
  33, 88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166, 77, 146, 158, 231, 83, 111, 229, 122,
@@ -632,6 +631,8 @@ float SimplexNoise::Generate(float a2, float a3, float a4) {
     v58 = v64 * v64 * v64 * v64 * (v68 + v57);
     return (v40 + v38 + v59 + v58) * 32.0f;
 }
+float g_timeStuff, g_timeStuff1;
+int g_keys4[4];
 void Camera::Update(float dt, float a3) {
     BikeEntity *be;
     m_field_B8 += dt;
@@ -644,113 +645,47 @@ void Camera::Update(float dt, float a3) {
                         if (r->IsInRegion(be->GetPosition()))
                             g_DesiredCam = g_FollowCam;
         }
-        float /*v33[2],*/ v51 = 0.0f, v52 = 0.0f, v55 = 0.0f, v56 = 0.0f, v179, v261 = 0.0f, v262 = 0.0f, v263 = 0.0f, v264 = 0.0f, v80;
+        float v179, v261 = 0.0f, v263 = 0.0f, v80, v265, v265a, a3a, v42, v43, v44, dt2, jt1, jy2, v120, v121, v270, v150, v129, v137, v139;
         m_bikeWorldPos = m_pos;
         m_field_40 = m_field_34;
         auto io = m_pos;
-        VEC3 wpos = m_field_34, tmp;
+        bool check;
+        VEC3 wpos = m_field_34, tmp, tmp34, tmp35, epos{}, ipos{}, tmp49;
+        MATRIX44 mx, mx1;
+        auto jb = getJoystickButtons();
         switch (this->m_type) {
         case CT_FREE:
-            if ((getJoystickButtons() & 0x1000) == 0) {
-                if (getJoystickButtons() & 0x8000)
+            if ((jb & 0x1000) == 0) {
+                if (jb & 0x8000)
                     v261 = 84000.0f;
-                else if (getJoystickButtons() & 0x100)
+                else if (jb & 0x100)
                     v261 = 30.0f;
                 else
                     v261 = 3000.0f;
-                v263 = 3.0;
+                v263 = 3.0f * dt;
             }
-            wpos = wpos - io;//v20=v23, v21, v22
-            tmp = SafeNormalized(&wpos); //v26, v27, v25
-#if 0 //TODO
-            v266 = v26;
-            v265 = v26 * v27;
-            v262 = -v25;
-            vec2.m_data[0] = v25 * v27);
-            v272 = -v25 * v25 - v26 * v26;
-            JoyTrg1();
-            v28 = -JoyY2();
-            v274 = 1065353216i64;
-            v275 = 0.0;
-            v276 = 0.0;
-            v277 = 1065353216i64;
-            v278 = 0i64;
-            v279 = 1.0;
-            v280 = 0i64;
-            v281 = 0.0;
-            v282 = 1065353216i64;
-            v283 = 0.0;
-            v284 = 0.0;
-            v285 = 1065353216i64;
-            v286 = 0i64;
-            v287 = 1.0;
-            v288 = 0i64;
-            v289 = 0.0;
-            sub_7FF66CEA3A00(
-                (__int64)&v274,
-                v26 * v27,
-                COERCE_DOUBLE((unsigned __int64)LODWORD(v272)),
-                vec2.m_data[0],
-                (float)((float)-v26 * dt) * v263);
-            sub_7FF66CEA3A00((__int64)&v282, -v25, 0.0, v26, (float)(v28 * dt) * v263);
-            v29 = (float)((float)((float)(v20 * *(float *)&v274) + (float)(v276 * v21)) + (float)(*(float *)&v278 * v22))
-                + *(float *)&v280;
-            v30 = (float)((float)((float)(v20 * *((float *)&v274 + 1)) + (float)(*(float *)&v277 * v21))
-                + (float)(*((float *)&v278 + 1) * v22))
-                + *((float *)&v280 + 1);
-            v31 = (float)((float)((float)(v20 * v275) + (float)(*((float *)&v277 + 1) * v21)) + (float)(v279 * v22)) + v281;
-            v32 = (float)((float)((float)((float)(v30 * v284) + (float)(v29 * *(float *)&v282))
-                + (float)(v31 * *(float *)&v286))
-                + *(float *)&v288)
-                + io.m_data[0];
-            v264 = v32;
-            v33[0] = (float)((float)((float)((float)(v30 * *((float *)&v285 + 1)) + (float)(v29 * v283))
-                + (float)(v31 * v287))
-                + v289)
-                + io.m_data[2];
-            v34 = (float)((float)((float)((float)(v30 * *(float *)&v285) + (float)(v29 * *((float *)&v282 + 1)))
-                + (float)(v31 * *((float *)&v286 + 1)))
-                + *((float *)&v288 + 1))
-                + io.m_data[1];
-            v35 = v32 - io.m_data[0];
-            v36 = v33[0] - io.m_data[2];
-            v263 = v33[0] - io.m_data[2];
-            v37 = v34 - io.m_data[1];
-            if (v35 == 0.0 && v37 == 0.0 && v36 == 0.0)
-                v35 = 1.0;
-            v38 = sqrtf((float)((float)(v35 * v35) + (float)(v37 * v37)) + (float)(v36 * v36));
-            if (v38 != 0.0) {
-                v35 = v35 * (float)(1.0 / v38);
-                v37 = (float)(1.0 / v38) * v37;
-                v263 = (float)(1.0 / v38) * v36;
-            }
-            v41 = JoyX2p();
-            v42 = v41 - JoyX2m();
+            wpos = wpos - io;
+            tmp = SafeNormalized(&wpos);
+            v265 = tmp.m_data[0] * tmp.m_data[1];
+            v265a = tmp.m_data[2] * tmp.m_data[1];
+            a3a = -tmp.m_data[2] * tmp.m_data[2] - tmp.m_data[0] * tmp.m_data[0];
+            MAT_Set44_Identity(&mx);
+            MAT_Set44_Identity(&mx1);
+            MAT_Set44_AxisAngle(&mx,  v265,           a3a,  v265a,         -JoyTrg1() * v263);
+            MAT_Set44_AxisAngle(&mx1, -tmp.m_data[2], 0.0f, tmp.m_data[0], -JoyY2() * v263);
+            tmp34 = mx1 * (mx * wpos);
+            tmp35 = tmp34 - io;
+            tmp35 = SafeNormalized(&tmp35);
+            v42 = JoyX2p() - JoyX2m();
             v44 = JoyX1();
             v43 = JoyY1();
-            v49 = (__m128)LODWORD(v265);
-            v50 = (__m128)LODWORD(v272);
-            v50 = (float)(v272 * v42) + (float)(v43 * v37);
-            v49 = (float)((float)((float)((float)(v265 * v42) + (float)(v262 * v44)) + (float)(v43 * v35)) * v261)
-                * dt;
-            v51 = v49;
-            v51 = v49 + io.m_data[0];
-            v50 = (float)(v50 * v261) * dt;
-            v264 = v264 + v49;
-            v52 = v50;
-            v52 = v50 + io.m_data[1];
-            wpos.m_data[0] = v264 - this->m_pos.m_data[0];
-            v262 = v34 + v50;
-            v53 = (float)(v34 + v50) - this->m_pos.m_data[1];
-            v54 = (float)((float)((float)((float)(vec2.m_data[0] * v42) + (float)(v266 * v44)) + (float)(v43 * v263))
-                * v261)
-                * dt;
-            v55 = v33[0] + v54;
-            wpos.m_data[1] = v53;
-            v56 = v54 + io.m_data[2];
-            v261 = v55;
-            wpos.m_data[2] = v55 - this->m_pos.m_data[2];
-#endif
+            tmp49.m_data[0] = v265   * v42 - tmp.m_data[2]   * v44 + v43 * tmp35.m_data[0]  * v261 * dt;
+            tmp49.m_data[1] = (a3a   * v42                         + v43 * tmp35.m_data[1]) * v261 * dt;
+            tmp49.m_data[2] = (v265a * v42 + tmp.m_data[0]   * v44 + v43 * tmp35.m_data[2]) * v261 * dt;
+            epos = tmp34 + tmp49;
+            ipos = tmp49 + io;
+            v261 = epos.m_data[2];
+            wpos = epos - m_pos;
             m_field_8 = wpos.Normalized();
             break;
         case CT_BIKE:
@@ -764,16 +699,10 @@ void Camera::Update(float dt, float a3) {
                 BikeLocalToWorldPos(&io);
                 BikeLocalToWorldPos(&wpos);
             }
-            if (m_isElastic) {
-                auto v71 = 1.0f - a3;
-                v51 = v71 * m_field_EC.m_data[0] + a3 * io.m_data[0];
-                v52 = v71 * m_field_EC.m_data[1] + a3 * io.m_data[1];
-                v56 = v71 * m_field_EC.m_data[2] + a3 * io.m_data[2];
-            } else {
-                v51 = io.m_data[0];
-                v52 = io.m_data[1];
-                v56 = io.m_data[2];
-            }
+            if (m_isElastic)
+                ipos = m_field_EC * (1.0f - a3) + io * a3;
+            else
+                ipos = io;
             zassert(g_pRoadManager && HeightMapManager::GetInst());
             be = (BikeEntity *)g_FollowCam->GetLookAtEntity();
             if (be && g_pRoadManager && HeightMapManager::GetInst()) {
@@ -782,387 +711,163 @@ void Camera::Update(float dt, float a3) {
                 auto v76 = g_pRoadManager->GetRoadSegment(segment);
                 if (g_SideCam == this) {
                     if (!v76 || v76->IsPlaceholder())
-                        v52 = HeightMapManager::GetInst()->GetHeightAtLocation(VEC2{ be->m_pos.m_data[0], be->m_pos.m_data[2] }) + 90.0f;
+                        ipos.m_data[1] = HeightMapManager::GetInst()->GetHeightAtLocation(VEC2{ be->m_pos.m_data[0], be->m_pos.m_data[2] }) + 90.0f;
                     else
-                        v52 = v76->GetCyclistAltitudeAtRoadTime(be->m_pos, be->m_field_888, be->m_field_8B8) + 90.0f;
+                        ipos.m_data[1] = v76->GetCyclistAltitudeAtRoadTime(be->m_pos, be->m_field_888, be->m_field_8B8) + 90.0f;
                 }
                 auto v79 = -be->m_field_500 * 200.0f;
                 v80 = wpos.m_data[1] + v79;
-                v52 += be->m_field_500 * 100.0f;
-                v262 = v80;
+                ipos.m_data[1] += be->m_field_500 * 100.0f;
+                epos.m_data[1] = v80;
                 if (v76 && !v76->IsPlaceholder() && be->UpdateAnimation(v79))
                     m_bikeLocalPos.m_data[2] = -fabs(m_bikeLocalPos.m_data[2]);
                 else
                     m_bikeLocalPos.m_data[2] = fabs(m_bikeLocalPos.m_data[2]);
             } else {
                 v80 = wpos.m_data[1];
-                v262 = wpos.m_data[1];
+                epos.m_data[1] = wpos.m_data[1];
             }
-            v261 = v55 = wpos.m_data[2];
-            v264 = wpos.m_data[0];
-            wpos.m_data[0] -= v51;
-            wpos.m_data[1] = v80 - v52;
-            wpos.m_data[2] -= v56;
+            v261 = epos.m_data[2] = wpos.m_data[2];
+            epos.m_data[0] = wpos.m_data[0];
+            wpos.m_data[0] -= ipos.m_data[0];
+            wpos.m_data[1] = v80 - ipos.m_data[1];
+            wpos.m_data[2] -= ipos.m_data[2];
             m_field_8 = SafeNormalized(&wpos);
             break;
         case CT_BIGBRO:
-            v262 = wpos.m_data[1];
-            v51 = io.m_data[0] + dt * m_worldVec.m_data[0];
-            v52 = io.m_data[1] + dt * m_worldVec.m_data[1];
-            v56 = io.m_data[2] + dt * m_worldVec.m_data[2];
+            epos.m_data[1] = wpos.m_data[1];
+            ipos = io + m_worldVec * dt;
             wpos = m_field_74;
             BikeLocalToWorldPos(&wpos);
-            v55 = wpos.m_data[2];
+            epos.m_data[2] = wpos.m_data[2];
             v261 = wpos.m_data[2];
-            v264 = wpos.m_data[0];
-            wpos.m_data[0] -= v51;
-            wpos.m_data[1] -= v52;
-            wpos.m_data[2] -= v56;
+            epos.m_data[0] = wpos.m_data[0];
+            wpos -= ipos;
             m_field_8 = SafeNormalized(&wpos);
             break;
         case CT_TITLE:
-            v55 = m_field_4C.m_data[2];
+            epos.m_data[2] = m_field_4C.m_data[2];
             wpos = m_field_4C;
-            v264 = wpos.m_data[0];
-            wpos.m_data[2] = v55 - m_pos.m_data[2];
-            v262 = wpos.m_data[1];
-            v261 = v55;
+            epos.m_data[0] = wpos.m_data[0];
+            wpos.m_data[2] = epos.m_data[2] - m_pos.m_data[2];
+            epos.m_data[1] = wpos.m_data[1];
+            v261 = epos.m_data[2];
             wpos.m_data[1] = wpos.m_data[1] - m_pos.m_data[1];
             m_field_8 = wpos.Normalized();
-            v51 = io.m_data[0];
-            v52 = io.m_data[1];
-            v56 = io.m_data[2];
+            ipos = io;
             break;
         case CT_ORBIT:
-#if 0 //TODO
-            if (this->m_bCut)
-            {
-                this->m_bCut = 0;
-                vec2 = (VEC2)&g_CameraManager.m_cameras;
-                Myoff = g_CameraManager.m_cameras.Myoff;
-                v103 = *(_QWORD *)&g_CameraManager.m_cameras.Map[((g_CameraManager.m_cameras.Myoff
-                    + (unsigned __int64)(unsigned int)g_CameraManager.m_prevSelIdx) >> 1) & (g_CameraManager.m_cameras.Mapsize - 1)]->field_0[8 * ((LODWORD(g_CameraManager.m_cameras.Myoff) + g_CameraManager.m_prevSelIdx) & 1)];
-                *(_QWORD *)this->m_pos.m_data = *(_QWORD *)(v103 + 28);
-                v104 = *(float *)(v103 + 36);
-                this->m_pos.m_data[2] = v104;
-                v105 = *(_QWORD *)this->m_pos.m_data;
-                *(_QWORD *)this->m_bikeWorldPos.m_data = v105;
-                *(_QWORD *)io.m_data = v105;
-                v106 = *(_QWORD *)this->m_field_74.m_data;
-                io.m_data[2] = v104;
-                this->m_bikeWorldPos.m_data[2] = v104;
-                v107 = this->m_field_74.m_data[2];
-                *(_QWORD *)this->m_field_34.m_data = v106;
-                this->m_field_34.m_data[2] = v107;
-                Camera::BikeLocalToWorldPos(this, &this->m_field_34);
-                *(float *)&v106 = this->m_field_34.m_data[2] - this->m_pos.m_data[2];
-                *(float *)&v106 = sqrtf(
-                    (float)((float)((float)(this->m_field_34.m_data[1] - this->m_pos.m_data[1])
-                        * (float)(this->m_field_34.m_data[1] - this->m_pos.m_data[1]))
-                        + (float)((float)(this->m_field_34.m_data[0] - this->m_pos.m_data[0])
-                            * (float)(this->m_field_34.m_data[0] - this->m_pos.m_data[0])))
-                    + (float)(*(float *)&v106 * *(float *)&v106));
-                LODWORD(this->m_bikeLocalPos.m_data[0]) = v106;
-                if (*(float *)&v106 > 2000.0
-                    && (WorldID(g_pGameWorld) == WID_RICHMOND || WorldID(g_pGameWorld) == WID_LONDON))
-                {
-                    this->m_bikeLocalPos.m_data[0] = 2000.0;
-                }
+            wpos = m_field_74;
+            BikeLocalToWorldPos(&wpos);
+            if (m_bCut) {
+                m_bCut = false;
+                auto prev_cam = g_CameraManager.m_cameras[g_CameraManager.m_prevSelIdx];
+                io = m_bikeWorldPos = m_pos = prev_cam->m_pos;
+                m_field_34 = wpos;
+                m_bikeLocalPos.m_data[0] = (m_field_34 - m_pos).len();
+                if (m_bikeLocalPos.m_data[0] > 2000.0f && (g_pGameWorld->WorldID() == WID_RICHMOND || g_pGameWorld->WorldID() == WID_LONDON))
+                    m_bikeLocalPos.m_data[0] = 2000.0f;
             }
-            v108 = this->m_field_74.m_data[2];
-            *(_QWORD *)wpos.m_data = *(_QWORD *)this->m_field_74.m_data;
-            wpos.m_data[2] = v108;
-            Camera::BikeLocalToWorldPos(this, &wpos);
-            v109 = this->m_field_34.m_data[1] - this->m_pos.m_data[1];
-            v110 = this->m_field_34.m_data[2] - this->m_pos.m_data[2];
-            v111 = this->m_field_34.m_data[0];
-            v112 = v111 - this->m_pos.m_data[0];
-            vec2.m_data[1] = v109;
-            vec2.m_data[0] = v112;
-            *(float *)&Myoff = v110;
-            v113 = sqrtf((float)((float)(v109 * v109) + (float)(v112 * v112)) + (float)(v110 * v110));
-            if (v113 == 0.0) {
-                v114 = (__m128)(unsigned int)Myoff;
-                v115 = (__m128)LODWORD(vec2.m_data[0]);
-                LODWORD(v116) = _mm_shuffle_ps(
-                    (__m128) * (unsigned __int64 *)&vec2,
-                    (__m128) * (unsigned __int64 *)&vec2,
-                    85).m128_u32[0];
-            } else {
-                v114 = 1.0f / v113;
-                v115 = v114;
-                v115 = (float)(1.0 / v113) * v112;
-                v116 = (float)(1.0 / v113) * v109;
-                v114 = (float)(1.0 / v113) * v110;
-            }
-            v117 = wpos.m_data[0];
-            v118 = -v114;
-            v264 = wpos.m_data[0];
-            v265 = v118;
-            v119 = v118;
-            v119 = v118 * v116;
-            v120 = v115;
-            v120 = v115 * v116;
-            v121 = -v119;
-            v122 = wpos.m_data[1];
-            v123 = wpos.m_data[0] - v111;
-            v55 = wpos.m_data[2];
-            v263 = (float)(v118 * v114) - (float)(v115 * v115);
-            v262 = wpos.m_data[1];
             v261 = wpos.m_data[2];
-            *(float *)&v267 = v123;
-            v271 = wpos.m_data[1] - this->m_field_34.m_data[1];
-            v266 = wpos.m_data[2] - this->m_field_34.m_data[2];
-            vec2.m_data[0] = JoyY2();
-            v270 = (float)(vec2.m_data[0]
-                * (float)((float)(v118 * v114)
-                    - (float)(v115 * v115)))
-                * 2500.0;
-            v124 = JoyTrg1();
-            v125 = dword_7FF66E6E7080;
-            v126 = 0;
-            v127 = dword_7FF66E6E7080;
-            v128 = 0;
-            v129 = (float)((float)(vec2.m_data[0] * v121) + (float)((float)-v124 * v115)) * 2500.0f;
-            vec2.m_data[0] = (float)((float)(vec2.m_data[0] * (float)(v115 * v116)) + (float)((float)-v124 * v265)) * 2500.0f;
-        while (1) {
-            v130 = dword_7FF66E6E984C;
-            if (*v127 == 263)
-                break;
-            ++v128;
-            ++v127;
-            if (v128 >= 3)
-                goto LABEL_129;
-        }
-        if (dword_7FF66E6E984C > -1.0f) {
-            v134 = dt + dt;
-            v130 = fmaxf(dword_7FF66E6E984C - (float)(dt + dt), -1.0);
-        LABEL_136:
-            dword_7FF66E6E984C = v130;
-            goto LABEL_137;
-        }
-    LABEL_129:
-        v131 = 0;
-        v132 = dword_7FF66E6E7080;
-        while (*v132 != 262) {
-            ++v131;
-            ++v132;
-            if (v131 >= 3)
-                goto LABEL_132;
-        }
-        if (dword_7FF66E6E984C < 1.0f) {
-            v134 = dt + dt;
-            v130 = fminf((float)(dt + dt) + dword_7FF66E6E984C, 1.0);
-            goto LABEL_136;
-        }
-    LABEL_132:
-        v133 = dword_7FF66E6E984C <= 0.0;
-        v134 = dt + dt;
-        if (dword_7FF66E6E984C < 0.0) {
-            v130 = dword_7FF66E6E984C + fminf(-dword_7FF66E6E984C, v134);
-            dword_7FF66E6E984C = v130;
-            v133 = v130 <= 0.0;
-        }
-        if (!v133) {
-            v130 = v130 - fminf(v134, v130);
-            goto LABEL_136;
-        }
-    LABEL_137:
-        v135 = io.m_data[1];
-        v136 = io.m_data[1] - v122;
-        v137 = v115 * v130;
-        v265 = v265 * v130;
-        wpos.m_data[1] = io.m_data[1] - v122;
-        wpos.m_data[2] = io.m_data[2] - v55;
-        wpos.m_data[0] = io.m_data[0] - v117;
-        v138 = sqrtf(
-            (float)((float)(v136 * v136) + (float)(wpos.m_data[0] * wpos.m_data[0]))
-            + (float)(wpos.m_data[2] * wpos.m_data[2]));
-        if (v138 == 0.0)
-            LODWORD(v139) = _mm_shuffle_ps(
-                (__m128) * (unsigned __int64 *)wpos.m_data,
-                (__m128) * (unsigned __int64 *)wpos.m_data,
-                85).m128_u32[0];
-        else
-            v139 = v136 / v138;
-        v140 = 0;
-        v141 = dword_7FF66E6E7080;
-        while (*v141 != 265) {
-            ++v140;
-            ++v141;
-            if (v140 >= 3)
-                goto LABEL_147;
-        }
-        if (v139 < 0.80000001) {
-            v145 = fmaxf(dword_7FF66E6E9848 - v134, -1.0);
-        LABEL_156:
-            dword_7FF66E6E9848 = v145;
-            goto LABEL_157;
-        }
-    LABEL_147:
-        v142 = 0;
-        v143 = dword_7FF66E6E7080;
-        while (*v143 != 264) {
-            ++v142;
-            ++v143;
-            if (v142 >= 3)
-                goto LABEL_150;
-        }
-        if (v139 > 0.1f) {
-            v145 = fminf(v134 + dword_7FF66E6E9848, 1.0);
-            goto LABEL_156;
-        }
-    LABEL_150:
-        v144 = 2.0f;
-        if (v139 > 0.80000001)
-            v144 = 5.0;
-        v145 = dword_7FF66E6E9848;
-        v146 = dword_7FF66E6E9848 <= 0.0;
-        v147 = v144 * dt;
-        if (dword_7FF66E6E9848 < 0.0f) {
-            v145 = dword_7FF66E6E9848 + fminf(-dword_7FF66E6E9848, v147);
-            dword_7FF66E6E9848 = v145;
-            v146 = v145 <= 0.0;
-        }
-        if (!v146) {
-            v145 = v145 - fminf(v147, v145);
-            goto LABEL_156;
-        }
-    LABEL_157:
-        v148 = 0;
-        v149 = dword_7FF66E6E7080;
-        v150 = (float)((float)((float)((float)(v263 * v145) * 1250.0) + v270) * dt) + v271;
-        v120 = (float)((float)((float)((float)((float)(v120 * v145) + v265) * 1250.0)
-            + vec2.m_data[0])
-            * dt)
-            + *(float *)&v267;
-        v121 = (float)((float)((float)((float)((float)(v121 * v145) + v137) * 1250.0) + v129) * dt)
-            + v266;
-        v263 = v150;
-        while (*v149 != 61) {
-            ++v148;
-            ++v149;
-            if (v148 >= 3) {
-                v151 = 0;
-                v152 = dword_7FF66E6E7080;
-                while (*v152 != 334) {
-                    ++v151;
-                    ++v152;
-                    if (v151 >= 3)
-                        goto LABEL_163;
+            ipos = m_field_34 - m_pos;
+            epos = wpos;
+            dt2 = dt + dt;
+            ipos.Normalize();
+            v265 = -ipos.m_data[0];
+            v120 = ipos.m_data[1] * ipos.m_data[2];
+            v121 = ipos.m_data[0] * ipos.m_data[2];
+            tmp = wpos - m_field_34;
+            v263 = -ipos.m_data[0] * ipos.m_data[0] - ipos.m_data[1] * ipos.m_data[1];
+            jy2 = JoyY2();
+            v270 = jy2 * v263 * 2500.0f;
+            jt1 = JoyTrg1();
+            v129 = (jy2 * v121 - jt1 * ipos.m_data[1]) * 2500.0f;
+            jy2 = (jy2 * v120 + jt1 * ipos.m_data[0]) * 2500.0f;
+            check = true;
+            if (std::ranges::find(g_keys4, 263)) {
+                if (g_timeStuff > -1.0f) {
+                    g_timeStuff = fmaxf(g_timeStuff - dt2, -1.0f);
+                    check = false;
                 }
-                break;
             }
-        }
-        if (this->m_bikeLocalPos.m_data[0] <= 150.0f) {
-        LABEL_163:
-            v153 = 0;
-            v154 = dword_7FF66E6E7080;
-            while (*v154 != 45) {
-                ++v153;
-                ++v154;
-                if (v153 >= 3) {
-                    while (*v125 != 333) {
-                        ++v126;
-                        ++v125;
-                        if (v126 >= 3)
-                            goto LABEL_168;
+            if (std::ranges::find(g_keys4, 262)) {
+                if (g_timeStuff < 1.0f) {
+                    g_timeStuff = fminf(dt2 + g_timeStuff, 1.0f);
+                    check = false;
+                }
+            }
+            if (check) {
+                if (g_timeStuff < 0.0f)
+                    g_timeStuff += fminf(-g_timeStuff, dt2);
+                if (g_timeStuff > 0.0f)
+                    g_timeStuff -= fminf(dt2, g_timeStuff);
+            }
+            v137 = ipos.m_data[1] * g_timeStuff;
+            v265 = v265 * g_timeStuff;
+            wpos = io - epos;
+            if (wpos.Empty())
+                v139 = wpos.m_data[1];
+            else
+                v139 = wpos.m_data[1] / wpos.len();
+            check = true;
+            if (std::ranges::find(g_keys4, 265)) {
+                if (v139 < -0.8f) {
+                    g_timeStuff1 = fmaxf(g_timeStuff1 - dt2, -1.0f);
+                    check = false;
+                }
+            }
+            if (std::ranges::find(g_keys4, 265)) {
+                if (v139 > 0.1f) {
+                    g_timeStuff1 = fminf(dt2 + g_timeStuff1, 1.0f);
+                    check = false;
+                }
+            }
+            if (check) {
+                auto v144 = 2.0f;
+                if (v139 >= 0.8f)
+                    v144 = 5.0f;
+                auto v147 = v144 * dt;
+                if (g_timeStuff1 < 0.0f)
+                    g_timeStuff1 += fminf(-g_timeStuff1, v147);
+                if (g_timeStuff1 > 0.0f)
+                    g_timeStuff1 -= fminf(v147, g_timeStuff1);
+            }
+            v120 = ((v120 * g_timeStuff1 + v265) * 1250.0 + jy2)  * dt + tmp.m_data[0];
+            v150 =          (v263 * g_timeStuff1 * 1250.0 + v270) * dt + tmp.m_data[1];
+            v121 = ((v121 * g_timeStuff1 + v137) * 1250.0 + v129) * dt + tmp.m_data[2];
+            v263 = v150;
+            check = true;
+            if (std::ranges::find(g_keys4, 61) || std::ranges::find(g_keys4, 334)) {
+                if (m_bikeLocalPos.m_data[0] > 150.0f) {
+                    check = false;
+                    g_camUpdX = fmaxf(g_camUpdX - dt * 4.0f, -1.0f);
+                }
+            }
+            if (check) {
+                if (std::ranges::find(g_keys4, 45) || std::ranges::find(g_keys4, 333)) {
+                    if (m_bikeLocalPos.m_data[0] < 1300.0f) {
+                        check = false;
+                        g_camUpdX = fminf(dt * 4.0f + g_camUpdX, 1.0f);
                     }
-                    break;
+                }
+                if (check) {
+                    auto dcam = dt * 2.5f;
+                    if (g_camUpdX < 0.0f)
+                        g_camUpdX += fminf(-g_camUpdX, dcam);
+                    if (g_camUpdX > 0.0f)
+                        g_camUpdX -= fminf(dcam, g_camUpdX);
+                    v150 = v263;
                 }
             }
-            if (this->m_bikeLocalPos.m_data[0] >= 1300.0f) {
-            LABEL_168:
-                v155 = g_camUpdX;
-                v156 = g_camUpdX <= 0.0;
-                v157 = dt * 2.5;
-                if (g_camUpdX < 0.0f) {
-                    v155 = g_camUpdX + fminf(-g_camUpdX, v157);
-                    g_camUpdX = v155;
-                    v156 = v155 <= 0.0;
-                }
-                if (!v156) {
-                    v155 = v155 - fminf(v157, v155);
-                    g_camUpdX = v155;
-                }
-                v150 = v263;
-            } else {
-                v155 = fminf((float)(dt * 4.0) + g_camUpdX, 1.0);
-                g_camUpdX = v155;
-            }
-        } else {
-            v155 = fmaxf(g_camUpdX - (float)(dt * 4.0), -1.0);
-            g_camUpdX = v155;
-        }
-        v158 = (float)((float)(v155 * 500.0) * dt) + this->m_bikeLocalPos.m_data[0];
-        this->m_bikeLocalPos.m_data[0] = v158;
-        if (v158 <= 2500.0) {
-            if (v158 < 150.0)
-                this->m_bikeLocalPos.m_data[0] = 150.0;
-        } else {
-            this->m_bikeLocalPos.m_data[0] = 2500.0;
-        }
-        v120 = v120 + io.m_data[0];
-        v121 = v121 + io.m_data[2];
-        v159 = v135 + v150;
-        Inst = HeightMapManager::GetInst();
-        v161 = HeightMapManager::GetHeightAtLocation(Inst, (VEC2) * (_OWORD *)&_mm_unpacklo_ps(v120, v121)) + 50.0;
-        if (v159 < v161)
-            v159 = v161;
-        v162 = v120 - v117;
-        v163 = v159 - v122;
-        v164 = v121 - v55;
-        wpos.m_data[0] = v162;
-        wpos.m_data[1] = v163;
-        wpos.m_data[2] = v164;
-        v165 = sqrtf((float)((float)(v162 * v162) + (float)(v163 * v163)) + (float)(v164 * v164));
-        if (v165 == 0.0f) {
-            v166 = wpos.m_data[2];
-            v167 = wpos.m_data[0];
-            vec2 = (VEC2)_mm_shuffle_ps(
-                (__m128) * (unsigned __int64 *)wpos.m_data,
-                (__m128) * (unsigned __int64 *)wpos.m_data,
-                85).m128_u64[0];
-        } else {
-            v167 = v162 * (float)(1.0 / v165);
-            vec2.m_data[0] = v163 * (float)(1.0 / v165);
-            v166 = v164 * (float)(1.0 / v165);
-        }
-        v168 = (float)((getJoystickButtons() & 0x200) != 0 ? 0x12C : 0);
-        JoystickButtons = getJoystickButtons();
-        v170 = v264;
-        v171 = (__m128)COERCE_UNSIGNED_INT((float)(int)((JoystickButtons & 0x100) != 0 ? 0xFFFFFED4 : 0));
-        v171 = (float)((float)(v171 + v168) * dt) + this->m_bikeLocalPos.m_data[0];
-        v51 = v171;
-        LODWORD(this->m_bikeLocalPos.m_data[0]) = v171.m128_i32[0];
-        v51 = v171 * v167;
-        v52 = v171;
-        v51 = v51 + v170;
-        v52 = (float)(v171 * vec2.m_data[0]) + v122;
-        v56 = (float)(v171 * v166) + v55;
-        v172 = v170 - v51;
-        v173 = v122 - v52;
-        v174 = v55 - v56;
-        if ((float)(v170 - v51) == 0.0 && v173 == 0.0 && v174 == 0.0)
-            v172 = 1.0;
-        wpos.m_data[0] = v172;
-        wpos.m_data[1] = v173;
-        wpos.m_data[2] = v55 - v56;
-        v175 = sqrtf((float)((float)(v172 * v172) + (float)(v173 * v173)) + (float)(v174 * v174));
-        if (v175 == 0.0f) {
-            v58 = *(_QWORD *)wpos.m_data;
-        } else {
-            v176 = (__m128) * (unsigned __int64 *)wpos.m_data;
-            v176 = v172 * (float)(1.0 / v175);
-            v63 = _mm_shuffle_ps(v176, v176, 225);
-            v63 = v173 * (float)(1.0 / v175);
-            wpos.m_data[2] = v174 * (float)(1.0 / v175);
-            v58 = _mm_shuffle_ps(v63, v63, 225).m128_u64[0];
-        }
-        v64 = wpos.m_data[2];
-        *(_QWORD *)this->m_field_8.m_data = v58;
-        this->m_field_8.m_data[2] = v64;
-#endif
+            m_bikeLocalPos.m_data[0] = std::clamp(m_bikeLocalPos.m_data[0] + g_camUpdX * 500.0f * dt, 150.0f, 2500.0f);
+            ipos.m_data[0] = v120 + io.m_data[0] - epos.m_data[0];
+            ipos.m_data[1] = std::min(io.m_data[1] + v150, HeightMapManager::GetInst()->GetHeightAtLocation(VEC2{ v120, v121 }) + 50.0f) - epos.m_data[1];
+            ipos.m_data[2] = v121 + io.m_data[2] - epos.m_data[2];
+            ipos.Normalize();
+            //QUEST v171 = ((COERCE_UNSIGNED_INT((jb & 0x100) ? 0xFFFFFED4 : 0) + (jb & 0x200) ? 0x12C : 0) * dt) + m_bikeLocalPos.m_data[0];
+            //m_bikeLocalPos.m_data[0] = v171.m128_i32[0];
+            wpos = epos - ipos * m_bikeLocalPos.m_data[0];
+            m_field_8 = SafeNormalized(&wpos);
             break;
         case CT_8:
             if (!BikeManager::Instance()->FindBikeWithNetworkID(m_playerId, true) || !m_field_5C)
@@ -1170,20 +875,20 @@ void Camera::Update(float dt, float a3) {
             BikeLocalToWorldPos(&m_field_34);
         //no break here
         default:
-            v264 = wpos.m_data[0];
-            v262 = wpos.m_data[1];
-            v55 = wpos.m_data[2];
+            epos.m_data[0] = wpos.m_data[0];
+            epos.m_data[1] = wpos.m_data[1];
+            epos.m_data[2] = wpos.m_data[2];
             v261 = wpos.m_data[2];
-            v51 = io.m_data[0];
-            v52 = io.m_data[1];
-            v56 = io.m_data[2];
+            ipos.m_data[0] = io.m_data[0];
+            ipos.m_data[1] = io.m_data[1];
+            ipos.m_data[2] = io.m_data[2];
             break;
         }
         if (m_field_BC != 0.0f)
             m_field_80 = (m_field_BC * dt) + m_field_80;
-        v51 -= m_bikeWorldPos.m_data[0];
-        v52 -= m_bikeWorldPos.m_data[1];
-        v179 = v56 - m_bikeWorldPos.m_data[2];
+        ipos.m_data[0] -= m_bikeWorldPos.m_data[0];
+        ipos.m_data[1] -= m_bikeWorldPos.m_data[1];
+        v179 = ipos.m_data[2] - m_bikeWorldPos.m_data[2];
         be = BikeManager::Instance()->FindBikeWithNetworkID(m_playerId, true);
         float speed = 0.0f;
         bool nv187 = false;
@@ -1193,10 +898,10 @@ void Camera::Update(float dt, float a3) {
                 nv187 = true;
         }
         if (m_field_C4 < 0.1f || nv187) {
-            if (m_isElastic && v52 * v52 + v51 * v51 + v179 * v179 <= 4'000'000.0f && be && be->m_entityType == 1 && nv187) {
+            if (m_isElastic && ipos.m_data[1] * ipos.m_data[1] + ipos.m_data[0] * ipos.m_data[0] + v179 * v179 <= 4'000'000.0f && be && be->m_entityType == 1 && nv187) {
                 auto v189 = -be->m_heading.m_cos, v190 = -be->m_heading.m_heading2, v191 = -be->m_heading.m_sin;
                 auto v193 = speed - m_field_C4;
-                auto v194 = v52 * v190 + v51 * v189 + v179 * v191;
+                auto v194 = ipos.m_data[1] * v190 + ipos.m_data[0] * v189 + v179 * v191;
                 auto v195 = v194 * v190;
                 auto v197 = v194 * v191;
                 if (fabs(v193) <= fminf(m_field_C4 * 0.04f, 1.0f))
@@ -1213,13 +918,13 @@ void Camera::Update(float dt, float a3) {
                 if (fabs(m_field_C4 - speed) < 0.1f)
                     m_field_C4 = speed;
                 auto v206 = m_field_D0 * v195;
-                auto v209 = (v51 - v194 * v189) * 20.0f;
-                auto v210 = (v52 - v195) * 20.0f;
+                auto v209 = (ipos.m_data[0] - v194 * v189) * 20.0f;
+                auto v210 = (ipos.m_data[1] - v195) * 20.0f;
                 auto v211 = (v179 - v197) * 20.0f;
                 auto v212 = m_field_D0 * v197;
                 if (m_field_CC < 0.0f) {
-                    v51 = v209 - m_field_F8 * m_field_D4.m_data[0];
-                    v52 = v210 - (m_field_F8 * m_field_D4.m_data[1]);
+                    ipos.m_data[0] = v209 - m_field_F8 * m_field_D4.m_data[0];
+                    ipos.m_data[1] = v210 - (m_field_F8 * m_field_D4.m_data[1]);
                     v219 = m_field_FC * m_field_E0.m_data[0];
                     v221 = v211 - (m_field_F8 * m_field_D4.m_data[2]);
                     v206 -= m_field_FC * m_field_E0.m_data[1];
@@ -1232,14 +937,14 @@ void Camera::Update(float dt, float a3) {
                     v217 = 2.0f * m_field_FC - v213 * m_field_FC;
                     m_field_CC -= dt;
                     v206 -= v216 * v217;
-                    v51 = v209 - (v215 * m_field_D4.m_data[0]);
+                    ipos.m_data[0] = v209 - (v215 * m_field_D4.m_data[0]);
                     v219 = v217 * m_field_E0.m_data[0];
-                    v52 = v210 - (v215 * m_field_D4.m_data[1]);
+                    ipos.m_data[1] = v210 - (v215 * m_field_D4.m_data[1]);
                     v220 = v212 - (v217 * m_field_E0.m_data[2]);
                     v221 = v211 - (v215 * m_field_D4.m_data[2]);
                 }
-                m_field_D4.m_data[0] += v51 * dt;
-                m_field_D4.m_data[1] += v52 * dt;
+                m_field_D4.m_data[0] += ipos.m_data[0] * dt;
+                m_field_D4.m_data[1] += ipos.m_data[1] * dt;
                 m_field_D4.m_data[2] += v221 * dt;
                 m_field_E0.m_data[0] += (m_field_D0 * v194 * v189 - v219) * dt;
                 m_field_E0.m_data[1] += v206 * dt;
@@ -1248,15 +953,15 @@ void Camera::Update(float dt, float a3) {
                 m_pos.m_data[1] = (m_field_E0.m_data[1] + m_field_D4.m_data[1]) * 0.5f * dt + m_bikeWorldPos.m_data[1];
                 m_pos.m_data[2] = (m_field_E0.m_data[2] + m_field_D4.m_data[2]) * 0.5f * dt + m_bikeWorldPos.m_data[2];
             } else {
-                m_pos.m_data[0] = v51 + m_bikeWorldPos.m_data[0];
-                m_pos.m_data[1] = v52 + m_bikeWorldPos.m_data[1];
+                m_pos.m_data[0] = ipos.m_data[0] + m_bikeWorldPos.m_data[0];
+                m_pos.m_data[1] = ipos.m_data[1] + m_bikeWorldPos.m_data[1];
                 m_pos.m_data[2] = v179 + m_bikeWorldPos.m_data[2];
             }
             auto v233 = m_field_B0 * 25.0f; // Camera::ApplyShake inlined
-            auto v235 = v264 * m_field_B4 * 0.002f;
-            auto v236 = v56 * m_field_B4 * 0.002f;
-            auto v238 = SimplexNoise::Generate(v235, v236, m_field_B4 * v262 * 0.002f) * v233 + v262;
-            auto v240 = SimplexNoise::Generate(m_field_B4 * v238 * 0.002f, v235, v236) * v233 + v264;
+            auto v235 = epos.m_data[0] * m_field_B4 * 0.002f;
+            auto v236 = ipos.m_data[2] * m_field_B4 * 0.002f;
+            auto v238 = SimplexNoise::Generate(v235, v236, m_field_B4 * epos.m_data[1] * 0.002f) * v233 + epos.m_data[1];
+            auto v240 = SimplexNoise::Generate(m_field_B4 * v238 * 0.002f, v235, v236) * v233 + epos.m_data[0];
             auto v243 = v236 * v233 + v261;
             auto c2 = cosf(m_field_B8 * 0.023f + 1.0f) * 10.0f * m_field_B4;
             auto sn = sinf(m_field_B8 * 0.024f) * 10.0f * m_field_B4;
