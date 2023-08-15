@@ -300,7 +300,7 @@ float g_AudioTime, g_audioRand = 352637.94f, g_audioNextTime = 25.0f;
 void GAME_AudioUpdate(GameWorld *, Camera *camera, float dtime) {
     if (camera && g_pGameWorld) {
         auto wd = g_pGameWorld->GetWorldDef();
-        auto v7 = camera->m_pos.m_data[1] - (wd ? wd->m_seaLevel : 0.0f);
+        auto v7 = camera->m_pos.m_data[1] - (wd ? wd->m_ws.m_seaLevel : 0.0f);
         float v14, v15;
         AUDIO_SetVariable("player_altitude", v7);
         auto v9 = IsUnderWater(camera->m_pos);

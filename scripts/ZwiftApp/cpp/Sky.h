@@ -1,10 +1,10 @@
 #pragma once
 struct Sky {
     static void Initialize();
-    void Create(const char *, uint64_t);
+    static int Create(const char *, int64_t);
     void DefGetName(int);
     //void DefIterate(std::function<void ()(int)> &&)
-    void Destroy(int *);
+    static void Destroy(int *);
     void GenerateSphere(uint32_t);
     void GetDefName(int);
     //void GetSceneLightingValues(SceneLightingValues *, float);
@@ -16,5 +16,5 @@ struct Sky {
     void Render_PostFX(const VEC3 &, float, bool);
     void SetFogColor(const VEC4 &);
     void SetSkyFogPercent(float);
-    void Update(float);
+    static void Update(float);
 };

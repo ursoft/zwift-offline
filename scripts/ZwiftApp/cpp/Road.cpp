@@ -42,4 +42,25 @@ VEC3 RoadSegment::GetMinExtents() {
     //TODO
     return VEC3{};
 }
-
+void RoadManager::Load(XMLDoc *xroad, XMLDoc *xroadStyle) {
+    //TODO
+}
+void RoadManager::Update(float dt) { //inlined into GameWorld::Update
+    //TODO 
+}
+void RoadManager::Render() {
+    //TODO
+}
+void RoadManager::Destroy() { //inlined into onGameWorldDtr
+    //TODO
+}
+void RoadManager::ConstructNearbyRiderGroupsEmpty() { //TODO
+}
+void RoadManager::ConstructNearbyRiderGroupsLondon() { //TODO
+}
+void RoadManager::ConstructNearbyRiderGroupsNewYork() { //TODO
+}
+void RoadManager::ConstructNearbyRiderGroupsRichmond() { //TODO
+}
+void RoadManager::ConstructNearbyRiderGroupsWatopia() { //TODO
+}

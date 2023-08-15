@@ -8195,10 +8195,6 @@ protobuf::ActivityList *ZNETWORK_GetActivities() {
 void ZNETWORK_INTERNAL_ProcessUpcomingWorkouts() {
     //OMIT as server-side workouts:
 }
-float g_startLineRoadTime = 0.95f;
-uint32_t g_LastScreenshotTime;
-int g_PhoneAPIVersion, g_farFanviewFocusRequestTimeout;
-int64_t g_farFanviewFocusRequestID;
 void ZNETWORK_INTERNAL_ProcessPhoneInput() {
     protobuf::PhoneToGameCommand ptg;
     auto mainBike = BikeManager::Instance()->m_mainBike;

@@ -3703,6 +3703,15 @@ void GFX_SpheresInCurrentFrustumDist(Sphere *, int, float *) {
 void GFX_DrawIndexedPrimitive(GFX_PRIM_TYPE, uint32_t, uint32_t, GFX_IndexFormat, uint32_t) {
     //TODO
 }
+void TEXMGR_DumpAllGameWorldTextures() {
+    for (int i = 0; i < g_nTexturesLoaded; i++)
+        if (g_Textures[i].m_assetCategory == AC_2 && g_Textures[i].m_loaded)
+            GFX_Internal_UnloadTexture(i, TS_UNLOADED);
+}
+void TEXMGR_OverrideHWHandle(int texh, uint32_t id) {
+    if (texh <= _countof(g_Textures))
+        g_Textures[texh].m_glid = id;
+}
 
 //Unit Tests
 TEST(SmokeTest, DISABLED_VertexArray) {

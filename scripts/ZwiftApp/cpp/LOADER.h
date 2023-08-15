@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing
 inline bool g_UseHWInstancing;
 template <typename T, typename F> T* ShiftPointer(T **dest, const F offset) {
     *dest = (T *)((uint8_t *)offset + (intptr_t)*dest);
@@ -12,7 +12,7 @@ void LOADER_DecompressFileToMemory(std::string, void **, int &, uint32_t);
 void LOADER_DecompressToFile(void *, int, const char *);
 void LOADER_DecompressToMemory(void *, int, void **, int &, uint32_t);
 void LOADER_DumpAllGameWorldGDEs();
-bool LOADER_FileExists(std::string);
+bool LOADER_FileExists(const std::string &);
 WAD_FILE_HEADER *LOADER_FindAssetsBySignature(uint32_t, WAD_ASSET_TYPE);
 void LOADER_FindAssetsByType(WAD_ASSET_TYPE);
 void LOADER_GetFileModifiedTime(std::string);

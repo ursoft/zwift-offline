@@ -110,13 +110,16 @@ struct EntityManager { //0x5F8 bytes
             return nullptr;
         return &vec[0];
     }
-    /*
     void AddEntity(Entity *);
+    void Render();
+    void Render2D();
+    void Update(float dt);
+    static void ClearAllRenderLists();
+    static void Destroy();
+    /*
     void AddToRenderList(Entity *,GFX_RenderPass);
     void ApplyHolidayMesh(std::string *);
     void AttachMeToPath(int,Entity *);
-    void ClearAllRenderLists(void);
-    void Destroy(void);
     void DestroyEntity(Entity *);
     void DestroyEntity(std::__wrap_iter<Entity **>,bool);
     void Exists(void);
@@ -139,14 +142,27 @@ struct EntityManager { //0x5F8 bytes
     void PostLoadThreadedInitialize(void);
     void RemoveFromRenderList(Entity *);
     void RemoveFromRenderList(Entity *,GFX_RenderPass);
-    void Render(void);
-    void Render2D(void);
     void SessionReset(void);
     void SortRender(Camera const*);
     void SpawnEntityFromData(EntityNode &,std::vector<Entity *> &);
-    void Update(float);
 */
     ~EntityManager() {
         //TODO
     }
+};
+//empty EntityFileManager::Destroy(void)
+struct XMLDoc;
+namespace EntityFileManager {
+    //not found bool LoadLightXMLFile(const char *);
+    //inlined bool LoadXMLFile(const char *);
+    void ParseEntityFile(XMLDoc *xent);
+}
+struct EntityFactory {
+    static Entity *Create(Entity::EType, tinyxml2::XMLElement *src);
+    static bool CreateEntityObject(Entity::EType, Entity **);
+    static bool CreateEntityObject(tinyxml2::XMLElement *, Entity **);
+    static void Destroy();
+    EntityFactory();
+    static EntityFactory *GetInst();
+    ~EntityFactory();
 };

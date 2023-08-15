@@ -1,4 +1,4 @@
-#include "ZwiftApp.h"
+#include "ZwiftApp.h" //READY for testing
 const int textureToHandleTableSize = 1024;
 //int g_textureToHandleTable[1024];
 template<class T>

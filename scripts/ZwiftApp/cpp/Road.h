@@ -358,17 +358,20 @@ struct RoadManager {
     static void FindClosestPointOnRoad(const VEC3 &, int32_t, int32_t *, uint64_t, bool, int32_t/*, bool, ERoadMeasureLocation*/);
     RoadSegment *GetRoadSegment(int32_t id);
     int GetRoadCount();
+    void Load(XMLDoc *xroad, XMLDoc *xroadStyle);
+    void Update(float dt);
+    void Render();
+    static void Destroy();
+    static void ConstructNearbyRiderGroupsEmpty();
+    static void ConstructNearbyRiderGroupsLondon();
+    static void ConstructNearbyRiderGroupsNewYork();
+    static void ConstructNearbyRiderGroupsRichmond();
+    static void ConstructNearbyRiderGroupsWatopia();
 
     /*RoadManager::AddFindPosNode(VEC3 const&,int,double,std::vector<RoadFindPosNode> &)
 RoadManager::AdjustRoadDistance(float *,RoadSegment const*,double,RoadManager::ERoadMeasureLocation)
 RoadManager::CheckToOverrideStyleIndex(int)
 RoadManager::ClearRoadCorners(void)
-RoadManager::ConstructNearbyRiderGroupsEmpty(void)
-RoadManager::ConstructNearbyRiderGroupsLondon(void)
-RoadManager::ConstructNearbyRiderGroupsNewYork(void)
-RoadManager::ConstructNearbyRiderGroupsRichmond(void)
-RoadManager::ConstructNearbyRiderGroupsWatopia(void)
-RoadManager::Destroy(void)
 RoadManager::FindAllPointsAheadInternal(RoadSegment const*,float,double,bool,std::vector<RoadFindPosNode> &,Route const*,ulong long,uint)
 RoadManager::FindAllPointsAheadInternalAll(RoadSegment const*,float,double,bool,std::vector<RoadFindPosNode> &,ulong long,uint,uint)
 RoadManager::FindAllPointsAheadInternalRoute(RoadSegment const*,float,double,bool,std::vector<RoadFindPosNode> &,Route const*,ulong long,uint,uint)
@@ -393,20 +396,17 @@ RoadManager::IsRoadAVailableInWorld(int,int)
 RoadManager::IsRoadAvailable(RoadSegment *)
 RoadManager::IsRoadAvailable(int)
 RoadManager::LayRoad(bool const*)
-RoadManager::Load(XMLDoc *,XMLDoc *)
 RoadManager::MapAudioRoadTypeToString(WWISE_ROADTYPES)
 RoadManager::MapStringToAudioRoadType(char const*)
 RoadManager::MapStyleIndexToString(int)
 RoadManager::MapStyleStringToIndex(char const*)
 RoadManager::PostInitialize(void)
 RoadManager::PrintCornerStats(void)
-RoadManager::Render(void)
 RoadManager::ResetRoadCorners(void)
 RoadManager::RoadManager(void)
 RoadManager::RoughDistanceFromRoad(VEC3,bool,RoadManager::ERoadMeasureLocation)
 RoadManager::RoughDistanceFromRoad2D(VEC3,bool,RoadManager::ERoadMeasureLocation)
 RoadManager::UnitTest(void)
-RoadManager::Update(float)
 RoadManager::~RoadManager()*/
 };
 inline RoadManager *g_pRoadManager;

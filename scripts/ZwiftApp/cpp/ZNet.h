@@ -800,3 +800,7 @@ void ZNETWORK_UpdateDropInWorldsStatus();
 inline bool g_IsOnProductionServer = true;
 inline NetworkClient *g_networkClient;
 inline time_t g_lastBroadcastLocalPlayerFlagged, g_CachedWorldTime;
+inline float g_startLineRoadTime = 0.95f;
+inline uint32_t g_LastScreenshotTime;
+inline int g_PhoneAPIVersion, g_farFanviewFocusRequestTimeout;
+inline int64_t g_farFanviewFocusRequestID;

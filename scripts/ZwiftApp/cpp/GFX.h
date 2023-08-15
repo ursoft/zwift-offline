@@ -950,3 +950,7 @@ void GFXtoOGLTarget(GFX_TextureType);
 //GFXAPI_CreateShaderFromFile(int, char const *)
 //GFXAPI_CreateQuery(int)
 //GFXAPI_Build2dMipmaps(int, uint, uint, uchar const *, ulong long)
+void TEXMGR_DumpAllGameWorldTextures();
+//empty void TEXMGR_DumpUsageStats();
+//assert-only void TEXMGR_LoadTextureFile(WAD_FILE_HEADER *);
+void TEXMGR_OverrideHWHandle(int texh, uint32_t id);

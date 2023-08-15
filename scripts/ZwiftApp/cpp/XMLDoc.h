@@ -42,10 +42,13 @@ struct XMLDoc { //1736 bytes
     //not found @PC bool GetTag(const char *, bool);
     tinyxml2::XMLElement *GetElt(const char *ename, bool distinctMode, bool enableCreate);
     uint32_t GetU32(const char *, uint32_t);
-    VEC3 GetVEC3(const char *, const VEC3 &, bool);
-    VEC3 *GetVEC3Array(const char *, bool);
-    VEC4 GetVEC4(const char *, const VEC4 &, bool);
-    VEC4 *GetVEC4Array(const char *, bool);
+    //VEC3 GetVEC3(const char *, const VEC3 &, bool);
+    static void GetVEC3Array(tinyxml2::XMLElement *el, const char *chNameFormat, std::vector<VEC3> *pRet);
+    static void GetVEC2(tinyxml2::XMLElement *el, VEC2 *pRet, const VEC2 &def = VEC2{});
+    static void GetVEC3(tinyxml2::XMLElement *el, VEC3 *pRet, const VEC3 &def = VEC3{});
+    static void GetVEC4(const tinyxml2::XMLAttribute *at, VEC4 *pRet, const VEC4 &def = VEC4{}, const char *fmt = "%f,%f,%f,%f");
+    //VEC4 GetVEC4(const char *, const VEC4 &, bool);
+    //VEC4 *GetVEC4Array(const char *, bool);
     bool Internal_Load(const char *, long *);
     bool Internal_Load(uint32_t, void *);
     bool Load(const char *aName, time_t *aTime);

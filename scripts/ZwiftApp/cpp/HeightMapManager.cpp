@@ -647,8 +647,8 @@ void HeightMapTile::Render(int a2) {
     if (HeightMapTile::g_useTerrainConfigData) {   // HeightMapTile::ApplyTerrainConfigParms inlined
         int shader = g_BasicTerrainNoSnowShader;
         if (g_bUseTextureHeightmaps)
-            shader = (m_field_0 == 1) ? g_BasicTerrainNoSnowHeightMapShader : g_BasicTerrainHeightMapShader;
-        else if (m_field_0 != 1)
+            shader = (m_shaderId == 1) ? g_BasicTerrainNoSnowHeightMapShader : g_BasicTerrainHeightMapShader;
+        else if (m_shaderId != 1)
             shader = g_BasicTerrainShader;
         if (shader != -1) {
             GFX_SetShader(shader);
@@ -668,7 +668,7 @@ void HeightMapTile::Render(int a2) {
                 GFX_ActivateTexture(m_texs6[i], offsets[i], nullptr, TWM_REPEAT);
         }
     }
-    if (wd->m_allowWaterCaustics && g_CameraManager.GetCameraPos().m_data[1] < wd->m_waterLevel) {
+    if (wd->m_ws.m_allowCaustics && g_CameraManager.GetCameraPos().m_data[1] < wd->m_ws.m_waterLevel) {
         GFX_ActivateTexture(g_CausticTexture, -1, nullptr, TWM_REPEAT);
     } else if (g_pGameWorld->WorldID() == WID_CRIT_CITY) {
         GFX_ActivateTexture(g_InnsbruckConcreteTexture, -1, nullptr, TWM_REPEAT);

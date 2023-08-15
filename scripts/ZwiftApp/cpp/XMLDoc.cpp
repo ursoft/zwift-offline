@@ -57,17 +57,6 @@ std::vector<float> XMLDoc::GetF32Vector(const char *, bool) {
     assert(false);
     return ret;
 }
-VEC3 XMLDoc::GetVEC3(const char *, const VEC3 &, bool) {
-    VEC3 ret{};
-    //unused
-    assert(false);
-    return ret;
-}
-VEC3 *XMLDoc::GetVEC3Array(const char *, bool) {
-    //unused
-    assert(false);
-    return nullptr;
-}
 VEC4 XMLDoc::GetVEC4(const char *, const VEC4 &, bool) {
     VEC4 ret{};
     //unused
@@ -137,6 +126,31 @@ tinyxml2::XMLError XMLDoc::LoadCompressedXML(const std::string &, tinyxml2::XMLD
     return tinyxml2::XML_SUCCESS;
 }
 #endif
+void XMLDoc::GetVEC3Array(tinyxml2::XMLElement *el, const char *chNameFormat, std::vector<VEC3> *pRet) {
+    char name[128];
+    pRet->reserve(128);
+    for (int i = 0; ; i++) {
+        sprintf_s(name, chNameFormat, i);
+        auto ch = el->FirstChildElement(name);
+        if (!ch)
+            break;
+        VEC3 item{};
+        sscanf_s(ch->GetText(), "%f,%f,%f", item.m_data, item.m_data + 1, item.m_data + 2);
+        pRet->push_back(item);
+    }
+}
+void XMLDoc::GetVEC2(tinyxml2::XMLElement *el, VEC2 *pRet, const VEC2 &def) {
+    if (!el || 2 != sscanf_s(el->GetText(), "%f,%f", pRet->m_data, pRet->m_data + 1))
+        *pRet = def;
+}
+void XMLDoc::GetVEC3(tinyxml2::XMLElement *el, VEC3 *pRet, const VEC3 &def) {
+    if (!el || 3 != sscanf_s(el->GetText(), "%f,%f,%f", pRet->m_data, pRet->m_data + 1, pRet->m_data + 2))
+        *pRet = def;
+}
+void XMLDoc::GetVEC4(const tinyxml2::XMLAttribute *at, VEC4 *pRet, const VEC4 &def, const char *fmt) {
+    if (!at || 4 != sscanf_s(at->Value(), fmt, pRet->m_data, pRet->m_data + 1, pRet->m_data + 2, pRet->m_data + 3))
+        *pRet = def;
+}
 bool XMLDoc::BufferLoad(const void *src, uint32_t sz) {
     if (m_wadCopy)
         free(m_wadCopy);
