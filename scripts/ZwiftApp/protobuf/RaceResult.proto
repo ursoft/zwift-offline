@@ -70,7 +70,7 @@ message RaceResultEntrySaveRequest {
     optional uint32 f6 = 6;
     optional string f7 = 7;
     //8-13 absent
-    optional uint32 f14 = 14;
+    optional uint32 bib_num = 14;
     optional bool is_cheater = 15;
     optional bool is_sandbagger = 16;
     optional RaceResultDeviceInfo device = 17;

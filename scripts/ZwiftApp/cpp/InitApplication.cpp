@@ -117,14 +117,6 @@ void ScrollCallback(GLFWwindow *wnd, double, double dir) { //mouse scrolling
 void CursorPosCallback(GLFWwindow *, double, double) {
     //TODO
 }
-void SetIcon() {
-    auto icon = LoadIconW(GetModuleHandleW(nullptr), (LPCWSTR)IDI_ZWIFTAPP);
-    if (icon) {
-        auto hwnd = glfwGetWin32Window(g_mainWindow);
-        SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)icon);
-        DestroyIcon(icon);
-    }
-}
 #include "optionparser.h"
 enum optionIndex { UNKNOWN, LAUNCHER, TOKEN };
 const option::Descriptor        g_countOptsMetadata[] = {
@@ -185,7 +177,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         Downloader::Instance()->SetLocalPath(downloadPath);
     }
     Downloader::Instance()->SetServerURLPath("https://cdn.zwift.com/gameassets/");
-    Downloader::Instance()->Download("MapSchedule_v2.xml", 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
+    Downloader::Instance()->DownloadFptr("MapSchedule_v2.xml", 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
     //OMIT: check GFX driver if no "<data>\Zwift\olddriver.ok" exist
     Downloader::Instance()->Update();
     //moved up so logging early stages is available too
@@ -914,25 +906,54 @@ void ShutdownSingletons() {
     if (EventSystem::IsInitialized())
         EventSystem::Destroy();
 }
-ZwiftAppKeyProcessorManager *ZwiftAppKeyProcessorManager::Instance() {
-    static ZwiftAppKeyProcessorManager g_ZwiftAppKeyProcessorManager;
-    return &g_ZwiftAppKeyProcessorManager;
-}
-void ZwiftAppKeyProcessorManager::Init() {
-    m_stack.Push(&m_goKP);
-    m_stack.Push(&m_guiKP);
-}
-bool GUIKeyProcessor::ProcessKey(int a2, int a3) {
-    return GUI_Key(a2, a3);
-}
-bool GoKeyProcessor::ProcessKey(int, int) {
-    //TODO
-    return false;
-}
-void KeyProcessorStack::Push(IKeyProcessor *p) {
-    m_data.push_back(p);
-}
-bool KeyProcessorStack::ProcessKey(int, int) {
-    //TODO
-    return false;
+
+//Unit Tests
+TEST(SmokeTestNet, Linkage) { //testing if libs are linked properly
+    AK::MemoryMgr::GetDefaultSettings(g_memSettings);             //Wwize, not debuggable
+    Noesis::GUI::SetLicense("NS_LICENSE_NAME", "NS_LICENSE_KEY"); //NOESIS, not debuggable
+    EXPECT_TRUE(g_memSettings.pfAllocVM != nullptr) << "AK::MemoryMgr";
+
+    protobuf::FeatureRequest fr; //Google protobuf
+    fr.set_str_player_id("123");
+    auto bs = fr.ByteSizeLong();
+    EXPECT_EQ(5, bs) << "protobuf::ByteSize";
+
+    boost::asio::io_context        io_context; //boost ASIO, openssl
+    boost::asio::ip::tcp::resolver resolver(io_context);
+    boost::asio::ssl::context      ctx(boost::asio::ssl::context::sslv23);
+    auto iocr = io_context.run(); //nothing to do
+    EXPECT_EQ(0, iocr) << "io_context.run";
+
+    z_stream strm{}; //zlib
+    auto     di = deflateInit(&strm, 6);
+    EXPECT_EQ(0, di) << "deflateInit";
+    deflateEnd(&strm);
+
+    tinyxml2::XMLDocument doc; //tinyxml2
+    auto err_xml = doc.LoadFile("");
+    EXPECT_EQ(tinyxml2::XML_ERROR_FILE_NOT_FOUND, err_xml) << "doc.LoadFile";
+
+    auto curl = curl_easy_init(); //curl
+    EXPECT_TRUE(curl != nullptr) << "curl_easy_init";
+    curl_easy_cleanup(curl);
+
+    //auto dec = decContextTestEndian(0); //decNumber
+    //EXPECT_EQ(0, dec) << "decContextTestEndian";
+
+    UErrorCode uc_err = U_AMBIGUOUS_ALIAS_WARNING; //ICU
+    auto       conv = ucnv_open("utf-8", &uc_err);
+    EXPECT_EQ(U_AMBIGUOUS_ALIAS_WARNING, uc_err) << "ucnv_open err";
+    EXPECT_TRUE(conv != nullptr) << "ucnv_open";
+    ucnv_close(conv);
+
+    Json::Value json(123); //jsoncpp
+    std::string jss(json.toStyledString());
+    EXPECT_STREQ("123\n", jss.c_str()) << "json.toStyledString";
+
+    auto hMainWindow = glfwGetWin32Window(g_mainWindow); //glfw
+    EXPECT_TRUE(hMainWindow == nullptr) << "glfwGetWin32Window";
+
+    char openssl_err[128];
+    ERR_error_string_n(SSL_ERROR_WANT_READ, openssl_err, sizeof(openssl_err));
+    EXPECT_STREQ("error:00000002:lib(0)::reason(2)", openssl_err) << "SSL_ERROR_WANT_READ";
 }

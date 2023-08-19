@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing
 struct Downloader {
     std::string m_locp, m_urlp;
     struct CurrentFile;
@@ -51,9 +51,10 @@ struct Downloader {
     ~Downloader();
     void SetLocalPath(const char *lp) { m_locp = lp; }
     void SetServerURLPath(const char *up) { m_urlp = up; }
-    void Download(const char *name, std::function<void(const char *)>);
-    void Download(const std::string &name, uint64_t, int64_t, uint32_t, void (*)(const std::string &, int));
-    bool Download/*IDA: DownloadStr*/(const std::string &name, std::function<void(const char *)> f, void (*cb)(const std::string &, int));
+    void DownloadCStr(const char *name, std::function<void(const char *)>);
+    void DownloadFptr(const std::string &name, uint64_t, int64_t, uint32_t, void (*)(const std::string &, int));
+    bool DownloadStr(const std::string &name, std::function<void(const char *)> f, void (*cb)(const std::string &, int));
+    //not found void DownloadVec(std::vector<std::string>, std::vector<uint64_t>, std::vector<int64_t>, std::vector<uint32_t>);
     bool EnsurePath(std::string path);
     static size_t CurlWriteData(char *ptr, size_t size, size_t nmemb, void *userdata);
     size_t GetUserDownloadsPath(char *downDir);
@@ -62,24 +63,23 @@ struct Downloader {
     void ForgetAllCompleted();
     std::string PrintState();
     void Update();
-    //bool Completed(const std::string &path)
+    int Completed(const std::string &path);
     bool CompletedSuccessfully(const std::string &);
-    //void GetCompletedFileByName(const std::string &);
-    void CancelDownload(const char *);
-    void Download(std::vector<std::string>, std::vector<uint64_t>, std::vector<int64_t>, std::vector<uint32_t>);
+    //inlined void GetCompletedFileByName(const std::string &);
+    void CancelDownload(const std::string &file);
     void ForgetCompletedWorkout(const std::string &);
-    void FullyCompleted();
-    void FullyCompletedSuccessfully();
-    void GetCurrentByFile(FILE *, uint64_t *);
-    void GetCurrentByHandle(void *, uint64_t *);
-    void GetCurrentFileByName(const std::string &);
-    void GetFileCurLengthCompleted();
+    bool FullyCompleted();
+    //not found bool FullyCompletedSuccessfully();
+    //not found void GetCurrentByFile(FILE *, uint64_t *);
+    //not found void GetCurrentByHandle(void *, uint64_t *);
+    //not found void GetCurrentFileByName(const std::string &);
+    //not found void GetFileCurLengthCompleted();
     uint64_t GetFileCurLengthTotal();
-    void GetPendingFileByName(const std::string &);
-    bool InternetConnected();
-    bool IsInProgress(const std::string &, std::function<void(const char *)>, void (*)(std::string, int));
-    void SetDebugMessage(char *);
-    void SetLastModDate(FILE *, int64_t, const std::string &);
+    //not found void GetPendingFileByName(const std::string &);
+    //not found bool InternetConnected();
+    //inlined bool IsInProgress(const std::string &, std::function<void(const char *)>, void (*)(std::string, int));
+    //not found void SetDebugMessage(char *);
+    //inlined void SetLastModDate(FILE *, int64_t, const std::string &);
     static Downloader *Instance() {
         static Downloader g_mDownloader;
         return &g_mDownloader;

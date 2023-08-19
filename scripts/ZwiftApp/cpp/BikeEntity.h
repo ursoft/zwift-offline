@@ -238,7 +238,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
     int m_rxRideons = 0, m_field_1814 = -1 /*not sure*/, m_field_8F0 = 0, m_field_940 = 0;
     float m_field_AA8 = 0.0f, m_field_8EC = 0.0f, m_field_500 = 0.0f;
     int32_t m_field_AAC = 0, m_field_3D4 = 0 /*enum*/, m_field_3CC = 0 /*enum*/, m_field_13C = 0;
-    uint32_t m_race_f14 = 0, m_fwGdeSignature = 0, m_rwGdeSignature = 0, m_yellowJersey = 0;
+    uint32_t m_raceBibNumber = 0, m_fwGdeSignature = 0, m_rwGdeSignature = 0, m_yellowJersey = 0;
     protobuf::POWERUP_TYPE m_pendPU = protobuf::POWERUP_NONE;
     int32_t m_skillWKG = -1, m_eventPos = 0, m_field_11DC = 0, m_msToLeader = 0;
     float m_field_59C = 0.0f, m_field_5A0 = 1.0f;

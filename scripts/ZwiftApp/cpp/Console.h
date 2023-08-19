@@ -167,6 +167,33 @@ inline bool            g_bShowConsole
     = true
 #endif
 ;
+struct IKeyProcessor {
+    virtual bool ProcessKey(int, int) = 0;
+};
+struct GUIKeyProcessor : public IKeyProcessor {
+    bool ProcessKey(int, int) override;
+};
+struct GoKeyProcessor : public IKeyProcessor {
+    bool ProcessKey(int, int) override;
+};
+struct KeyProcessorStack {
+    std::vector<IKeyProcessor *> m_data;
+    //~KeyProcessorStack();
+    //void RemoveAllKeyProcessors();
+    //void Remove(IKeyProcessor *);
+    void Push(IKeyProcessor *);
+    bool ProcessKey(int, int);
+    //void Pop();
+    //void Find(IKeyProcessor const*,std::vector<IKeyProcessor*> &)
+};
+struct ZwiftAppKeyProcessorManager {
+    GUIKeyProcessor   m_guiKP;
+    GoKeyProcessor    m_goKP;
+    KeyProcessorStack m_stack;
+    //ZwiftAppKeyProcessorManager(); - 0's all
+    static ZwiftAppKeyProcessorManager *Instance();
+    void Init();
+};
 
 bool COMMAND_RunCommandsFromFile(const char *name);
 bool COMMAND_RunCommand(const char *cmd);
@@ -176,14 +203,3 @@ void CONSOLE_KeyPress(int codePoint, int keyModifiers);
 void CONSOLE_Paste(int cmdLen);
 bool CMD_PlayWem(const char *);
 bool CMD_PlayWemLocal(const char *);
-
-//non-zwift: console redirection (useful for debugging and unit testing)
-namespace non_zwift {
-struct ConsoleHandler {
-    bool m_releaseNeed;
-public:
-    ConsoleHandler(int16_t minLength);
-    bool LaunchUnitTests(int argc, char **argv);
-    ~ConsoleHandler();
-};
-}

@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing
 struct InstancedObjects;
 struct GDE_Header_360;
 enum PlayerProfileUpdateType { PUT_FULL /*PlayerBikeFullProfileUpdate*/, PUT_LIMITED /*PlayerBikeLimitedProfileUpdate*/, PUT_NETWORKED /*NetworkedBikeProfileUpdate*/, PUT_OTHER /*PlayerProfileUpdate*/ };

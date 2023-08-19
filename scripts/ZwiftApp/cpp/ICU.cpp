@@ -1,4 +1,6 @@
-#include "ZwiftApp.h"
+//#include "ZwiftApp.h" //READY for testing
+#include "ICU.h"
+#include "Logging.h"
 bool g_ICU_open_fail_logged, g_ToUTF8_NullFail_logged, g_ToUTF8_TruncFail_logged, g_ToUTF8_Conv_fail_logged, g_FromUTF8_NullFail_logged, g_FromUTF8_Conv_fail_logged;
 UConverter *g_utfConverter;
 bool InitICUBase() {

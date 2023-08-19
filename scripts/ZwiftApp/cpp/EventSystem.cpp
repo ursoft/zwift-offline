@@ -1,4 +1,5 @@
-#include "ZwiftApp.h"
+//#include "ZwiftApp.h" //READY for testing
+#include "EventSystem.h"
 EventSystem::EventSystem() {}
 EventSystem::~EventSystem() {}
 EventSystem *EventSystem::GetInst() {

@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing (omitted)
 struct EventSystem;
 enum EVENT_ID;
 struct CrashReporting { //432 bytes, OMIT

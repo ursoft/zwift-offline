@@ -1,4 +1,5 @@
-#include "ZwiftApp.h"
+#include "DateTime.h" //READY for testing
+#include "Logging.h"
 static const char *fmt8601 = "%Y-%m-%dT%H:%M:%SZ";
 DateTime DateTime::fromIso8601StringUtc(const std::string &sdt) {
     int Y, m, d, H = 0, M = 0, S = 0;

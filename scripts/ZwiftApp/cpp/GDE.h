@@ -211,10 +211,6 @@ struct GDE_Mesh_SKIN { //0x108 (264) bytes, GMK_SKIN
     uint32_t m_morphCnt;
     GDE_Mesh_SKIN_Morph *m_morphData;
 };
-struct Sphere { //16 bytes
-    VEC3 m_center;
-    float m_radius;
-};
 struct GDE_Mesh_VERT_BUF { //0x1F8 (504) bytes
     uint32_t m_version;
     int32_t m_lodMax;
@@ -398,3 +394,21 @@ int GDEMESH_GetFreeMeshResourceHandle();
 GDE_Header_360 *GDEMESH_GetMesh(int handle);
 Sphere *GDEMESH_GetMeshBounds(Sphere *ret, int handle);
 void GDE_FreeRuntime(GDE_Header_360 *h);
+void GDE_UpgradeMesh(GDE_Mesh_VERT_BUF *pMesh);
+/* TODO:
+GDEMESH_Destroy(void)
+GDEMESH_Disable2UVShaderChange(bool)
+GDEMESH_DoVisTests(uint,ulong long,ClipPlanes const*,uchar *)
+GDEMESH_GetFilename(int)
+GDEMESH_GetPackedBoneMatrix(MATRIX44 *,uint const*,uint)
+GDEMESH_MeshNeedsAlphaPass(GDE_Header_360 const*)
+GDEMESH_RenderSkinMesh_Group(GDE_360_SKINDATA_LOD const*,GDE_360_SKIN_STRIP const*)
+GDEMESH_RenderTieMesh_Group(GDE_360_TIE_LOD const*,GDE_360_TIE_STRIPGROUP const*)
+GDEMESH_SetForceTransparent(bool,MaterialBlendMode)
+GDEMESH_SetMainMesh(uint)
+GDEMESH_SetVisPlanes(ClipPlanes const*)
+GDEMESH_SetVisStateRecursivly(GDE_360_MESHQUADTREE *,VIS_RESULT,VIS_RESULT*)
+GDEMESH_StaticMeshVisCheck(GDE_360_MESHQUADTREE *,ClipPlanes const*,VIS_RESULT *)
+GDEMESH_UploadBoneMatrices(GDE_360_SKIN_STRIP const*,uint const*)
+GDE_RenderMesh(GDE_Header_360 const*,uint,ulong long,bool,VEC4)
+GDE_RenderMeshInstances(GDE_Header_360 const*,uchar,ulong long,bool,uint,MATRIX44 *,VEC4 *,VEC2 *)*/

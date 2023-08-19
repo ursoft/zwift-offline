@@ -1,4 +1,5 @@
 #pragma once //READY for testing
+struct TextureOverrides;
 struct HeightMapTile { //0x418 bytes
     static inline int s_GroundVBOHandles[]{ -1,-1,-1,-1 }, s_GroundIBOHandles[]{ -1,-1,-1,-1 }, s_GroundVAOHandle{ -1 }, s_nGroundVertices[4], s_nGroundSubtileIndices[4], s_nGroundIndices[4], s_GroundSubtileIndexOffset[256],
         s_GroundSubtileMinIndex[256], s_GroundSubtileMaxIndex[256];
@@ -9,7 +10,7 @@ struct HeightMapTile { //0x418 bytes
     uint64_t m_time = 0;
     uint8_t *m_AOData = nullptr;
     float m_dyNorm[8][8]{}; //нормированный перепад высот
-    int m_buffers[4], m_texs2[2], m_texs6[6], m_idx /*TODO: enum?*/, m_shaderId = 0, m_texOverrideKey = 0, m_field_3DC = 0;
+    int m_buffers[4], m_texs2[2], m_texs6[6], m_idx /*QUEST: enum?*/, m_shaderId = 0, m_texOverrideKey = 0, m_field_3DC = 0;
     float *m_heights = nullptr, m_columns, m_rows, m_dx, m_dz, m_centerXscaled, m_centerZscaled, m_minX, m_minZ, m_maxX, m_maxZ,
         m_minY = 1'000'000'000.0f, m_maxY = -1'000'000'000.0f;
     VEC2 m_rangesY[8][8], m_centerXZ;

@@ -3712,6 +3712,24 @@ void TEXMGR_OverrideHWHandle(int texh, uint32_t id) {
     if (texh <= _countof(g_Textures))
         g_Textures[texh].m_glid = id;
 }
+int GFX_GetTextureWidth(int texh) {
+    if (texh < g_nTexturesLoaded && texh != -1) {
+        auto v1 = &g_Textures[texh];
+        if (v1)
+            return v1->m_bestWidth;
+        zassert(0);
+    }
+    return 0;
+}
+int GFX_GetTextureHeight(int texh) {
+    if (texh < g_nTexturesLoaded && texh != -1) {
+        auto v1 = &g_Textures[texh];
+        if (v1)
+            return v1->m_bestHeight;
+        zassert(0);
+    }
+    return 0;
+}
 
 //Unit Tests
 TEST(SmokeTest, DISABLED_VertexArray) {

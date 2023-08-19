@@ -12,8 +12,8 @@
 //_mm_shuffle_ps(v2, v2, 255=0b11111111) -> v2[3] in all
 //_mm_shuffle_ps(v2, v2, 85 =0b01010101) -> v2[1] in all
 //_mm_shuffle_ps(v2, v2, 170=0b10101010) -> v2[2] in all
+static inline const int INVALID_TEXTURE_HANDLE = -1;
 enum GFX_RenderPass { GRP_CNT };
-enum AssetCategory : uint32_t { AC_UNK, AC_1, AC_2, AC_CNT };
 enum GFX_FILL_MODE { GFM_POINT, GFM_LINE, GFM_FILL, GFM_FALSE, GFM_CNT };
 enum GFX_COMPARE_FUNC : uint8_t { GCF_NEVER, GCF_LESS, GCF_EQUAL, GCF_LEQUAL, GCF_GREATER, GCF_NOTEQUAL, GCF_GEQUAL, GCF_ALWAYS, GCF_CNT };
 enum GFX_StencilOp : uint8_t { GSO_FALSE_0, GSO_KEEP, GSO_REPLACE, GSO_INCR, GSO_INCR_WRAP, GSO_DECR, GSO_DECR_WRAP, GSO_INVERT, GSO_FALSE_8, GSO_FALSE_9, GSO_FALSE_10, GSO_CNT };
@@ -31,7 +31,15 @@ inline const GLenum g_PRIM_TO_GLPRIM[GPT_CNT] = { GL_FALSE, GL_TRUE, GL_LINE_STR
 inline const GLenum g_GFX_TO_GL_TEXTURE_ADDRESS_MODE[TWM_CNT] = { GL_REPEAT, GL_CLAMP_TO_EDGE, GL_MIRRORED_REPEAT, GL_CLAMP_TO_BORDER };
 inline const GLenum g_IF_TO_GLIF[GIF_CNT] = { GL_UNSIGNED_SHORT, GL_UNSIGNED_INT };
 struct DRAW_VERT_POS_COLOR_1UV { enum { MULT = 24, VAO = 2 }; };
-struct DRAW_VERT_POS_COLOR_UV { enum { MULT = 32, VAO = 1 }; };
+struct DRAW_VERT_POS_COLOR_UV { //32 bytes
+    enum { MULT = 32, VAO = 1 }; 
+    VEC3 m_pos;
+    uint32_t m_color;
+    float m_field_10;
+    float m_field_14;
+    float field_18;
+    float field_1C;
+};
 struct DRAW_VERT_POS_COLOR { //16 bytes 
     enum { MULT = 16, VAO = 0 }; 
     VEC2 m_point;
@@ -285,8 +293,6 @@ inline char g_strCPU[0x40];
 inline int g_BlurShaderHandle = -1, g_CurrentShaderHandle = -1;
 enum DetailedRender { DR_NO, DR_MIDDLE, DR_VERBOSE };
 inline DetailedRender g_renderDetailed = DR_VERBOSE;
-inline GLFWwindow *g_mainWindow;
-inline bool g_MaintainFullscreenForBroadcast = true, g_removeFanviewHints, g_bShutdown, g_WorkoutDistortion, g_openglFail;
 inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h, g_Aniso = 1.0f, g_instantaniousFPS, g_smoothedFPS, g_SecondsUnplugged, g_TargetBatteryFPS, g_TotalRenderTime;
 inline int g_width, g_height, g_bFullScreen, g_nShadersLoaded, g_TotalShaderCreationTime;
 inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_gfxTier, g_DrawPrimVBO, g_nTotalFrames;
@@ -654,8 +660,8 @@ void GFX_GetSrcBlend();
 void GFX_GetTargetSize(RenderTarget *);
 void GFX_GetTexture(uint32_t);
 void GFX_GetTextureDef(int);
-void GFX_GetTextureHeight(int);
-void GFX_GetTextureWidth(int);
+int GFX_GetTextureHeight(int);
+int GFX_GetTextureWidth(int h);
 void GFX_GetThread();
 void GFX_GetThreadList();
 void GFX_GetTotalAppTimeSeconds();
@@ -794,9 +800,9 @@ void GFX_Present();
 void GFX_PushMatrix();
 void GFX_PushStates();
 void GFX_PushUIScissor();
-enum GFX_API { GA_0 };
-struct GFX_API_Version {};
-void GFX_QueryAPI(GFX_API, GFX_API_Version *);
+//OMIT enum GFX_API { GA_0 };
+//struct GFX_API_Version {};
+//void GFX_QueryAPI(GFX_API, GFX_API_Version *);
 void GFX_ReadPixels(const GFX_ReadPixelsParams &);
 void GFX_ReplaceTextureWithRGBA(int, uint32_t, uint32_t, void *);
 void GFX_RotateX(float);

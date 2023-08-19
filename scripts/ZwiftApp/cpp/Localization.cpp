@@ -1,32 +1,34 @@
-#include "ZwiftApp.h"
+#include "ZwiftApp.h" //READY for testing
 struct TextHelper {
     std::string m_ansi;
     std::u16string m_ustring;
 };
 typedef std::map<uint32_t, TextHelper> LocalizationMap;
 LocalizationMap g_LocalizationMap[LOC_CNT];
-std::map<uint32_t, uint32_t> g_LoadedStringTableToElementsMap;
+std::map<uint32_t, std::vector<uint32_t>> g_LoadedStringTableToElementsMap;
 void LOC_Shutdown() {
     for (auto &p : g_LocalizationMap) 
         p.clear();
 }
-const char *g_langs[LOC_CNT] = { "en", "fr", "it", "de", "es", "ja", "nl", "ko", "zh" };
+const char *g_LocalizedLangs[LOC_CNT] = { "en", "fr", "it", "de", "es", "ja", "nl", "ko", "zh" };
 LOC_LANGS LOC_GetLanguageFromString(const char *lang) {
-    for (int i = 0; i < _countof(g_langs); i++) {
-        if (nullptr != strstr(lang, g_langs[i]))
+    for (int i = 0; i < _countof(g_LocalizedLangs); i++) {
+        if (nullptr != strstr(lang, g_LocalizedLangs[i]))
             return (LOC_LANGS)i;
     }
     return LOC_CNT;
 }
-bool byte_7FF6A22E02F9, byte_7FF6A2342FE9; //TODO
+const char *LOC_GetLanguage() {
+    return g_LocalizedLangs[g_CurrentLanguage];
+}
 void LOC_SetLanguageFromEnum(LOC_LANGS l, bool cb) {
     if (g_CurrentLanguage != l) {
         g_CurrentLanguage = l;
-        if (byte_7FF6A22E02F9) {
+        if (g_GiantFontW.m_loadedV3) {
             g_GiantFontW.LoadLanguageTextures(l);
             l = g_CurrentLanguage;
         }
-        if (byte_7FF6A2342FE9)
+        if (g_LargeFontW.m_loadedV3)
             g_LargeFontW.LoadLanguageTextures(l);
         if (g_languageChangeCallback && cb)
             g_languageChangeCallback(l);
@@ -54,41 +56,13 @@ void LanguageChangeCallback(LOC_LANGS lang) {
     g_LargeFontW.Load(FS_FONDO_MED);
     g_GiantFontW.Load(FS_FONDO_BLACK);
     g_LargeFontW.SetHeadAndBaseLines(14.0f, 20.0f);
+    auto el = g_UserConfigDoc.FindElement("ZWIFT\\CONFIG\\LANGUAGE", true);
+    if (el)
+        el->SetText(LOC_GetLanguage());
+    g_UserConfigDoc.Save();
+    HUD_UpdateChatFont();
+    HUD_RefreshText();
 #if 0 //TODO
-    v0 = &g_LargeFontW;
-    v1 = sub_7FF6A13588A0();
-    Element = XMLDoc::FindElement(&g_UserConfigDoc, "ZWIFT\\CONFIG\\LANGUAGE", 1);
-    if (Element)
-        xml::set_text(Element, v1);
-    v3 = XMLDoc::FindElement(&g_UserConfigDoc, "ZWIFT\\CONFIG\\LANGUAGE", 0);
-    v4 = v3;
-    if (v3)
-    {
-        firstChild = v3->node._firstChild;
-        if (firstChild)
-        {
-            if ((*((__int64(__fastcall **)(XMLNode *))firstChild->vptr + 2))(firstChild))
-            {
-                v6 = (*((__int64(__fastcall **)(XMLNode *))v4->node._firstChild->vptr + 2))(v4->node._firstChild);
-                StrPair::GetStr(v6 + 24);
-            }
-        }
-    }
-    (*((void(__fastcall **)(XMLDoc *, char *, _QWORD))g_UserConfigDoc.vptr + 2))(&g_UserConfigDoc, aCUsersBuilderD, 0i64);
-    if (LOC_GetLanguageIndex() != LOC_JAPAN)
-        v0 = &g_GiantFontW;
-    g_ChatFontGW = v0;
-    if (g_pDialogs[15])
-        sub_7FF6A10485E0(g_pDialogs[15]);
-    v7 = sub_7FF6A13588A0();
-    v18._Bx._Ptr = 0i64;
-    v18._Mysize = 0i64;
-    v18._Myres = 15i64;
-    v8 = -1i64;
-    do
-        ++v8;
-    while (*((_BYTE *)v7 + v8));
-    string_assign(&v18, (char *)v7, v8);
     v17 = 0i64;
     v9 = *((_QWORD *)&xmmword_7FF6A2346A00 + 1);
     if (*((_QWORD *)&xmmword_7FF6A2346A00 + 1))
@@ -105,34 +79,23 @@ void LanguageChangeCallback(LOC_LANGS lang) {
                 if (!v10)
                     goto LABEL_19;
             }
-            v17 = xmmword_7FF6A2346A00;
+            v17 = pChangeLanguageSignal;
         }
     }
 LABEL_19:
     if ((_QWORD)v17)
-        sub_7FF6A0B9C460(v17, v9);
-    if (*((_QWORD *)&v17 + 1))
-    {
-        if (_InterlockedExchangeAdd((volatile signed __int32 *)(*((_QWORD *)&v17 + 1) + 8i64), 0xFFFFFFFF) == 1)
-        {
-            (***((void(__fastcall ****)(_QWORD)) & v17 + 1))(*((_QWORD *)&v17 + 1));
-            if (_InterlockedExchangeAdd((volatile signed __int32 *)(*((_QWORD *)&v17 + 1) + 12i64), 0xFFFFFFFF) == 1)
-                (*(void(__fastcall **)(_QWORD))(**((_QWORD **)&v17 + 1) + 8i64))(*((_QWORD *)&v17 + 1));
-        }
-    }
-    if (ZNETWORK_IsLoggedIn()) {
-        m_mainBike = BikeManager::g_pBikeManager->m_mainBike;
-        *(_DWORD *)&m_mainBike->field_11F8[504] |= 0x200u;
-        v14 = (_QWORD *)(*(_QWORD *)&m_mainBike->field_11F8[496] & 0xFFFFFFFFFFFFFFFCui64);
-        if ((m_mainBike->field_11F8[496] & 1) != 0)
-            v14 = (_QWORD *)*v14;
-        sub_7FF6A1526300((unsigned __int64 *)&m_mainBike->field_13F8[208], v18._Bx._Buf, (__int64)v14);
-        BikeEntity::SaveProfile(BikeManager::g_pBikeManager->m_mainBike, 1u, 0);
-    }
-    result = sub_7FF6A0B7A0F0(v12, (boost::math::detail *)&v18);
+        IoCpp::Notifier::NotifyObservers(v17, v9);
 #endif
+    if (ZNETWORK_IsLoggedIn()) {
+        auto mb = BikeManager::Instance()->m_mainBike;
+        mb->m_profile.set_preferred_language(LOC_GetLanguage());
+        mb->SaveProfile(true, false);
+    }
+    //OMIT CrashReporting::SetLanguage
 }
 void LOC_ProcessXmlDoc(tinyxml2::XMLDocument *doc, uint32_t fileNameCI) {
+    auto &vec = g_LoadedStringTableToElementsMap[fileNameCI];
+    bool fillVec = vec.empty();
     for (auto i = doc->FirstChildElement(); i; i = i->NextSiblingElement()) {
         auto val = i->Value();
         if (*val == 'Z' && val[1] == 'L' && !val[2]) {
@@ -141,8 +104,8 @@ void LOC_ProcessXmlDoc(tinyxml2::XMLDocument *doc, uint32_t fileNameCI) {
                 if (v6) {
                     auto v7 = v6->Attribute("LOC_ID");
                     auto v8 = SIG_CalcCaseInsensitiveSignature(v7);
-                    if (fileNameCI && !g_LocalizationMap->contains(v8))
-                        g_LoadedStringTableToElementsMap[fileNameCI] = v8;
+                    if (fillVec)
+                        vec.push_back(v8);
                     auto v17 = j->LastChildElement();
                     auto v18 = 0;
                     while (v17) {
@@ -221,4 +184,19 @@ const UChar *GetTextW(const char *loc_name) {
     if (*result == u'%' && result[1] == u'n' && !result[2])
         return u"";
     return result;
+}
+bool LOC_StringKeyExists(const char *key, LOC_LANGS lang) {
+    return g_LocalizationMap[lang].contains(SIG_CalcCaseInsensitiveSignature(key));
+}
+void LOC_UnloadStringTable(const char *name) {
+    if (name && *name) {
+        auto v1 = SIG_CalcCaseInsensitiveSignature(name);
+        auto f = g_LoadedStringTableToElementsMap.find(v1);
+        if (f != g_LoadedStringTableToElementsMap.end()) {
+            for (auto h : f->second)
+                for (auto &lang : g_LocalizationMap) 
+                    lang.erase(h);
+            g_LoadedStringTableToElementsMap.erase(f);
+        }
+    }
 }

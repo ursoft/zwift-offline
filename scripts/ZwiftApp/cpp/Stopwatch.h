@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing
 struct SteadyClock {
     inline static double g_perfPeriod;
     SteadyClock() {

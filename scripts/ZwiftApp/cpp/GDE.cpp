@@ -175,3 +175,9 @@ GDE_MeshItemData0_ext &GDE_MeshItemData0_ext::operator =(const GDE_MeshItemData0
     m_field_23 = src.m_field_23;
     return *this;
 }
+void GDE_UpgradeMesh(GDE_Mesh_VERT_BUF *pMesh) {
+    if (pMesh->m_version == 9) {
+        for (int i = 0; i < pMesh->m_lodMax; i++)
+            pMesh->m_data[i].m_itemKind = 4;
+    }
+}

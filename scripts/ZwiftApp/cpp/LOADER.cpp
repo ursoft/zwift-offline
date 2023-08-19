@@ -109,12 +109,6 @@ bool LOADER_IsValidCompAssetHeader(const char *data /*ZCompAssetHeader **/) {
 void LOADER_ListMeshResourceSizes() {
     //OMIT - not used ?
 }
-void GDE_UpgradeMesh(GDE_Mesh_VERT_BUF *pMesh) {
-    if (pMesh->m_version == 9) {
-        for (int i = 0; i < pMesh->m_lodMax; i++)
-            pMesh->m_data[i].m_itemKind = 4;
-    }
-}
 bool GFX_PerfPenalty() {
     return (g_GFX_PerformanceFlags & (GPF_BIG_PERF_PENALTY | GPF_SMALL_PERF_PENALTY)) != 0;
 }

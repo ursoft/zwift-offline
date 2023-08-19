@@ -89,7 +89,7 @@ struct RunPod_BLE : public BLEDevice { //0x878 bytes
         //later
     }
 };
-struct BLEModule : public EventObject {
+struct BLEModule {
     struct LegacyBLEImpl {
         void DidConnect(const char *, const char *);
         void DidReceiveError(const char *, const char *, BLE_ERROR_TYPE, uint32_t);
@@ -130,7 +130,6 @@ struct BLEModule : public EventObject {
     static bool IsInitialized() { return g_BLEModule.get() != nullptr; }
     static BLEModule *Instance() { zassert(g_BLEModule.get() != nullptr); return g_BLEModule.get(); }
     static void Shutdown();
-    void HandleEvent(EVENT_ID, va_list) override;
     void StopScan();
     void ProcessDiscovery(const protobuf::BLEAdvertisement &, BLE_SOURCE);
     void ProcessBLEResponse(const protobuf::BLEPeripheralResponse &, BLE_SOURCE);
@@ -160,3 +159,4 @@ struct BLEModule : public EventObject {
     void UnpairDevice(const BLEDevice &dev);
     void InitializeBLE();
 };
+void BLE_StopDeviceSearch();

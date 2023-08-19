@@ -2,6 +2,54 @@
 void ParseXMLMapSchedule() {
     //TODO
 }
+float g_AudioTime, g_audioRand = 352637.94f, g_audioNextTime = 25.0f;
+void GAME_AudioUpdate(GameWorld *, Camera *camera, float dtime) {
+    if (camera && g_pGameWorld) {
+        auto wd = g_pGameWorld->GetWorldDef();
+        auto v7 = camera->m_pos.m_data[1] - (wd ? wd->m_ws.m_seaLevel : 0.0f);
+        float v14, v15;
+        AUDIO_SetVariable("player_altitude", v7);
+        auto v9 = IsUnderWater(camera->m_pos);
+        AUDIO_SetVariable("underwater", v9);
+        AUDIO_SetVariable("rain_intensity", fmaxf((Weather::GetRainEffect() - 0.3333f) * 150.0f, 0.0f));
+        g_AudioTime += dtime;
+        switch (wd->m_WorldID) {
+        case WID_WATOPIA:
+            v14 = (VEC3{ -41478.875f, 12043.274f, 535491.38f } - camera->m_pos).len() / g_audioRand;
+            AUDIO_SetVariable("DesertScalar", v14);
+            if (g_AudioTime <= g_audioNextTime)
+                return;
+            g_AudioTime = 0.0f;
+            g_seed = 214013 * g_seed + 2531011;
+            v15 = (float)(HIWORD(g_seed) & 0x7FFF);
+            if (v14 < 1.0f) {
+                g_audioNextTime = v15 * 0.0051881466f + 30.0f;
+            } else {
+                g_audioNextTime = v15 * 0.0027466659f + 30.0f;
+                if (v9 <= 0.5f) {
+                    if (v7 < 1400.0f)
+                        AUDIO_Event("Play_Ambient_Coastal_Oneshots", 1, false);
+                    else if (v7 < 3500.0)
+                        AUDIO_Event("Play_Ambient_Forest_Oneshots", 1, true);
+                }
+            }
+            break;
+        case WID_RICHMOND:
+            if (g_AudioTime > g_audioNextTime) {
+                g_AudioTime = 0.0f;
+                g_seed = 214013 * g_seed + 2531011;
+                g_audioNextTime = (HIWORD(g_seed) & 0x7FFF) * 0.00061037019f + 15.0f;
+                if (v7 < 1400.0f)
+                    AUDIO_Event("Play_Ambient_Coastal_Oneshots", 1, false);
+                else if (v7 < 3500.0f)
+                    AUDIO_Event("Play_Ambient_Forest_Oneshots", 1, true);
+            }
+            break;
+        default:
+            break;
+        }
+    }
+}
 void GAME_onFinishedDownloadingMapSchedule(const std::string &filename, int err) {
     auto st = Downloader::Instance()->PrintState();
     Log("Game::GAME_onFinishedDownloadingMapSchedule filename=%s err=%d state: %s", filename.c_str(), err, st.c_str());

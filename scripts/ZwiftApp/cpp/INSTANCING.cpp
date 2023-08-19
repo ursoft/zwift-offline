@@ -187,15 +187,16 @@ void INSTANCING_OptimizeGrids() {
         }
         i.m_cnt = cnt;
     }
-    ZwiftLeaveCriticalSection(g_InstancingMutex);
+    ZMUTEX_Unlock(g_InstancingMutex);
 }
 void INSTANCING_RenderAll(InstancedObjects *, GFX_RenderPass, int) {
     //TODO
 }
-bool INSTANCING_TakeMutex() {
+void INSTANCING_TakeMutex() {
     if (g_InstancingMutex == -1)
         g_InstancingMutex = ZMUTEX_Create("INSTANCINGMUTEX");
-    return g_InstancingMutex != -1 && ZwiftEnterCriticalSection(g_InstancingMutex);
+    if (g_InstancingMutex != -1)
+        ZMUTEX_Lock(g_InstancingMutex);
 }
 void INSTANCING_UnloadAll() {
     for (auto pIO : g_InstancedObjectsLists) {

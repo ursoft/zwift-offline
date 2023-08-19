@@ -1,4 +1,4 @@
-#include "ZwiftApp.h"
+#include "Stopwatch.h" //READY for testing
 SteadyClock g_steadyClock;
 
 TEST(SmokeTest, Stopwatch100) {

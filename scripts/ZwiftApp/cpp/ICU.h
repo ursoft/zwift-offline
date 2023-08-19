@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing
 struct TempUTF16 {
     UChar m_chars[256];
     int m_wrCounter = 0;

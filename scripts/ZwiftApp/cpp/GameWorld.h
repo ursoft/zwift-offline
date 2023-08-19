@@ -67,7 +67,7 @@ struct GameWorld { //0x28 bytes
     };
     struct EventTags { //QUEST: where used
         std::string field_0, field_20;
-        std::vector<std:string> field_40, field_58, field_70, field_88;
+        std::vector<std::string> field_40, field_58, field_70, field_88;
     };
     struct WorldDef { //0x1E8 bytes
         WorldDef(WORLD_ID aWorldID = WID_NONE) : m_WorldID(aWorldID) {}

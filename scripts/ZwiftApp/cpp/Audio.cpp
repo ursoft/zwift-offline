@@ -1,4 +1,12 @@
-#include "ZwiftApp.h" //READY for testing
+//#include "ZwiftApp.h" //READY for testing
+#include "MAT.h"
+#include "Audio.h"
+#include "Logging.h"
+#include "CRC.h"
+#include "XMLDoc.h"
+#include "ZU.h"
+#include "OS.h"
+#include "Console.h"
 #include "AK/SoundEngine/Common/AkSoundEngine.h"
 #include "AK/SoundEngine/Common/AkStreamMgrModule.h"
 #include "AkDefaultIOHookBlocking.h"
@@ -296,54 +304,6 @@ void AUDIO_Shutdown() {
         g_soundInitialized = false;
     }
 }
-float g_AudioTime, g_audioRand = 352637.94f, g_audioNextTime = 25.0f;
-void GAME_AudioUpdate(GameWorld *, Camera *camera, float dtime) {
-    if (camera && g_pGameWorld) {
-        auto wd = g_pGameWorld->GetWorldDef();
-        auto v7 = camera->m_pos.m_data[1] - (wd ? wd->m_ws.m_seaLevel : 0.0f);
-        float v14, v15;
-        AUDIO_SetVariable("player_altitude", v7);
-        auto v9 = IsUnderWater(camera->m_pos);
-        AUDIO_SetVariable("underwater", v9);
-        AUDIO_SetVariable("rain_intensity", fmaxf((Weather::GetRainEffect() - 0.3333f) * 150.0f, 0.0f));
-        g_AudioTime += dtime;
-        switch (wd->m_WorldID) {
-        case WID_WATOPIA:
-            v14 = (VEC3{ -41478.875f, 12043.274f, 535491.38f } - camera->m_pos).len() / g_audioRand;
-            AUDIO_SetVariable("DesertScalar", v14);
-            if (g_AudioTime <= g_audioNextTime)
-                return;
-            g_AudioTime = 0.0f;
-            g_seed = 214013 * g_seed + 2531011;
-            v15 = (float)(HIWORD(g_seed) & 0x7FFF);
-            if (v14 < 1.0f) {
-                g_audioNextTime = v15 * 0.0051881466f + 30.0f;
-            } else {
-                g_audioNextTime = v15 * 0.0027466659f + 30.0f;
-                if (v9 <= 0.5f) {
-                    if (v7 < 1400.0f)
-                        AUDIO_Event("Play_Ambient_Coastal_Oneshots", 1, false);
-                    else if (v7 < 3500.0)
-                        AUDIO_Event("Play_Ambient_Forest_Oneshots", 1, true);
-                }
-            }
-            break;
-        case WID_RICHMOND:
-            if(g_AudioTime > g_audioNextTime) {
-                g_AudioTime = 0.0f;
-                g_seed = 214013 * g_seed + 2531011;
-                g_audioNextTime = (HIWORD(g_seed) & 0x7FFF) * 0.00061037019f + 15.0f;
-                if (v7 < 1400.0f)
-                    AUDIO_Event("Play_Ambient_Coastal_Oneshots", 1, false);
-                else if (v7 < 3500.0f)
-                    AUDIO_Event("Play_Ambient_Forest_Oneshots", 1, true);
-            }
-            break;
-        default:
-            break;
-        }
-    }
-}
 void AUDIO_Queue(float tm, const char *eventName, int objId /*AUDIO_PlayFlatFile:1, AUDIO_Event:a2 */, uint32_t ebId /*counter, 0*/, void *data/*,0*/, const char *flatName /*,""*/) {
     if (g_soundInitialized) {
         auto &v13 = g_audioQueue.emplace_back(audioQueueEntry{ ebId, tm, objId, 0, eventName, flatName, data != nullptr });
@@ -369,22 +329,7 @@ void AUDIO_Event(const char *name, int objId, bool vital) {
     }
 }
 int g_pffCounter;
-void HandleEventAudioCB(uint32_t id, uint32_t playId, int state) {
-    float vol = 50.0f;
-    switch (state) {
-    case 0:
-        g_pAudioController.reset(new UI_AudioControl(playId));
-        vol = fminf(g_UserConfigDoc.GetF32("ZWIFT\\CONFIG\\AMBIENT_VOL", 1.0f, true) * 100.0f, vol);
-        break;
-    case 3:
-        g_pAudioController.reset();
-        vol = g_UserConfigDoc.GetF32("ZWIFT\\CONFIG\\AMBIENT_VOL", 1.0f, true) * 100.0f;
-        break;
-    default:
-        return;
-    }
-    AUDIO_SetVariable("ambient_volume", vol);
-}
+void HandleEventAudioCB(uint32_t id, uint32_t playId, int state);
 bool AUDIO_HandleFailsafe() {
     if (g_audio_queue_failsafe++ >= 11) {
         if (g_audio_queue_failsafe > 40)

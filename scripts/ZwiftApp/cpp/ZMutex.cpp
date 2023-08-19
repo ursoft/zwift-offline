@@ -1,22 +1,23 @@
-#include "ZwiftApp.h"
+//#include "ZwiftApp.h" //READY for testing
+#include "ZMutex.h"
+#include "Logging.h"
 enum { ZM_CNT = 256 };
 bool g_CriticalSectionsAvailable[ZM_CNT];
 CRITICAL_SECTION g_CriticalSections[ZM_CNT];
 const char *g_MutexNames[ZM_CNT];
-void ZwiftLeaveCriticalSection(int idx) {
+void ZMUTEX_Unlock(int idx) {
     if (idx >= 0) {
         zassert(!g_CriticalSectionsAvailable[idx]);
         LeaveCriticalSection(g_CriticalSections + idx);
     }
 }
-bool ZwiftEnterCriticalSection(int idx) {
+void ZMUTEX_Lock(int idx) {
     if (idx >= 0) {
         zassert(!g_CriticalSectionsAvailable[idx]);
         EnterCriticalSection(g_CriticalSections + idx);
     }
-    return true;
 }
-void ZMUTEX_SystemShutdown() {
+void ZMUTEX_Shutdown() {
     for (int i = 0; i < ZM_CNT; ++i) {
         if (!g_CriticalSectionsAvailable[i]) {
             ::DeleteCriticalSection(g_CriticalSections + i);

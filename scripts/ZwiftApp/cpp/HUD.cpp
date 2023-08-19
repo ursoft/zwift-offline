@@ -24,3 +24,7 @@ void HUD_PushTextMessage(const ZNETWORK_TextMessage &msg) {
 void HUDToggle::ShowHUD(bool, bool) {
     //TODO
 }
+void HUD_RefreshText() {
+    /*TODO if (g_pDialogs[UID_PAUSED])
+        UI_PauseScreenDialog::RefreshText(g_pDialogs[UID_PAUSED]);*/
+}

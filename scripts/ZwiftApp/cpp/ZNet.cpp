@@ -7972,7 +7972,7 @@ std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double w_
     Log("RaceResult: (player) groupEvent %d seconds %3.2f for %3.2f meter", groupEvent, resultTimeInSeconds, data_f4, lj ? " (LJ)" : "");
     protobuf::RaceResultEntrySaveRequest rq;
     rq.set_late_join(lj);
-    rq.set_f14(pBike->m_race_f14);
+    rq.set_bib_num(pBike->m_raceBibNumber);
     rq.set_is_cheater(pBike->m_isCheater);
     rq.set_is_sandbagger(pBike->m_isSandbagger);
     auto data = rq.mutable_data();

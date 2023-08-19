@@ -1013,8 +1013,7 @@ void cbProcessBLEResponse(dllBLEPeripheralResponse *resp) {
 void BLEModule::Initialize(Experimentation *exp) {
     g_BLEModule.reset(new BLEModule(exp));
 }
-void BLEModule::HandleEvent(EVENT_ID, va_list) { /*TODO*/ }
-BLEModule::BLEModule(Experimentation *exp) : EventObject(exp->m_eventSystem) {
+BLEModule::BLEModule(Experimentation *exp) {
     exp->IsEnabled(FID_LOG_BLE, [this](ExpVariant val) {
         if (val == EXP_ENABLED) {
             Log("\nBLE Packet Logging is enabled.\n\n\n");
@@ -2513,4 +2512,16 @@ TEST_F(SmokeTestBLE, Tacx) {
     }
     if (ursoftTacxBle)
         BLEModule::Instance()->UnpairDevice(*ursoftTacxBle);
+}
+void BLE_StopDeviceSearch() {
+    if (g_BLESearchSources & BSS_BUILTIN) {
+        zassert(BLEModule::g_BLEModule.get());
+        if (BLEModule::g_BLEModule->HasBLE() && BLEModule::g_BLEModule->IsBLEAvailable())
+            BLEModule::g_BLEModule->StopScan();
+    }
+    if (g_BLESearchSources & BSS_ZCA) {
+        protobuf::BLEPeripheralRequest v1;
+        v1.set_type(protobuf::END_PERIPHERAL_DISCOVERY);
+        zwift_network::send_ble_peripheral_request(v1);
+    }
 }

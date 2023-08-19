@@ -614,8 +614,8 @@ struct memLeakAtExit {
 #endif
     }
     void Terminate() {
-        LogShutdown();
-        ZMUTEX_SystemShutdown();
+        SaveLog();
+        ZMUTEX_Shutdown();
         google::protobuf::ShutdownProtobufLibrary();
         u_cleanup();
 #if defined(_DEBUG)
@@ -658,8 +658,8 @@ bool CMD_SetLanguage(const char *lang) {
     return true;
 }
 void CONSOLE_DrawCmdline(const ConsoleRenderer &cr, const char *line) {
-    g_LargeFontW.RenderWString(cr.m_cmdX1, cr.m_cmdY, ">", 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
-    g_LargeFontW.RenderWString(cr.m_cmdX2, cr.m_cmdY, line, 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
+    g_LargeFontW.RenderWString_c(cr.m_cmdX1, cr.m_cmdY, ">", 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
+    g_LargeFontW.RenderWString_c(cr.m_cmdX2, cr.m_cmdY, line, 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
 }
 void CONSOLE_DrawPar(const ConsoleRenderer &cr, const char *str, int *lineNo, int lineCount, LOG_TYPE lineType) {
     auto ustr = ToUTF8_ib(str);
@@ -954,7 +954,7 @@ void CONSOLE_Draw(float atY, float dt) {
     auto banner = "Zwift Debug Console (toggle with ` key and Ctrl+F12; <tab> to autocomplete)";
     if (!g_Console.m_logBanner.empty())
         banner = g_Console.m_logBanner.c_str();
-    g_LargeFontW.RenderWString(15.0f, 0.0f, banner, 0xFFFFFF00, 0, 0.35f /*URSOFT FIX : was 0.4*/, true, false);
+    g_LargeFontW.RenderWString_c(15.0f, 0.0f, banner, 0xFFFFFF00, 0, 0.35f /*URSOFT FIX : was 0.4*/, true, false);
 }
 bool CMD_PlayWem(const char *) {
     //TODO
@@ -971,4 +971,26 @@ bool CMD_PlayWemLocal(const char *par) {
         AUDIO_PlayFlatFile(g_cmdPlayFileName, 0.0f);
     }
     return true;
+}
+ZwiftAppKeyProcessorManager *ZwiftAppKeyProcessorManager::Instance() {
+    static ZwiftAppKeyProcessorManager g_ZwiftAppKeyProcessorManager;
+    return &g_ZwiftAppKeyProcessorManager;
+}
+void ZwiftAppKeyProcessorManager::Init() {
+    m_stack.Push(&m_goKP);
+    m_stack.Push(&m_guiKP);
+}
+bool GUIKeyProcessor::ProcessKey(int a2, int a3) {
+    return GUI_Key(a2, a3);
+}
+bool GoKeyProcessor::ProcessKey(int, int) {
+    //TODO
+    return false;
+}
+void KeyProcessorStack::Push(IKeyProcessor *p) {
+    m_data.push_back(p);
+}
+bool KeyProcessorStack::ProcessKey(int, int) {
+    //TODO
+    return false;
 }

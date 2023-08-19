@@ -1,4 +1,4 @@
-#include "ZwiftApp.h"
+#include "ZwiftApp.h" //READY for testing (omitted)
 CrashReporting::CrashReporting(EventSystem *ptr) {
     //“ут регистрируютс€ (EventSystem::SubscribeObj) несколько событий - видимо, крашрепортеру это интересно.
     //“акже ему интересно, что за верси€ ZwifApp, и некоторые параметры системы.
@@ -11,5 +11,5 @@ void CrashReporting::Initialize(EventSystem *ptr) {
     g_CrashReportingUPtr.reset(new CrashReporting(ptr));
 }
 void CrashReporting::HandleEvent(EVENT_ID e, va_list va) {
-    //TODO
+    //OMIT
 }

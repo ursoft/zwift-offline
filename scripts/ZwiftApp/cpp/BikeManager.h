@@ -1,6 +1,7 @@
 #pragma once
 struct BikeEntity;
 struct PrivateAttributesHelper;
+struct zwiftUpdateContext;
 struct BikeManager { //0x9E98 bytes
     inline static std::unique_ptr<BikeManager> g_pBikeManager;
     std::vector<BikeEntity *> m_field_9D08, m_field_9CD8, m_field_9CF0;

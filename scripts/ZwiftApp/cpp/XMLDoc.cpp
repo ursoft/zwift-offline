@@ -1,5 +1,11 @@
 //UT Coverage: 99%, 636/639, ENOUGH (3 indulgenced) READY for testing
-#include "ZwiftApp.h"
+#include "CRC.h"
+#include "Logging.h"
+#include "ZStringUtil.h"
+#include "WADManager.h"
+#include "OS.h"
+#include "MAT.h"
+#include "XMLDoc.h"
 XMLDoc::XMLDoc() {
     //empty
 }

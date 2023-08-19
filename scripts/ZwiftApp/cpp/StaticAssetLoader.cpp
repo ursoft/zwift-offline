@@ -1,4 +1,4 @@
-#include "ZwiftApp.h"
+#include "ZwiftApp.h" //READY for testing
 int StaticAssetLoader::LoadGdeFile(const char *name, bool manyInsts) { //vtbl[1]
     return LOADER_LoadGdeFile(name, manyInsts);
 }

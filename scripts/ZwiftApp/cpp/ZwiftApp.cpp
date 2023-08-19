@@ -1,9 +1,11 @@
-#include "ZwiftApp.h"
+//#include "ZwiftApp.h" //READY for testing
+#include "ZU.h" //zwiftUpdateContext, non_zwift
+#include "../res/resource.h"
 #define MAX_LOADSTRING 100
 HINSTANCE        hInst;                         // current instance
 WCHAR            szTitle[MAX_LOADSTRING];       // The title bar text
 WCHAR            szWindowClass[MAX_LOADSTRING]; // the main window class name
-ATOM                MyRegisterClass(HINSTANCE hInstance);
+ATOM MyRegisterClass(HINSTANCE hInstance);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 void CheckEnvironment() {
@@ -161,14 +163,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     }
     return 0;
 }
-void ZwiftExit(int code) {
-    GameCritical::AbortJobs();
-    //using namespace std::chrono_literals;
-    //std::this_thread::sleep_for(5000ms); //бред!
-    AUDIO_Shutdown();
-    ShutdownSingletons();
-    exit(code);
-}
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
     UNREFERENCED_PARAMETER(lParam);
     switch (message) {
@@ -183,175 +177,15 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
     }
     return (INT_PTR)FALSE;
 }
-bool g_bDisableConsoleRendering;
-void Render(double tim) {
-    //TODO
-    if (!g_bDisableConsoleRendering /*read-only*/ && g_bShowConsole)
-        CONSOLE_Draw(0.0f, 0.03333333333f);
-    //TODO
-}
-void LoadingRender(float time, const UChar *text) {
-    if (time <= 1.0) {
-        GFX_UploadShaderVEC4(GSR_24, g_Vec4White, 0);
-        GFX_SetScissorTestEnable(false);
-        static auto g_seeThroughHandle = GFX_CreateTextureFromTGAFile("UI/z_logo_see_through.tga", -1, true);
-        int         width = 1280, height = 720;
-        glfwGetWindowSize(g_mainWindow, &width, &height);
-        glViewport(0, 0, width, height);
-        width = 1280;
-        height = 720;
-        GFX_SetDepthTestEnable(false);
-        GFX_SetDepthWrite(false);
-        GFX_SetBlendFunc(GBO_FUNC_ADD, GB_SRC_ALPHA, GB_ONE_MINUS_SRC_ALPHA);
-        GFX_SetAlphaBlendEnable(true);
-        GFX_SetCullMode(GFC_NONE);
-        GFX_SetShader(g_DrawTexturedShaderHandle);
-        GFX_ActivateTexture(g_seeThroughHandle, 0xFFFFFFFF, nullptr, TWM_REPEAT);
-        GFX_Draw2DQuad(0.0f, 0.0f, width, height, ((uint8_t)((1.0f - time) * 255.0) << 24) | 0xFFFFFF, true);
-        auto v4 = powf(time, 0.7f);
-        auto v5 = (v4 * 2.70158f - 1.70158f) * time * v4 * v4;
-        if (v5 > 0.0f)
-            v5 = v5 * (v5 * 4.5f * v5 + 1.0f);
-        auto      v6 = v5 * 4096.0f + 512.0f;
-        auto      l = (width - v6) * 0.5f;
-        auto      t = (height - v6) * 0.5f;
-        const int loaderColor = 0xFFCC9211;
-        GFX_Draw2DQuad_720p(l, t, v6, v6, 0.0, 0.0, 1.0, 1.0, loaderColor, 0.0, -1, 0);
-        auto      v9 = l + v6;
-        auto      v10 = t + v6;
-        if (l >= 0.0f)
-            GFX_Draw2DQuad_UI(0.0f, 0.0f, l + 1.0f, (float)height, loaderColor);
-        if (v9 <= (float)width)
-            GFX_Draw2DQuad_UI(v9 - 1.0f, 0.0f, width - v9 + 2.0f, (float)height, loaderColor);
-        if (t >= 0.0f)
-            GFX_Draw2DQuad_UI(l, 0.0f, v6, t + 1.0f, loaderColor);
-        if (v10 <= (float)height) {
-            GFX_Draw2DQuad_UI(l, v10 - 1.0f, v6, height - v10 + 2.0f, loaderColor);
-        }
-        if (text)
-            g_GiantFontW.RenderWString(width * 0.5f, height * 0.5f + 170.0f, text,
-                                       ((int)(std::clamp(1.0f - time - time, 0.0f, 1.0f) * 255.0f) << 24) | 0xFFFFFF,
-                                       1, 0.6666f, false, false, true);
-        GFX_SetDepthTestEnable(true);
-        GFX_SetDepthWrite(true);
-    }
-}
-void doFrameWorldID(zwiftUpdateContext *ptr) {
-    //TODO fake1 {
-    GFX_Begin();
-    VRAM_EndRenderTo(0);
-    GFX_Clear(60);
-    glClearColor(0.0f, 0.0f, 0.9f, 1.0f);
-    int width, height;
-    glfwGetWindowSize(g_mainWindow, &width, &height);
-    glViewport(0, 0, width, height);
-    GFX_SetDepthTestEnable(false);
-    GFX_SetDepthWrite(false);
-    //TODO fake1 }
-
-    Render(timeGetTime() / 1000.0f);
-
-    //TODO fake2 {
-    GFX_SetDepthTestEnable(true);
-    GFX_SetDepthWrite(true);
-    GFX_Present();
-    GFX_EndFrame();
-    //TODO fake2 }
-}
-struct UpdateLoadingItem {
-    const UChar *m_msg;
-    bool        m_bShown;
-};
-void ZWIFT_UpdateLoading(const UChar *text, bool last) {
-    Downloader::Instance()->Update();
-    static UpdateLoadingItem g_UpdateLoadingDB[] = {
-        { GetTextW("LOC_LOADING_QUIP_0") }, { GetTextW("LOC_LOADING_QUIP_1") }, { GetTextW("LOC_LOADING_QUIP_2") }, { GetTextW("LOC_LOADING_QUIP_3") },
-        { GetTextW("LOC_LOADING_QUIP_4") }, { GetTextW("LOC_LOADING_QUIP_5") }, { GetTextW("LOC_LOADING_QUIP_6") }, { GetTextW("LOC_LOADING_QUIP_7") },
-        { GetTextW("LOC_LOADING_QUIP_8") }, { GetTextW("LOC_LOADING_QUIP_9") }, { GetTextW("LOC_LOADING_QUIP_10") }, { GetTextW("LOC_LOADING_QUIP_11") },
-        { GetTextW("LOC_LOADING_QUIP_12") }, { GetTextW("LOC_LOADING_QUIP_13") }, { GetTextW("LOC_LOADING_QUIP_14") }, { GetTextW("LOC_LOADING_QUIP_15") },
-        { GetTextW("LOC_LOADING_QUIP_16") }, { GetTextW("LOC_LOADING_QUIP_17") }, { GetTextW("LOC_LOADING_QUIP_18") }, { GetTextW("LOC_LOADING_QUIP_19") },
-        { GetTextW("LOC_LOADING_QUIP_20") }, { GetTextW("LOC_LOADING_QUIP_21") }, { GetTextW("LOC_LOADING_QUIP_22") }, { GetTextW("LOC_LOADING_QUIP_23") },
-        { GetTextW("LOC_LOADING_QUIP_24") }, { GetTextW("LOC_LOADING_QUIP_25") }, { GetTextW("LOC_LOADING_QUIP_26") }, { GetTextW("LOC_LOADING_QUIP_27") },
-        { GetTextW("LOC_LOADING_QUIP_28") }
-    };
-    static uint32_t          g_lastTime, g_txtChanges;
-    uint32_t now = timeGetTime();
-    if (now - g_lastTime >= 500.0 || last) {
-        ++g_txtChanges;
-        if (!text) {
-            auto dbi = timeGetTime() % _countof(g_UpdateLoadingDB);
-            for (auto i = 0; i < 4; ++i) {
-                if (!g_UpdateLoadingDB[dbi].m_bShown)
-                    break;
-                dbi = (dbi + 1) % _countof(g_UpdateLoadingDB);
-            }
-            text = g_UpdateLoadingDB[dbi].m_msg;
-            g_UpdateLoadingDB[dbi].m_bShown = true;
-        }
-        GFX_Begin();
-        VRAM_EndRenderTo(0);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        GFX_Clear(60);
-        LoadingRender(0.0f, text);
-        //OMIT v6 = 0;
-        //WDT_Tick(&v6);
-        GFX_Present();
-        GFX_EndFrame();
-        g_lastTime = now;
-    }
-}
 void MsgBoxAndExit(const char *lpText) {
     MessageBoxA(nullptr, lpText, "ERROR", MB_ICONSTOP);
     exit(-1);
 }
-
-//Unit Tests
-TEST(SmokeTestNet, Linkage) { //testing if libs are linked properly
-    AK::MemoryMgr::GetDefaultSettings(g_memSettings);             //Wwize, not debuggable
-    Noesis::GUI::SetLicense("NS_LICENSE_NAME", "NS_LICENSE_KEY"); //NOESIS, not debuggable
-    EXPECT_TRUE(g_memSettings.pfAllocVM != nullptr) << "AK::MemoryMgr";
-
-    protobuf::FeatureRequest fr; //Google protobuf
-    fr.set_str_player_id("123");
-    auto bs = fr.ByteSizeLong();
-    EXPECT_EQ(5, bs) << "protobuf::ByteSize";
-
-    boost::asio::io_context        io_context; //boost ASIO, openssl
-    boost::asio::ip::tcp::resolver resolver(io_context);
-    boost::asio::ssl::context      ctx(boost::asio::ssl::context::sslv23);
-    auto iocr = io_context.run(); //nothing to do
-    EXPECT_EQ(0, iocr) << "io_context.run";
-
-    z_stream strm{}; //zlib
-    auto     di = deflateInit(&strm, 6);
-    EXPECT_EQ(0, di) << "deflateInit";
-    deflateEnd(&strm);
-
-    tinyxml2::XMLDocument doc; //tinyxml2
-    auto err_xml = doc.LoadFile("");
-    EXPECT_EQ(tinyxml2::XML_ERROR_FILE_NOT_FOUND, err_xml) << "doc.LoadFile";
-
-    auto curl = curl_easy_init(); //curl
-    EXPECT_TRUE(curl != nullptr) << "curl_easy_init";
-    curl_easy_cleanup(curl);
-
-    //auto dec = decContextTestEndian(0); //decNumber
-    //EXPECT_EQ(0, dec) << "decContextTestEndian";
-
-    UErrorCode uc_err = U_AMBIGUOUS_ALIAS_WARNING; //ICU
-    auto       conv = ucnv_open("utf-8", &uc_err);
-    EXPECT_EQ(U_AMBIGUOUS_ALIAS_WARNING, uc_err) << "ucnv_open err";
-    EXPECT_TRUE(conv != nullptr) << "ucnv_open";
-    ucnv_close(conv);
-
-    Json::Value json(123); //jsoncpp
-    std::string jss(json.toStyledString());
-    EXPECT_STREQ("123\n", jss.c_str()) << "json.toStyledString";
-
-    auto hMainWindow = glfwGetWin32Window(g_mainWindow); //glfw
-    EXPECT_TRUE(hMainWindow == nullptr) << "glfwGetWin32Window";
-
-    char openssl_err[128];
-    ERR_error_string_n(SSL_ERROR_WANT_READ, openssl_err, sizeof(openssl_err));
-    EXPECT_STREQ("error:00000002:lib(0)::reason(2)", openssl_err) << "SSL_ERROR_WANT_READ";
+void SetIcon() {
+    auto icon = LoadIconW(GetModuleHandleW(nullptr), (LPCWSTR)IDI_ZWIFTAPP);
+    if (icon) {
+        auto hwnd = glfwGetWin32Window(g_mainWindow);
+        SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)icon);
+        DestroyIcon(icon);
+    }
 }

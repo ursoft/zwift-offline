@@ -33,13 +33,13 @@
 #include "Aggregation.pb.h"
 using protobuf_bytes = std::string; //it is better for Google to make it a vector, but...
 using NOTABLEMOMENT_TYPE = protobuf::NotableMomentType; //not sure
-#include "../res/resource.h"
 #include "MAT.h"
 #include "DateTime.h"
 #include "Logging.h"
 #include "GameCritical.h"
 #include "ZMutex.h"
 #include "Entity.h"
+#include "ZU.h"
 #include "ZNoesis.h"
 #include "Console.h"
 #include "RenderTarget.h"
@@ -80,7 +80,7 @@ using NOTABLEMOMENT_TYPE = protobuf::NotableMomentType; //not sure
 #include "Downloader.h"
 #include "OS.h"
 #include "GAME.h"
-#include "tHigFile.h"
+//OMIT #include "tHigFile.h"
 #include "ICU.h"
 #include "CameraManager.h"
 #include "NotableMomentsManager.h"
@@ -115,7 +115,6 @@ using NOTABLEMOMENT_TYPE = protobuf::NotableMomentType; //not sure
 #include "PlayerStateHelper.h"
 #include "Bots.h"
 #include "SaveGame.h"
-#include "ZU.h"
 #include "ZML.h"
 #include "Leaderboards.h"
 #include "HeightMapManager.h"
@@ -123,66 +122,3 @@ using NOTABLEMOMENT_TYPE = protobuf::NotableMomentType; //not sure
 #include "RoadMover.h"
 #include "Prefab.h"
 #include "Video.h"
-
-bool check_float(float f);
-enum ZwiftStartupFlow { ZSF_LOGIN = 0x0, ZSF_1 = 0x1, ZSF_EULA = 0x2, ZSF_3 = 0x3, ZSF_4 = 0x4, ZSF_SEL_SPORT = 0x5, ZSF_BOARDING_CUST = 0x6, ZSF_PROFILE = 0x7, ZSF_8 = 0x8,
-                        ZSF_9 = 0x9, ZSF_PAIRING = 0xA, ZSF_b = 0xB, ZSF_c = 0xC, ZSF_SEL_CHALLENGE = 0xD, ZSF_GENDER = 0xE, ZSF_HEIGHT_WEIGHT = 0xF, ZSF_BC_CONF = 0x10, ZSF_11 = 0x11, ZSF_TRAINING_PLAN = 0x12,
-                        ZSF_CNT };
-inline ZwiftStartupFlow g_gameStartupFlowState;
-inline const void       *g_startupFlowStateParam;
-
-inline uint32_t         g_MainThread;
-inline float            g_vegetationWind[4];
-struct IKeyProcessor {
-    virtual bool ProcessKey(int, int) = 0;
-};
-struct GUIKeyProcessor : public IKeyProcessor {
-    bool ProcessKey(int, int) override;
-};
-struct GoKeyProcessor : public IKeyProcessor {
-    bool ProcessKey(int, int) override;
-};
-struct KeyProcessorStack {
-    std::vector<IKeyProcessor *> m_data;
-    //~KeyProcessorStack();
-    //void RemoveAllKeyProcessors();
-    //void Remove(IKeyProcessor *);
-    void Push(IKeyProcessor *);
-    bool ProcessKey(int, int);
-    //void Pop();
-    //void Find(IKeyProcessor const*,std::vector<IKeyProcessor*> &)
-};
-struct ZwiftAppKeyProcessorManager {
-    GUIKeyProcessor   m_guiKP;
-    GoKeyProcessor    m_goKP;
-    KeyProcessorStack m_stack;
-    //ZwiftAppKeyProcessorManager(); - 0's all
-    static ZwiftAppKeyProcessorManager *Instance();
-    void Init();
-};
-
-void ZSF_SwitchState(ZwiftStartupFlow, const void *);
-void ZSF_FinishedState(ZwiftStartupFlow, uint32_t);
-const char *GAMEPATH(const char *path);
-void WindowSizeCallback(GLFWwindow *wnd, int w, int h);
-void WindowFocusCallback(GLFWwindow *, int);
-void FramebufferSizeCallback(GLFWwindow *, int, int);
-void CharModsCallback(GLFWwindow *, uint32_t, int);
-void MouseButtonCallback(GLFWwindow *, int, int, int);
-void KeyCallback(GLFWwindow *, int, int, int, int);
-void WindowCloseCallback(GLFWwindow *);
-void ScrollCallback(GLFWwindow *, double, double);
-void CursorPosCallback(GLFWwindow *, double, double);
-
-void ZwiftInitialize(const std::vector<std::string> &argv);
-void EndGameSession(bool bShutDown);
-void ShutdownSingletons();
-void ZwiftExit(int code);
-void ZWIFT_UpdateLoading(const UChar *, bool);
-void LoadingRender(float time, const UChar *text);
-void ZWIFT_UpdateCaretPosition(int, int);
-void ZWIFT_ShowDialog(int);
-void ZWIFT_SetupUIViewport();
-void ZWIFT_SetupDeviceViewport();
-void ZWIFT_SetJoystickValues(float, float, float, float, float, float, bool, bool, bool, bool, bool, bool);
-void MsgBoxAndExit(const char *lpText);

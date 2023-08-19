@@ -60,5 +60,6 @@ future/lib/total code(kb): 8677/07687/16364, badNames=36412; libs/total: 59%: 36
 future/lib/total code(kb): 5850/10514/16364, badNames=36389; libs/total: 66%: 41378/62107 - OMITted all BLE devices except FTMS, Elite steering and TACX
 future/lib/total code(kb): 5839/10523/16363, badNames=35604; libs/total: 66%: 41412/62107 - names from vtbls
 future/lib/total code(kb): 5697/10665/16363, badNames=35381; libs/total: 67%: 41825/62107 - Camera & math
+future/lib/total code(kb): 5656/10708/16364, badNames=35193; libs/total: 67%: 41873/62108 - GameWorld, CFont2D
 
 NEXT: CNL unit tests, BLE & ANT, GFX

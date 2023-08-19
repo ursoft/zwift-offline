@@ -1,4 +1,8 @@
-#include "ZwiftApp.h"
+//#include "ZwiftApp.h" //READY for testing
+#include "Downloader.h"
+#include "Logging.h"
+#include "CRC.h"
+#include "ZStringUtil.h"
 //#define ZCURL_DEBUG
 #ifdef ZCURL_DEBUG
 static void dump(const char *text, FILE *stream, unsigned char *ptr, size_t size) {
@@ -57,12 +61,50 @@ static int curl_trace(CURL *handle, curl_infotype type, char *data, size_t size,
     return 0;
 }
 #endif
+size_t SubstringPos(const char *path, size_t path_len, size_t offset, const char *down, size_t downDirLen) {
+    if (downDirLen > path_len || offset > path_len - downDirLen)
+        return (size_t)-1;
+    if (!downDirLen)
+        return offset;
+    auto chd = *down;
+    auto fnd = (char *)memchr(&path[offset], chd, path_len - downDirLen + 1 - offset);
+    if (!fnd)
+        return (size_t)-1;
+    auto v9 = &path[path_len - downDirLen];
+    while (memcmp(fnd, down, downDirLen)) {
+        fnd = (char *)memchr(fnd + 1, chd, v9 - fnd);
+        if (!fnd)
+            return (size_t)-1;
+    }
+    return fnd - path;
+}
 std::deque<Downloader::CompletedFile>::iterator Downloader::FindCompleted(const std::string &path) {
     std::deque<CompletedFile>::iterator it = m_filesCompleted.begin();
     for (; it != m_filesCompleted.end(); it++)
         if (it->m_name == path)
             break;
     return it;
+}
+void Downloader::ForgetCompletedWorkout(const std::string &fname) {
+    for (auto i = m_filesCompleted.begin(); i != m_filesCompleted.end(); i++) {
+        std::string path, name;
+        ZStringUtil::SplitFilename(i->m_name, &path, &name);
+        if (name == fname) {
+            if (i->m_refs-- == 1) {
+                m_filesCompleted.erase(i);
+                return;
+            }
+        }
+    }
+}
+bool Downloader::FullyCompleted() {
+    return m_filesPending.size() == 0;
+}
+int Downloader::Completed(const std::string &path) {
+    auto fc = FindCompleted(path);
+    if (fc == m_filesCompleted.end())
+        return -1;
+    return (int)std::distance(m_filesCompleted.begin(), fc);
 }
 bool Downloader::CompletedSuccessfully(const std::string &path) {
     auto c = FindCompleted(path);
@@ -71,7 +113,13 @@ bool Downloader::CompletedSuccessfully(const std::string &path) {
     else
         return c->m_succ;
 }
-bool Downloader::Download/*IDA: DownloadStr*/ (const std::string &path, std::function<void(const char *)> fsucc, void (*cbFail)(const std::string &, int)) {
+void Downloader::CancelDownload(const std::string &file) {
+    std::erase_if(m_filesCurrent, [file](const CurrentFile &f) {
+        return SubstringPos(file.c_str(), file.length(), 0, f.m_name.c_str(), f.m_name.length()) != -1i64; });
+    std::erase_if(m_filesPending, [file](const PendingFile &f) {
+        return SubstringPos(file.c_str(), file.length(), 0, f.m_name.c_str(), f.m_name.length()) != -1i64; });
+}
+bool Downloader::DownloadStr(const std::string &path, std::function<void(const char *)> fsucc, void (*cbFail)(const std::string &, int)) {
     for (auto &it : m_filesPending)
         if (it.m_name == path) {
             if (fsucc) it.m_succCallbacks.push_back(fsucc);
@@ -95,9 +143,9 @@ bool Downloader::Download/*IDA: DownloadStr*/ (const std::string &path, std::fun
     }
     return false;
 }
-void Downloader::Download/*IDA: DownloadCStr*/ (const char *name, std::function<void(const char *)> fsucc) {
+void Downloader::DownloadCStr(const char *name, std::function<void(const char *)> fsucc) {
     std::string sname(name);
-    if (!Download(sname, fsucc, nullptr)) {
+    if (!DownloadStr(sname, fsucc, nullptr)) {
         PendingFile newPf;
         newPf.m_name = sname;
         newPf.m_locp = m_locp;
@@ -125,13 +173,13 @@ Downloader::~Downloader() {
     curl_multi_cleanup(m_curlMulti);
     curl_easy_cleanup(m_curlEasy);
 }
-void Downloader::Download/*IDA: DownloadFptr*/ (const std::string &name, uint64_t expectedLength, int64_t fileTime, uint32_t checksumWant, void (*cbFail)(const std::string &, int)) {
+void Downloader::DownloadFptr(const std::string &name, uint64_t expectedLength, int64_t fileTime, uint32_t checksumWant, void (*cbFail)(const std::string &, int)) {
     auto f = FindCompleted(name);
     if (f != m_filesCompleted.end() && f->m_succ == false) {
         m_filesCompleted.erase(f);
     }
     std::function<void(const char *)> empty;
-    if (!Download(name, empty, cbFail)) {
+    if (!DownloadStr(name, empty, cbFail)) {
         PendingFile newPf;
         newPf.m_name = name;
         newPf.m_locp = m_locp;
@@ -157,7 +205,7 @@ void Downloader::ForgetCompleted(const std::string &name) {
     }
 }
 std::string Downloader::PrintState() {
-    return "TODO";
+    return "OMIT";
 }
 char debugDestination[0x800];
 bool strstr_s(const char *haystack, size_t haystack_len, const char *needle, size_t needle_len) {
@@ -216,23 +264,6 @@ size_t Downloader::GetUserDownloadsPath(char *downDir) {
         downDir[last + 1] = 0; //slash included or null-term
         return last + 1;
     }
-}
-size_t SubstringPos(const char *path, size_t path_len, size_t offset, const char *down, size_t downDirLen) {
-    if (downDirLen > path_len || offset > path_len - downDirLen)
-        return (size_t)-1;
-    if (!downDirLen)
-        return offset;
-    auto chd = *down;
-    auto fnd = (char *)memchr(&path[offset], chd, path_len - downDirLen + 1 - offset);
-    if (!fnd)
-        return (size_t)-1;
-    auto v9 = &path[path_len - downDirLen];
-    while (memcmp(fnd, down, downDirLen)) {
-        fnd = (char *)memchr(fnd + 1, chd, v9 - fnd);
-        if (!fnd)
-            return (size_t)-1;
-    }
-    return fnd - path;
 }
 bool Downloader::EnsurePath(std::string path) {
     std::error_code       ec;
@@ -387,7 +418,7 @@ void Downloader::Update() {
             }
             Log("Downloader: Attempting to try again downloading \"%s\" \n", cur->m_name.c_str());
             will_repeat = true;
-            Sleep(0x3E8u); // TODO: FIXME
+            Sleep(0x3E8u); // QUEST: FIXME
             m_filesPending.emplace_back(*cur);
         }
         if (cur->m_FILE) {
@@ -511,6 +542,10 @@ Downloader::CurrentFile::~CurrentFile() {
 }
 
 //Units
+void ZNETWORK_Initialize();
+void ZNETWORK_Shutdown();
+void GAME_onFinishedDownloadingMapSchedule(const std::string &, int err);
+const char *const OS_GetUserPath();
 #pragma comment(lib, "winhttp.lib")
 TEST(SmokeTestNet, DISABLED_SchMap) {
     /* all_proxy env var is better than: WINHTTP_CURRENT_USER_IE_PROXY_CONFIG proxyConfig{};
@@ -539,7 +574,7 @@ TEST(SmokeTestNet, DISABLED_SchMap) {
     Downloader::Instance()->SetLocalPath(downloadPath);
     Downloader::Instance()->SetServerURLPath("https://cdn.zwift.com/gameassets/");
     std::string file("MapSchedule_v2.xml"), fullFile(downloadPath + file);
-    Downloader::Instance()->Download(file, 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
+    Downloader::Instance()->DownloadFptr(file, 0LL, Downloader::m_noFileTime, (uint32_t)-1, GAME_onFinishedDownloadingMapSchedule);
     while (!Downloader::Instance()->CompletedSuccessfully(fullFile)) {
         Downloader::Instance()->Update();
     }

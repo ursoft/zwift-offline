@@ -101,7 +101,16 @@ inline VEC3 operator *(const MATRIX44 &mx, const VEC3 &v) {
                  v.m_data[0] * mx.m_data[0].m_data[1] + mx.m_data[1].m_data[1] * v.m_data[1] + mx.m_data[2].m_data[1] * v.m_data[2] + mx.m_data[3].m_data[1],
                  v.m_data[0] * mx.m_data[0].m_data[2] + mx.m_data[1].m_data[2] * v.m_data[1] + mx.m_data[2].m_data[2] * v.m_data[2] + mx.m_data[3].m_data[2] };
 }
-
+struct Sphere { //16 bytes
+    VEC3 m_center;
+    float m_radius;
+};
+struct MU_OscillatorVector {
+    VEC3 m_vec;
+};
+template <class T> struct tViewport {
+    T m_left, m_top, m_width, m_height;
+};
 void MAT_GetEulerZXY(VEC3 *, const MATRIX33 &);
 float MAT_GetRotX(const MATRIX33 &);
 float MAT_GetRotZ(const MATRIX33 &);
@@ -152,9 +161,6 @@ void VEC_SlerpXYZ(VEC3 *dest, const VEC3 &a, const VEC3 &b, float a4);
 void VEC_SlerpXY(VEC2 *dest, const VEC2 &a2, const VEC2 &a3, float a4);
 void VEC_SetXYZ(VEC3 *dest, float x, float y, float z);
 void VEC_DirToYawPitch(float *a1, float *a2, const VEC3 &a3);
-struct MU_OscillatorVector {
-    VEC3 m_vec;
-};
 void MU_OscillatorResetRandom(MU_OscillatorVector *ov);
 void QUAT_SetAxisAngle(VEC4 *dest, const VEC3 &a2, float angle2);
 void QUAT_Add(VEC4 *dest, const VEC4 &a, const VEC4 &b);

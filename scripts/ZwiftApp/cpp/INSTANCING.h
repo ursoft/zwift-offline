@@ -40,5 +40,5 @@ void INSTANCING_CreateDitherTex();
 void INSTANCING_OptimizeGrids(InstancedObjects *);
 //inlined void INSTANCING_ReleaseMutex();
 void INSTANCING_RenderAll(InstancedObjects *, GFX_RenderPass, int);
-bool INSTANCING_TakeMutex();
+void INSTANCING_TakeMutex();
 void INSTANCING_UnloadAll();

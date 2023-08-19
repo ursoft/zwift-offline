@@ -2,7 +2,7 @@
 LOG_TYPE   g_LogLineTypes[LOGC_LINES];
 char       *g_LogLines[LOGC_LINES];
 LOG_LEVEL  g_MinLogLevel = LL_CNT; // NOT_SET_YET;
-FILE       *g_logFile;
+FILE       *g_logFile /*, *g_fpCalibrationLog not used*/;
 LOG_LEVEL  g_noesisLogLevels[NLL_CNT] = { LL_DEBUG /*NLL_TRACE*/, LL_DEBUG, LL_INFO, LL_WARNING, LL_ERROR };
 int        g_LogMutexIdx = -1;
 bool       g_canUseLogging;
@@ -67,9 +67,9 @@ LogWriteHandler g_logWriteHandler;
 void SetLogWriteHandler(LogWriteHandler h) { g_logWriteHandler = h; }
 
 #define LOG_DEBUG
-void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_len) {
+void LogWrite(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_len) {
     if (g_canUseLogging) {
-        if (g_LogMutexIdx != -1 && g_LogTypes[ty].m_enabled && ZwiftEnterCriticalSection(g_LogMutexIdx)) {
+        if (g_LogMutexIdx != -1 && g_LogTypes[ty].m_enabled && ZMUTEX_TryLock(g_LogMutexIdx)) {
             __time64_t now = _time64(nullptr);
             tm         t;
             _localtime64_s(&t, &now);
@@ -138,7 +138,7 @@ void execLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_l
             *dest = 0;
             g_LogLineTypes[g_nLogLines % LOGC_LINES] = ty;
             g_nLogLines++;
-            ZwiftLeaveCriticalSection(g_LogMutexIdx);
+            ZMUTEX_Unlock(g_LogMutexIdx);
             if (g_logWriteHandler)
                 g_logWriteHandler(level, ty, msg);
         }
@@ -151,7 +151,7 @@ void doLogInternal(LOG_LEVEL level, LOG_TYPE ty, const char *fmt, va_list args) 
         if (cnt1 < 0) cnt1 = 0;
         int cnt2 = vsnprintf_s(&buf[cnt1], 1024 - cnt1, _TRUNCATE, fmt, args);
         if (cnt2 >= 0)
-            execLogInternal(level, ty, buf, cnt1 + cnt2);
+            LogWrite(level, ty, buf, cnt1 + cnt2);
     }
 }
 void LogInternal(LOG_TYPE ty, const char *fmt, va_list list) { doLogInternal(LL_VERBOSE, ty, fmt, list); }
@@ -236,16 +236,23 @@ void ZwiftAssert::Abort() {
         g_abortProcessing = false;
     }
 }
-void LogShutdown() {
-    if (g_logFile) {
-        fclose(g_logFile);
-        g_logFile = nullptr;
-    }
-    for (auto &i : g_LogLines) {
-        if (i) {
-            free(i);
-            i = nullptr;
+void SaveLog() {
+    if (ZMUTEX_TryLock(g_LogMutexIdx)) {
+        if (g_logFile) {
+            fclose(g_logFile);
+            g_logFile = nullptr;
         }
+        /* not used if (g_fpCalibrationLog) {
+            fclose(g_fpCalibrationLog);
+            g_fpCalibrationLog = nullptr;
+        }*/
+        for (auto &i : g_LogLines) {
+            if (i) {
+                free(i);
+                i = nullptr;
+            }
+        }
+        ZMUTEX_Unlock(g_LogMutexIdx);
     }
 }
 void LogInitialize() {
@@ -286,7 +293,7 @@ void LogInitialize() {
         Log("Game Version: 1.32.1(106405) Ursoft fake/1.32.1");
         Log("Config:       Shipping");
         Log("Device:       PC");
-        tHigFile::SetLogHandler(LogDebug);
+        //OMIT tHigFile::SetLogHandler(LogDebug);
     }
 }
 int LogGetLineCount() { return std::min(LOGC_LINES, g_nLogLines); }

@@ -724,9 +724,6 @@ inline SubscriptionMode ZNETWORK_CalculateThenGetSubscriptionMode() { return g_s
 void ZNETWORK_SendPrivateText(int64_t, int64_t, const UChar *);
 void ZNETWORK_INTERNAL_ProcessPhoneInput();
 void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttribute &);
-struct zwiftUpdateContext { //0x38 bytes
-    //TODO
-};
 void ZNETWORK_Update(float);
 bool ZNETWORK_IsLoggedIn();
 void ZNETWORK_GivePlayerPowerup(protobuf::POWERUP_TYPE);

@@ -18,7 +18,14 @@ target_sources(${PROJECT_NAME} PRIVATE
   res/Resource.h
   res/${PROJECT_NAME}.rc
   ${PROTO_SRCS} ${PROTO_HDRS}
+  ${PB_SRCS} readme.hxx vptrs.hxx #will be visible in solution explorer
 )
+source_group(0ften REGULAR_EXPRESSION "(ZwiftApp[.].+|hxx|pch|Resource|framework|targetver)")
+source_group(3rd REGULAR_EXPRESSION "(Ak.*|concurrentqueue|readerwriterqueue|optionparser)")
+source_group(Proto FILES ${PB_SRCS})
+source_group(TestReady REGULAR_EXPRESSION "(Audio[.].*|CameraManager[.].*|CRC[.].*|Downloader[.].*|ZStringUtil[.].*|GameWorld[.].*|ICU[.].*|ZMutex[.].*|OS[.].*|HeightMapManager[.].*|XMLDoc[.].*|MAT[.].*|LOADER[.].*|WADManager[.].*|Logging[.].*|Stopwatch[.].*|DateTime[.].*|Joystick[.].*|StaticAssetLoader[.].*|EventSystem[.].*|Bib[.].*|CFont2D[.].*)")
+source_group(AlmostReady REGULAR_EXPRESSION "(BLEModule[.].*|DataRecorder[.].*|ZNet[.].*|Localization[.].*|GDE[.].*|Console[.].*)")
+source_group(Omitted REGULAR_EXPRESSION "(CrashReporting[.].*|ClientTelemetry[.].*|tHigFile[.].*)")
 
 #get_cmake_property(_variableNames VARIABLES)
 #list (SORT _variableNames)
@@ -47,7 +54,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   protobuf::libprotobuf-lite #${Protobuf_LIBRARIES} #protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite
   ${Boost_LIBRARIES}
   Noesis.lib #NoesisApp.lib
-  Winmm.lib Shcore
+  Winmm.lib Shcore Comdlg32.lib
   Opengl32.lib GLEW::GLEW
   AkSoundEngine.lib AkMemoryMgr.lib AkMusicEngine.lib AkStreamMgr.lib $<LINK_LIBRARY:WHOLE_ARCHIVE,AkVorbisDecoder.lib> #AkAudioInputSource.lib AkAutobahn.lib AkCompressorFX.lib AkDelayFX.lib
    #AkExpanderFX.lib AkFlangerFX.lib AkGainFX.lib AkGuitarDistortionFX.lib AkHarmonizerFX.lib AkMatrixReverbFX.lib AkMeterFX.lib AkOpusDecoder.lib AkParametricEQFX.lib
