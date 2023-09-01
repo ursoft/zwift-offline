@@ -1,4 +1,4 @@
-#include "ZwiftApp.h"
+#include "ZwiftApp.h" //READY for testing
 UnitTypeManager::UnitTypeManager(EventSystem *ev, bool readonly) : EventObject(ev), m_readonly(readonly) {
     ev->Subscribe(EV_33, this);
 }

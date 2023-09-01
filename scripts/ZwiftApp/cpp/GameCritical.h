@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing
 struct GameCritical {
     static int s_jobCount;
     static bool s_shouldAbortJobs;

@@ -801,3 +801,4 @@ inline float g_startLineRoadTime = 0.95f;
 inline uint32_t g_LastScreenshotTime;
 inline int g_PhoneAPIVersion, g_farFanviewFocusRequestTimeout;
 inline int64_t g_farFanviewFocusRequestID;
+inline int g_GameMode;

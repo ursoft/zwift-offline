@@ -1,13 +1,18 @@
-#pragma once
+#pragma once //READY for testing
+void ANT_DeviceSearch(int mfgNet);
+bool ANT_IsInitialized();
+bool ANT_IsSearchEnabled();
+bool ANT_Load();
+void ANT_StopDeviceSearch();
 void ANTRECEIVER_Connect();
-void ANTRECEIVER_Disconnect();
-void ANTRECEIVER_GetDongleIDString();
+//empty void ANTRECEIVER_Disconnect();
+const char *ANTRECEIVER_GetDongleIDString();
 void ANTRECEIVER_Initialize();
 bool ANTRECEIVER_IsConnected();
-void ANTRECEIVER_PairDevice(uint8_t, uint16_t, uint32_t);
+int ANTRECEIVER_PairDevice(uint8_t, uint16_t, uint32_t);
 void ANTRECEIVER_PostConnect();
-void ANTRECEIVER_SetUSBDevicePollTime(float);
+//inlined void ANTRECEIVER_SetUSBDevicePollTime(float);
 void ANTRECEIVER_Shutdown();
-void ANTRECEIVER_UnpairChannel(uint8_t);
+//inlined void ANTRECEIVER_UnpairChannel(uint8_t);
 void ANTRECEIVER_Update(float);
-void AntReceiver_Update(float);
+//empty void AntReceiver_Update(float);

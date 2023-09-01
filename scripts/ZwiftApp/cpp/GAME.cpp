@@ -94,8 +94,16 @@ void GAME_GetMapForTime_New(time_t t) {
 void GAME_LoadLevel(int) {
     //TODO
 }
-void GAME_ResetScreenshotsForActivity() {
+void ClearScreenshotAsyncQueue() {
     //TODO
+}
+void GAME_ResetScreenshotsForActivity() {
+    ClearScreenshotAsyncQueue();
+    g_screenShotsQueued.clear();
+    g_screenShotCounter = 0;
+    g_lastScreenshotSource = SCS_NONE;
+    g_NumberOfAutoStravaScreenshotsTaken = 0;
+    g_NumberOfJerseryScreenshotsRequested = 0;
 }
 void GAME_IncreaseFlatRoadTrainerResistance() {
     //TODO
@@ -160,4 +168,9 @@ int GAME_QueueScreenshot(const GAME_ScreenshotParams &ssp) {
     if (gs_->m_soundName)
         AUDIO_Event(gs_->m_soundName, 1, false);
     return 0;
+}
+void GAME_GetWorldTime(int *hh, int *mm) {
+    auto fhh = g_WorldTime * 0.125f * 24.0f;
+    *hh = int(fhh);
+    *mm = int((fhh - *hh) * 60.0f);
 }

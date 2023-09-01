@@ -6,31 +6,49 @@ void WindowSizeCallback(GLFWwindow *wnd, int w, int h) {
     glfwGetWindowSize(wnd, &rx_w, &rx_h);
     if (!rx_w) rx_w = 1;
     if (!rx_h) rx_h = 1;
-    g_view_w = (float)rx_w;
-    g_view_h = (float)rx_h;
-    g_kwidth = g_view_w / (float)w;
-    g_kheight = g_view_h / (float)h;
+    g_UI_WindowWidth = (float)rx_w;
+    g_UI_WindowHeight = (float)rx_h;
+    g_kwidth = g_UI_WindowWidth / (float)w;
+    g_kheight = g_UI_WindowHeight / (float)h;
     Log("resize: %d x %d", w, h);
-    g_width = rx_w;
-    g_height = rx_h;
-    g_view_x = 0.0f;
-    g_view_y = 0.0f;
-    if (g_view_w / g_view_h > 1.78) {
-        g_view_w = g_UI_AspectRatio * g_view_h;
-        g_view_x = ((float)g_width - g_view_w) * 0.5f;
+    g_WIN32_WindowWidth = rx_w;
+    g_WIN32_WindowHeight = rx_h;
+    g_UI_WindowOffsetX = 0.0f;
+    g_UI_WindowOffsetY = 0.0f;
+    if (g_UI_WindowWidth / g_UI_WindowHeight > 1.78) {
+        g_UI_WindowWidth = g_UI_AspectRatio * g_UI_WindowHeight;
+        g_UI_WindowOffsetX = ((float)g_WIN32_WindowWidth - g_UI_WindowWidth) * 0.5f;
     }
-    if (auto pNoesisGUI = g_pNoesisGUI.lock()) {
-        pNoesisGUI->sub_7FF6D4A23DC0(g_width, g_height, 0 /*v7*/, 0 /*rx_w*/);
+    if (auto pNoesisGUI = g_pNoesisGUI.lock())
+        pNoesisGUI->OnResize(g_WIN32_WindowWidth, g_WIN32_WindowHeight);
+}
+void WindowFocusCallback(GLFWwindow *, int f) {
+    //looks like empty lock
+}
+void FramebufferSizeCallback(GLFWwindow *wnd, int w, int h) {
+    Log("FB resize: %d x %d\n", w, h);
+    if (w == 0) w++;
+    if (h == 0) h++;
+    int iw, ih;
+    glfwGetWindowSize(wnd, &iw, &ih);
+    if (iw == 0) iw = 1;
+    if (ih == 0) ih = 1;
+    g_WIN32_WindowWidth = w;
+    g_WIN32_WindowHeight = h;
+    g_kwidth = w / (float)iw;
+    g_kheight = h / (float)ih;
+    auto fw = (float)w, fh = (float)h, ox = 0.0f;
+    if (fw / fh > 1.78f) {
+        fw = VRAM_GetUIAspectRatio() * fh;
+        ox = (g_WIN32_WindowWidth - fw) * 0.5f;
     }
-}
-void WindowFocusCallback(GLFWwindow *, int) {
-    //TODO
-}
-void FramebufferSizeCallback(GLFWwindow *, int, int) {
-    //TODO
+    g_UI_WindowWidth = fw;
+    g_UI_WindowHeight = fh;
+    g_UI_WindowOffsetX = ox;
+    g_UI_WindowOffsetY = 0.0f;
 }
 void CharModsCallback(GLFWwindow *, uint32_t codePoint, int keyModifiers) {
-    //TODO
+    //not used if (auto pNoesisGUI = g_pNoesisGUI.lock())
     //GLFW_MOD_SHIFT           0x0001, GLFW_MOD_CONTROL         0x0002, GLFW_MOD_ALT             0x0004, GLFW_MOD_SUPER           0x0008
     CONSOLE_KeyFilter(codePoint, keyModifiers | 0x2000);
 }
@@ -65,11 +83,6 @@ bool g_ResetLastSaveTime, g_onceEndSession = true;
 void Zwift_EndSession(bool bShutdown) {
     g_ResetLastSaveTime = true;
     GAME_ResetScreenshotsForActivity();
-    g_screenShotsQueued.clear();
-    g_screenShotCounter = 0;
-    g_lastScreenshotSource = SCS_NONE;
-    g_NumberOfAutoStravaScreenshotsTaken = 0;
-    g_NumberOfJerseryScreenshotsRequested = 0;
     auto mainBike = BikeManager::Instance()->m_mainBike;
     static auto orgJersey = SIG_CalcCaseInsensitiveSignature("Humans/Accessories/CyclingJerseys/Originals_Zwift_02.xml");
     if (bShutdown && mainBike && Experimentation::Instance()->IsEnabled(FID_TDFFEM)
@@ -89,21 +102,16 @@ void Zwift_EndSession(bool bShutdown) {
 }
 void WindowCloseCallback(GLFWwindow *) {
     auto mainBike = BikeManager::Instance()->m_mainBike;
-    if (mainBike) { //TODO
-        if (mainBike->m_bc->m_distance <= 0.01) {
+    if (mainBike) {
+        if (mainBike->m_bc->m_distance <= 0.01f) {
             g_ResetLastSaveTime = true;
             GAME_ResetScreenshotsForActivity();
-            /* TODO (_QWORD *)&xmmword_7FF63035FD78 = qword_7FF63035FD70;
-            qword_7FF6303F5258 = 0i64;
-            byte_7FF6303F48DB = 0;
-            dword_7FF630341A34 = 0;
-            dword_7FF630341A5C = 0;*/
             EndGameSession(0);
         } else {
             UI_CreateDialog(UID_QUIT, OnQuit, nullptr);
             glfwSetWindowShouldClose(g_mainWindow, 0);
         }
-        //return; //TODO: delete remarks
+        return;
     }
     ZwiftExit(0); //URSOFT FIX
 }
@@ -905,6 +913,39 @@ void ShutdownSingletons() {
     CrashReporting::Shutdown();
     if (EventSystem::IsInitialized())
         EventSystem::Destroy();
+}
+BikeManager *zwiftUpdateContext::GetBikeManager() {
+    return m_bikeOver ? m_bikeOver : BikeManager::Instance();
+}
+CameraManager *zwiftUpdateContext::GetCameraManager() {
+    return m_camOver ? m_camOver : &g_CameraManager;
+}
+struct contextForwarder {
+    GroupEvents::SubgroupState *GetCurrentEvent() {
+        return FindSubgroupEventSharedPtr(g_GroupEventsActive_CurrentEventId);
+    }
+    time_t GetNetworkWorldTime() {
+        return g_CachedWorldTime;
+    }
+    WORLD_ID GetWorldID() { return g_pGameWorld->WorldID(); }
+    WORLD_ID GetWorldIDForWorldNetworkID(int /*WORLD_NETWORK_IDS*/ id) { return GameWorld::GetWorldIDForWorldNetworkID(id); }
+    int GetWorldNetworkIDForWorldID(WORLD_ID id) { GameWorld::GetWorldNetworkIDForWorldID(id); }
+    bool HasSubgroupStarted(int64_t id) { return GroupEvents::HasSubgroupStarted(id); }
+    void PARTICLESYS_Unregister(ParticleSystem *ps) { PARTICLESYS_Unregister(ps); }
+    void VRAM_ReleaseRenderTargetVRAM(RenderTarget *rt) { VRAM_ReleaseRenderTargetVRAM(rt); }
+};
+contextForwarder *g_ctxForwarder;
+contextForwarder *zwiftUpdateContext::GetForwarder() {
+    return m_fwOver ? m_fwOver : g_ctxForwarder;
+}
+GameHolidayManager *zwiftUpdateContext::GetGameHolidayManager() {
+    return m_holOver ? m_holOver : &g_GameHolidayManager;
+}
+RoadManager *zwiftUpdateContext::GetRoadManager() {
+    return m_roadmOver ? m_roadmOver : g_pRoadManager;
+}
+RouteManager *zwiftUpdateContext::GetRouteManager() {
+    return m_routemOver ? m_routemOver : RouteManager::Instance();
 }
 
 //Unit Tests

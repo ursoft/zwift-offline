@@ -11,13 +11,13 @@ void ZML_HandleCustomButton(uint32_t);
 void ZML_ReceivedWorkoutAction(protobuf::WorkoutActionRequest_Type);
 void ZML_ReceivedClientAction(const protobuf::ClientAction &);
 void ZML_DetonateRideOnBomb();
+int ZML_GetButtonScheme(); //TODO: enum
 /*INTERNAL_ZML_GamePacketSportFromGameSport(VirtualBikeComputer::ZSPORT)
 ZML_ActBusy(void)
 ZML_DismissExitGame(void)
 ZML_DismissSaveActivity(void)
 ZML_EndAuxPairing(void)
 ZML_ForceResendingWorkoutInfo(void)
-ZML_GetButtonSceheme(void)
 ZML_GetGameMajorMinorVersion(void)
 ZML_IsConnected(void)
 ZML_Meetup_NotifyInvitationReceived(void)

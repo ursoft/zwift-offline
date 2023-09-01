@@ -9,7 +9,7 @@ void BikeManager::Initialize(Experimentation *exp) {
 BikeEntity *BikeManager::FindBikeWithNetworkID(int64_t id, bool a3) {
     if (!id || id == m_mainBike->m_playerIdTx)
         return m_mainBike;
-    for (auto i : m_field_9D08)
+    for (auto i : m_allBikes)
         if (i->m_playerIdTx == id)
             return i;
     if (a3)
@@ -25,5 +25,5 @@ void BikeManager::ProcessPlayerState(zwiftUpdateContext *, const protobuf::Playe
     //TODO
 }
 BikeManager::~BikeManager() {
-    delete m_mainBike; //temporary
+    delete m_mainBike; //TODO, temporary
 }

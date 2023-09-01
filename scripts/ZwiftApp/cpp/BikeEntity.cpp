@@ -28,6 +28,9 @@ int64_t BikeEntity::GetEventID() {
 void BikeEntity::ActivatePowerUp() {
     //TODO
 }
+void BikeEntity::PerformUTurn() {
+    //TODO
+}
 bool BikeEntity::UpdateAnimation(float dt) {
     //TODO
     return true;
@@ -165,4 +168,16 @@ void BikeEntity::PerformAction(protobuf::UserBikeAction act) {
     default:
         return;
     }
+}
+void ConfettiComponent::CreateAudioEvent(const char *name, int a3) {
+    AUDIO_Event(name, a3, false);
+}
+void ConfettiComponent::SpawnPersonalConfetti(BikeEntity *pbe, NOTABLEMOMENT_TYPE nmt, float a3, int64_t a4) {
+    pbe->m_confettiComp.m_field_10 = a3;
+    pbe->m_confettiComp.m_nmt = nmt;
+    pbe->m_confettiComp.m_field_8 = 1.0f;
+    pbe->m_confettiComp.m_field_C = 0;
+    pbe->m_confettiComp.m_field_18 = a4;
+    if (pbe->m_field_C98)
+        pbe->m_confettiComp.CreateAudioEvent("Play_Magic_Whoosh_Deep_Sparkle", pbe->m_field_13C);
 }

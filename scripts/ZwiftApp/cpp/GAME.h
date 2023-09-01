@@ -62,7 +62,7 @@ void GAME_GetTrainerSlopeModifierBackup();
 void GAME_GetUserPreferredRoute(int);
 void GAME_GetWorldData(int);
 //void GAME_GetWorldFull(GroupEvents::SubgroupState *)
-void GAME_GetWorldTime(int &, int &);
+void GAME_GetWorldTime(int *hh, int *mm);
 void GAME_GivePlayerBatteryCharge();
 //void GAME_GivePlayerPowerup(POWERUP_TYPE);
 void GAME_GivePlayerRandomPowerup();
@@ -126,6 +126,7 @@ void GAME_RemoveMode(EGameMode);
 void GAME_RenderWorkoutTopBar(float, float, float, float, void *);
 //void GAME_RequestMemorableScreenShot(NOTABLEMOMENT_TYPE, bool, float)
 void GAME_ResetEventFinishLineParams();
+void ClearScreenshotAsyncQueue();
 void GAME_ResetScreenshotsForActivity();
 void GAME_RestoreFitFile();
 void GAME_RestoreSavedStateSnapshot();
@@ -157,7 +158,7 @@ void GAME_SetSteeringAvailable(bool);
 void GAME_SetTrainerSlopeModifier(float);
 void GAME_SetTrainerSlopeModifierBackup(float);
 void GAME_SetVRViewPosDirection(VEC3, VEC3);
-void GAME_SetWorldTime(float);
+//inlined void GAME_SetWorldTime(float);
 void GAME_ShouldAskUserToRateApp(bool);
 void GAME_ShouldDrawEventFinishLine();
 void GAME_ShouldUseErgModeInWorkouts();

@@ -1,5 +1,5 @@
-#include "ZwiftApp.h"
-
+//#include "ZwiftApp.h" //READY for testing
+#include "GameCritical.h"
 bool GameCritical::s_shouldAbortJobs;
 int GameCritical::s_jobCount;
 std::mutex GameCritical::s_mutex;

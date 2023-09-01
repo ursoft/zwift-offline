@@ -29,17 +29,17 @@ bool GFX_Initialize() {
         MsgBoxAndExit(msg);
     }
     //OMIT message "update your drivers for intel hd GFX"
-    glfwGetWindowSize(g_mainWindow, &g_width, &g_height);
-    zassert(g_width && g_height);
-    g_view_w = g_width;
-    if ((g_width / g_height) <= 1.78) {
-        g_view_x = 0.0;
+    glfwGetWindowSize(g_mainWindow, &g_WIN32_WindowWidth, &g_WIN32_WindowHeight);
+    zassert(g_WIN32_WindowWidth && g_WIN32_WindowHeight);
+    g_UI_WindowWidth = g_WIN32_WindowWidth;
+    if ((g_WIN32_WindowWidth / g_WIN32_WindowHeight) <= 1.78) {
+        g_UI_WindowOffsetX = 0.0;
     } else {
-        g_view_w = VRAM_GetUIAspectRatio() * g_height;
-        g_view_x = (g_width - g_view_w) * 0.5;
+        g_UI_WindowWidth = VRAM_GetUIAspectRatio() * g_WIN32_WindowHeight;
+        g_UI_WindowOffsetX = (g_WIN32_WindowWidth - g_UI_WindowWidth) * 0.5;
     }
-    g_view_h = g_height;
-    g_view_y = 0.0;
+    g_UI_WindowHeight = g_WIN32_WindowHeight;
+    g_UI_WindowOffsetY = 0.0;
     auto perf_flags = g_UserConfigDoc.GetU32("PERF", (uint32_t)-1);
     if (perf_flags != -1)
         GFX_AddPerformanceFlags(perf_flags);
@@ -2182,7 +2182,7 @@ int32_t GFX_GetStateU32(GFX_STATE idx) {
 void GFX_SetupUIProjection() {
     auto pRT = VRAM_GetCurrentRT();
     if (pRT) {
-        auto asp = g_width / (float)g_height;
+        auto asp = g_WIN32_WindowWidth / (float)g_WIN32_WindowHeight;
         if (g_bIsAwareOfWideAspectUI && asp > 1.7777778) {
             g_CurrentUISpace_Height = 720.0;
             g_WideUISpace_Height = 720.0;
@@ -3729,6 +3729,9 @@ int GFX_GetTextureHeight(int texh) {
         zassert(0);
     }
     return 0;
+}
+void GFX_SetUIScissor(float, float, float, float, bool) {
+    //TODO
 }
 
 //Unit Tests

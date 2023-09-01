@@ -96,7 +96,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nShowCmd
     int   iteration = 0;
     HWND  hMainWindow = nullptr;
     float fcounter = 0;
-    zwiftUpdateContext zuc = {};
+    zwiftUpdateContext zuc;
     while (!glfwWindowShouldClose(g_mainWindow)) {
         if (g_MaintainFullscreenForBroadcast) {
             hMainWindow = glfwGetWin32Window(g_mainWindow);

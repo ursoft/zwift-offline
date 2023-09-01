@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing
 enum UnitType { UT_IMPERIAL, UT_METRIC, UT_CNT };
 struct UnitTypeManager : public EventObject {
     inline static std::unique_ptr<UnitTypeManager> g_pUnitTypeManagerUPtr;

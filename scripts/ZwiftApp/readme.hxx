@@ -61,5 +61,7 @@ future/lib/total code(kb): 5850/10514/16364, badNames=36389; libs/total: 66%: 41
 future/lib/total code(kb): 5839/10523/16363, badNames=35604; libs/total: 66%: 41412/62107 - names from vtbls
 future/lib/total code(kb): 5697/10665/16363, badNames=35381; libs/total: 67%: 41825/62107 - Camera & math
 future/lib/total code(kb): 5656/10708/16364, badNames=35193; libs/total: 67%: 41873/62108 - GameWorld, CFont2D
+future/lib/total code(kb): 5652/10712/16364, badNames=34102; libs/total: 67%: 41900/62098 - GUI++, ANTRECEIVER finished
+future/lib/total code(kb): 5652/10712/16365, badNames=34095; libs/total: 67%: 41901/62109 - Console OK
 
 NEXT: CNL unit tests, BLE & ANT, GFX

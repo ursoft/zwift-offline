@@ -1090,3 +1090,41 @@ void Camera::RoadLocalToWorldPos(VEC3 *io) {
         }
     }
 }
+void SwitchCamera(int to) {
+    switch (to) {
+    case 0:
+        g_DesiredCam = g_OrbitCam;
+        break;
+    case 1:
+        g_DesiredCam = g_FollowCam;
+        break;
+    case 2:
+        g_DesiredCam = g_CloseCam;
+        break;
+    case 3:
+        g_DesiredCam = g_HeadCam;
+        break;
+    case 4:
+        g_DesiredCam = g_SideCam;
+        break;
+    case 5:
+        g_DesiredCam = g_WheelCam;
+        break;
+    case 6:
+        g_DesiredCam = g_LeadCam;
+        break;
+    case 7:
+        g_DesiredCam = g_DollyCam;
+        break;
+    case 8:
+        g_DesiredCam = g_HeliCam;
+        break;
+    case 9:
+        g_DesiredCam = g_ClassicCam;
+        break;
+    default:
+        break;
+    }
+    if (g_friendsListGUIObj)
+        g_friendsListGUIObj->m_changeCamera = true;
+}

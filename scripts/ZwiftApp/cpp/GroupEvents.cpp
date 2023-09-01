@@ -47,6 +47,17 @@ int64_t GroupEvents::GetCurrentBroadcastId_ex() {
     }
     return ret;
 }
+GroupEvents::SubgroupState *FindSubgroupEventSharedPtr(int64_t id) {
+    //TODO
+    return nullptr;
+}
+bool GroupEvents::HasSubgroupStarted(int64_t id) { //was inlined
+    SubgroupState *sge = FindSubgroupEventSharedPtr(id);
+    return sge && g_CachedWorldTime >= (time_t)sge->GetEventSubgroup()->event_subgroup_start_wt();
+}
+void GroupEvents::RequestHistoricEventInfo(int groupid) {
+    //TODO
+}
 void PrivateEventsManagerV2::GetPrivateEvents() {
     //TODO
 }

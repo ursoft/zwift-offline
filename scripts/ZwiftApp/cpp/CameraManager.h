@@ -61,3 +61,4 @@ GetTemporaryCamera(), IsElasticityEnabled(), PasteCameraPositionFromClipboard(),
 };
 inline CameraManager g_CameraManager;
 float JoyY2();
+void SwitchCamera(int to);

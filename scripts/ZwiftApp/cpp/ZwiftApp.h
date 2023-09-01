@@ -122,3 +122,6 @@ using NOTABLEMOMENT_TYPE = protobuf::NotableMomentType; //not sure
 #include "RoadMover.h"
 #include "Prefab.h"
 #include "Video.h"
+#include "TrainingPlan.h"
+#include "Workout.h"
+#include "ScriptedSessionManager.h"

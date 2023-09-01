@@ -293,8 +293,8 @@ inline char g_strCPU[0x40];
 inline int g_BlurShaderHandle = -1, g_CurrentShaderHandle = -1;
 enum DetailedRender { DR_NO, DR_MIDDLE, DR_VERBOSE };
 inline DetailedRender g_renderDetailed = DR_VERBOSE;
-inline float g_kwidth, g_kheight, g_view_x, g_view_y, g_view_w, g_view_h, g_Aniso = 1.0f, g_instantaniousFPS, g_smoothedFPS, g_SecondsUnplugged, g_TargetBatteryFPS, g_TotalRenderTime;
-inline int g_width, g_height, g_bFullScreen, g_nShadersLoaded, g_TotalShaderCreationTime;
+inline float g_kwidth, g_kheight, g_UI_WindowOffsetX, g_UI_WindowOffsetY, g_UI_WindowWidth, g_UI_WindowHeight, g_Aniso = 1.0f, g_instantaniousFPS, g_smoothedFPS, g_SecondsUnplugged, g_TargetBatteryFPS, g_TotalRenderTime;
+inline int g_WIN32_WindowWidth, g_WIN32_WindowHeight, g_bFullScreen, g_nShadersLoaded, g_TotalShaderCreationTime;
 inline uint32_t g_glVersion, g_CoreVA, g_UBOs[(int)GFX_RegisterRef::Ty::CNT], g_gfxTier, g_DrawPrimVBO, g_nTotalFrames;
 inline uint8_t g_colorChannels, g_gfxShaderModel;
 inline GfxCaps g_gfxCaps;
@@ -619,7 +619,6 @@ void GFX_DrawInstancedPrimitive(GFX_PRIM_TYPE, uint32_t, uint32_t, uint32_t, uin
 void GFX_DrawPrimitive_OGL(GFX_PRIM_TYPE, DRAW_VERT_POS_COLOR_UV *, uint32_t);
 enum RENDER_BUFFER { RB_0 };
 struct RenderTarget;
-struct RECT2 {};
 void GFX_DrawRenderTarget(const RECT2 &, const RECT2 &, RenderTarget *, RENDER_BUFFER, const VEC4 &, GFX_TEXTURE_WRAP_MODE);
 void GFX_DrawRenderTarget(RenderTarget *, RenderTarget *, RENDER_BUFFER, const VEC4 &, GFX_TEXTURE_WRAP_MODE);
 void GFX_DrawRenderTarget2(float, float, float, float, RenderTarget *, RENDER_BUFFER, const VEC4 &, GFX_TEXTURE_WRAP_MODE);
@@ -903,8 +902,8 @@ struct GFX_Thread {
 void GFX_TransformPoint(const VEC3 &);
 void GFX_Translate(const VEC3 &);
 void GFX_UI_GetCurrentSpaceHeight();
-void GFX_UI_GetLeftEdgePad();
-void GFX_UI_GetRightEdgePad();
+inline float GFX_UI_GetLeftEdgePad() { return 0.0f; }
+inline float GFX_UI_GetRightEdgePad() { return 0.0f; }
 void GFX_UI_GetWideSpaceHeight();
 void GFX_UI_GetWideSpaceWidth();
 void GFX_UnloadTexture(int);
@@ -933,7 +932,7 @@ void GFX_UploadShaderVEC4(const GFX_UserRegister &, const VEC4 &, uint64_t);
 void GFX_UploadShaderVEC4ARRAY(GFX_SHADER_REGISTERS, uint32_t, const VEC4 &);
 void GFX_UploadShaderVEC4ARRAY(const GFX_UserRegister &, uint32_t, const VEC4 &, uint64_t);
 void GFX_VHSGaussianBlur(RenderTarget *, RenderTarget *, RenderTarget *, float, GFX_TEXTURE_WRAP_MODE);
-void GFX_Viewport(int, int, uint32_t, uint32_t);
+//inlined void GFX_Viewport(int, int, uint32_t, uint32_t);
 void GFX_internal_DrawIndexedPrimitive(GFX_PRIM_TYPE, GFX_IndexFormat, const void *, uint32_t);
 void GFX_internal_DrawPrimitive(GFX_PRIM_TYPE, uint32_t, uint32_t);
 enum GFX_TextureType { GTT_0 };
@@ -960,3 +959,6 @@ void TEXMGR_DumpAllGameWorldTextures();
 //empty void TEXMGR_DumpUsageStats();
 //assert-only void TEXMGR_LoadTextureFile(WAD_FILE_HEADER *);
 void TEXMGR_OverrideHWHandle(int texh, uint32_t id);
+enum dialogBoxStyle { DBS_0 };
+void ZwiftFrame_Draw_f(float, float, float, float, dialogBoxStyle, uint32_t, float, bool, bool);
+void ZwiftFrame_Draw_u(float, float, float, float, dialogBoxStyle, uint32_t, uint32_t, float, bool);

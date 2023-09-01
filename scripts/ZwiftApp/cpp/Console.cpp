@@ -1,22 +1,22 @@
-#include "ZwiftApp.h"
+#include "ZwiftApp.h" //READY for testing
 void SetupConsoleCommands() {
     CONSOLE_Init();
-    CONSOLE_AddCommand("loadconfig", CMD_LoadConfig);
-    CONSOLE_AddCommand("time", CMD_Time);
+    CONSOLE_AddCommand("loadconfig", CMD_ChangeTime);
+    CONSOLE_AddCommand("time", CMD_ChangeTime);
     CONSOLE_AddCommand("pairhr", CMD_PairHr);
     CONSOLE_AddCommand("pairpower", CMD_PairPower);
-    CONSOLE_AddCommand("antstartsearch", CMD_AntStartSearch);
-    CONSOLE_AddCommand("antstopsearch", CMD_AntStopSearch);
+    CONSOLE_AddCommand("antstartsearch", CMD_ANTStartSearch);
+    CONSOLE_AddCommand("antstopsearch", CMD_ANTStopSearch);
     CONSOLE_AddCommand("trainersetsimmode", CMD_TrainerSetSimMode);
     CONSOLE_AddCommand("trainersetsimgrade", CMD_TrainerSetSimGrade);
     CONSOLE_AddCommand("listdevices", CMD_ListDevices);
     CONSOLE_AddCommand("settrainerdelay", CMD_SetTrainerDelay);
-    CONSOLE_AddCommand("focus", CMD_Focus);
-    CONSOLE_AddCommand("raceresults", CMD_RaceResults);
-    CONSOLE_AddCommand("time_to_tp_workout", CMD_Time_to_tp_workout);
-    CONSOLE_AddCommand("evfin", CMD_EvFin);
-    CONSOLE_AddCommand("set_object_visible", CMD_SetObjectVisible);
-    CONSOLE_AddCommand("benchmark", CMD_Benchmark);
+    CONSOLE_AddCommand("focus", CMD_FocusOnCyclist);
+    CONSOLE_AddCommand("raceresults", CMD_ShowRaceResults);
+    CONSOLE_AddCommand("time_to_tp_workout", CMD_TimeToTPWorkout);
+    CONSOLE_AddCommand("evfin", CMD_ShowEventFinished);
+    CONSOLE_AddCommand("set_object_visible", CMD_SetGUIObjVisible);
+    CONSOLE_AddCommand("benchmark", CMD_LoadBenchmarkScript);
     CONSOLE_AddCommand("enroll_in_trainingplan", CMD_EnrollInTrainingPlan);
     CONSOLE_AddCommand("show_ui", CMD_ShowUI);
 }
@@ -143,23 +143,87 @@ bool COMMAND_RunCommand(const char *cmd) {
 bool CMD_LoadConfig(const char *par) {
     return COMMAND_RunCommandsFromFile(par);
 }
-bool CMD_Time(const char *) {
-    return true; //TODO
+bool CMD_ChangeTime(const char *par) {
+    char tims[1024], tail[1024];
+    strcpy_s(tims, par);
+    _strlwr(tims);
+    int hh, mm;
+    if (strstr(tims, ":")) {
+        if (sscanf(tims, "%d:%d%s", &hh, &mm, tail) == 3) {
+            if (hh == 12)
+                hh = 0;
+            if (strstr(tail, "pm") && hh < 12)
+                hh += 12;
+            g_WorldTime = fmodf(mm * 0.016666668f + hh, 24.0f) * 0.33333334f;
+            return true;
+        }
+        if (sscanf(tims, "%d:%d", &hh, &mm) == 2) {
+            g_WorldTime = fmodf(mm * 0.016666668f + hh, 24.0f) * 0.33333334f;
+            return true;
+        }
+        Log("Usage: time hh:mm(AM|PM)");
+        return false;
+    }
+    if (strstr(tims, "am")) {
+        if (sscanf(tims, "%dam", &hh) == 1) {
+            if (hh == 12)
+                hh = 0;
+            g_WorldTime = fmodf((float)hh, 24.0f) * 0.33333334f;
+            return true;
+        }
+    } else {
+        if (!strstr(tims, "pm")) {
+            GAME_GetWorldTime(&hh, &mm);
+            hh %= 24;
+            Log("Current time is %d:%02d\n", hh, mm);
+        } else if (sscanf(tims, "%dpm", &hh) == 1) {
+            if (hh == 12)
+                hh = 0;
+            g_WorldTime = fmodf(hh + 12.0f, 24.0f) * 0.33333334f;
+            return true;
+        }
+    }
+    Log("Usage: time hh:mm(AM|PM)  or  time hh(AM|PM)");
+    return false;
 }
-bool CMD_PairHr(const char *) {
-    return true; //TODO
+bool CMD_PairHr(const char *par) {
+    uint32_t devId = 0;
+    sscanf(par, "%u", &devId);
+    auto devHr = FitnessDeviceManager::FindDevice(devId);
+    if (!devHr)
+        return false;
+    g_UserConfigDoc.SetU32("ZWIFT\\DEVICES\\LASTHRMDEVICE", devHr->GetPrefsID());
+    devHr->Pair(true);
+    FitnessDeviceManager::m_pSelectedHRDevice = devHr;
+    /*if (Experimentation::Instance()->IsEnabled(FID_HUB_FWU) && devHr->m_protocol == DP_BLE) {
+        //OMIT fwupdate
+    }*/
+    return true;
 }
-bool CMD_PairPower(const char *) {
-    return true; //TODO
+bool CMD_PairPower(const char *par) {
+    uint32_t devId = 0;
+    sscanf(par, "%u", &devId);
+    auto devPwr = FitnessDeviceManager::FindDevice(devId);
+    if (!devPwr)
+        return false;
+    FitnessDeviceManager::PairPowerSensor(devPwr);
+    return true;
 }
-bool CMD_AntStartSearch(const char *) {
-    return true; //TODO
+bool CMD_ANTStartSearch(const char *) {
+    ANT_DeviceSearch(0);
+    return true;
 }
-bool CMD_AntStopSearch(const char *) {
-    return true; //TODO
+bool CMD_ANTStopSearch(const char *par) {
+    ANT_StopDeviceSearch();
+    return true;
 }
-bool CMD_TrainerSetSimMode(const char *) {
-    return true; //TODO
+bool CMD_TrainerSetSimMode(const char *par) {
+    if (FitnessDeviceManager::m_pSelectedControllableTrainerDevice && timeGetTime() - FitnessDeviceManager::m_pSelectedControllableTrainerDevice->m_last_time_ms >= 5000) {
+        auto cot = (TrainerControlComponent *)(FitnessDeviceManager::m_pSelectedControllableTrainerDevice->FindComponentOfType(DeviceComponent::CPT_CTRL));
+        if (cot)
+            cot->SetSimulationMode();
+    }
+    return true;
 }
 bool CMD_ChangeRes(const char *par) {
     int w = 0, h = 0, ms = 0;
@@ -229,7 +293,15 @@ bool CMD_TrainerSetSimGrade(const char *arg) {
     return true;
 }
 bool CMD_ListDevices(const char *) {
-    return true; //TODO
+    int c = 0;
+    for (auto i : FitnessDeviceManager::m_DeviceList) {
+        const char *name = "";
+        for (auto j : FitnessDeviceManager::m_DeviceDB)
+            if (j->m_hash == i->m_prefsID)
+                name = j->m_name;
+        Log("%d %s ID %d", c++, name, i->m_prefsID);
+    }
+    return true;
 }
 bool CMD_SetTrainerDelay(const char *arg) {
     int v;
@@ -238,29 +310,221 @@ bool CMD_SetTrainerDelay(const char *arg) {
     g_trainerDelay = v;
     return true;
 }
-bool CMD_Focus(const char *) {
-    return true; //TODO
+bool CMD_FocusOnCyclist(const char *name) {
+    auto uname = ToUTF8_ib(name);
+    for (auto b : BikeManager::Instance()->m_allBikes) {
+        if (u_strcasecmp(b->m_uname, uname, 0) == 0) {
+            auto c = g_CameraManager.GetSelectedCamera();
+            if (c)
+                c->SetLookAtEntity(b);
+        }
+    }
+    return true;
 }
-bool CMD_RaceResults(const char *) {
-    return true; //TODO
+bool CMD_ShowRaceResults(const char *par) {
+    int groupid = 0, subgroupid = 0;
+    if (sscanf_s(par, "%d %d", &groupid, &subgroupid) == 2 && groupid && subgroupid) {
+        GroupEvents::RequestHistoricEventInfo(groupid);
+        UI_CreateDialog(UID_RACE_RESULTS, (void *)(uint64_t)subgroupid, nullptr);
+    } else {
+        Log("ShowRaceResults usage raceresults <groupid> <subgroupid>");
+    }
+    return true;
 }
-bool CMD_Time_to_tp_workout(const char *) {
-    return true; //TODO
+bool CMD_TimeToTPWorkout(const char *par) {
+    if (!ZNETWORK_IsLoggedIn()) {
+        Log("Error: Must be logged in!");
+        return false;
+    }
+    auto v7 = TrainingPlanManager::Instance()->m_pcurEnrollment;
+    if (!v7) {
+        Log("Error: No current enrollment!");
+        return false;
+    }
+    TrainingPlan *v8 = nullptr;
+    if (!v7 || (v8 = TrainingPlanManager::Instance()->GetTrainingPlan(v7->m_planId)) == nullptr) {
+        Log("Error: Invalid training plan!");
+        return false;
+    }
+    auto v9 = TP_GetNetworkTime();
+    auto v37 = v8->GetActivities(v7, v9, uint64_t(-1), false, 1000);
+    int v1 = 0;
+    for (auto i : v37) {
+        auto v17 = v8->GetHoursUntilAvailable(v7, v9, *i);
+        if (v17 > 0.0f && (!v1 || v17 < (float)v1))
+            v1 = (int)v17;
+    }
+    int v26 = v1 + g_UserConfigDoc.GetS32("ZWIFT\\HOURSTOADD", 0, false);
+    if (v26 > 0) {
+        g_UserConfigDoc.SetS32("ZWIFT\\HOURSTOADD", v26 + 1);
+        Log("Moved forward %d hour(s)", v26 + 1);
+        return true;
+    }
+    Log("Error: Invalid offset!");
+    return false;
 }
-bool CMD_EvFin(const char *) {
-    return true; //TODO
+bool CMD_ShowEventFinished(const char *par) {
+    auto mainBike = BikeManager::Instance()->m_mainBike;
+    strUID_EVENT_FINISHED v6{ "December zFondo Training Plan Week 2 - Workout 2: Make A Break For It!"s, nullptr, 20,
+        (double)mainBike->m_field_8EC, 185.0f, int(mainBike->m_bc->m_field_118 / 1000), 122.0 };
+    UI_CreateDialog(UID_EVENT_FINISHED, &v6, nullptr);
+    ConfettiComponent::SpawnPersonalConfetti(mainBike, protobuf::NMT_FINISHED_EVENT, 0.0f, 0);
+    return true;
 }
-bool CMD_SetObjectVisible(const char *) {
-    return true; //TODO
+std::vector<void *> g_commandUserdataStack;
+void *COMMAND_GetUserdata() {
+    if (g_commandUserdataStack.size())
+        return g_commandUserdataStack.back();
+    return nullptr;
 }
-bool CMD_Benchmark(const char *) {
-    return true; //TODO
+void COMMAND_PopUserdata() {
+    if (g_commandUserdataStack.size())
+        g_commandUserdataStack.pop_back();
+    //QUEST: free mem?
 }
-bool CMD_EnrollInTrainingPlan(const char *) {
-    return true; //TODO
+void COMMAND_PushUserdata(void *data) {
+    g_commandUserdataStack.push_back(data);
 }
-bool CMD_ShowUI(const char *) {
-    return true; //TODO
+const char *EatBlock(const char *scr) {
+    if (!scr)
+        return nullptr;
+    char v1 = *scr;
+    int v2 = 0;
+    while (v1) {
+        if (v1 == '{') {
+            ++v2;
+        } else if (v1 == '}') {
+            if (--v2 == 0) 
+                return scr;
+        }
+        v1 = *++scr;
+    }
+    return nullptr;
+}
+const char *EatStatement(const char *scr) {
+    if (scr) {
+        while (*scr) {
+            if (*scr == '{') {
+                scr = EatBlock(scr);
+                if (!scr)
+                    return scr;
+            } else {
+                if (*scr == ';')
+                    return scr;
+                ++scr;
+            }
+        }
+    }
+    return scr;
+}
+const char *SkipSpaces(const char *script) {
+    if (script) while (*script) {
+        if (isspace(*script))
+            ++script;
+        else
+            break;
+    }
+    return script;
+}
+bool COMMAND_RunScript(const char *script) {
+    std::string v13;
+    bool ret = true;
+    while (true) {
+        auto e = EatStatement(script);
+        if (!e)
+            break;
+        v13.assign(script, e + 1 - script);
+        auto v9 = SkipSpaces(v13.c_str());
+        ret = COMMAND_RunCommand(v9) && ret;
+        script = SkipSpaces(e + 1);
+        if (!script || !*script)
+            break;
+    }
+    return ret;
+}
+bool CMD_SetGUIObjVisible(const char *par) {
+    char v5[256];
+    int v6 = 0;
+    if (sscanf_s(par, "%s %d", v5, (unsigned)sizeof(v5), &v6) == 2) {
+        auto v2 = dynamic_cast<GUI_BasicContainer *>((GUI_Obj *)COMMAND_GetUserdata());
+        if (v2) {
+            auto v3 = v2->FindByID(v5);
+            if (v3) {
+                v3->m_visible = v6 != 0;
+                v3->m_disabled = v6 == 0;
+            }
+        }
+    }
+    return true;
+}
+bool CMD_LoadBenchmarkScript(const char *par) {
+#if 0 //I see no benchmark_scripts folder
+    int path = 0;
+    sscanf(par, "%d", &path);
+    *(_QWORD *)&xmmword_7FF70B0DAED0 = g_BenchmarkPoints;
+    char fileName[1024];
+    sprintf(fileName, GAMEPATH("data/Worlds/world%d/benchmark_scripts/path%02d.bs"), g_pGameWorld->WorldID(), path);
+    auto v8 = fopen(fileName, "r");
+    dword_7FF70B0D0F34 = 0;
+    dword_7FF70B0D0F44 = 0;
+    if (v8) {
+        common_fgets<char>(fileName, 1024i64, v8);
+        sscanf(fileName, "time=%f", &g_BenchmarkStartTimeOfDay);
+        LODWORD(g_WorldTime) = g_BenchmarkStartTimeOfDay;
+        while (common_fgets<char>(fileName, 1024i64, v8))
+        {
+            if (sscanf(
+                fileName,
+                "Pos: %f,%f,%f  At: %f,%f,%f",
+                &v14,
+                (char *)&v14 + 4,
+                (char *)&v14 + 8,
+                (char *)&v14 + 12,
+                &v15,
+                (char *)&v15 + 4) != 6)
+            {
+                if (IsDebuggerPresent_1())
+                    __debugbreak();
+                if (ZwiftAssert::BeforeAbort(
+                    "count == 6",
+                    "D:\\git\\zwift-game-client\\Projects\\ZwiftApp\\CODE\\Engine\\ZwiftUtil.cpp",
+                    0xE2u,
+                    0))
+                {
+                    ZwiftAssert::Abort();
+                }
+            }
+            v10 = xmmword_7FF70B0DAED0;
+            if ((_QWORD)xmmword_7FF70B0DAED0 == *((_QWORD *)&xmmword_7FF70B0DAED0 + 1))
+            {
+                sub_7FF7099FA6C0(v9, (_BYTE *)xmmword_7FF70B0DAED0, (__int64)&v14);
+            } else
+            {
+                *(_OWORD *)xmmword_7FF70B0DAED0 = v14;
+                *(_QWORD *)(v10 + 16) = v15;
+                *(_QWORD *)&xmmword_7FF70B0DAED0 = xmmword_7FF70B0DAED0 + 24;
+            }
+        }
+        fclose(v8);
+        g_BenchmarkFrameStartedOn = GFX_GetFrameCount();
+        v11 = g_pTitleCamera;
+        g_bShowConsole = 0;
+        g_AveragePolyCount = 0;
+        g_AverageDCCount = 0;
+        g_pTitleCamera->m_field_B0 = 0.0;
+        g_DesiredCam = v11;
+        g_BenchmarkTime = 0.0;
+    }
+#endif
+    return 1;
+}
+bool CMD_EnrollInTrainingPlan(const char *par) {
+    int p1 = 0;
+    sscanf(par, "%d", &p1);
+    Log("raising enrollment popup for plan %d", p1);
+    auto tp = TrainingPlanManager::Instance()->GetTrainingPlan(p1);
+    new UI_TrainingPlanEnrollPopup(tp, nullptr);
+    return true;
 }
 bool CMD_Help(const char *) {
     LogTyped(LOG_COMMAND_OUTPUT, "Known Commands: ");
@@ -956,8 +1220,25 @@ void CONSOLE_Draw(float atY, float dt) {
         banner = g_Console.m_logBanner.c_str();
     g_LargeFontW.RenderWString_c(15.0f, 0.0f, banner, 0xFFFFFF00, 0, 0.35f /*URSOFT FIX : was 0.4*/, true, false);
 }
-bool CMD_PlayWem(const char *) {
-    //TODO
+char g_CMD_PlayWemBuf[1024], g_OnFinishedDownloadingSimpleAudio[1024];
+void OnFinishedDownloadingSimpleAudio(const std::string &f, int result) {
+    auto up = OS_GetUserPath();
+    if (!result && up) {
+        sprintf(g_OnFinishedDownloadingSimpleAudio, "%s/Zwift/Downloads/%s", up, f.c_str());
+        AUDIO_PlayFlatFile(g_OnFinishedDownloadingSimpleAudio, 0.0f);
+    }
+}
+bool CMD_PlayWem(const char *par) {
+    std::string spar(par);
+    if (spar.size() > 9) {
+        auto v8 = spar.find('/', 9) + 1;
+        if (v8 != 0) {
+            sprintf(g_CMD_PlayWemBuf, "%s/Zwift/Downloads/", OS_GetUserPath());
+            Downloader::Instance()->SetLocalPath(g_CMD_PlayWemBuf);
+            Downloader::Instance()->SetServerURLPath(spar.substr(0, v8).c_str());
+            Downloader::Instance()->DownloadFptr(spar.substr(v8), 0, Downloader::m_noFileTime, (uint32_t)-1, OnFinishedDownloadingSimpleAudio);
+        }
+    }
     return true;
 }
 char g_cmdPlayFileName[1024];
@@ -980,17 +1261,178 @@ void ZwiftAppKeyProcessorManager::Init() {
     m_stack.Push(&m_goKP);
     m_stack.Push(&m_guiKP);
 }
-bool GUIKeyProcessor::ProcessKey(int a2, int a3) {
-    return GUI_Key(a2, a3);
+void KeyProcessorStack::RemoveAllKeyProcessors() {
+    zassert(!m_isLocked);
+    m_normal.clear();
 }
-bool GoKeyProcessor::ProcessKey(int, int) {
-    //TODO
-    return false;
+bool GUIKeyProcessor::ProcessKey(int key, int mod) {
+    return GUI_Key(key, mod);
+}
+int g_3DTV_algo = 1;
+bool GoKeyProcessor::ProcessKey(int key, int mod) {
+    const int cs = GLFW_MOD_CONTROL | GLFW_MOD_SHIFT;
+    if ((mod & cs) == cs && key == '3') {
+        auto &old3dEn = g_tweakArray[TWI_3DTVENABLED].IntValue();
+        g_3DTVEnabledDisplayNotificationTimer = old3dEn ? 0.0f : 10.0f;
+        old3dEn = old3dEn ? 0 : 1;
+        return true;
+    }
+    if (mod & GLFW_MOD_ALT)
+        return false;
+    if (auto pNoesisGUI = g_pNoesisGUI.lock()) {
+        switch (key) {
+        case ' ':
+            if (BikeManager::Instance()->m_mainBike)
+                BikeManager::Instance()->m_mainBike->ActivatePowerUp();
+            break;
+        case '+': case '=':
+            if (ZML_GetButtonScheme() == 3 || ZML_GetButtonScheme() == 9)
+                GAME_IncreaseFlatRoadTrainerResistance();
+            break;
+        case '-': case '_':
+            if (ZML_GetButtonScheme() == 3 || ZML_GetButtonScheme() == 9)
+                GAME_DecreaseFlatRoadTrainerResistance();
+            break;
+        case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+            if (g_gameStartupFlowState == ZSF_11)
+                SwitchCamera(key - 48);
+            break;
+        case 'A': case 'a':
+            if (!GUI_GetTopmostDialog())
+                UI_CreateDialog(UID_DEVICE_PAIRING, UI_Refactor::temp::PairingListDialogConfirmFromNewHomeScreen, nullptr);
+            break;
+        case 'E': case 'e':
+            if (!g_GroupEventsActive_CurrentEventId)
+                UI_CreateDialog(UID_WORKOUT_SELECT, nullptr, nullptr);
+            break;
+        case 'G': case 'g':
+            g_ShowGraph = !g_ShowGraph;
+            g_UserConfigDoc.SetBool("ZWIFT\\CONFIG\\SHOW_GRAPH", g_ShowGraph);
+            break;
+        case 'M': case 'm':
+            if (ProfanityFilter::PlayerOldEnoughToMessage())
+                UI_CreateDialog(UID_SEND_AREA_TEXT, OnFinishAreaText, nullptr);
+            break;
+        case 'P': case 'p':
+            UI_CreateDialog(UID_APPLY_PROMO_CODE, OnApplyPromoCode, nullptr);
+            break;
+        case 'R': case 'r':
+            if (g_friendsListGUIObj && g_friendsListGUIObj->m_field_428) {
+                auto v15 = g_friendsListGUIObj->m_bikeEntity;
+                if (v15)
+                    ZNETWORK_GiveRideOn(v15->m_playerIdTx, false);
+            }
+            break;
+        case 'T': case 't':
+            if (!GUI_GetTopmostDialog()) {
+                g_bDropInAfterCustomization = false;
+                UI_CreateDialog(UID_CUSTOMIZE_BIKE_AND_RIDER, CustomizationDialogConfirm, nullptr);
+            }
+            break;
+        case 256:
+            if (g_friendsListGUIObj && g_friendsListGUIObj->m_bikeEntity && BikeManager::Instance()->m_mainBike && g_friendsListGUIObj->m_bikeEntity != BikeManager::Instance()->m_mainBike) {
+                g_friendsListGUIObj->FanView(BikeManager::Instance()->m_mainBike, false);
+                g_friendsListGUIObj->m_field_428 = false;
+                g_friendsListGUIObj->m_fanView = true;
+            } else {
+                UI_CreateDialog(UID_QUIT, OnQuit, nullptr);
+            }
+            break;
+        case 258:
+            if (WorkoutDatabase::Self()->m_field_98 && (g_GameMode & 4)) {
+                g_bSkipThisWorkoutSection = true;
+                Log("CANCEL WORKOUT SECTION REQUEST");
+            }
+            break;
+        case 257:
+            if (g_pActionKeys->m_field_318 >= 0 && g_pActionKeys->m_field_318 < g_pActionKeys->m_field_C8) {
+                auto v23 = g_pActionKeys->m_field_1D8[g_pActionKeys->m_field_318];
+                v23->OnMouseDown(v23->GetX(), v23->GetY());
+                v23->OnMouseUp(v23->GetX(), v23->GetY());
+            }
+            break;
+        case 262: case 263: case 265:
+            if (!SelectBranch(key, true, false, false, false) && g_CameraManager.GetSelectedCamera() != g_OrbitCam && g_CameraManager.GetSelectedCamera() != g_pTitleCamera) {
+                if (key == 265) {
+                    if (g_pActionKeys && g_pActionKeys->m_field_C4 == 1)
+                        g_pActionKeys->ShowActionKeys(false);
+                } else {
+                    if (g_pActionKeys) {
+                        if (g_pActionKeys->m_field_C4 == 3) {
+                            g_pActionKeys->m_field_D8 = 0;
+                            g_pActionKeys->MoveToNextKey(key == 262);
+                        }
+                    }
+                }
+            }
+            break;
+        case 264:
+            if (g_pActionKeys && g_pActionKeys->m_field_C4 == 3) {
+                g_pActionKeys->HideActionKeys(true);
+                break;
+            }
+            if (g_CameraManager.GetSelectedCamera() != g_OrbitCam) {
+                auto v28 = ScriptedSessionManager::Inst();
+                // ScriptedSessionManager::GetHUDOverrides()
+                if (v28->m_field_C && v28->m_hudOverrides.m_field_D)
+                    return true;
+                BikeManager::Instance()->m_mainBike->PerformUTurn();
+            }
+            break;
+        case 266: //NUM+ ?
+            IncreaseWorkoutIntensityClicked();
+            break;
+        case 267: //NUM- ?
+            DecreaseWorkoutIntensityClicked();
+            break;
+        default:
+            break;
+        }
+        return false;
+    }
+    return true;
 }
 void KeyProcessorStack::Push(IKeyProcessor *p) {
-    m_data.push_back(p);
+    if (m_isLocked)
+        m_locked.push_back(p);
+    else
+        m_normal.push_back(p);
 }
-bool KeyProcessorStack::ProcessKey(int, int) {
-    //TODO
-    return false;
+bool KeyProcessorStack::ProcessKey(int a2, int a3) {
+    m_isLocked = true;
+    bool ret = false;
+    for (auto it = m_normal.rbegin(); it != m_normal.rend(); it++) {
+        if ((*it)->ProcessKey(a2, a3)) {
+            ret = true;
+            break;
+        }
+    }
+    m_isLocked = false;
+    if (m_locked.size()) {
+        m_normal.insert(m_normal.end(), m_locked.begin(), m_locked.end());
+        m_locked.clear();
+    }
+    while (m_deferredRemoves.size()) {
+        Remove(m_deferredRemoves.back());
+        m_deferredRemoves.pop_back();
+    }
+    return ret;
+}
+/*void KeyProcessorStack::Pop() { //inlined
+    if (m_isLocked)
+        m_deferredRemoves.push_back(m_locked.back());
+    else
+        m_normal.pop_back();
+}*/
+void KeyProcessorStack::Remove(IKeyProcessor *what) { //inlined
+    auto it = std::ranges::find(m_locked, what);
+    if (it != m_locked.end())
+        m_locked.erase(it);
+    it = std::ranges::find(m_normal, what);
+    if (it != m_normal.end()) {
+        if (m_isLocked)
+            m_deferredRemoves.push_back(what);
+        else
+            m_normal.erase(it);
+    }
 }

@@ -6507,7 +6507,6 @@ void ZNETWORK_INTERNAL_HandleLateJoinRequest(const ZNETWORK_LateJoinRequest &elj
         //OMIT AnalyticsHelper_inst();
     }
 }
-int g_GameMode;
 std::future<NetworkResponse<int64_t>> g_BroadcastLateJoinReturnCode;
 void ZNETWORK_RespondToLateJoinRequest(int64_t lateJoinPlayerId) {
     auto bk = BikeManager::Instance()->m_mainBike;
@@ -6580,25 +6579,33 @@ void ZNETWORK_Update(float dt) {
                     ZNETWORK_GivePlayerPowerup(v13);
                 ZML_SendGameSessionInfo();
             }
-            /* TODO
-            if (FitnessDeviceManager::m_pSelectedHRDevice && *FitnessDeviceManager::m_pSelectedHRDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedHRDevice[2].field_0[120] == 1)
+            if (FitnessDeviceManager::m_pSelectedHRDevice && FitnessDeviceManager::m_pSelectedHRDevice->m_protocol == DP_BLE
+                && ((BLEDevice *)FitnessDeviceManager::m_pSelectedHRDevice)->m_bleSrc == BLES_ZCA)
                 FitnessDeviceManager::m_pSelectedHRDevice->Pair(true);
-            if (FitnessDeviceManager::m_pSelectedPowerDevice && *FitnessDeviceManager::m_pSelectedPowerDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedPowerDevice[2].field_0[120] == 1)
+            if (FitnessDeviceManager::m_pSelectedPowerDevice && FitnessDeviceManager::m_pSelectedPowerDevice->m_protocol == DP_BLE
+                && ((BLEDevice *)FitnessDeviceManager::m_pSelectedPowerDevice)->m_bleSrc == BLES_ZCA)
                 FitnessDeviceManager::m_pSelectedPowerDevice->Pair(true);
-            if (FitnessDeviceManager::m_pSelectedSpeedDevice && *FitnessDeviceManager::m_pSelectedSpeedDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedSpeedDevice[2].field_0[120] == 1)
+            if (FitnessDeviceManager::m_pSelectedSpeedDevice && FitnessDeviceManager::m_pSelectedSpeedDevice->m_protocol == DP_BLE
+                && ((BLEDevice *)FitnessDeviceManager::m_pSelectedSpeedDevice)->m_bleSrc == BLES_ZCA)
                 FitnessDeviceManager::m_pSelectedSpeedDevice->Pair(true);
-            if (FitnessDeviceManager::m_pSelectedCadenceDevice && *FitnessDeviceManager::m_pSelectedCadenceDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedCadenceDevice[2].field_0[120] == 1)
+            if (FitnessDeviceManager::m_pSelectedCadenceDevice && FitnessDeviceManager::m_pSelectedCadenceDevice->m_protocol == DP_BLE
+                && ((BLEDevice *)FitnessDeviceManager::m_pSelectedCadenceDevice)->m_bleSrc == BLES_ZCA)
                 FitnessDeviceManager::m_pSelectedCadenceDevice->Pair(true);
-            if (FitnessDeviceManager::m_pSelectedControllableTrainerDevice && *FitnessDeviceManager::m_pSelectedControllableTrainerDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedControllableTrainerDevice[2].field_0[120] == 1)
+            if (FitnessDeviceManager::m_pSelectedControllableTrainerDevice && FitnessDeviceManager::m_pSelectedControllableTrainerDevice->m_protocol == DP_BLE
+                && ((BLEDevice *)FitnessDeviceManager::m_pSelectedControllableTrainerDevice)->m_bleSrc == BLES_ZCA)
                 FitnessDeviceManager::m_pSelectedControllableTrainerDevice->Pair(true);
-            if (FitnessDeviceManager::m_pSelectedSteeringDevice && *FitnessDeviceManager::m_pSelectedSteeringDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedSteeringDevice[2].field_0[120] == 1)
+            if (FitnessDeviceManager::m_pSelectedSteeringDevice && FitnessDeviceManager::m_pSelectedSteeringDevice->m_protocol == DP_BLE
+                && ((BLEDevice *)FitnessDeviceManager::m_pSelectedSteeringDevice)->m_bleSrc == BLES_ZCA)
                 FitnessDeviceManager::m_pSelectedSteeringDevice->Pair(true);
-            if (FitnessDeviceManager::m_pSelectedBrakingDevice && *FitnessDeviceManager::m_pSelectedBrakingDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedBrakingDevice[2].field_0[120] == 1)
+            if (FitnessDeviceManager::m_pSelectedBrakingDevice && FitnessDeviceManager::m_pSelectedBrakingDevice->m_protocol == DP_BLE
+                && ((BLEDevice *)FitnessDeviceManager::m_pSelectedBrakingDevice)->m_bleSrc == BLES_ZCA)
                 FitnessDeviceManager::m_pSelectedBrakingDevice->Pair(true);
-            if (FitnessDeviceManager::m_pSelectedRunSpeedDevice && *FitnessDeviceManager::m_pSelectedRunSpeedDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedRunSpeedDevice[2].field_0[120] == 1)
+            if (FitnessDeviceManager::m_pSelectedRunSpeedDevice && FitnessDeviceManager::m_pSelectedRunSpeedDevice->m_protocol == DP_BLE
+                && ((BLEDevice *)FitnessDeviceManager::m_pSelectedRunSpeedDevice)->m_bleSrc == BLES_ZCA)
                 FitnessDeviceManager::m_pSelectedRunSpeedDevice->Pair(true);
-            if (FitnessDeviceManager::m_pSelectedRunCadenceDevice && *FitnessDeviceManager::m_pSelectedRunCadenceDevice[1].field_0 == 1 && *&FitnessDeviceManager::m_pSelectedRunCadenceDevice[2].field_0[120] == 1)
-                FitnessDeviceManager::m_pSelectedRunCadenceDevice->Pair(true);*/
+            if (FitnessDeviceManager::m_pSelectedRunCadenceDevice && FitnessDeviceManager::m_pSelectedRunCadenceDevice->m_protocol == DP_BLE
+                && ((BLEDevice *)FitnessDeviceManager::m_pSelectedRunCadenceDevice)->m_bleSrc == BLES_ZCA)
+                FitnessDeviceManager::m_pSelectedRunCadenceDevice->Pair(true);
             if (g_WasPairedToAux) {                  // ZML_RestoreAuxPairing
                 ZML_StartAuxPairing();
                 ZML_SendAuxPairingSelection(g_SelectedAuxSampleHR, protobuf::HEART_RATE);
@@ -6613,7 +6620,7 @@ void ZNETWORK_Update(float dt) {
                 sg->m_field_1E1 = true;
                 mainBike->SaveProfile(false, false); // SaveFirstPairingToZML }
             }
-            for (auto &i : BikeManager::Instance()->m_field_9D08)
+            for (auto &i : BikeManager::Instance()->m_allBikes)
                 i->m_field_488 = 0;
         }
         g_pairToPhone = true;
@@ -7932,7 +7939,7 @@ SegmentResultsWrapper *ZNETWORK_RegisterSegmentID(int64_t hash, TimingArchEntity
 void ZNETWORK_RegisterLocalPlayersRouteResult(const RouteFinishData &rfd) {
     auto mainBike = BikeManager::Instance()->m_mainBike;
     auto v3 = g_pGameWorld->WorldID();
-    if (mainBike && /* TODO (*(__int64 *)&m_mainBike->field_C65[67] >= 0 || m_mainBike->field_805[1]) &&*/ v3) {
+    if (mainBike && (mainBike->m_playerIdTx >= 0 || mainBike->m_field_806) && v3) {
         protobuf::RouteResultSaveRequest v22;
         v22.set_server_realm(g_CurrentServerRealmID);
         v22.set_map_id(v3);
@@ -7955,14 +7962,10 @@ void ZNETWORK_RegisterLocalPlayersRouteResult(const RouteFinishData &rfd) {
         v22.set_player_type(rfd.m_player_type);
         v22.set_calories((int)rfd.m_calories);
         v22.set_sport(rfd.m_sport);
-        //TODO FitnessDeviceManager::GetDeviceNameAndModelFitnessDeviceManager::m_pSelectedCadenceDevice);
-        v22.set_cadence_sensor("TODOcadence_sensor_type"s);
-        //TODO FitnessDeviceManager::GetDeviceNameAndModel(FitnessDeviceManager::m_pSelectedControllableTrainerDevice);
-        v22.set_controllable("TODOcontrollable_type"s);
-        //TODO FitnessDeviceManager::GetDeviceNameAndModel(FitnessDeviceManager::m_pSelectedHRDevice);
-        v22.set_hr_monitor("TODOhr_sensor_type"s);
-        //TODO FitnessDeviceManager::GetDeviceNameAndModel(FitnessDeviceManager::m_pSelectedPowerDevice);
-        v22.set_power_meter("TODOpowermeter_type"s);
+        v22.set_cadence_sensor(FitnessDeviceManager::GetDeviceNameAndModel(*FitnessDeviceManager::m_pSelectedCadenceDevice));
+        v22.set_controllable(FitnessDeviceManager::GetDeviceNameAndModel(*FitnessDeviceManager::m_pSelectedControllableTrainerDevice));
+        v22.set_hr_monitor(FitnessDeviceManager::GetDeviceNameAndModel(*FitnessDeviceManager::m_pSelectedHRDevice));
+        v22.set_power_meter(FitnessDeviceManager::GetDeviceNameAndModel(*FitnessDeviceManager::m_pSelectedPowerDevice));
         Log(": Saving Full route results for route %lld with a time of %f", rfd.m_routeHash, rfd.m_world_time);
         zwift_network::save_route_result(v22).get();
     }
@@ -7995,10 +7998,10 @@ std::future<NetworkResponse<void>> ZNETWORK_RaceResultEntrySaveRequest(double w_
     auto sensor = rq.mutable_sensor();
     auto sensor_f2 = pBike->m_bc->m_sensor_f2 / fmaxf(pBike->m_bc->m_total_smth, 0.0001f);
     sensor->set_f2((int)sensor_f2);
-    //TODO sensor->set_power_type(*((_BYTE *)pBike->m_ptr + 284) != 0);
+    sensor->set_power_type(pBike->m_ipsc->m_pty);
     auto heart = sensor->mutable_heart();
     heart->set_f2(pBike->m_bc->m_heart_f2 / fmaxf(pBike->m_bc->m_total_smth, 0.0001f));
-    //TODO heart->set_actual(FitnessDeviceManager::m_pSelectedHRDevice && timeGetTime() - *((_DWORD *)FitnessDeviceManager::m_pSelectedHRDevice + 68) < 10000);
+    heart->set_actual(FitnessDeviceManager::m_pSelectedHRDevice && timeGetTime() - FitnessDeviceManager::m_pSelectedHRDevice->m_last_time_ms < 10000);
     sensor->set_f11(pBike->m_sensor_f11);
     auto crit = rq.mutable_crit();
     float bta_20h = 0.0f, bta_5h = 0.0f, bta_hour = 0.0, bta_15min = 0.0;
@@ -8070,7 +8073,7 @@ void ZNETWORK_INTERNAL_ProcessPlayerPackets() {
                     if (!v31.player_id() || v31.player_id() == mainBike->m_playerIdTx) {
                         bk1 = mainBike;
                     } else {
-                        for (auto pbe : bikeManager->m_field_9D08)
+                        for (auto pbe : bikeManager->m_allBikes)
                             if (pbe->m_playerIdTx == v31.player_id()) {
                                 bk1 = pbe;
                                 break;
@@ -8095,7 +8098,7 @@ void ZNETWORK_INTERNAL_ProcessPlayerPackets() {
                     if (!v47.player_id() || v47.player_id() == mainBike->m_playerIdTx) {
                         bk2 = mainBike;
                     } else {
-                        for (auto pbe : bikeManager->m_field_9D08)
+                        for (auto pbe : bikeManager->m_allBikes)
                             if (pbe->m_playerIdTx == v47.player_id()) {
                                 bk2 = pbe;
                                 break;
@@ -8117,7 +8120,7 @@ void ZNETWORK_INTERNAL_ProcessPlayerPackets() {
             }
         }
         g_playerStatesCnt += pStc->states1_size();
-        zwiftUpdateContext zuc{};
+        zwiftUpdateContext zuc;
         for (auto &pst : pStc->states1())
             bikeManager->ProcessPlayerState(&zuc, pst);
     }

@@ -51,9 +51,9 @@ void VRAM_CreateAllRenderTargets() {
     if (GFX_GetTier() >= 1)
         VRAM_CreateRenderTarget(&g_RT_CubeMap, ENVCUBEMAP_SIZE, ENVCUBEMAP_SIZE, buf16 | 0x21);
     if (g_HasPickingBuffer) {
-        if (!g_height || !g_width)
-            glfwGetWindowSize(g_mainWindow, &g_width, &g_height);
-        VRAM_CreateRenderTarget(&g_RT_EntityPickingBuffer, g_width, g_height, true, false, false);
+        if (!g_WIN32_WindowHeight || !g_WIN32_WindowWidth)
+            glfwGetWindowSize(g_mainWindow, &g_WIN32_WindowWidth, &g_WIN32_WindowHeight);
+        VRAM_CreateRenderTarget(&g_RT_EntityPickingBuffer, g_WIN32_WindowWidth, g_WIN32_WindowHeight, true, false, false);
         VRAM_CreateRenderTarget(&g_RT_TerrainPickingBuffer, BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT, true, false, false);
     }
     int v14 = 2; //2: 0 & 1, 4: 2 & 3, 8: 4 & 5, 16: 6 & 7, 32: 8 & 9

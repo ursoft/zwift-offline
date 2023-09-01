@@ -65,8 +65,25 @@ const char *g_dialogNames[UI_DIALOGS_CNT] = {"UID_NONE",
 "UID_BLOCKER",
 "UID_NEXT_UP_TRAINING_PLAN" };
 GUI_Obj *UI_DialogPointer(UI_DIALOGS d) {
-    //TODO dynamic_cast
-    return nullptr;
+    auto ret = g_pDialogs[d];
+    if (d == UID_DROP_IN)
+        ret = dynamic_cast<UI_DropInDialog *>(ret); //QUEST: why?
+    return ret;
+}
+bool CMD_ShowUI(const char *par) {
+    int v1 = UID_NONE;
+    int v4 = 0;
+    char v5[512];
+    sscanf_s(par, "%s %d", v5, (unsigned)sizeof(v5), &v4);
+    for (auto i : g_dialogNames) {
+        if (0 == strcmp(v5, i)) {
+            if (v1)
+                UI_CreateDialog((UI_DIALOGS)v1, nullptr, (void *)(uint64_t)v4);
+            break;
+        }
+        ++v1;
+    }
+    return true;
 }
 void UI_CreateDialog(UI_DIALOGS, void *, void *) {
     //TODO
@@ -83,7 +100,6 @@ void UI_QuitDialog::FinalizeDontSaveAndQuit(/*void **/) {
 void UI_IOS_QuitScreen::OnSavePressed(void *quitDialog) {
     //TODO
 }
-void Zwift_EndSession(bool bShutdown);
 void OnQuit(UI_QuitDialog::DIALOG_RESULTS a1) {
     UI_CloseDialog(UID_QUIT);
     if (a1) {

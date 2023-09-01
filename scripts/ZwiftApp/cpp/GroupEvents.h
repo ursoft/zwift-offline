@@ -107,14 +107,19 @@ struct GroupEvents {
             //TODO
         }
         GroupEvents::Rules *GetRules();
-        void IsTimeLeftToJoin() {
+        bool IsTimeLeftToJoin() {
             //TODO
+            return false;
         }
         SubgroupState(int64_t, const GroupEventActive &) {
             //TODO
         }
         ~SubgroupState() {
             //TODO
+        }
+        protobuf::EventSubgroupProtobuf *GetEventSubgroup() {
+            //TODO
+            return nullptr;
         }
     };
     struct Rules {
@@ -161,6 +166,8 @@ struct GroupEvents {
     static void Subgroup_AddEntrantToRegistrants(SubgroupState *, int64_t, double, bool);
     static void Subgroup_AddEntrantToSignups(SubgroupState *, int64_t, double, bool);
     static int64_t GetCurrentBroadcastId_ex();
+    static bool HasSubgroupStarted(int64_t id);
+    static void RequestHistoricEventInfo(int groupid);
         /*GroupEvents::AddAdditionalAnalyticsOnEventFinish(std::vector<std::string> *)
 GroupEvents::ApplyPhysicsRules(GroupEvents::Rules)
 GroupEvents::CheckSubgroupFutures(void)
@@ -203,7 +210,6 @@ GroupEvents::GroupEventActive_bRegisterSuccess(long)
 GroupEvents::GroupEventActive_bSignupSuccess(GroupEvents::SubgroupState *)
 GroupEvents::GroupEventActive_bSignupSuccess(long)
 GroupEvents::GroupEventsActiveQuery::~GroupEventsActiveQuery()
-GroupEvents::HasSubgroupStarted(long)
 GroupEvents::InitEventCompletionParameters(GroupEvents::SubgroupState *)
 GroupEvents::Initialize(Experiment::IExperimentation<Experiment::Feature> &)
 GroupEvents::IsEventPartOfCampaign(ulong long)
@@ -217,7 +223,6 @@ GroupEvents::QueryUpcomingGroupEvents(int)
 GroupEvents::QueryUpcomingGroupEvents_Repeat(float)
 GroupEvents::RecordFinish(GroupEvents::SubgroupState *,long,float)
 GroupEvents::RegistrantList_Find(long long,std::vector<std::unique_ptr<GroupEvents::Entrant>> const&)
-GroupEvents::RequestHistoricEventInfo(long long)
 GroupEvents::ResetForNewPlayer(void)
 GroupEvents::ResetPhysicsRules(void)
 GroupEvents::SendTimeDiffForChipTimeToServer(std::shared_ptr<GroupEvents::SubgroupState>,ulong long)
@@ -240,4 +245,5 @@ GroupEvents::UserRegistered(long long,long long,bool,double)
 GroupEvents::UserSignedup(long long,long long,bool,double)
 GroupEvents::bHoldPlayerStationary(void)*/
 };
+GroupEvents::SubgroupState *FindSubgroupEventSharedPtr(int64_t id);
 inline std::vector<GroupEvents::Entrant> g_SignupList_Orphan, g_RegistrantList_Orphan;

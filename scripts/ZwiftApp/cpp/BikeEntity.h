@@ -70,12 +70,15 @@ VirtualBikeComputer::~VirtualBikeComputer()
 };
 struct SaveGame;
 struct ConfettiComponent {
-    static void SpawnPersonalConfetti(BikeEntity *pbe, NOTABLEMOMENT_TYPE nmt, float, int64_t) {
-        //TODO
-    }
+    static void SpawnPersonalConfetti(BikeEntity *pbe, NOTABLEMOMENT_TYPE nmt, float, int64_t);
+    float m_field_8;
+    int m_field_C;
+    float m_field_10;
+    int64_t m_field_18;
+    NOTABLEMOMENT_TYPE m_nmt;
+    void CreateAudioEvent(const char *, int);
 }; 
 /*ConfettiSpawn(VEC3, VEC3, float, uint *, uint)
-CreateAudioEvent(char const *, int)
 SpawnPersonalConfetti(BikeEntity &, NOTABLEMOMENT_TYPE, float, long long)
 Update(BikeEntity &, zwift::context::UpdateContext &, float)
 Update(BikeEntity &, zwift::context::UpdateContext &, float)
@@ -218,6 +221,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
         int64_t m_fromPlayerId;
         bool m_field_28 = false, m_field_29 = false;
     };
+    ConfettiComponent m_confettiComp{};
     BikeEntity(BikeManager *bm, bool bIsNetworked, bool bIsPlayer);
     ~BikeEntity();
     int64_t m_curEventId = 0, m_cheatBits = 0;
@@ -266,6 +270,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
     void AdjustRandomXZ(/*float*/);
     void ActivatePowerUp();
     bool UpdateAnimation(float);
+    void PerformUTurn();
     /* TODO:
 void WakeupAnim(void);
 void UpdateWhileSleeping(zwiftUpdateContext &,float);
@@ -375,7 +380,6 @@ void PlayerProfileUpdate(protobuf::PlayerProfile const&,bool);
 void PlayerCalcAim(float);
 void PlayerBikeLimitedProfileUpdate(protobuf::PlayerProfile const&);
 void PlayerBikeFullProfileUpdate(protobuf::PlayerProfile const&);
-void PerformUTurn(void);
 void OneTimeXpToDropsConversion(bool);
 void OneTimePowerUserLevelingSelection(void);
 void OneTimeNewAccessoriesUnlock(void);

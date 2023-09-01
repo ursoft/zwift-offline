@@ -477,6 +477,16 @@ void AddDeviceAnalytics(std::string const &key, std::string const& val)
 void GetDeviceAnalytics(std::vector<std::string> &)
  */
 };
+struct ANTDevice : public ExerciseDevice { // 0xB90 bytes
+    ANTDevice(uint8_t, uint16_t, uint8_t);
+    void Pair(bool p) override;   //[01]
+    void UnPair() override;   //[02]
+    bool IsPaired() const override; //[04]
+    void Update(float) override;
+    virtual void OnReboot(); //[13]
+    virtual void ProcessANTBroadcastData(uint8_t *); //[14]
+    virtual void ProcessANTEvent(uint8_t); //[15]
+};
 struct ZMLAUXDevice : public ExerciseDevice { //0xb28 bytes
     inline static const uint32_t PREFS_ID = (uint32_t)-23;
     void Pair(bool p) override;   //[01]
@@ -552,7 +562,7 @@ struct FitnessDeviceManager {
     static std::string GetEquipmentTypesString(const BLEDevice *);
     static bool TrainerSetGradeLookAheadSecs(float f);
     static bool TrainerSetWindSpeed(float);
-
+    static std::string GetDeviceNameAndModel(const ExerciseDevice &);
     /*
 FitnessDeviceManager::AddDevicesToReconnectAfterBackgrounding(void)
 FitnessDeviceManager::AddLostDevice(uint)
@@ -584,7 +594,6 @@ FitnessDeviceManager::GetCurrentRowingSpeed(void)
 FitnessDeviceManager::GetCurrentSpeed(void)
 FitnessDeviceManager::GetCurrentSteeringHeading(void)
 FitnessDeviceManager::GetCurrentWheelRPM(void)
-FitnessDeviceManager::GetDeviceNameAndModel(ExerciseDevice const*)
 FitnessDeviceManager::GetEliteSteeringComponent(ExerciseDevice *)
 FitnessDeviceManager::GetJetBlackSteeringComponent(ExerciseDevice *)
 FitnessDeviceManager::GetLastConfirmationDelay(void)

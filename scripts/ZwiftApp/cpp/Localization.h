@@ -22,7 +22,7 @@ inline bool LOC_StringKeyExistsCurlang(const char *key) {
     return LOC_StringKeyExists(key, g_CurrentLanguage);
 }
 void LOC_UnloadStringTable(char const *key);
-/*LOC_ForceRemoveValue(char const *, LOC_LANGS)
+/*not found: LOC_ForceRemoveValue(char const *, LOC_LANGS)
 LOC_ForceSetValue(char const *, LOC_LANGS, std::string const &)
 LOC_SetLanguage(uint, bool)
 */

@@ -52,6 +52,24 @@ void LoadingRender(float time, const UChar *text) {
         GFX_SetDepthWrite(true);
     }
 }
+void ZWIFT_SetupUIViewport() {
+    if (GFX_GetWideAspectAwareUI()) {
+        auto l = (int)GFX_UI_GetLeftEdgePad();
+        auto r = (int)GFX_UI_GetRightEdgePad();
+        glViewport(l, 0, g_WIN32_WindowWidth - l - r, g_WIN32_WindowHeight);
+    } else {
+        glViewport((int)g_UI_WindowOffsetX, (int)g_UI_WindowOffsetY, (int)g_UI_WindowWidth, (int)g_UI_WindowHeight);
+    }
+}
+void ZWIFT_SetupDeviceViewport() {
+    glViewport(0, 0, g_WIN32_WindowWidth, g_WIN32_WindowHeight);
+}
+void GFX_PopUIScissor() {
+    //TODO
+}
+void GFX_PushUIScissor() {
+    //TODO
+}
 void doFrameWorldID(zwiftUpdateContext *ptr) {
     //TODO fake1 {
     GFX_Begin();
@@ -119,6 +137,7 @@ void ZWIFT_UpdateLoading(const UChar *text, bool last) {
 void make_sound(const char *snd) {
     AUDIO_Event(snd, 1, false);
 }
+int g_bgTex = -1;
 void GUIDRAW_LoadAssets(bool testServer) {
     //TODO
 }
@@ -131,7 +150,7 @@ void GUI_Initialize(/*void (*mkSound)(char const *),*/ bool testServer) {
     //dword_7FF6CA8C8D7C = 0;
 }
 void GUI_INTERNAL_PlaySound(const char *snd) { make_sound(snd); }
-bool GUI_Key(int a1, int a2) {
+bool GUI_Key(int key, int mod) {
     //TODO
     return true;
 }
@@ -182,4 +201,226 @@ void HandleEventAudioCB(uint32_t id, uint32_t playId, int state) {
         return;
     }
     AUDIO_SetVariable("ambient_volume", vol);
+}
+void GUI_Obj::SetFlag(GUI_Obj::Flag flag, bool val) {
+    auto msk = 1 << flag;
+    if (val)
+        m_flag |= msk;
+    else
+        m_flag &= (~msk);
+}
+void GUI_Obj::SetFont(CFont2D *fnt) {
+    m_font = fnt;
+}
+void GUI_Obj::Destroy() {
+    GUI_RemoveDescendants(this);
+    GUI_RemoveObject(this);
+}
+void GUI_Obj::SetBorderStyle(GUI_BorderStyle bst) {
+    m_borderStyle = bst;
+}
+float GUI_Obj::GetCustomLength(bool ish) {
+    if (ish)
+        return m_pos.m_height;
+    else
+        return m_pos.m_width;
+}
+void GUI_Obj::SetUIWText(const UChar *txt) {
+    if (txt)
+        m_txt.assign((const wchar_t *)txt);
+   m_hasText = true;
+}
+void GUI_Obj::SetUIText(const char *txt) {
+    if (txt)
+        SetUIWText(ToUTF8_ib(txt));
+}
+void GUI_Obj::SetWHCentered(float w, float h) {
+    m_pos = { 640.0f - w * 0.5f, 640.0f / VRAM_GetUIAspectRatio() - h * 0.5f, w, h };
+}
+void GUI_Obj::SetDisabled(bool d) {
+    m_disabled = d;
+    m_visible = !d;
+}
+void GUI_Obj::SetHeight(float h) {
+    m_pos.m_height = h;
+}
+void GUI_Obj::SetWidth(float w) {
+    m_pos.m_width = w;
+}
+void GUI_Obj::SetXVisualOffset(float xvo) {
+    m_xvo = xvo;
+}
+void GUI_Obj::SetYVisualOffset(float yvo) {
+    m_yvo = yvo;
+}
+void GUI_Obj::SetX(float x) {
+    m_pos.m_left = x;
+}
+void GUI_Obj::SetY(float y) {
+    m_pos.m_top = y;
+}
+void GUI_Obj::SetupScissoring(bool par) {
+    if (m_pos.m_width != 0.0f && m_pos.m_height != 0.0f && !par) {
+        GFX_SetScissorTestEnable(true);
+        auto p2 = m_padding + m_padding;
+        GFX_SetUIScissor(GetX() - m_padding, GetY() - m_padding, p2 + m_pos.m_width, p2 + m_pos.m_height, false);
+    } else if (m_parent && m_parent->m_pos.m_width != 0.0f && m_parent->m_pos.m_height != 0.0f) {
+        GFX_SetScissorTestEnable(true);
+        auto p2 = m_padding + m_padding;
+        GFX_SetUIScissor(m_parent->GetX() - m_padding, m_parent->GetY() - m_padding, p2 + m_parent->m_pos.m_width, p2 + m_parent->m_pos.m_height, false);
+    } else
+        GFX_SetScissorTestEnable(false);
+}
+GUI_Obj::GUI_Obj() {
+    m_mouseOverSid = g_GlobalMouseOverSID;
+    m_toggleOnSid = g_GlobalToggleOnSID;
+    m_toggleOffSid = g_GlobalToggleOffSID;
+    m_selectSid = g_GlobalSelectSID;
+    m_font = g_pGUI_GlobalFont;
+    /*TODO this->field_98 = -1;
+    this->field_9C = -1;*/
+}
+GUI_Obj::~GUI_Obj() {
+    /*TODO v2 = this->m_wtext5;
+    if (v2)
+    {
+        free(v2);
+        this->m_wtext5 = 0i64;
+    }
+    v3 = this->m_wtext2;
+    if (v3)
+    {
+        free(v3);
+        this->m_wtext2 = 0i64;
+    }*/
+    GUI_RemoveDescendants(this);
+    GUI_RemoveObject(this);
+}
+float GUI_Obj::GetX() {
+    if (m_parent)
+        return m_parent->GetX() + m_pos.m_left;
+    else
+        return m_pos.m_left;
+}
+float GUI_Obj::GetY() {
+    if (m_parent)
+        return m_parent->GetY() + m_pos.m_top;
+    else
+        return m_pos.m_top;
+}
+bool GUI_Obj::IsVisible() {
+    if (m_visible) 
+        if (!m_field_70 || !m_parent || m_parent->IsVisible())
+            return true;
+    return false;
+}
+bool GUI_Obj::IsDisabled() {
+    if (!m_field_70 || !m_parent || m_disabled)
+        return m_disabled;
+    return m_parent->IsDisabled();
+}
+void GUI_Obj::SetupScissoringRespectingParent() {
+    GFX_SetScissorTestEnable(true);
+    if (m_parent) {
+        auto v3 = GetHeirarchyScissorRect();
+        GFX_SetUIScissor(v3.m_left, v3.m_top, fmaxf(0.0f, v3.m_width - v3.m_left), fmaxf(0.0f, v3.m_height - v3.m_top), false);
+        return;
+    }
+    SetupScissoring(false);
+}
+bool GUI_Obj::HitTest(float x, float y) {
+    if (m_disabled)
+        return false;
+    auto myx = GetX(), myy = GetY();
+    if (m_field_76 || (m_field_75 && m_parent))
+        return IsVisibleWithScissoring(x, y, false);
+    return x > myx && (myx + m_pos.m_width) > x && y > myy && (myy + m_pos.m_height) > y;
+}
+bool GUI_Obj::IsVisibleWithScissoring(float x, float y, bool center) {
+    if (!m_field_76 && (!m_field_75 || !m_parent))
+        return true;
+    auto mx = GetX(), my = GetY();
+    auto r = GetHeirarchyScissorRect();
+    if (r.m_left <= mx)
+        r.m_left = mx;
+    if (r.m_top <= my)
+        r.m_top = my;
+    if (m_pos.m_width + mx <= r.m_width)
+        r.m_width = m_pos.m_width + mx;
+    if (m_pos.m_height + my <= r.m_height)
+        r.m_height = m_pos.m_height + my;
+    if (center) {
+        y += m_pos.m_height * 0.5f;
+        x += m_pos.m_width * 0.5f;
+    }
+    return x > r.m_left && r.m_width > x && y > r.m_top && r.m_height > y;
+}
+void GUI_Obj::SetVisible(bool vis) {
+    m_visible = vis;
+}
+RECT2 GUI_Obj::GetHeirarchyScissorRect() {
+    RECT2 ret;
+    auto y = GetY(), x = GetX(), p2 = m_padding + m_padding;
+    if (m_parent) {
+        auto r = m_parent->GetHeirarchyScissorRect();
+        ret.m_top = fmaxf(y - m_padding - m_bordTop, r.m_top);
+        ret.m_left = fmaxf(x - m_padding - m_bordLeft, r.m_left);
+        ret.m_height = fminf(y + m_pos.m_height + p2 + m_bordTop + m_bordBottom, r.m_height);
+        ret.m_width = fminf(x + m_pos.m_width + p2 + m_bordLeft + m_bordRight, r.m_width);
+    } else {
+        ret.m_left = x - m_padding - m_bordLeft;
+        ret.m_top = y - m_padding - m_bordTop;
+        ret.m_height = p2 + m_pos.m_height + m_bordTop + m_bordBottom + ret.m_top;
+        ret.m_width = p2 + m_pos.m_width + m_bordLeft + m_bordRight + ret.m_left;
+    }
+    return ret;
+}
+void GUI_Obj::DrawDarkenedBackground() {
+    GFX_PushUIScissor();
+    GFX_SetScissorTestEnable(false);
+    auto v0 = g_OrthoScalarH, v1 = g_OrthoScalarW;
+    g_OrthoScalarH = 1.0f;
+    g_OrthoScalarW = 1.0f;
+    GFX_ActivateTexture(g_bgTex, -1, nullptr, TWM_REPEAT);
+    GFX_SetTextureWrap(0, TWM_REPEAT, TWM_REPEAT);
+    ZWIFT_SetupDeviceViewport();
+    GFX_Draw2DQuad_720p(0.0f, 0.0f, 1280.0f, (float)VRAM_GetCurrentRT()->m_dw_height, 0.0f, 0.0f, 30.0f, 16.875f, -1, 0.0f, -1, 0);
+    ZWIFT_SetupUIViewport();
+    g_OrthoScalarH = v0;
+    g_OrthoScalarW = v1;
+    GFX_PopUIScissor();
+}
+void GUI_RemoveObject(GUI_Obj *) {
+    //TODO
+}
+void GUI_RemoveDescendants(GUI_Obj *) {
+    //TODO
+}
+void *GUI_GetTopmostDialog() {
+    //TODO
+    return nullptr;
+}
+GUI_Obj *GUI_CreateMessageBox(const char *capt, const char *msg, const char *b1, const char *b2, std::function<void(MessageBoxResults)> f, float w, float h, bool, float) {
+    //TODO
+    return nullptr;
+}
+GUI_Obj *GUI_BasicContainer::FindByID(const char *id) {
+    //TODO
+    return nullptr;
+}
+void UI_Refactor::temp::PairingListDialogConfirmFromNewHomeScreen(uint32_t) {
+    //TODO
+}
+void OnFinishAreaText(UI_SendAreaTextDialog::DIALOG_RESULTS) {
+    //TODO
+}
+void OnApplyPromoCode(UI_ApplyPromoCode::DIALOG_RESULTS) {
+    //TODO
+}
+void CustomizationDialogConfirm() {
+    //TODO
+}
+bool SelectBranch(uint32_t, bool, bool, bool, bool) {
+    //TODO
+    return false;
 }

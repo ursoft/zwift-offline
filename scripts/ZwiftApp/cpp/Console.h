@@ -1,4 +1,4 @@
-#pragma once
+#pragma once //READY for testing
 struct CMD_AutoCompleteParamSearchResults {
     std::string m_descr;
     std::vector<std::string> m_field_20;
@@ -16,7 +16,7 @@ struct TweakInfo {
     float         m_floatMin = FMIN, m_floatMax = FMAX;
     uint32_t      m_uintMin = 0, m_uintMax = 0xFFFFFFFF;
     int           m_intMin = IMIN, m_intMax = IMAX, field_1C = 0;
-    const char *field_20 = nullptr, *m_name = nullptr, *m_file = nullptr;
+    const char    *field_20 = nullptr, *m_name = nullptr, *m_file = nullptr;
     int           m_lineNo = 0;
     TweakDataType m_dataType = TWD_BOOL;
     std::string   m_str;
@@ -89,11 +89,11 @@ void CONSOLE_Init();
 void CONSOLE_AddCommand(const char *name, CMD_bool f1 = nullptr, CMD_static_str f2 = nullptr, CMD_ac_search f3 = nullptr, CMD_string f4 = nullptr);
 bool CMD_LoadConfig(const char *);
 bool CMD_SetLanguage(const char *);
-bool CMD_Time(const char *);
+bool CMD_ChangeTime(const char *);
 bool CMD_PairHr(const char *);
 bool CMD_PairPower(const char *);
-bool CMD_AntStartSearch(const char *);
-bool CMD_AntStopSearch(const char *);
+bool CMD_ANTStartSearch(const char *);
+bool CMD_ANTStopSearch(const char *);
 bool CMD_TrainerSetSimMode(const char *);
 bool CMD_ChangeRes(const char *);
 bool CMD_ChangeShadowRes(const char *);
@@ -101,12 +101,12 @@ bool CMD_TrainerSetSimGrade(const char *);
 bool CMD_ListDevices(const char *);
 inline int g_trainerDelay;
 bool CMD_SetTrainerDelay(const char *);
-bool CMD_Focus(const char *);
-bool CMD_RaceResults(const char *);
-bool CMD_Time_to_tp_workout(const char *);
-bool CMD_EvFin(const char *);
-bool CMD_SetObjectVisible(const char *);
-bool CMD_Benchmark(const char *);
+bool CMD_FocusOnCyclist(const char *);
+bool CMD_ShowRaceResults(const char *);
+bool CMD_TimeToTPWorkout(const char *);
+bool CMD_ShowEventFinished(const char *par);
+bool CMD_SetGUIObjVisible(const char *);
+bool CMD_LoadBenchmarkScript(const char *);
 bool CMD_EnrollInTrainingPlan(const char *);
 bool CMD_ShowUI(const char *);
 bool CMD_Help(const char *);
@@ -117,7 +117,10 @@ std::string CMD_Set4(const char *);
 void StripPaddedSpaces(std::string *dest, const std::string &src);
 bool CMD_ListVars(const char *);
 std::string CMD_ListVars4(const char *);
-
+void *COMMAND_GetUserdata();
+void COMMAND_PopUserdata();
+void COMMAND_PushUserdata(void *);
+bool COMMAND_RunScript(const char *);
 struct CircularVectorData {
     std::string m_name, m_params, m_descr;
     void toString(std::string *dest);
@@ -176,25 +179,30 @@ struct GUIKeyProcessor : public IKeyProcessor {
 struct GoKeyProcessor : public IKeyProcessor {
     bool ProcessKey(int, int) override;
 };
-struct KeyProcessorStack {
-    std::vector<IKeyProcessor *> m_data;
-    //~KeyProcessorStack();
-    //void RemoveAllKeyProcessors();
-    //void Remove(IKeyProcessor *);
+struct KeyProcessorStack { //0x50 bytes
+    std::vector<IKeyProcessor *> m_normal, m_locked, m_deferredRemoves;
+    bool m_isLocked = false;
+    void RemoveAllKeyProcessors();
+    void Remove(IKeyProcessor *);
     void Push(IKeyProcessor *);
     bool ProcessKey(int, int);
-    //void Pop();
-    //void Find(IKeyProcessor const*,std::vector<IKeyProcessor*> &)
+    //inlined to ProcessKey void Pop();
+    //inlined to ProcessKey void Find(IKeyProcessor const*,std::vector<IKeyProcessor*> &)
 };
-struct ZwiftAppKeyProcessorManager {
+struct ZwiftAppKeyProcessorManager { //0x60 bytes
     GUIKeyProcessor   m_guiKP;
     GoKeyProcessor    m_goKP;
     KeyProcessorStack m_stack;
     //ZwiftAppKeyProcessorManager(); - 0's all
+    ~ZwiftAppKeyProcessorManager() {
+        Shutdown();
+    }
     static ZwiftAppKeyProcessorManager *Instance();
     void Init();
+    void Shutdown() {
+        m_stack.RemoveAllKeyProcessors();
+    }
 };
-
 bool COMMAND_RunCommandsFromFile(const char *name);
 bool COMMAND_RunCommand(const char *cmd);
 void CONSOLE_Draw(float atY, float dt);

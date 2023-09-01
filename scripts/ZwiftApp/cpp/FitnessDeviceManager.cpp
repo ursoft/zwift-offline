@@ -18,6 +18,10 @@ void FitnessDeviceManager::HandleBLEConnect(uint32_t hash) {
 void FitnessDeviceManager::HandleBLEError(uint32_t hash, BLE_ERROR_TYPE err, uint32_t a5) {
     //TODO
 }
+std::string FitnessDeviceManager::GetDeviceNameAndModel(const ExerciseDevice &) {
+    //TODO
+    return std::string("TODO");
+}
 ExerciseDevice *FitnessDeviceManager::FindDevice(uint32_t hash) {
     std::lock_guard l(g_FDM_DeviceListMutex);
     for (auto i : m_DeviceList)
@@ -470,4 +474,29 @@ void TACX_BLE_ControlComponent::SetRoadTexture(RoadFeelType ty, float strength) 
             ++g_cnt;
         }
     }
+}
+void ANTDevice::Pair(bool p) {
+    //TODO
+}
+void ANTDevice::UnPair() {
+    //TODO
+}
+bool ANTDevice::IsPaired() const {
+    //TODO
+    return true;
+}
+ANTDevice::ANTDevice(uint8_t, uint16_t, uint8_t) {
+    //TODO
+}
+void ANTDevice::OnReboot() {
+    //TODO
+}
+void ANTDevice::ProcessANTBroadcastData(uint8_t *) {
+    //TODO
+}
+void ANTDevice::ProcessANTEvent(uint8_t) {
+    //TODO
+}
+void ANTDevice::Update(float) {
+    //TODO
 }

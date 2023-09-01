@@ -40,17 +40,10 @@ void ZML_RequestEffectPlay(protobuf::EffectRequest_Effect ef, bool a2, bool a3) 
     v6->set_f3(a3);
     zwift_network::send_game_packet(v11.SerializeAsString(), true);
 }
-bool g_bSkipThisWorkoutSection;
 enum ZML_ButtonActions {
     ZBA_0, ZBA_1, ZBA_2, ZBA_3, ZBA_RESUME_WKO, ZBA_PAUSE_WKO
 };
 void INTERNAL_ZML_ActivateButton(int, ZML_ButtonActions) {
-    //TODO
-}
-void IncreaseWorkoutIntensityClicked() {
-    //TODO
-}
-void DecreaseWorkoutIntensityClicked() {
     //TODO
 }
 void ZML_ReceivedWorkoutAction(protobuf::WorkoutActionRequest_Type wart) {
@@ -90,9 +83,6 @@ void ZML_ReceivedWorkoutAction(protobuf::WorkoutActionRequest_Type wart) {
     default:
         return;
     }
-}
-void SelectBranch(uint32_t a1, bool a2, bool a3_notused, bool a4, bool a5) {
-    //TODO
 }
 void CreateCenterYourBarsPopup(float, void (*f)(/*UI_TwoButtonsDialog::DIALOG_RESULTS*/)) {
     //TODO
@@ -184,4 +174,8 @@ void ZML_ReceivedClientAction(const protobuf::ClientAction &) {
 }
 void ZML_DetonateRideOnBomb() {
     //TODO
+}
+int g_buttonScheme = 1;
+int ZML_GetButtonScheme() {
+    return g_buttonScheme;
 }

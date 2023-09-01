@@ -112,7 +112,7 @@ struct GameWorld { //0x28 bytes
     static const char *GetWorldName(int a1, bool a2, bool a3);
     static void LoadShotList(std::vector<std::string> *ret, tinyxml2::XMLElement *el);
     static WorldDef *LoadWorldDefs(tinyxml2::XMLElement *el, bool a2);
-    WORLD_ID GetWorldIDForWorldNetworkID(int wni /*WORLD_NETWORK_IDS*/);
+    static WORLD_ID GetWorldIDForWorldNetworkID(int wni /*WORLD_NETWORK_IDS*/);
     static int GetWorldNetworkIDForWorldID(WORLD_ID wid);
     static GpsInfo *LoadGpsInfo(tinyxml2::XMLElement *src);
     static CommonSettings *LoadCommonSettings(tinyxml2::XMLElement *el);

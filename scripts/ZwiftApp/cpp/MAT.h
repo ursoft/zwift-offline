@@ -111,6 +111,7 @@ struct MU_OscillatorVector {
 template <class T> struct tViewport {
     T m_left, m_top, m_width, m_height;
 };
+using RECT2 = tViewport<float>;
 void MAT_GetEulerZXY(VEC3 *, const MATRIX33 &);
 float MAT_GetRotX(const MATRIX33 &);
 float MAT_GetRotZ(const MATRIX33 &);
