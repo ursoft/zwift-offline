@@ -3030,7 +3030,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
             m_codec.m_hostRelayId = m_ei.m_relaySessionId;
             m_codec.m_generateKey = false;
             assert(m_ei.m_sk.length() == 16);
-            memcpy(m_codec.m_secretRaw, m_ei.m_sk.c_str(), m_ei.m_sk.length());
+            memmove(m_codec.m_secretRaw, m_ei.m_sk.c_str(), m_ei.m_sk.length());
             m_codec.secretRawToString();
         }
     }
@@ -3384,7 +3384,7 @@ struct UdpClient : public WorldAttributeServiceListener, UdpConfigListener, Encr
             ++(*len);
         } else if (this->m_field_15C && cts.player_id() > 0) { //shouldPrependVoronoiOrDieByte
             m_txBuf[0] = 6;
-            memcpy(m_txBuf + 1, &m_player_id, 4);
+            memmove(m_txBuf + 1, &m_player_id, 4);
             ptxBuf = &m_txBuf[5];
             (*len) += 5;
         }
@@ -5430,7 +5430,7 @@ struct NetworkClientImpl { //0x400 bytes, calloc
             m_tcpClient->handleWorldAndMapRevisionChanged(worldId, mapRevision);
     }
     ~NetworkClientImpl() { //3rd vfunc
-        //TODO IDA NetworkClientImpl_destroy
+        //IDA NetworkClientImpl_destroy - automatic
     }
     void shutdownUdpClient() {
         if (m_udpClient) {
@@ -6388,60 +6388,42 @@ void FinishLateJoin(int64_t lateJoinPlayerId_notused, int32_t decisionIndex, int
             RoadManager::FindClosestPointOnRoad(pos, 3, segmId, 1ui64 << mainBike->m_bc->m_sport, true, -1);
             auto v16 = g_pRoadManager->GetRoadSegment(segmId[0]);
             if (v16) {
-                //TODO (*(*v16 + 88i64))(v16, &v42, v17, 0i64);
-                //v42 = v16->CalculateRoadPositionAtTime(double, bool)
-                if (true /* TODO ((((v43 - y) * (v43 - y)) + ((v42 - x) * (v42 - x))) + ((v44 - z) * (v44 - z))) <= 36000000.0*/) {
-#if 0 //TODO
-                    v21 = -1.797693134862316e308;
+                auto v42 = v16->CalculateRoadPositionAtTime(0.0 /*QUEST*/, false) - pos;
+                if (v42.lenSquared() <= 36'000'000.0f) {
+                    auto v21 = -1.7976931348623158e308;
                     if (g_pGameWorld->WorldID() == WID_BOLOGNA)
                         v21 = 0.03139999881386757;
-                    v22 = (*(*g_pRoadManager + 8i64))(g_pRoadManager, v39[0]);
-                    v23 = v22;
-                    v15 = *&pos;
-                    if (v22
-                        && !(*(*v22 + 8i64))(v22)
-                        && (*(*v23 + 40i64))(v23)
-                        && ((v24 = (*(*v23 + 928i64))(v23), v24 <= -1.0) || v15 > v21 && v15 < v24)) {
+                    double v15 = (double)pos.m_data[0], v24;
+                    if (v16 && !v16->IsPlaceholder() && v16->IsPaddock()
+                        && ((v24 = v16->GetPaddockExitRoadTime(), v24 <= -1.0) || (v15 > v21 && v15 < v24))) {
                         Log("GroupEvents: late-join failed - player did not late join off the paddock. { %3.2f, %3.2f, %3.2f }", x, y, z);
                     } else {
-                        m_mainBike->m_bc->m_field_1E8 = a4;
-                        *&m_mainBike->m_routeComp->field_0[12] = a4;
-                        *m_mainBike->m_bc->field_1B8 = *(m_mainBike->m_ptr + 59);
-                        *&m_mainBike->field_8B9[2] = 0;
-                        sub_7FF778AE30B0(m_mainBike, *&evSt[3].field_0[24], 0, 0, 0i64);
-                        m_mainBike->m_routeComp->m_decisionIndex = decisionIndex;
-                        Log("Forced decision index to %d", decisionIndex, v25, v26, Srcb);
-                        v27 = a3 + 1;
-                        m_mainBike->m_routeComp->field_14 = a3;
-                        v28 = m_mainBike->m_routeComp;
-                        v29 = (*&v28->m_selRoute->field_94[132] - *&v28->m_selRoute->field_94[124]) >> 5;
+                        mainBike->m_bc->m_field_1E8 = a4;
+                        mainBike->m_routeComp->m_field_C = a4;
+                        mainBike->m_bc->m_field_1B8 = mainBike->m_ipsc->m_field_EC;
+                        mainBike->m_field_8BB = mainBike->m_field_8BC = false;
+                        auto v27 = a3 + 1;
+                        TeleportManagerComponent::SetupDropIn(mainBike, evSt->m_field_4F8, false, false, nullptr);
+                        mainBike->m_routeComp->m_decisionIndex = decisionIndex;
+                        Log("Forced decision index to %d", decisionIndex);
+                        mainBike->m_routeComp->m_field_14 = a3;
+                        auto v29 = mainBike->m_routeComp->m_selRoute->m_field_110.size();
                         if (a3 + 1 >= v29) {
-                            v27 -= v29;
-                            ++ *&v28->field_0[12];
+                            v27 -= (int)v29;
+                            ++mainBike->m_routeComp->m_field_C;
                         }
-                        v30 = 0;
-                        v31 = 0;
-                        if (v29) {
-                            v32 = 0i64;
-                            while (1) {
-                                v33 = v30++;
-                                v34 = *&m_mainBike->m_routeComp->m_selRoute->field_94[124];
-                                if (v33 >= v27)
-                                    break;
-                                *(v32 + v34) |= 6u;
-                                ++v31;
-                                v32 += 32i64;
-                                if (v31 >= v29)
-                                    goto LABEL_26;
+                        int v31 = 0;
+                        for(auto &i : mainBike->m_routeComp->m_selRoute->m_field_110) {
+                            if (v31 >= v27) {
+                                mainBike->m_field_8EC = i.m_field_10;
+                                break;
                             }
-                            m_mainBike->field_8EC = *(32i64 * v31 + v34 + 16);
+                            i.m_bitField |= 6u;
+                            v31++;
                         }
-                    LABEL_26:
-                        v35 = m_mainBike->m_routeComp;
-                        g_LateJoinCB = 0i64;
-                        v35->m_field_10 = v27;
+                        g_LateJoinCB = nullptr;
+                        mainBike->m_routeComp->m_field_10 = v27;
                     }
-#endif
                 } else {
                     Log("GroupEvents: late-join failed - location not on a viable road. { %3.2f, %3.2f, %3.2f }", x, y, z);
                 }
@@ -6462,29 +6444,13 @@ void ZNETWORK_INTERNAL_HandleLateJoinRequest(const ZNETWORK_LateJoinRequest &elj
         return;
     }
     if (eljr.m_ver != 2) {
-        /* TODO Mylast = evSt->field_500._Mylast;
-        v20 = &evSt->field_4F8;
-        if (Mylast == evSt->field_500._Myend)
-        {
-            ptr_Emplace_reallocate(&evSt->field_500, Mylast, v20);
-        } else
-        {
-            *Mylast = *v20;
-            ++evSt->field_500._Mylast;
-        }*/
+        evSt->m_field_500.push_back(evSt->m_field_4F8);
         return;
     }
-    /* TODO v21 = m_mainBike->field_8EC == 0.0;
-    v22 = m_mainBike->m_road;
-    v23 = m_mainBike->field_888;
-    if (v22)
-        v24 = v22->m_segmentId;
-    else
-        v24 = 0;
-    v25 = WorldID(g_pGameWorld);
-    IsPaddock = RoadIsPaddock(v25, v24, v23, v21, 0i64, 0i64);*/
-    if (eljr.m_cmd) {
-        if (!v9 /* TODO || IsPaddock || (*(*v9 + 536i64))(v9) || !mainBike->m_routeComp || *&mainBike->m_routeComp[1].m_field_10*/) {
+    auto IsPaddock = RoadIsPaddock(g_pGameWorld->WorldID(), mainBike->m_road ? mainBike->m_road->m_segmentId : 0, mainBike->m_field_888, 
+        mainBike->m_field_8EC == 0.0f, nullptr, nullptr);
+    if (eljr.m_cmd == ZNETWORK_LateJoinRequest::LJC_1) {
+        if (!v9 || IsPaddock || v9->GetIntersectionMarkerBasedOnRoadTime(mainBike->m_field_888) || !mainBike->m_routeComp || mainBike->m_routeComp->m_field_A8) {
             g_lateJoinRequest = eljr; //ZNETWORK_INTERNAL_DelayLateJoinResponse
             g_delayed_latejoin_time = 15.0f;
             //OMIT AnalyticsHelper_inst();
@@ -7117,7 +7083,7 @@ void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttrib
         static_assert(sizeof(ZNETWORK_LateJoinRequest) == 40);
         if (ljr->m_len == 36 && ljr->m_playerId == mainBike->m_playerIdTx)
             ZNETWORK_INTERNAL_HandleLateJoinRequest(*ljr, VEC3{(float)wa.x(), (float)wa.y_altitude(), (float)wa.z()});
-    }
+        }
         return;
     case protobuf::WAT_RH: {
         auto *prh = (ZNETWORK_RouteHashRequest *)wa.payload().c_str();
@@ -7158,7 +7124,7 @@ void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttrib
             mainBike->m_grFenceComponent->OnReceiveRiderStats(*st);
         else
             LogTyped(LOG_WARNING, "[ZwiftNetwork] GLOBAL_MESSAGE_TYPE_RIDER_FENCE_STATS received but has invalid header!");
-    }
+        }
         return;
     case protobuf::WAT_FENCE: {
         auto fc = (ZNETWORK_GRFenceConfig *)wa.payload().c_str();
@@ -7169,7 +7135,8 @@ void ZNETWORK_INTERNAL_ProcessReceivedWorldAttribute(const protobuf::WorldAttrib
             if (fc->m_ver <= 1) {
                 if (mainBike->m_grFenceComponent->m_field_128 == fc->m_field_8 && !mainBike->m_grFenceComponent->IsFenceGenerator()) {
                     mainBike->m_grFenceComponent->m_field_150 = 0;
-                    //TODO mainBike->m_grFenceComponent->field_30 = fc->field_10;
+                    mainBike->m_grFenceComponent->m_field_30 = fc->m_field_10;
+                    mainBike->m_grFenceComponent->m_field_34 = fc->m_field_14;
                     mainBike->m_grFenceComponent->m_field_40 = fc->m_field_20;
                     mainBike->m_grFenceComponent->m_bool2C = fc->m_field_2C;
                     mainBike->m_grFenceComponent->m_field_144 = fc->m_field_28;

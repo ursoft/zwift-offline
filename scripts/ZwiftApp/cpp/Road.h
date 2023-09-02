@@ -12,6 +12,9 @@ struct RoadSegment {
     virtual bool IsPlaceholder() { return true; }
     virtual VEC3 GetMaxExtents();
     virtual VEC3 GetMinExtents();
+    virtual bool IsPaddock() { return false; }
+    virtual double GetPaddockExitRoadTime() { return 0.0; }
+    virtual void *GetIntersectionMarkerBasedOnRoadTime(double) { return nullptr; }
         /*RoadSegment::AddMarkers(Entity *,int *)
 RoadSegment::AddPOI(POIEntity *)
 RoadSegment::AddSpeedGate(SpeedGateEntity *)
@@ -53,7 +56,6 @@ RoadSegment::GetFirstNode(void)
 RoadSegment::GetFirstRoadMarkerBasedOnRoadTime(double,bool)
 RoadSegment::GetGlobalNodeVisualOffset(void)
 RoadSegment::GetIntersectionMarkerBasedOnId(int)
-RoadSegment::GetIntersectionMarkerBasedOnRoadTime(double)
 RoadSegment::GetLastNode(void)
 RoadSegment::GetLoiterHalfWidth(double)
 RoadSegment::GetMarkerInfluence(double,RoadMarkerEntity const*)
@@ -66,7 +68,6 @@ RoadSegment::GetMinimumTessellationDistance(void)
 RoadSegment::GetNavDrawLayer(void)
 RoadSegment::GetNeighboringRoadNodes(RoadNode *,RoadNode **,RoadNode **)
 RoadSegment::GetNodeBasedOnRoadTime(double)
-RoadSegment::GetPaddockExitRoadTime(void)
 RoadSegment::GetPhysicSlope(void)
 RoadSegment::GetRiderOffsetBlendDistance(void)
 RoadSegment::GetRoadColor(double)
@@ -130,7 +131,6 @@ RoadSegment::UpdateCyclistWheelAltitudesAtRoadTime(VEC3 &,double,VEC3 &,double,b
 RoadSegment::~RoadSegment()
 RoadSegmentPlaceholder::GetSportAllowed(void)
 RoadSegmentPlaceholder::IsAvailable(void)
-RoadSegmentPlaceholder::IsPaddock(void)
 RoadSegmentPlaceholder::IsSportAllowOnRoad(ulong long)
 RoadSegmentPlaceholder::RoadSegmentPlaceholder(int)
 RoadSegmentPlaceholder::~RoadSegmentPlaceholder()
@@ -304,7 +304,6 @@ RoadSegmentWorld::IsFirstNode(RoadNode const*)
 RoadSegmentWorld::IsLastNode(RoadNode const*)
 RoadSegmentWorld::IsLooped(void)
 RoadSegmentWorld::IsOneWay(void)
-RoadSegmentWorld::IsPaddock(void)
 RoadSegmentWorld::IsPointInRoadRegion(VEC3 const&)
 RoadSegmentWorld::IsPointInRoadRegion2D(VEC3 const&)
 RoadSegmentWorld::IsPreviousNodeStraight(RoadNode const*)
@@ -351,6 +350,14 @@ struct RoadSegmentWorld : public RoadSegment {
         return 0.0f; 
     }
     bool IsPlaceholder() { return false; }
+    bool IsPaddock() override { 
+        //TODO
+        return false; 
+    }
+    double GetPaddockExitRoadTime() override { 
+        //TODO
+        return 0.0; 
+    }
 };
 struct RoadManager {
     std::vector<RoadSegment *> m_segments;
@@ -410,10 +417,15 @@ RoadManager::UnitTest(void)
 RoadManager::~RoadManager()*/
 };
 inline RoadManager *g_pRoadManager;
+struct RouteItem { //32 bytes
+    int m_bitField = 0;
+    float m_field_10 = 0.0f;
+};
 struct Route {
     //TODO
     uint32_t m_hash = 0;
     float m_field_1BC = 0.0f;
+    std::vector<RouteItem> m_field_110;
 };
 struct RouteManager {
     Route *GetRoute(uint32_t hash) {
@@ -439,9 +451,11 @@ struct RouteManager {
     RouteManager::ParseCheckpoints(tinyxml2::XMLElement *,Route const*,std::vector<RouteCheckpoint> *,bool &)
     RouteManager::RouteManager(void)*/
 };
-struct RouteComputer {
+struct RouteComputer { //0xC0 bytes
     Route *m_selRoute = nullptr;
-    int m_field_10 = 0, m_decisionIndex = 0;
+    void *m_field_A8 = nullptr; //TODO
+    int m_field_10 = 0, m_decisionIndex = 0, m_field_14 = 0;
+    uint32_t m_field_C = 0;
     void SetRoute(Route *, bool, bool, const std::string &) {
         //TODO
     }
@@ -492,3 +506,4 @@ RouteComputer::UpdateDecisionState(VirtualBikeComputer::ZSPORT)
 RouteComputer::UpdateRouteProgressTimeout(float)
 RouteComputer::~RouteComputer()*/
 };
+bool RoadIsPaddock(int wid, int, double, bool, int *, double *);

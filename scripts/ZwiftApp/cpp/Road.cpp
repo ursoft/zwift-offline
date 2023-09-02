@@ -64,3 +64,7 @@ void RoadManager::ConstructNearbyRiderGroupsRichmond() { //TODO
 }
 void RoadManager::ConstructNearbyRiderGroupsWatopia() { //TODO
 }
+bool RoadIsPaddock(int, int, double, bool, int *, double *) {
+    //TODO
+    return true;
+}

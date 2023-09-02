@@ -1,10 +1,6 @@
 #pragma once //READY for testing
 #include "MAT.h"
 #include "Logging.h"
-const VEC4 g_cident0{1.0f, 0.0f, 0.0f, 0.0f};
-const VEC4 g_cident1{0.0f, 1.0f, 0.0f, 0.0f};
-const VEC4 g_cident2{0.0f, 0.0f, 1.0f, 0.0f};
-const VEC4 g_cident3{0.0f, 0.0f, 0.0f, 1.0f};
 void MAT_MulMat(MATRIX44 *dest, const MATRIX44 &m1, const MATRIX44 &m2) {
     auto v3 = m1.m_data[0].m_data[2], v4 = m1.m_data[0].m_data[0], v32 = m2.m_data[0].m_data[1], v35 = m2.m_data[0].m_data[2], v31 = m2.m_data[0].m_data[3], v34 = m2.m_data[1].m_data[2], v30 = m2.m_data[1].m_data[3];
     auto v33 = m2.m_data[2].m_data[2], v5 = m1.m_data[0].m_data[3], v6 = m1.m_data[0].m_data[1], v7 = m2.m_data[2].m_data[0], v8 = m2.m_data[3].m_data[0], v9 = m2.m_data[0].m_data[0], v10 = m2.m_data[1].m_data[0], v11 = m2.m_data[2].m_data[1];

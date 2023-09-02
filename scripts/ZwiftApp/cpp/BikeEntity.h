@@ -5,8 +5,7 @@ struct VirtualBikeComputer {
     float GetSpeed();
     void SetTireSize(uint32_t tireCirc) { m_tireCirc = tireCirc; }
     uint64_t m_lastPower = 0;
-    uint32_t m_tireCirc = 2105, m_powerSmoothing = 1, m_field_118 = 0, m_field_128 = 0;
-    int32_t m_field_1E8 = 0;
+    uint32_t m_tireCirc = 2105, m_powerSmoothing = 1, m_field_118 = 0, m_field_128 = 0, m_field_1E8 = 0, m_field_1B8 = 0;
     float m_distance = 0.0f, m_power = 0.0f, m_field_19C = 0.0f, m_speed = 0.0f, m_field_18C = 0.0f, m_field_198 = 0.0f, m_field_1E0 = 0.0f, m_sensor_f2 = 0.0f, m_total_smth = 0.0f, 
         m_heart_f2 = 0.0f;
     protobuf::Sport m_sport = protobuf::CYCLING;
@@ -128,7 +127,8 @@ struct GroupRideFence {
         char field_2D;
         char field_2E;
         char field_2F;
-        char field_30[16];
+        float m_field_30, m_field_34;
+        void *gap;
         int m_field_40;
         char gap44[4];
         char field_48[224];
@@ -211,6 +211,12 @@ GroupRideFence::operator==(GroupRideFence::RoadPoint const&,GroupRideFence::Road
 struct IncomingPlayerStateComponent {
     protobuf::PlayerState m_pbState;
     protobuf::PowerType m_pty = protobuf::PT_VIRTUAL;
+    int m_field_EC = 0;
+};
+struct TeleportManagerComponent {
+    static void SetupDropIn(BikeEntity *t, int64_t a2, bool a3, bool a4, uint16_t *a5) {
+        //TODO
+    }
 };
 struct BikeManager;
 struct BikeEntity : public Entity { //0x1948 bytes
@@ -235,7 +241,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
     std::list<RideOnAnim> m_rxRideonsList;
     GroupRideFence::Component *m_grFenceComponent = nullptr;
     EbikeBoost *m_eboost = nullptr;
-    double m_field_888 = 0.0;
+    double m_field_888 = 0.0; //RoadTime?
     Heading m_heading;
     VEC3 m_teleportPos{};
     UChar m_uname[824/2]; //TODO: really not too big
@@ -249,7 +255,7 @@ struct BikeEntity : public Entity { //0x1948 bytes
     VEC3 m_field_528{};
     bool m_writable = false, m_isCheater = false, m_isSandbagger = false, m_sensor_f11 = false, m_field_806 = false,
         m_immuneFromCheating = false, m_boolCheatSmth = false, m_joinedWorld = false, m_field_488 = false, m_field_3D8 = false, m_field_3D9 = false,
-        m_field_8B8 = false, m_field_CC1 = false, m_field_8BB = false;
+        m_field_8B8 = false, m_field_CC1 = false, m_field_8BB = false, m_field_8BC = false;
     void SaveProfile(bool, bool);
     bool IsPacerBot() { return m_profile.player_type() == protobuf::PlayerType::PACER_BOT; }
     int64_t GetEventID();

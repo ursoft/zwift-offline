@@ -631,7 +631,8 @@ struct ZNETWORK_LateJoinResponse { //0x28 bytes - maybe, = ZNETWORK_LateJoinRequ
     uint8_t m_field_4;
     //then 4 byte-gap
     int64_t m_playerId, m_lateJoinPlayerId;
-    int m_decisionIndex, m_field_1C, m_field_20; //then 4 byte-gap
+    int m_decisionIndex, m_field_1C;
+    uint32_t m_field_20; //then 4 byte-gap
 };
 struct ZNETWORK_TextMessage { //128*9+48=1200 bytes
     VEC3 m_msgPos;

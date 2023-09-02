@@ -183,3 +183,7 @@ float QUAT_AngleDiff(const VEC4 &a, const VEC4 &b);
 float MU_ClampedASIN(float sinx);
 uint32_t MU_OffsetHash(uint32_t a1, int a2, int a3);
 float MU_NormalizeAngle(float rad);
+inline static const VEC4 g_cident0{ 1.0f, 0.0f, 0.0f, 0.0f };
+inline static const VEC4 g_cident1{ 0.0f, 1.0f, 0.0f, 0.0f };
+inline static const VEC4 g_cident2{ 0.0f, 0.0f, 1.0f, 0.0f };
+inline static const VEC4 g_cident3{ 0.0f, 0.0f, 0.0f, 1.0f };

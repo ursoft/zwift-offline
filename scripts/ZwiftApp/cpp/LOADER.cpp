@@ -159,9 +159,9 @@ bool GFX_Internal_LoadOnDemandMeshHandle(int handle, GDE_MeshKind gmk) {
     //nop("Reloaded mesh %s (instanced = %s) [nReloads = %d]");
     return true;
 }
-void LOADER_LoadGdeFileAnim(GDE_Header_360 *file, GDE_Material *pAnim, int *texs) {
+void LOADER_LoadGdeFileAnim(GDE_Header_360 *file, Material_360 *pAnim, int *texs) {
     static_assert(sizeof(GDE_Tex) == 32);
-    static_assert(sizeof(GDE_Material) == 0x170);
+    static_assert(sizeof(Material_360) == 0x170);
     static_assert(sizeof(GDE_Header_360) == 0x70);
     static_assert(sizeof(InstanceResource) == 72);
     static_assert(sizeof(GDE_Animators) == 0x20);
@@ -209,11 +209,11 @@ void LOADER_LoadGdeFileAnim(GDE_Header_360 *file, GDE_Material *pAnim, int *texs
             pNewAnimators_0->m_arr2 = arr2;
             pAnim->m_pAnimators = pNewAnimators;
         }
-        pAnim->m_field_74 |= 0x10u;
+        pAnim->m_bits |= 0x10u;
     } else {
         pAnim->m_pAnimators = nullptr;
     }
-    pAnim->m_field_150 = nullptr;
+    pAnim->m_ovrSkinShader = nullptr;
     for (int i = 0; i < _countof(pAnim->m_texIdx); i++)
         pAnim->m_texGlid[0] = ((uint32_t)pAnim->m_texIdx[i] >= file->m_texturesCnt) ? -1 : texs[pAnim->m_texIdx[i]];
     for (int i = 0; i < _countof(pAnim->m_pUsage); i++) {
@@ -362,7 +362,7 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
     ShiftPointer(&file->m_materials, file);
     ShiftPointer(&file->m_textures, file);
     ShiftPointer(&file->m_shaders, file);
-    headerCopy->m_materials = (GDE_Material *)malloc(sizeof(GDE_Material) * file->m_materialsCnt);
+    headerCopy->m_materials = (Material_360 *)malloc(sizeof(Material_360) * file->m_materialsCnt);
     headerCopy->m_textures = (GDE_Tex *)malloc(sizeof(GDE_Tex) * file->m_texturesCnt);
     headerCopy->m_shaders = (GDE_Shader *)malloc(sizeof(GDE_Shader) * file->m_shadersCnt);
     zassert(file->m_texturesCnt < textureToHandleTableSize);
@@ -421,26 +421,27 @@ int LOADER_LoadGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint32_t fil
     auto VRAMBytes_VBO = g_VRAMBytes_VBO;
     if (file->m_meshKind == GMK_VERT_BUF) {
         ShiftPointer(&file->m_mesh.VERT_BUF, file);
-        static_assert(sizeof(GDE_Mesh_VERT_BUF) == 0x1F8);
-        auto newMesh = (GDE_Mesh_VERT_BUF *)malloc(sizeof(GDE_Mesh_VERT_BUF));
+        static_assert(sizeof(GDE_360_TIE) == 0x1F8);
+        auto newMesh = (GDE_360_TIE *)malloc(sizeof(GDE_360_TIE));
         headerCopy->m_mesh.VERT_BUF = newMesh;
         auto mesh = file->m_mesh.VERT_BUF;
         *newMesh = *mesh;
         if (mesh->m_version != 10)
             LogDebug("LOADER_LoadGdeFile_LEAN() Loading old version of mesh, %s, filesize, %d", name, fileSize);
         g_ENG_InstanceResources[handle].m_bounds = mesh->m_bounds;
-        GDE_UpgradeMesh(mesh);
+        LOADER_SetFatBitVertexStreamIfNecessary(mesh);
         auto optLod = GDE_OptimizeLod(0, mesh->m_lodMax);
         auto checkedInstCnt = std::clamp(nInstances, 1u, 16u);
         newMesh->m_data[0].m_instancesCount = checkedInstCnt;
         VEC3 minCoord{ +1.0e10f, +1.0e10f, +1.0e10f };
         VEC3 maxCoord{ -1.0e10f, -1.0e10f, -1.0e10f };
         for (auto mi = optLod; mi < mesh->m_lodMax; mi++) {
-            static_assert(sizeof(GDE_Mesh_VERT_BUFi) == 80);
+            static_assert(sizeof(GDE_360_TIE_LOD) == 80);
+            static_assert(sizeof(GDE_360_TIE_STRIPGROUP) == 24);
             auto &meshItem = mesh->m_data[mi];
             auto &newMeshItem = newMesh->m_data[mi];
-            auto subItemArSize = (meshItem.m_subItemEndPtr - meshItem.m_subItemBegPtr) * sizeof(GDE_MeshSubItem);
-            auto newMeshSubItems = (GDE_MeshSubItem *)malloc(subItemArSize);
+            auto subItemArSize = (meshItem.m_subItemEndPtr - meshItem.m_subItemBegPtr) * sizeof(GDE_360_TIE_STRIPGROUP);
+            auto newMeshSubItems = (GDE_360_TIE_STRIPGROUP *)malloc(subItemArSize);
             memmove(newMeshSubItems, (char *)file + (uint64_t)meshItem.m_subItemBegPtr, subItemArSize);
             //newMeshItem = meshItem; //OMIT: already copied!
             newMeshItem.m_vbHandle = newMeshItem.m_field_4 = -1;
@@ -722,7 +723,7 @@ int LOADER_LoadGdeFile(GDE_Header_360 *file, const char *name, uint32_t fileSize
         break;
     case GMK_VERT_BUF:
         ShiftPointer(&file->m_mesh.VERT_BUF, file);
-        GDE_UpgradeMesh(file->m_mesh.VERT_BUF);
+        LOADER_SetFatBitVertexStreamIfNecessary(file->m_mesh.VERT_BUF);
         g_ENG_InstanceResources[handle].m_bounds = file->m_mesh.VERT_BUF->m_bounds;
         lod = std::max(1u, nInstances);
         checkedInstCnt = std::min(lod, 16u);
@@ -978,9 +979,6 @@ void LOADER_LoadNavMesh() {
 void LOADER_LoadTexture(uint32_t, WAD_ASSET_TYPE) {
     //OMIT - not used?
 }
-void LOADER_SetFatBitVertexStreamIfNecessary(GDE_360_TIE *) {
-    //OMIT - not used?
-}
 void LOADER_UnloadGdeFile(int handle) {
     auto &obj = g_ENG_InstanceResources[handle];
     auto gdeFile = obj.m_gdeFile;
@@ -990,9 +988,9 @@ void LOADER_UnloadGdeFile(int handle) {
         GDE_FreeRuntime(gdeFile);
     if (gdeFile->m_meshKind == GMK_SKIN) {
         auto mesh = gdeFile->m_mesh.SKIN;
-        static_assert(sizeof(GDE_Mesh_SKIN) == 264);
-        static_assert(sizeof(GDE_SkinVB) == 40);
-        static_assert(sizeof(GDE_SkinVB_Item) == 96);
+        static_assert(sizeof(GDE_360_SKINDATA) == 264);
+        static_assert(sizeof(GDE_360_SKINDATA_LOD) == 40);
+        static_assert(sizeof(GDE_360_SKIN_STRIP) == 96);
         if (mesh) {
             if (obj.m_heapUsed) {
                 for (uint32_t i = 0; i < gdeFile->m_texturesCnt; ++i)
@@ -1170,7 +1168,7 @@ bool GDE_CheckSkin(GDE_Header_360 *file, const char *name, bool createVB, bool s
             ShiftPointer(&VBi->m_pVerts, file);
             if (createVB) {
                 if (VBi->m_numVerts && pVerts) {
-                    GFX_CreateVertexBuffer(&VBi->m_vbHandle, VBi->m_numVerts * ((VBi->m_flags & 0x10000000) != 0 ? 64 : 44), VBi->m_pVerts);
+                    GFX_CreateVertexBuffer(&VBi->m_vbHandle, VBi->m_numVerts * ((VBi->m_flags3 & 0x10) != 0 ? 64 : 44), VBi->m_pVerts);
                 } else {
                     LogDebug("Problem with vertexbuffer! filename[%s], lod[%i], strip[%i], numVerts=%i, pointer to verts is valid(0x%x)", name, lod, strip, VBi->m_numVerts, pVerts);
                     VBi->m_vbHandle = -1;
@@ -1219,7 +1217,7 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint
     ShiftPointer(&file->m_textures, file);
     static_assert(sizeof(GDE_Shader) == 16);
     ShiftPointer(&file->m_shaders, file);
-    headerCopy->m_materials = (GDE_Material *)malloc(sizeof(GDE_Material) * file->m_materialsCnt);
+    headerCopy->m_materials = (Material_360 *)malloc(sizeof(Material_360) * file->m_materialsCnt);
     if (!headerCopy->m_materials) {
         LogTyped(LOG_ERROR, "Out of memory (materials)!");
         return -1;
@@ -1291,7 +1289,7 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint
     static_assert(sizeof(GDE_BoneInfo) == 80);
     static_assert(sizeof(GDE_DefaultComponents) == 48);
     static_assert(sizeof(GDE_SkelInfo) == 0x40);
-    auto newMesh = (GDE_Mesh_SKIN *)malloc(sizeof(GDE_Mesh_SKIN));
+    auto newMesh = (GDE_360_SKINDATA *)malloc(sizeof(GDE_360_SKINDATA));
     auto mesh = file->m_mesh.SKIN;
     headerCopy->m_mesh.SKIN = newMesh;
     if (newMesh) {
@@ -1301,8 +1299,8 @@ int LOAD_CHARACTER_SkinGdeFile_LEAN(GDE_Header_360 *file, const char *name, uint
             auto src = mesh->m_vbs + lod;
             auto &dest = newMesh->m_vbs[lod];
             auto cnt = src->m_pEndItem - src->m_pItems;
-            auto itemsMem = cnt * sizeof(GDE_SkinVB_Item);
-            dest.m_pItems = (GDE_SkinVB_Item *)malloc(itemsMem);
+            auto itemsMem = cnt * sizeof(GDE_360_SKIN_STRIP);
+            dest.m_pItems = (GDE_360_SKIN_STRIP *)malloc(itemsMem);
             if (dest.m_pItems) {
                 LogTyped(LOG_ERROR, "Out of memory! (STRIP)");
                 return -1;

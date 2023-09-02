@@ -1,10 +1,10 @@
-#pragma once
+#pragma once //READY for testing
 struct GDE_Tex { //32 bytes
     char *m_name;
     uint32_t m_assetCrc;
     char gap[16];
 };
-struct GDE_Usage {
+struct GDE_MaterialUsage {
   int8_t *m_pConstantParams, *m_somePtr, *m_pAnumBindings;
   int64_t m_gap8;
 };
@@ -19,19 +19,32 @@ struct GDE_Animators { //0x20 bytes
     int **m_pArr1, **m_pArr2;
     uint8_t *m_field_18;
 };
-struct GDE_Material { //0x170 (368) bytes
+enum MaterialBlendMode : uint8_t {
+    MBM_NOALPHA = 0, MBM_1 = 1, MBM_3 = 3
+};
+struct Material_360_ShaderItem : public GFX_UserRegister {
+    VEC4 *m_vec;
+    int64_t m_vecCnt;
+};
+struct Material_360_Shader {
+    int m_handle;
+    Material_360_ShaderItem *m_vecArr;
+    int64_t m_vecArrCnt;
+};
+struct Material_360 { //0x170 (368) bytes
     char field_0[96];
     char m_name[20];
-    int m_field_74;
+    int m_bits;
     GDE_Animators *m_pAnimators;
-    GDE_Usage m_pUsage[4];
+    GDE_MaterialUsage m_pUsage[4];
     bool m_hasAnimators;
-    char field_101[3];
+    MaterialBlendMode m_mbmAlpha;
+    char field_102[2];
     float m_field_104;
     char field_108[8];
     uint8_t m_texIdx[6];
     char field_116[58];
-    void *m_field_150;
+    Material_360_Shader *m_ovrSkinShader;
     int m_texGlid[6];
 };
 struct GDE_RuntimeItem { //0x98 (152) bytes
@@ -160,24 +173,23 @@ struct GDE_MeshItemData4_file { //72 bytes
     int m_color1;
     int m_color2;
 };
-struct GDE_MeshSubItem { //24 bytes
+struct GDE_360_TIE_STRIPGROUP { //24 bytes
     void *m_pIndices;
-    int m_ibHandle;
+    GDE_360_INDEXBUFFER m_ibHandle;
     int m_numIndices;
     int m_vertexHandle;
-    char field_14;
+    uint8_t m_bits;
     char field_15;
-    char field_16;
-    char field_17;
+    uint8_t m_matIdx, m_type;
 };
-struct GDE_Mesh_VERT_BUFi { //80 bytes, GMK_VERT_BUF
-    int m_vbHandle;
+struct GDE_360_TIE_LOD { //80 bytes, GMK_VERT_BUF
+    GDE_360_VERTEXBUFFER m_vbHandle;
     int m_field_4;
-    GDE_MeshSubItem *m_subItemBegPtr;
+    GDE_360_TIE_STRIPGROUP *m_subItemBegPtr;
     void *m_field_10;
     void *m_field_18;
     void *m_field_20;
-    GDE_MeshSubItem *m_subItemEndPtr;
+    GDE_360_TIE_STRIPGROUP *m_subItemEndPtr;
     void *m_pVerts;
     void *m_pUnused;
     uint8_t gap40[4];
@@ -190,31 +202,33 @@ struct GDE_Mesh_SHRUB { //??? bytes, GMK_SHRUB
     char gap1[32];
     void *m_field_20, *m_field_28;
 };
-struct GDE_SkinVB_Item { //96 bytes
+struct GDE_360_SKIN_STRIP { //96 bytes
     uint16_t *m_pIndices;
     uint32_t *m_pVerts;
-    int m_numIndices, m_ibHandle, m_numVerts, m_vbHandle, gap2, m_runIndices, gap3[12];
-    int m_flags, gap4;
+    int m_numIndices, m_ibHandle, m_numVerts, m_vbHandle, gap2, m_runIndices;
+    uint8_t m_countMx, m_indexesMx[48];
+    uint8_t m_materIdx, m_type, m_flags3;
+    int gap4;
 };
-struct GDE_SkinVB { //40 bytes
-    GDE_SkinVB_Item *m_pItems, *m_field_8, *m_field_10, *m_field_18, *m_pEndItem;
+struct GDE_360_SKINDATA_LOD { //40 bytes
+    GDE_360_SKIN_STRIP *m_pItems, *m_field_8, *m_field_10, *m_field_18, *m_pEndItem;
 };
 struct GDE_Mesh_SKIN_Morph { //0x18 bytes
     int m_deformerSig;
     int m_weightId;
     char field_8[16];
 };
-struct GDE_Mesh_SKIN { //0x108 (264) bytes, GMK_SKIN
+struct GDE_360_SKINDATA { //0x108 (264) bytes, GMK_SKIN
     uint32_t m_version, m_unk;
-    GDE_SkinVB m_vbs[6];
+    GDE_360_SKINDATA_LOD m_vbs[6];
     int m_lodMax;
     uint32_t m_morphCnt;
     GDE_Mesh_SKIN_Morph *m_morphData;
 };
-struct GDE_Mesh_VERT_BUF { //0x1F8 (504) bytes
+struct GDE_360_TIE { //0x1F8 (504) bytes
     uint32_t m_version;
     int32_t m_lodMax;
-    GDE_Mesh_VERT_BUFi m_data[6];
+    GDE_360_TIE_LOD m_data[6];
     Sphere m_bounds;
 };
 struct GDE_Cluster { //72 bytes
@@ -234,7 +248,8 @@ struct GDE_Cluster { //72 bytes
     char field_16;
     char field_17;
     void *m_pVerts;
-    int m_ibHandle, m_vbHandle;
+    GDE_360_INDEXBUFFER m_ibHandle;
+    GDE_360_VERTEXBUFFER m_vbHandle;
     char field_28;
     char field_29;
     char field_2A;
@@ -344,20 +359,18 @@ struct GDE_Header_360 { //0x70 bytes
     uint32_t m_texturesCnt;
     uint32_t m_shadersCnt;
     int field_14;
-    GDE_Material *m_materials;
+    Material_360 *m_materials;
     GDE_Tex *m_textures;
     GDE_Shader *m_shaders;
     GDE_Runtime *m_runtime;
     union { 
-        GDE_Mesh_VERT_BUF *VERT_BUF;
+        GDE_360_TIE *VERT_BUF;
         GDE_Mesh_VB_CLUST *VB_CLUST;
         GDE_Mesh_SHRUB *SHRUB;
-        GDE_Mesh_SKIN *SKIN;
+        GDE_360_SKINDATA *SKIN;
     } m_mesh;
     GDE_SkelInfo *m_pSkelInfo[6];
 };
-struct GDE_360_TIE {};
-struct GDE_MaterialUsage {};
 enum InstanceResourceState { IRS_UNLOADED = 0, IRS_NEED_LOAD = 1, IRS_LOAD_FAILED = 2, IRS_3 = 3, IRS_4 = 4, IRS_INITIAL = 5 };
 struct InstanceResource { //72 bytes
     GDE_Header_360 *m_gdeFile;
@@ -381,8 +394,6 @@ struct InstanceResource { //72 bytes
     char field_46;
     char field_47;
 };
-struct GDE_360_INDEXBUFFER {};
-struct GDE_360_VERTEXBUFFER {};
 inline InstanceResource g_ENG_InstanceResources[6500];
 inline int g_ScreenMeshHandle, g_TrainerMeshHandle, g_HandCycleTrainerMeshHandle, g_TreadmillMeshHandle, g_PaperMeshHandle, g_ENG_nResources;
 inline int g_hGDE_TRI_VERT, g_hTRI_VERT_COLOR1_UV1, g_hTRI_VERT_COLOR1_UV2, g_hTRI_VERT_COLOR2_UV1, g_hTRI_VERT_COLOR2_UV2, g_hDEFORM_SKIN_VERT_GL, g_hGDE_RIGID_SKIN_VERT;
@@ -394,21 +405,34 @@ int GDEMESH_GetFreeMeshResourceHandle();
 GDE_Header_360 *GDEMESH_GetMesh(int handle);
 Sphere *GDEMESH_GetMeshBounds(Sphere *ret, int handle);
 void GDE_FreeRuntime(GDE_Header_360 *h);
-void GDE_UpgradeMesh(GDE_Mesh_VERT_BUF *pMesh);
-/* TODO:
-GDEMESH_Destroy(void)
-GDEMESH_Disable2UVShaderChange(bool)
-GDEMESH_DoVisTests(uint,ulong long,ClipPlanes const*,uchar *)
-GDEMESH_GetFilename(int)
-GDEMESH_GetPackedBoneMatrix(MATRIX44 *,uint const*,uint)
-GDEMESH_MeshNeedsAlphaPass(GDE_Header_360 const*)
-GDEMESH_RenderSkinMesh_Group(GDE_360_SKINDATA_LOD const*,GDE_360_SKIN_STRIP const*)
-GDEMESH_RenderTieMesh_Group(GDE_360_TIE_LOD const*,GDE_360_TIE_STRIPGROUP const*)
-GDEMESH_SetForceTransparent(bool,MaterialBlendMode)
+void LOADER_SetFatBitVertexStreamIfNecessary(GDE_360_TIE *pMesh);
+void GDEMESH_Destroy(); //linked out
+char *GDEMESH_GetFilename(int handle);
+inline bool g_UVShaderChange;
+inline int g_bonesUploaded;
+inline void GDEMESH_Disable2UVShaderChange(bool en) {
+    g_UVShaderChange = en;
+}
+bool GDEMESH_MeshNeedsAlphaPass(const GDE_Header_360 *);
+int GDE_OptimizeLod(uint32_t a1, uint32_t lodMax);
+inline bool g_meshForcedTransparent;
+inline MaterialBlendMode g_materialBlendMode;
+inline void GDEMESH_SetForceTransparent(bool en, MaterialBlendMode mbm) {
+    g_meshForcedTransparent = en;
+    g_materialBlendMode = mbm;
+}
+void GDE_RenderMesh(const GDE_Header_360 *, uint32_t, int64_t, bool, const VEC4 &);
+void GDEMESH_UploadBoneMatrices(const GDE_360_SKIN_STRIP *, const uint32_t *);
+void GDEMESH_RenderSkinMesh_Group(const GDE_360_SKINDATA_LOD *, const GDE_360_SKIN_STRIP *);
+void GDEMESH_RenderTieMesh_Group(const GDE_360_TIE_LOD *, const GDE_360_TIE_STRIPGROUP *);
+void GDE_RenderMeshInstances(const GDE_Header_360 *, uint8_t, int64_t, bool, uint32_t, MATRIX44 *, VEC4 *, VEC2 *);
+void SKIN_DrawMesh(GDE_Header_360 *, const GDE_360_SKINDATA *, void *, uint32_t *, int32_t, uint64_t, bool, VEC4 *);
+/*
+not found:
 GDEMESH_SetMainMesh(uint)
-GDEMESH_SetVisPlanes(ClipPlanes const*)
+GDEMESH_DoVisTests(uint,ulong long,ClipPlanes const*,uchar *)
+GDEMESH_GetPackedBoneMatrix(MATRIX44 *,uint const*,uint)
+GDEMESH_SetVisPlanes(ClipPlanes const*) //A: empty
 GDEMESH_SetVisStateRecursivly(GDE_360_MESHQUADTREE *,VIS_RESULT,VIS_RESULT*)
 GDEMESH_StaticMeshVisCheck(GDE_360_MESHQUADTREE *,ClipPlanes const*,VIS_RESULT *)
-GDEMESH_UploadBoneMatrices(GDE_360_SKIN_STRIP const*,uint const*)
-GDE_RenderMesh(GDE_Header_360 const*,uint,ulong long,bool,VEC4)
-GDE_RenderMeshInstances(GDE_Header_360 const*,uchar,ulong long,bool,uint,MATRIX44 *,VEC4 *,VEC2 *)*/
+*/

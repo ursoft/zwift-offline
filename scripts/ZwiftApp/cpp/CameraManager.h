@@ -39,7 +39,6 @@ struct Camera { //0x150 bytes
     int m_field_148 = 0;
 };
 inline Camera *g_DesiredCam, *g_HeadCam, *g_FollowCam, *g_WheelCam, *g_SideCam, *g_LeadCam, *g_DollyCam, *g_pTitleCamera, *g_HeliCam, *g_OrbitCam, *g_CloseCam, *g_ClassicCam, *g_FreeCam;
-inline VEC4 g_cident3{0.0f, 0.0f, 0.0f, 1.0f};
 struct CameraManager { //0x98 bytes
     //std::string m_reg = "{\"registered\":false,\"registrationStatus\":2}"s;
     VEC3 m_pos{}, m_field_50{};

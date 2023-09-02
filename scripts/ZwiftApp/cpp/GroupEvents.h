@@ -91,9 +91,10 @@ struct GroupEventActive {
 struct GroupEvents {
     struct Rules;
     struct SubgroupState { //?? bytes
-        int64_t m_subgroupId = 0;
+        int64_t m_subgroupId = 0, m_field_4F8 = 0;
         int32_t m_field_198 = 0; //or enum = 8
         std::map<int64_t, uint32_t> m_map;
+        std::vector<int64_t> m_field_500;
         void AttemptToSetTimeTrialSlot() {
             //TODO
         }

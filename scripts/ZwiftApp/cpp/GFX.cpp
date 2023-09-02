@@ -1259,7 +1259,7 @@ void GFX_UpdateMatrices(bool force) {
             g_MatrixContext.m_matrix = g_MatrixContext.m_stacks[0].m_matrix;
             g_pLastMx = g_MatrixContext.m_stacks[0].m_matrix;
             g_MatrixContext.m_curMode = GMT_0;
-            memmove(&g_MatrixContext.m_field_100, _matrix, sizeof(MATRIX44));
+            memmove(&g_MatrixContext.g_HACK_CachedWorld, _matrix, sizeof(MATRIX44));
             g_MatrixContext.m_modesUpdCntCache[0] = g_MatrixContext.m_modesUpdCnt[0];
         } else {
             _matrix = g_MatrixContext.m_matrix;
@@ -1298,7 +1298,7 @@ void GFX_UpdateMatrices(bool force) {
             MAT_MulVecXYZW(&g_MatrixContext.m_field_140, VEC4{ -mx_3.m_data[3].m_data[0], -mx_3.m_data[3].m_data[1], -mx_3.m_data[3].m_data[2], 0 }, tmp);
         }
         ++g_MatrixContext.m_applUpdatesCnt;
-        g_MatrixContext.m_field_80 = mx_2;
+        g_MatrixContext.g_HACK_CachedWorldViewProj = mx_2;
     }
     if ((updMask & 1) || force)
         GFX_UploadShaderMAT4(GSM_0, *g_pLastMx, g_MatrixContext.m_modesUpdCnt[0]);
@@ -1387,6 +1387,12 @@ void GFX_UploadShaderVEC4(const GFX_UserRegister &r, const VEC4 &v, uint64_t ski
         if (UniformLocation >= 0)
             glUniform4fv(UniformLocation, 1, v.m_data);
     }
+}
+void GFX_internal_DrawIndexedPrimitive(GFX_PRIM_TYPE, GFX_IndexFormat, const void *, uint32_t) {
+    //TODO
+}
+void GFX_UploadShaderMAT4ARRAY(GFX_SHADER_MATRIX_ARRAYS, uint32_t, const MATRIX44 *, uint64_t) {
+    //TODO
 }
 void GFX_UploadShaderVEC4(GFX_SHADER_REGISTERS a1, const VEC4 &a2, uint64_t a3) {
     g_pGFX_CurrentStates->SetUniform(GFX_StateBlock::s_registerRefs[a1], a2, a3);
@@ -3451,8 +3457,8 @@ int GFX_CreateBuffer(const GFX_CreateBufferParams &p) {
         g_VRAMBytes_VBO += p.m_size;
     return ret;
 }
-void GFX_CreateVertexBuffer(int *pHandle, uint32_t size, void *data) { *pHandle = GFX_CreateBuffer(GFX_CreateBufferParams{size, data}); }
-void GFX_CreateIndexBuffer(int *dest, uint32_t size, void *data) {
+void GFX_CreateVertexBuffer(GDE_360_VERTEXBUFFER *pHandle, uint32_t size, void *data) { *pHandle = GFX_CreateBuffer(GFX_CreateBufferParams{size, data}); }
+void GFX_CreateIndexBuffer(GDE_360_INDEXBUFFER *dest, uint32_t size, void *data) {
     *dest = GFX_CreateBuffer(GFX_CreateBufferParams{ size, data });
     if (*dest != -1)
         g_VRAMBytes_VBO += size;
@@ -3731,6 +3737,37 @@ int GFX_GetTextureHeight(int texh) {
     return 0;
 }
 void GFX_SetUIScissor(float, float, float, float, bool) {
+    //TODO
+}
+void GFX_UploadShaderVEC2ARRAY(GFX_SHADER_REGISTERS, uint32_t, const VEC2 *) {
+    //TODO
+}
+void GFX_UploadShaderVEC4ARRAY(GFX_SHADER_REGISTERS, uint32_t, const VEC4 *) {
+    //TODO
+}
+void GFX_UploadShaderVEC4ARRAY(const GFX_UserRegister &, uint32_t, const VEC4 *, uint64_t) {
+    //TODO
+}
+MATRIX44 g_HACK_CachedWorldViewProj, g_HACK_CachedView;
+MATRIX44 *PC_GetWorldViewProjMatrix() {
+    return &g_MatrixContext.g_HACK_CachedWorldViewProj;
+}
+MATRIX44 *PC_GetWorldMatrix() {
+    return &g_MatrixContext.g_HACK_CachedWorld;
+}
+MATRIX44 *PC_GetViewMatrix() {
+    return &g_MatrixContext.g_HACK_CachedView;
+}
+void PC_CacheWorldViewProjMatrix(const MATRIX44 &m) {
+    g_MatrixContext.g_HACK_CachedWorldViewProj = m;
+}
+void PC_CacheWorldMatrix(const MATRIX44 &m) {
+    g_MatrixContext.g_HACK_CachedWorld = m;
+}
+void PC_CacheViewMatrix(const MATRIX44 &m) {
+    g_HACK_CachedView = m;
+}
+void GFX_UploadMatrix(GFX_MatrixSlot, const MATRIX44 &) {
     //TODO
 }
 

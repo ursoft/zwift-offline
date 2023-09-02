@@ -1,7 +1,5 @@
 #pragma once
-struct Material_360 {};
-
-inline int g_DefaultNormalMap = 1;
+inline int g_DefaultNormalMap = 1, g_LockedMaterial = -1;
 inline float g_MaterialTime;
 
 void MATERIAL_Activate(Material_360 *, GDE_MaterialUsage *, void *);
