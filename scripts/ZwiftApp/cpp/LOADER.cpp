@@ -165,14 +165,16 @@ void LOADER_LoadGdeFileAnim(GDE_Header_360 *file, Material_360 *pAnim, int *texs
     static_assert(sizeof(GDE_Header_360) == 0x70);
     static_assert(sizeof(InstanceResource) == 72);
     static_assert(sizeof(GDE_Animators) == 0x20);
-    static_assert(sizeof(GDE_Animators_0) == 0x18);
+    static_assert(sizeof(GDE_flipbookHeader) == 0x18);
+    static_assert(sizeof(GDE_MaterialUsageConst) == 80);
+    static_assert(sizeof(GDE_MaterialUsage) == 32);
     static_assert(_countof(pAnim->m_texIdx) == _countof(pAnim->m_texGlid));
     if (pAnim->m_hasAnimators) {
         GDE_Animators *pAnimators = pAnim->m_pAnimators;
         ShiftPointer(&pAnimators, file);
-        GDE_Animators_0 *pAnimators_0 = pAnimators->m_field_0;
-        ShiftPointer(&pAnimators_0, file);
-        auto count = pAnimators_0->m_count;
+        auto _fbh = pAnimators->m_flipbookHeader;
+        ShiftPointer(&_fbh, file);
+        auto count = _fbh->m_count;
         int **pArr1_src = pAnimators->m_pArr1;
         ShiftPointer(&pArr1_src, file);
         int *arr1_src = *pArr1_src;
@@ -182,31 +184,31 @@ void LOADER_LoadGdeFileAnim(GDE_Header_360 *file, Material_360 *pAnim, int *texs
         int *arr2_src = *pArr2_src;
         ShiftPointer(&arr2_src, file);
         auto pNewAnimators = (GDE_Animators *)malloc(sizeof(GDE_Animators));
-        auto pNewAnimators_0 = (GDE_Animators_0 *)malloc(sizeof(GDE_Animators_0));
+        auto fbh = (GDE_flipbookHeader *)malloc(sizeof(GDE_flipbookHeader));
         auto size = count * sizeof(int);
-        auto arr1 = (int *)malloc(size);
+        auto arr1 = (float *)malloc(size);
         auto arr2 = (int *)malloc(size);
-        if (!pNewAnimators || !pNewAnimators_0 || !arr1 || !arr2) {
+        if (!pNewAnimators || !fbh || !arr1 || !arr2) {
             pAnim->m_hasAnimators = false;
             if (pNewAnimators)
                 free(pNewAnimators);
-            if (pNewAnimators_0)
-                free(pNewAnimators_0);
+            if (fbh)
+                free(fbh);
             if (arr1)
                 free(arr1);
             if (arr2)
                 free(arr2);
             Log("Failed to allocated pAnimators because of allocation error");
         } else {
-            memmove(pNewAnimators_0, pAnimators_0, 16); //QUEST: why 16, not 8?
+            memmove(fbh, _fbh, 16); //QUEST: why 16, not sizeof(GDE_flipbookHeader)?
             memmove(arr1, arr1_src, size);
             memmove(arr2, arr2_src, size);
-            pNewAnimators->m_field_0 = pNewAnimators_0;
+            pNewAnimators->m_flipbookHeader = fbh;
             pNewAnimators->m_pArr1 = nullptr;
             pNewAnimators->m_pArr2 = nullptr;
             pNewAnimators->m_field_18 = nullptr;
-            pNewAnimators_0->m_arr1 = arr1;
-            pNewAnimators_0->m_arr2 = arr2;
+            fbh->m_texTimes = arr1;
+            fbh->m_texIndexes = arr2;
             pAnim->m_pAnimators = pNewAnimators;
         }
         pAnim->m_bits |= 0x10u;
@@ -996,10 +998,10 @@ void LOADER_UnloadGdeFile(int handle) {
                 for (uint32_t i = 0; i < gdeFile->m_texturesCnt; ++i)
                     free(gdeFile->m_textures[i].m_name);
                 for (uint32_t j = 0; j < gdeFile->m_materialsCnt; ++j) {
-                    auto p0 = gdeFile->m_materials[j].m_pAnimators->m_field_0;
+                    auto p0 = gdeFile->m_materials[j].m_pAnimators->m_flipbookHeader;
                     if (p0) {
-                        free(p0->m_arr1);
-                        free(p0->m_arr2);
+                        free(p0->m_texIndexes);
+                        free(p0->m_texTimes);
                         free(p0);
                     }
                     free(gdeFile->m_materials[j].m_pAnimators);
@@ -1047,7 +1049,7 @@ void LOADER_UnloadGdeFile(int handle) {
                 free(gdeFile->m_textures[m].m_name);
             for (uint32_t n = 0; n < gdeFile->m_materialsCnt; ++n) {
                 auto ptr = gdeFile->m_materials[n].m_pAnimators;
-                free(ptr->m_field_0);
+                free(ptr->m_flipbookHeader);
                 free(ptr->m_pArr1);
                 free(ptr->m_pArr2);
                 free(ptr);

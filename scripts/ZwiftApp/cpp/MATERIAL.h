@@ -1,11 +1,11 @@
-#pragma once
+#pragma once //READY for testing
 inline int g_DefaultNormalMap = 1, g_LockedMaterial = -1;
 inline float g_MaterialTime;
 
 void MATERIAL_Activate(Material_360 *, GDE_MaterialUsage *, void *);
-void MATERIAL_ApplyAnimators(Material_360 *, GDE_MaterialUsage *);
-void MATERIAL_GetDefaultNormalMap();
-void MATERIAL_GetFlipbookTimeOffset();
+//inlined to Activate void MATERIAL_ApplyAnimators(Material_360 *, GDE_MaterialUsage *);
+int MATERIAL_GetDefaultNormalMap();
+float MATERIAL_GetFlipbookTimeOffset();
 void MATERIAL_Init();
 void MATERIAL_Reset();
 void MATERIAL_SetFlipbookTimeOffset(float);

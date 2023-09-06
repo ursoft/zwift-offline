@@ -7387,7 +7387,7 @@ void ZNETWORK_SendSPA(protobuf::SocialPlayerAction *spa, const VEC3 &pos, float 
 }
 int64_t g_lastBcnmTime;
 std::future<NetworkResponse<int64_t>> g_BroadcastNotableMomentFuture, g_BroadcastPlayerFlagReturnCode;
-void ZNETWORK_BroadcastLocalPlayerNotableMoment(NOTABLEMOMENT_TYPE nmt, uint32_t a2, uint32_t a3, float a4) {
+void ZNETWORK_BroadcastLocalPlayerNotableMoment(NOTABLEMOMENT_TYPE nmt, uint32_t a2, float a4) {
     static_assert(sizeof(BroadcastLocalPlayerNotableMoment) == 48);
     auto v6 = (int64_t)_time64(nullptr);
     if (v6 - g_lastBcnmTime < 10)

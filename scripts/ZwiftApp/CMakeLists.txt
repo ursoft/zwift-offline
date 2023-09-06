@@ -23,7 +23,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 source_group(0ften REGULAR_EXPRESSION "(ZwiftApp[.].+|hxx|pch|Resource|framework|targetver)")
 source_group(3rd REGULAR_EXPRESSION "(Ak.*|concurrentqueue|readerwriterqueue|optionparser)")
 source_group(Proto FILES ${PB_SRCS})
-source_group(TestReady REGULAR_EXPRESSION "(ANTRECEIVER[.].*|GDE[.].*|UnitTypeManager[.].*|ZU[.].*|GameCritical[.].*|Audio[.].*|CameraManager[.].*|CRC[.].*|Downloader[.].*|ZStringUtil[.].*|GameWorld[.].*|ICU[.].*|ZMutex[.].*|OS[.].*|HeightMapManager[.].*|XMLDoc[.].*|MAT[.].*|LOADER[.].*|WADManager[.].*|Logging[.].*|Stopwatch[.].*|DateTime[.].*|Joystick[.].*|StaticAssetLoader[.].*|EventSystem[.].*|Bib[.].*|CFont2D[.].*|Console[.].*)")
+source_group(TestReady REGULAR_EXPRESSION "(MATERIAL[.].*|GoalsManager[.].*|ANTRECEIVER[.].*|GDE[.].*|UnitTypeManager[.].*|ZU[.].*|GameCritical[.].*|Audio[.].*|CameraManager[.].*|CRC[.].*|Downloader[.].*|ZStringUtil[.].*|GameWorld[.].*|ICU[.].*|ZMutex[.].*|OS[.].*|HeightMapManager[.].*|XMLDoc[.].*|MAT[.].*|LOADER[.].*|WADManager[.].*|Logging[.].*|Stopwatch[.].*|DateTime[.].*|Joystick[.].*|StaticAssetLoader[.].*|EventSystem[.].*|Bib[.].*|CFont2D[.].*|Console[.].*)")
 source_group(AlmostReady REGULAR_EXPRESSION "(BLEModule[.].*|DataRecorder[.].*|ZNet[.].*|Localization[.].*)")
 source_group(Omitted REGULAR_EXPRESSION "(CrashReporting[.].*|ClientTelemetry[.].*|tHigFile[.].*)")
 

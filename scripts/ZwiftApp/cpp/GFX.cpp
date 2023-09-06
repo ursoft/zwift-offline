@@ -3770,7 +3770,13 @@ void PC_CacheViewMatrix(const MATRIX44 &m) {
 void GFX_UploadMatrix(GFX_MatrixSlot, const MATRIX44 &) {
     //TODO
 }
-
+void GFX_SetVrtShaderConstByName_Vec4(const GFX_UserRegister &r, const VEC4 &v) {
+    if (g_pCurrentShader) {
+        auto loc = glGetUniformLocation(g_pCurrentShader->m_program, r.m_name);
+        if (loc >= 0) 
+            glUniform4f(loc, v.m_data[0], v.m_data[1], v.m_data[2], v.m_data[3]);
+    }
+}
 //Unit Tests
 TEST(SmokeTest, DISABLED_VertexArray) {
     static bool bFirst = true;

@@ -4,18 +4,25 @@ struct GDE_Tex { //32 bytes
     uint32_t m_assetCrc;
     char gap[16];
 };
-struct GDE_MaterialUsage {
-  int8_t *m_pConstantParams, *m_somePtr, *m_pAnumBindings;
-  int64_t m_gap8;
+struct GDE_MaterialUsageConst { //80 bytes
+    char gap[0x48];
+    int8_t m_type;
+    char gap2[7];
 };
-struct GDE_Animators_0 {
-    int field_0;
+struct GDE_MaterialUsage { //32 bytes
+    GDE_MaterialUsageConst *m_pConstantParams;
+    int8_t *m_somePtr, *m_pAnumBindings;
+    uint32_t m_field_18;
+    uint8_t m_cntConstParam, gap[3];
+};
+struct GDE_flipbookHeader { //24 bytes
+    float m_totalDuration;
     uint16_t m_count, field_6;
-    int *m_arr1;
-    int *m_arr2;
+    float *m_texTimes;
+    int *m_texIndexes;
 };
 struct GDE_Animators { //0x20 bytes
-    GDE_Animators_0 *m_field_0;
+    GDE_flipbookHeader *m_flipbookHeader;
     int **m_pArr1, **m_pArr2;
     uint8_t *m_field_18;
 };
@@ -40,10 +47,12 @@ struct Material_360 { //0x170 (368) bytes
     bool m_hasAnimators;
     MaterialBlendMode m_mbmAlpha;
     char field_102[2];
-    float m_field_104;
-    char field_108[8];
+    float m_field_104, m_field_108, m_specularPower;
     uint8_t m_texIdx[6];
-    char field_116[58];
+    char field_116[2];
+    float m_field_118, m_field_11C;
+    char field_120[40];
+    uint64_t m_ovrTexHandle;
     Material_360_Shader *m_ovrSkinShader;
     int m_texGlid[6];
 };

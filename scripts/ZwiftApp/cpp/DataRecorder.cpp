@@ -201,7 +201,7 @@ void RecorderComponent::Update(float) {
                 }
                 m_nextPointTime += m_timeBetweenPoints;
             }
-            auto v10 = float(m_type == T_1 ? bc->m_field_118 : bc->m_field_128) * 0.001f;
+            auto v10 = float(m_type == T_1 ? bc->m_field_118 : bc->m_current_duration) * 0.001f;
             m_nextPointTime -= (v10 - m_curTime);
             m_curTime = v10;
         }

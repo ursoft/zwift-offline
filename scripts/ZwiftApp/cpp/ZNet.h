@@ -697,7 +697,7 @@ inline int32_t ZNETWORK_GetTotalPlayerCount() { return g_ServerReportedPlayerCou
 void ZNETWORK_INTERNAL_ProcessPlayerPackets();
 void ZNETWORK_BroadcastGRFenceStats(uint64_t, int64_t, bool, bool /*, uint32_t*/);
 void ZNETWORK_BroadcastGRFenceConfig(uint64_t, uint32_t, float, float, float, float, float, uint32_t, uint32_t, bool);
-void ZNETWORK_BroadcastLocalPlayerNotableMoment(NOTABLEMOMENT_TYPE, uint32_t, uint32_t, float);
+void ZNETWORK_BroadcastLocalPlayerNotableMoment(NOTABLEMOMENT_TYPE, uint32_t, float);
 void ZNETWORK_BroadcastRegisterForGroupEvent(uint64_t, uint32_t, bool, bool);
 void ZNETWORK_BroadcastBibNumberForGroupEvent(int64_t, uint32_t, uint32_t);
 void ZNETWORK_SendPacePartnerInfo(int64_t, uint16_t, float, uint32_t);

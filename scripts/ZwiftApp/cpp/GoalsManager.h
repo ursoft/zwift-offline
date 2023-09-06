@@ -1,10 +1,13 @@
-#pragma once
+#pragma once //READY for testing
 inline int g_nGoalsAdded;
 struct GoalsManager : public EventObject { //176 bytes
     inline static std::unique_ptr<GoalsManager> s_pSelf;
     std::future<NetworkResponse<protobuf::Goals>> m_get_future;
-    protobuf::Goals m_goals;
-    bool m_hasPersonalGoal = false, m_oldConverted = false, m_loadedOk = false, m_loadingNow = false;
+    std::future<NetworkResponse<protobuf::Goal>> m_save_future;
+    //protobuf::Goals m_goals;
+    std::list<protobuf::Goal> m_goals;
+    float m_timeAcc = 0.0f;
+    bool m_saving = false, m_oldConverted = false, m_loadedOk = false, m_loadingNow = false;
     const protobuf::Goal *m_activeDistanceGoal = nullptr, *m_activeDurationGoal = nullptr;
     GoalsManager(EventSystem *ev);
     static void Shutdown() { s_pSelf.reset(); }

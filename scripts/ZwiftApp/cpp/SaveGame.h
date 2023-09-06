@@ -20,8 +20,16 @@ struct GenericTrackingData { //16 bytes
         m_val.f = v;
     }
 };
+struct OldGoal { //40 bytes
+    char gap[24];
+    protobuf::GoalType m_type;
+    int m_isWeekly;
+    float m_val;
+    char gap24[4];
+};
 struct SaveGame {
     std::map<uint32_t, GenericTrackingData> m_trackingMap;
+    std::vector<OldGoal> m_oldGoals;
     uint64_t m_loadDT = 0;
     bool m_field_1E1 = false; //change flag???
     //TODO

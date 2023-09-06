@@ -94,7 +94,7 @@ struct GFX_RegisterRef {
     enum class Ty : uint8_t { Scene, Object, Draw, User, CNT } m_ty;
     uint16_t m_offset, m_cnt;
 };
-enum GFX_SHADER_REGISTERS { GSR_0 = 0, GSR_5 = 5, GSR_11 = 11, GSR_24 = 24, GSR_27 = 27, GSR_28 = 28, GSR_CNT = 29 };
+enum GFX_SHADER_REGISTERS { GSR_0 = 0, GSR_5 = 5, GSR_7 = 7, GSR_11 = 11, GSR_21 = 21, GSR_22 = 22, GSR_23 = 23, GSR_24 = 24, GSR_27 = 27, GSR_28 = 28, GSR_CNT = 29 };
 enum GFX_SHADER_MATRICES { GSM_0 = 0, GSM_1, GSM_2, GSM_3, GSM_4, GSM_CNT = 9 };
 struct GFX_BlendFunc {
     bool operator == (const GFX_BlendFunc &peer) { return m_mode == peer.m_mode && m_srcFactor == peer.m_srcFactor && m_dstFactor == peer.m_dstFactor; }
@@ -829,7 +829,7 @@ void GFX_SetLoadedAssetMode(bool);
 void GFX_SetMaxFPSOnBattery(float);
 void GFX_SetMipBias(float);
 struct GFX_UserRegister {
-    uint64_t m_offset;
+    int64_t m_offset;
     const char *m_name;
 };
 void SetupLightmaps(bool a1);
@@ -938,7 +938,7 @@ void GFXtoOGLTarget(GFX_TextureType);
 //GFXAPI_UnloadTexture(int, TEX_STATE)
 //GFXAPI_StreamMalloc(ulong long, ulong long)
 //GFXAPI_Shutdown(void)
-//GFXAPI_SetFlipbookTextureIndexOverride(int)
+inline void GFXAPI_SetFlipbookTextureIndexOverride(int v) { g_FlipbookTextureIndexOverride = v; }
 //GFXAPI_SetFlipRenderTexture(bool)
 //GFXAPI_ReplaceTextureWithRGBA(int, uint, uint, void const *)
 //GFXAPI_NoesisCreateDevice(bool, int)

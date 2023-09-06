@@ -1711,3 +1711,15 @@ void OnApplyPromoCode(UI_ApplyPromoCode::DIALOG_RESULTS);
 void CustomizationDialogConfirm();
 inline bool g_bDropInAfterCustomization = true;
 bool SelectBranch(uint32_t, bool, bool, bool, bool);
+struct UI_NotificationQueue {
+    static void QueueGoalMilestone(uint32_t) { //TODO
+    }
+        /*OnNotificationFinished(intUINotificationHandler *)
+    QueueAchievement(uint)
+    QueueChallengeComplete(UI_Challenge *)
+    QueueUnlock(uint)
+    QueueUnlockChallenge(UI_Challenge *)
+    UI_NotificationQueue(void)
+    Update(float)
+    ~UI_NotificationQueue()*/
+};

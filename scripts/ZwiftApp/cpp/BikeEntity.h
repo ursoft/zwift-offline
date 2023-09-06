@@ -4,8 +4,8 @@ struct VirtualBikeComputer {
     float GetDistance(UnitType ut, bool) { /*TODO*/ return 0.0; }
     float GetSpeed();
     void SetTireSize(uint32_t tireCirc) { m_tireCirc = tireCirc; }
-    uint64_t m_lastPower = 0;
-    uint32_t m_tireCirc = 2105, m_powerSmoothing = 1, m_field_118 = 0, m_field_128 = 0, m_field_1E8 = 0, m_field_1B8 = 0;
+    uint64_t m_lastPower = 0, m_current_duration = 0, m_field_118 = 0;
+    uint32_t m_tireCirc = 2105, m_powerSmoothing = 1, m_field_1E8 = 0, m_field_1B8 = 0;
     float m_distance = 0.0f, m_power = 0.0f, m_field_19C = 0.0f, m_speed = 0.0f, m_field_18C = 0.0f, m_field_198 = 0.0f, m_field_1E0 = 0.0f, m_sensor_f2 = 0.0f, m_total_smth = 0.0f, 
         m_heart_f2 = 0.0f;
     protobuf::Sport m_sport = protobuf::CYCLING;
