@@ -16,3 +16,4 @@ void ANTRECEIVER_Shutdown();
 //inlined void ANTRECEIVER_UnpairChannel(uint8_t);
 void ANTRECEIVER_Update(float);
 //empty void AntReceiver_Update(float);
+inline bool g_bANTInitialized, g_bANTConnected;

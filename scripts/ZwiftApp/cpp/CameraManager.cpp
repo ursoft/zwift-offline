@@ -632,7 +632,6 @@ float SimplexNoise::Generate(float a2, float a3, float a4) {
     return (v40 + v38 + v59 + v58) * 32.0f;
 }
 float g_timeStuff, g_timeStuff1;
-int g_keys4[4];
 void Camera::Update(float dt, float a3) {
     BikeEntity *be;
     m_field_B8 += dt;

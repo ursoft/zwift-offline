@@ -150,9 +150,87 @@ void GUI_Initialize(/*void (*mkSound)(char const *),*/ bool testServer) {
     //dword_7FF6CA8C8D7C = 0;
 }
 void GUI_INTERNAL_PlaySound(const char *snd) { make_sound(snd); }
-bool GUI_Key(int key, int mod) {
-    //TODO
+GUI_Obj *g_GUI_CurrentFocused;
+GUI_Obj g_GUIRoot;
+bool GUI_Paste() {
+    if (!OpenClipboard(nullptr))
+        return false;
+    auto ClipboardData = GetClipboardData(CF_UNICODETEXT);
+    SIZE_T sz;
+    wchar_t *txt;
+    if (!ClipboardData || (sz = GlobalSize(ClipboardData), sz - 1 > 0xFF) || (txt = (wchar_t *)GlobalLock(ClipboardData)) == nullptr) {
+        CloseClipboard();
+        return false;
+    }
+    for (int i = 0; i < sz; ++txt, ++i) {
+        auto wch = *txt;
+        if (!wch)
+            break;
+        if (wch == GLFW_KEY_TAB || wch < L' ')
+            wch = GLFW_KEY_SPACE;
+        GUI_Key(wch, *txt != GLFW_KEY_TAB ? 0x1000 : 0);
+    }
+    CloseClipboard();
     return true;
+}
+bool GUI_Key(int key, int mods) {
+    if (key == GLFW_KEY_TAB) {
+        auto i = &g_GUIRoot;
+        if ((mods & GLFW_MOD_SHIFT) == 0) {
+            if (g_GUI_CurrentFocused) {
+                for (i = g_GUI_CurrentFocused->m_next; i; i = i->m_next) {
+                    if (i->m_wantKeys && !i->m_disabled && i->m_visible) {
+                        GUI_TakeFocus(i);
+                        return true;
+                    }
+                }
+            } else {
+                if (i->m_wantKeys && !i->m_disabled && i->m_visible) {
+                    GUI_TakeFocus(i);
+                    return true;
+                }
+            }
+            i = &g_GUIRoot;
+            while (i) {
+                if (i->m_wantKeys && !i->m_disabled && i->m_visible) {
+                    GUI_TakeFocus(i);
+                    return true;
+                }
+                i = i->m_next;
+            }
+        } else {
+            if (g_GUI_CurrentFocused) {
+                for (i = g_GUI_CurrentFocused->m_prev; i; i = i->m_prev) {
+                    if (i->m_wantKeys && !i->m_disabled && i->m_visible) {
+                        GUI_TakeFocus(i);
+                        return true;
+                    }
+                }
+            } else {
+                if (i->m_wantKeys && !i->m_disabled && i->m_visible) {
+                    GUI_TakeFocus(i);
+                    return true;
+                }
+            }
+        }
+    } else if ((mods & GLFW_MOD_CONTROL) != 0 && ('v' == key || 'V' == key)) {
+        return GUI_Paste();
+    }
+    if (g_GUI_CurrentFocused && g_GUI_CurrentFocused->OnKey(key, mods))
+        return true;
+    auto v7 = &g_GUIRoot;
+    auto v3 = v7;
+    do {
+        if (v3->m_field_74)
+            v7 = v3;
+        v3 = v3->m_next;
+    } while (v3);
+    while (v7) {
+        if (v7->OnKey(key, mods))
+            return true;
+        v7 = v7->m_next;
+    }
+    return false;
 }
 void GUI_CreateTwoButtonsDialog(const char *, const char *, const char *, const char *, const char *, float, std::function<void(UI_TwoButtonsDialog::DIALOG_RESULTS)>, float, float, bool, float, bool) {
     //TODO
@@ -170,6 +248,9 @@ void GUI_CreateTwoButtonsDialogWithHyperlink(const char *, void (*)(void *), con
     //TODO
 }
 void kickCallback(UI_TwoButtonsDialog::DIALOG_RESULTS dr) {
+    //TODO
+}
+void GUI_MouseWheel(int) {
     //TODO
 }
 void GUI_EditBox::SetText(char const *) { /*TODO*/ }
@@ -423,4 +504,10 @@ void CustomizationDialogConfirm() {
 bool SelectBranch(uint32_t, bool, bool, bool, bool) {
     //TODO
     return false;
+}
+void GUI_MouseClick(int, int, float, float, float, float, int *) {
+    //TODO
+}
+void GUI_MouseDoubleClick() {
+    //TODO
 }

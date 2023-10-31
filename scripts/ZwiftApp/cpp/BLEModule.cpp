@@ -608,6 +608,7 @@ struct BLEDeviceManager { //and BLEDeviceManagerWindows
     writeToDeviceFunc_t m_writeToDeviceFunc;
     fptr_void_void m_initFlagsFunc;
     std::vector<std::string> m_lostDevs;
+    InputCallback m_defaultCallback{ [](float) { return true; } };
     enum DeviceState { BLE_DEVICE_STATE_UNK, BLE_DEVICE_STATE_IDLE, BLE_DEVICE_STATE_SCANNING, BLE_DEVICE_STATE_RECOVERING } m_deviceState = BLE_DEVICE_STATE_UNK;
     bool m_HasBLE, m_AutoConnectPairingMode, m_bleAvalilable, m_initFlagCalled;
     ~BLEDeviceManager() { //vptr[0]
@@ -2524,4 +2525,11 @@ void BLE_StopDeviceSearch() {
         v1.set_type(protobuf::END_PERIPHERAL_DISCOVERY);
         zwift_network::send_ble_peripheral_request(v1);
     }
+}
+InputCallback *DeviceInputManager::GetCallbackForKey(bool pressed, ZwiftButtonMap btn) {
+    zassert(m_keySet < 2); //"Unknown Key Catcher set"
+    auto result = &m_callbacks[!pressed][m_keySet][btn];
+    if (!(*result))
+        return &g_BLEDeviceManager.m_defaultCallback;
+    return result;
 }

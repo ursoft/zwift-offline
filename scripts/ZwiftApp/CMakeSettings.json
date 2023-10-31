@@ -1,34 +1,6 @@
 ﻿{
     "configurations": [
         {
-            "name": "x64-Debug",
-            "generator": "Ninja",
-            "configurationType": "Debug",
-            "inheritEnvironments": [ "msvc_x64_x64" ],
-            "installRoot": "${projectDir}\\1.32.1_106405-Debug",
-            "cmakeCommandArgs": "-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DVCPKG_TARGET_TRIPLET=x64-windows-static -DBoost_NO_WARN_NEW_VERSIONS=1",
-            "buildCommandArgs": "",
-            "ctestCommandArgs": "",
-            "environments": [
-                { "nCFLAGS": "/fsanitize=address" },
-                { "nCXXFLAGS": "/fsanitize=address" },
-                { "NOESIS_ID": "Noesis-3.0.12" },
-                { "WWISE_ID": "Wwise_v2021.1.11" },
-                { "NOESIS_DIR": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Noesis-3.0.12" },
-                { "WWISE_DIR": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Wwise_v2021.1.11" },
-                { "LIB_CFG": "Debug" }
-            ],
-            "buildRoot": "${projectDir}\\..\\..\\..\\ZwiftApp_build\\Debug-host",
-            "intelliSenseMode": "windows-msvc-x64",
-            "variables": [
-                {
-                    "name": "CMAKE_BUILD_TYPE",
-                    "value": "Debug",
-                    "type": "STRING"
-                }
-            ]
-        },
-        {
             "name": "x64-RelWithDebInfo",
             "generator": "Ninja",
             "configurationType": "RelWithDebInfo",

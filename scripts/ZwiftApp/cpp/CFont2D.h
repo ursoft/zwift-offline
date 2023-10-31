@@ -1,19 +1,17 @@
 #pragma once //READY for testing
+#define URSOFT_KERNING
 enum FONT_STYLE { FS_SMALL, FS_SANSERIF, FS_FONDO_MED, FS_FONDO_BLACK, FS_CNT };
-enum LANGUAGE_IDS : char { LID_LAT = 0, LID_JAPAN = 1, LID_KOREAN = 2, LID_CHINESE = 3, LID_CNT = 4 };
-struct CFont2D_struc24 {
-    std::vector<char> m_cont;
-};
+enum CHARSET_IDS : uint8_t { CID_RUSLAT = 0, CID_JAPAN = 1, CID_KOREAN = 2, CID_CHINESE = 3, CID_CNT = 4 };
 struct CFont2D_glyph { // 20 bytes
     uint16_t         m_codePoint;
     char             m_kernIdx;
-    uint8_t          m_cnt;
+    CHARSET_IDS     m_lid;
     tViewport<float> m_view;
 };
 struct CFont2D_fileHdrV1 { //0x9C bytes
     uint16_t m_version;
     uint8_t  field_2;
-    uint8_t  m_chars;
+    uint8_t  m_charsCnt;
     uint8_t  m_from;
     uint8_t  m_to;
     char     m_family[16], field16, field17;
@@ -21,18 +19,28 @@ struct CFont2D_fileHdrV1 { //0x9C bytes
     uint16_t m_height;
     char     field_1C[128];
 };
+#pragma pack(push, 1)
+struct RealKernItem { //5 bytes
+    UChar m_prev, m_cur; // for example, AV pair needs V correction to the left
+    char m_corr;         // corr amount (pixels)
+};
+#pragma pack(pop)
 struct CFont2D_fileHdrV3 { //0xF0 bytes
     uint16_t m_version;
-    char     field_2;
-    char     field_3;
-    int      m_tex[10];
-    float    m_kern[LID_CNT];
-    char     field_3C[26];
-    uint16_t m_usedGlyphs;
-    char     field_58[152];
+    char     field_2; //0
+    char     field_3; //0
+    int      m_tex[10]; //all -1
+    float    m_kern[CID_CNT];
+    char     field_3C[26]; //all 0, except for [24]=32
+    uint16_t m_charsCnt;
+    char     field_58[4];   //10,0,94,-1 (data/Fonts/ZwiftFondoBlack105ptW_EFIGS_K.bin); = (data/Fonts/ZwiftFondoMedium54ptW_EFIGS_K.bin)
+    char     m_family[16];  //"Zwift Fondo ZGA"
+    int      m_points;      //105; 75? why not 54
+    char     m_gap[124];    //0's
+    int      m_realKerns;   //0 until Ursoft kern fix
 };
 struct CFont2D_info {
-    LANGUAGE_IDS        m_langId;
+    CHARSET_IDS         m_charsetId;
     CFont2D_fileHdrV1   m_fileHdrV1;
     CFont2D_fileHdrV3   m_fileHdrV3;
     tViewport<uint16_t> m_v1gls[256];
@@ -43,41 +51,41 @@ struct CFont2D_cache { //192 bytes
 };
 enum RenderFlags { RF_CX_ISCENTER = 1, RF_CY_ISCENTER = 2, RF_CX_ISRIGHT = 4, RF_CY_ISBOTTOM = 8 };
 struct CFont2D {
-    std::string      m_fileName;
-    CFont2D_struc24  m_struc24x4[4];
-    float            m_kern[LID_CNT];
-    CFont2D_info     m_info;
-    CFont2D_glyph    *m_glyphs;
-    void             *m_RGBAv1;
-    int m_lineHeight;
-    LANGUAGE_IDS     m_texSuffix;
-    char             field_20A35;
-    char             field_20A36;
-    char             field_20A37;
-    int m_tex;
-    float            m_field_20A3C;
-    float            m_scale;
-    float            m_kerning;
-    float            m_baseLine;
-    float            m_headLine;
-    float            m_verticalOffset;
-    float            m_spaceScale;
-    char             m_loadedV1;
-    bool             m_loadedV3;
-    char             field_20A5A;
-    char             field_20A5B;
-    char             field_20A5C;
-    char             field_20A5D;
-    char             field_20A5E;
-    char             field_20A5F;
-    CFont2D_cache    *m_cache;
-    uint32_t         m_cacheCnt, m_cacheCntUsed;
-    int m_curCache;
-    char             field_20A74;
-    char             field_20A75;
-    char             field_20A76;
-    char             field_20A77;
-    std::deque<VEC2> m_hbStack;
+    std::string       m_fileName;
+    std::vector<char> m_lidKernIdx[CID_CNT];
+    float             m_kern[CID_CNT];
+    CFont2D_info      m_info;
+    CFont2D_glyph     *m_glyphs;
+    void              *m_RGBAv1;
+    int               m_lineHeight;
+    CHARSET_IDS       m_texSuffix;
+    char              field_20A35;
+    char              field_20A36;
+    char              field_20A37;
+    int               m_tex;
+    float             m_field_20A3C;
+    float             m_scale;
+    float             m_kerning;
+    float             m_baseLine;
+    float             m_headLine;
+    float             m_verticalOffset;
+    float             m_spaceScale;
+    char              m_loadedV1;
+    bool              m_loadedV3;
+    char              field_20A5A;
+    char              field_20A5B;
+    char              field_20A5C;
+    char              field_20A5D;
+    char              field_20A5E;
+    char              field_20A5F;
+    CFont2D_cache     *m_cache;
+    uint32_t          m_cacheCnt, m_cacheCntUsed;
+    int               m_curCache;
+    char              field_20A74;
+    char              field_20A75;
+    char              field_20A76;
+    char              field_20A77;
+    std::deque<VEC2>  m_hbStack;
     CFont2D();
     void Load(FONT_STYLE s);
     void SetScaleAndKerning(float scale, float kerning);
@@ -116,7 +124,7 @@ struct CFont2D {
     void GetGlyphUVView(uint32_t, tViewport<float> *, uint32_t *);
     bool GetGlyphView(uint32_t ch, tViewport<int> *);
     void SetHeadAndBaseLines(float, float);
-    void SetLanguageKerningScalar(LANGUAGE_IDS, float);
+    void SetLanguageKerningScalar(CHARSET_IDS, float);
     float GetTopToBase(float);
     float GetBoundedScale(float totalW, float totalH, const char *txt);
     //in GUI_ToolTip used only, which is absent here void GetParagraphBoxSize(const char *text, float, float, float);
@@ -157,6 +165,9 @@ struct CFont2D {
     //inlined void IsFontTextureLoaded(uint16_t);
     //inlined void SetSpaceScale(float);
     //inlined void SetVerticalOffset(float);
+#ifdef URSOFT_KERNING
+    std::map<std::pair<UChar, UChar>, float> m_realKerning;
+#endif
 };
 struct BufSafeToUTF8 { UChar m_buf[512]; int m_usageCounter = 0; };
 UChar *SafeToUTF8(const char *ansi, BufSafeToUTF8 *buf);

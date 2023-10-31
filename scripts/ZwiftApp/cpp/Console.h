@@ -1,4 +1,4 @@
-#pragma once //READY for testing
+п»ї#pragma once //READY for testing
 struct CMD_AutoCompleteParamSearchResults {
     std::string m_descr;
     std::vector<std::string> m_field_20;
@@ -11,6 +11,7 @@ typedef std::string (*CMD_string)(const char *);
 enum TweakDataType { TWD_BOOL = 1, TWD_INT, TWD_UINT, TWD_FLOAT, TWD_STRING };
 const inline float FMIN = -1.0e17f, FMAX = 1.0e16f;
 const inline int IMIN = -2147483647, IMAX = 2147483647;
+inline int g_3DTV_algo = 1; //TODO: enum
 struct TweakInfo {
     uint32_t      m_valueUnion = 0;
     float         m_floatMin = FMIN, m_floatMax = FMAX;
@@ -143,10 +144,11 @@ struct ConsoleCommandFuncs {
     bool operator==(ConsoleCommandFuncs const &peer) const { return m_name == peer.m_name; }
 };
 inline ConsoleCommandFuncs g_knownCommands[256];
+struct CFont2D;
 struct ConsoleRenderer {
     const static inline uint32_t TYPE_COLORS[LOG_CNT] = { 0xC8FFFFFF, 0xC837FFFF, 0xC83796FF, 0xC800C8FF, 0xC8AFDCFF, 0x6EC5BBB1, 0xC8FFFFFF, 0xC8FFFFFF, 0xC8FFFFFF, 0xC8FFFFFF, 0xC8FFFFFF, 0xC8FFFFFF, 0xC8FFFFFF, 0xC8FFFFFF };
     const static inline uint32_t LogBGColor = 0xBF332619;
-    const static inline float    LargeFontScale = 0.35f; //URSOFT FIX (was 0.4) - но линии в 16.0 накладывались друг на друга
+    const static inline float    LargeFontScale = 0.35f; //URSOFT FIX (was 0.4) - РЅРѕ Р»РёРЅРёРё РІ 16.0 РЅР°РєР»Р°РґС‹РІР°Р»РёСЃСЊ РґСЂСѓРі РЅР° РґСЂСѓРіР°
 
     bool        m_logVisible = true;
     float       m_cmdX1 = 3.0f;
@@ -163,6 +165,10 @@ struct ConsoleRenderer {
     float       m_atY;
     bool        m_mirrorY = true;
     void Update(float time);
+    //URSOFT FIX - to test bold font
+    static CFont2D *GetConsoleFont();
+    static int GetConsolePageLines();
+    static float LineHeight();
 };
 inline ConsoleRenderer g_Console;
 inline bool            g_bShowConsole

@@ -87,7 +87,7 @@ struct GUI_Obj { //0xF0 bytes
     const char *m_mouseOverSid, *m_toggleOnSid, *m_toggleOffSid, *m_selectSid;
     GUI_Obj();
     GUI_BorderStyle m_borderStyle = BS_0;
-    int m_field_C8 = 0, m_field_D8 = 0;
+    int m_z = 0, m_field_C8 = 0, m_field_D8 = 0;
     virtual GUI_BorderStyle GetBorderStyle() { return m_borderStyle; }
     virtual float GetCustomLength(bool ish);
     virtual RECT2 GetHeirarchyScissorRect();
@@ -121,11 +121,11 @@ struct GUI_Obj { //0xF0 bytes
     CFont2D *m_font;
     virtual void SetFont(CFont2D *); //[2]
     virtual void SetHeight(float);
-    GUI_Obj *m_parent = nullptr;
+    GUI_Obj *m_parent = nullptr, *m_next = nullptr, *m_prev = nullptr;
     virtual void SetParent(GUI_Obj *par) { m_parent = par; }
     std::wstring m_txt;
     int m_flag = 0;
-    bool m_disabled = false, m_hasText = false, m_field_70 = true, m_field_71 = false, m_visible = true, m_field_74 = false, m_field_75 = false, m_field_76 = false;
+    bool m_disabled = false, m_hasText = false, m_wantKeys = false, m_field_70 = true, m_field_71 = false, m_visible = true, m_field_74 = false, m_field_75 = false, m_field_76 = false;
     virtual void SetUIText(const char *txt);
     virtual void SetUIWText(const UChar *txt);
     virtual void SetVisible(bool);
@@ -384,6 +384,11 @@ void GUI_RemoveDescendants(GUI_Obj *);
 enum MessageBoxResults { MBR_BUTTON0 };
 GUI_Obj *GUI_CreateMessageBox(const char *capt, const char *msg, const char *b1, const char *b2, std::function<void(MessageBoxResults)> f, float w, float h, bool, float);
 void *GUI_GetTopmostDialog();
+inline bool GUI_RevZSort(GUI_Obj *a1, GUI_Obj *a2) { return a1->m_z > a2->m_z; }
+void GUI_MouseClick(int, int, float, float, float, float, int *);
+void GUI_MouseDoubleClick();
+void GUI_MouseMove(float x, float y, float w, float h);
+void GUI_MouseWheel(int);
 /*
 GUI_AccessoryWidget::EquipAccessory(void)
 GUI_AccessoryWidget::GUI_AccessoryWidget(void)
@@ -853,10 +858,6 @@ GUI_MessageBox::Render(void)
 GUI_MessageBox::SetFontScale(float)
 GUI_MessageBox::Update(float)
 GUI_MessageBox::~GUI_MessageBox()
-GUI_MouseClick(int,int,float,float,float,float,int &)
-GUI_MouseDoubleClick(float,float)
-GUI_MouseMove(float,float,float,float)
-GUI_MouseWheel(int,float,float)
 GUI_NewPling::GUI_NewPling(float,float,GUI_Obj *,uint)
 GUI_NewPling::Render(void)
 GUI_NewPling::Update(float)
@@ -879,7 +880,6 @@ GUI_PurchaseConfirmation::~GUI_PurchaseConfirmation()
 GUI_Render(void)
 GUI_ResortList(void)
 GUI_ReturnTopMostModalDialog(GUI_Obj **)
-GUI_RevZSort(GUI_Obj *,GUI_Obj *)
 GUI_RowContainer::ApplyStylesheet(GUI_Stylesheet *,bool)
 GUI_RowContainer::Render(void)
 GUI_RowContainer::Update(float)
@@ -1250,9 +1250,6 @@ struct UI_ChallengeUnlockNotification : public GUI_Obj, public intUINotification
     //TODO
 };
 struct UI_ConfigScreen : public GUI_Obj, public I_GUI_CheckBoxDelegate, public I_GUI_SliderDelegate {
-    //TODO
-};
-struct ConnectionSubscriber {
     //TODO
 };
 struct UI_ConnectionNotifications : public ConnectionSubscriber, public GUI_Obj {

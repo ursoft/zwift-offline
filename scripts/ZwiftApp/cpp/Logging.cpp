@@ -1,4 +1,4 @@
-#include "ZwiftApp.h" //READY for testing
+ï»¿#include "ZwiftApp.h" //READY for testing
 LOG_TYPE   g_LogLineTypes[LOGC_LINES];
 char       *g_LogLines[LOGC_LINES];
 LOG_LEVEL  g_MinLogLevel = LL_CNT; // NOT_SET_YET;
@@ -84,58 +84,59 @@ void LogWrite(LOG_LEVEL level, LOG_TYPE ty, const char *msg, size_t msg_len) {
                 fwrite("\r\n", 2, 1, g_logFile);
                 fflush(g_logFile);
             }
-            auto dest = g_LogLines[g_nLogLines % LOGC_LINES], destMax = dest + LOGC_LINE_BUF - 1;
-            auto src = msg, srcMax = src + msg_len;
+            auto dest = g_LogLines[g_nLogLines % LOGC_LINES];// , destMax = dest + LOGC_LINE_BUF - 1;
+            //auto src = msg, srcMax = src + msg_len;
             strncpy(dest, buf, cnt);
             dest += cnt;
+            strncpy(dest, msg, LOGC_LINE_BUF - cnt - 1);
             //URSOFT fix: if there are non-ASCII symbols (1251) -> transliterate them (need new fonts though)
-            while (dest < destMax && src < srcMax) {
+            /*while (dest < destMax && src < srcMax) {
                 auto ch = *src++;
                 switch (ch) {
                     default: *dest++ = ch; break;
-                    case '¨': *dest++ = 'J'; if (dest < destMax) *dest++ = 'O'; break;
-                    case '¸': *dest++ = 'j'; if (dest < destMax) *dest++ = 'o'; break;
-                    case 'É': *dest++ = 'J'; break; case 'é': *dest++ = 'j'; break;
-                    case 'Ö': *dest++ = 'C'; break; case 'ö': *dest++ = 'c'; break;
-                    case 'Ó': *dest++ = 'U'; break; case 'ó': *dest++ = 'u'; break;
-                    case 'Ê': *dest++ = 'K'; break; case 'ê': *dest++ = 'k'; break;
-                    case 'Å': *dest++ = 'E'; break; case 'å': *dest++ = 'e'; break;
-                    case 'Í': *dest++ = 'N'; break; case 'í': *dest++ = 'n'; break;
-                    case 'Ã': *dest++ = 'G'; break; case 'ã': *dest++ = 'g'; break;
-                    case 'Ø': *dest++ = 'S'; if (dest < destMax) *dest++ = 'H'; break;
-                    case 'ø': *dest++ = 's'; if (dest < destMax) *dest++ = 'h'; break;
-                    case 'Ù': *dest++ = 'S'; if (dest < destMax) *dest++ = 'C'; break;
-                    case 'ù': *dest++ = 's'; if (dest < destMax) *dest++ = 'c'; break;
-                    case 'Ç': *dest++ = 'Z'; break; case 'ç': *dest++ = 'z'; break;
-                    case 'Õ': *dest++ = 'K'; if (dest < destMax) *dest++ = 'H'; break;
-                    case 'õ': *dest++ = 'k'; if (dest < destMax) *dest++ = 'h'; break;
-                    case 'Ô': *dest++ = 'F'; break; case 'ô': *dest++ = 'f'; break;
-                    case 'Û': *dest++ = 'Y'; break; case 'û': *dest++ = 'y'; break;
-                    case 'Â': *dest++ = 'V'; break; case 'â': *dest++ = 'v'; break;
-                    case 'À': *dest++ = 'A'; break; case 'à': *dest++ = 'a'; break;
-                    case 'Ï': *dest++ = 'P'; break; case 'ï': *dest++ = 'p'; break;
-                    case 'Ð': *dest++ = 'R'; break; case 'ð': *dest++ = 'r'; break;
-                    case 'Î': *dest++ = 'O'; break; case 'î': *dest++ = 'o'; break;
-                    case 'Ë': *dest++ = 'L'; break; case 'ë': *dest++ = 'l'; break;
-                    case 'Ä': *dest++ = 'D'; break; case 'ä': *dest++ = 'd'; break;
-                    case 'Æ': *dest++ = 'Z'; if (dest < destMax) *dest++ = 'H'; break;
-                    case 'æ': *dest++ = 'z'; if (dest < destMax) *dest++ = 'h'; break;
-                    case 'Ý': *dest++ = 'E'; break; case 'ý': *dest++ = 'e'; break;
-                    case 'ß': *dest++ = 'J'; if (dest < destMax) *dest++ = 'A'; break;
-                    case 'ÿ': *dest++ = 'j'; if (dest < destMax) *dest++ = 'a'; break;
-                    case '×': *dest++ = 'C'; if (dest < destMax) *dest++ = 'H'; break;
-                    case '÷': *dest++ = 'c'; if (dest < destMax) *dest++ = 'h'; break;
-                    case 'Ñ': *dest++ = 'S'; break; case 'ñ': *dest++ = 's'; break;
-                    case 'Ì': *dest++ = 'M'; break; case 'ì': *dest++ = 'm'; break;
-                    case 'È': *dest++ = 'I'; break; case 'è': *dest++ = 'i'; break;
-                    case 'Ò': *dest++ = 'T'; break; case 'ò': *dest++ = 't'; break;
-                    case 'Ü': *dest++ = '\''; break; case 'ü': *dest++ = '\''; break;
-                    case 'Á': *dest++ = 'B'; break; case 'á': *dest++ = 'b'; break;
-                    case 'Þ': *dest++ = 'J'; if (dest < destMax) *dest++ = 'U'; break;
-                    case 'þ': *dest++ = 'j'; if (dest < destMax) *dest++ = 'u'; break;
+                    case 'Ð': *dest++ = 'J'; if (dest < destMax) *dest++ = 'O'; break;
+                    case 'Ñ‘': *dest++ = 'j'; if (dest < destMax) *dest++ = 'o'; break;
+                    case 'Ð™': *dest++ = 'J'; break; case 'Ð¹': *dest++ = 'j'; break;
+                    case 'Ð¦': *dest++ = 'C'; break; case 'Ñ†': *dest++ = 'c'; break;
+                    case 'Ð£': *dest++ = 'U'; break; case 'Ñƒ': *dest++ = 'u'; break;
+                    case 'Ðš': *dest++ = 'K'; break; case 'Ðº': *dest++ = 'k'; break;
+                    case 'Ð•': *dest++ = 'E'; break; case 'Ðµ': *dest++ = 'e'; break;
+                    case 'Ð': *dest++ = 'N'; break; case 'Ð½': *dest++ = 'n'; break;
+                    case 'Ð“': *dest++ = 'G'; break; case 'Ð³': *dest++ = 'g'; break;
+                    case 'Ð¨': *dest++ = 'S'; if (dest < destMax) *dest++ = 'H'; break;
+                    case 'Ñˆ': *dest++ = 's'; if (dest < destMax) *dest++ = 'h'; break;
+                    case 'Ð©': *dest++ = 'S'; if (dest < destMax) *dest++ = 'C'; break;
+                    case 'Ñ‰': *dest++ = 's'; if (dest < destMax) *dest++ = 'c'; break;
+                    case 'Ð—': *dest++ = 'Z'; break; case 'Ð·': *dest++ = 'z'; break;
+                    case 'Ð¥': *dest++ = 'K'; if (dest < destMax) *dest++ = 'H'; break;
+                    case 'Ñ…': *dest++ = 'k'; if (dest < destMax) *dest++ = 'h'; break;
+                    case 'Ð¤': *dest++ = 'F'; break; case 'Ñ„': *dest++ = 'f'; break;
+                    case 'Ð«': *dest++ = 'Y'; break; case 'Ñ‹': *dest++ = 'y'; break;
+                    case 'Ð’': *dest++ = 'V'; break; case 'Ð²': *dest++ = 'v'; break;
+                    case 'Ð': *dest++ = 'A'; break; case 'Ð°': *dest++ = 'a'; break;
+                    case 'ÐŸ': *dest++ = 'P'; break; case 'Ð¿': *dest++ = 'p'; break;
+                    case 'Ð ': *dest++ = 'R'; break; case 'Ñ€': *dest++ = 'r'; break;
+                    case 'Ðž': *dest++ = 'O'; break; case 'Ð¾': *dest++ = 'o'; break;
+                    case 'Ð›': *dest++ = 'L'; break; case 'Ð»': *dest++ = 'l'; break;
+                    case 'Ð”': *dest++ = 'D'; break; case 'Ð´': *dest++ = 'd'; break;
+                    case 'Ð–': *dest++ = 'Z'; if (dest < destMax) *dest++ = 'H'; break;
+                    case 'Ð¶': *dest++ = 'z'; if (dest < destMax) *dest++ = 'h'; break;
+                    case 'Ð­': *dest++ = 'E'; break; case 'Ñ': *dest++ = 'e'; break;
+                    case 'Ð¯': *dest++ = 'J'; if (dest < destMax) *dest++ = 'A'; break;
+                    case 'Ñ': *dest++ = 'j'; if (dest < destMax) *dest++ = 'a'; break;
+                    case 'Ð§': *dest++ = 'C'; if (dest < destMax) *dest++ = 'H'; break;
+                    case 'Ñ‡': *dest++ = 'c'; if (dest < destMax) *dest++ = 'h'; break;
+                    case 'Ð¡': *dest++ = 'S'; break; case 'Ñ': *dest++ = 's'; break;
+                    case 'Ðœ': *dest++ = 'M'; break; case 'Ð¼': *dest++ = 'm'; break;
+                    case 'Ð˜': *dest++ = 'I'; break; case 'Ð¸': *dest++ = 'i'; break;
+                    case 'Ð¢': *dest++ = 'T'; break; case 'Ñ‚': *dest++ = 't'; break;
+                    case 'Ð¬': *dest++ = '\''; break; case 'ÑŒ': *dest++ = '\''; break;
+                    case 'Ð‘': *dest++ = 'B'; break; case 'Ð±': *dest++ = 'b'; break;
+                    case 'Ð®': *dest++ = 'J'; if (dest < destMax) *dest++ = 'U'; break;
+                    case 'ÑŽ': *dest++ = 'j'; if (dest < destMax) *dest++ = 'u'; break;
                 }
             }
-            *dest = 0;
+            *dest = 0;*/
             g_LogLineTypes[g_nLogLines % LOGC_LINES] = ty;
             g_nLogLines++;
             ZMUTEX_Unlock(g_LogMutexIdx);
@@ -191,7 +192,7 @@ void LogLev(LOG_LEVEL level, const char *fmt, ...) {
     }
 }
 bool GameAssertHandler::BeforeAbort(const char *cond, const char *file, unsigned line, PVOID *BackTrace, int nframes) {
-    //IMPROVE íå çàïèñûâàòü ïàäåíèå îäíîãî ìåñòà ìíîãî ðàç
+    //IMPROVE Ð½Ðµ Ð·Ð°Ð¿Ð¸ÑÑ‹Ð²Ð°Ñ‚ÑŒ Ð¿Ð°Ð´ÐµÐ½Ð¸Ðµ Ð¾Ð´Ð½Ð¾Ð³Ð¾ Ð¼ÐµÑÑ‚Ð° Ð¼Ð½Ð¾Ð³Ð¾ Ñ€Ð°Ð·
     Log("ASSERT: \"%s\", file=%s, line=%d", cond, file, line);
     //CrashReporting_stuffAbort(cond, file, (unsigned int)line, BackTrace, nframes);
     return !GameAssertHandler::s_disableAbort;
@@ -297,5 +298,13 @@ void LogInitialize() {
     }
 }
 int LogGetLineCount() { return std::min(LOGC_LINES, g_nLogLines); }
-LOG_TYPE LogGetLineType(int a1) { return LOG_TYPE(g_LogLineTypes[(a1 + g_curLogLine) % LOGC_LINES] % LOG_CNT); }
-const char *LogGetLine(int a1) { return g_LogLines[(a1 + g_curLogLine) % LOGC_LINES]; }
+LOG_TYPE LogGetLineType(int a1) {
+    if (g_nLogLines >= LOGC_LINES)
+        a1 += (g_nLogLines % LOGC_LINES);
+    return LOG_TYPE(g_LogLineTypes[a1 % LOGC_LINES] % LOG_CNT);
+}
+const char *LogGetLine(int a1) {
+    if (g_nLogLines >= LOGC_LINES)
+        a1 += (g_nLogLines % LOGC_LINES);
+    return g_LogLines[a1 % LOGC_LINES];
+}

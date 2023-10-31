@@ -132,6 +132,9 @@ zwift_network::model::WorkoutsFromPartner::getOutcome(void)
 zwift_network::model::WorkoutsFromPartner::getPartner(void)
 zwift_network::model::WorkoutsFromPartner::getWorkouts(void)*/
 }
+struct ConnectivityInfo {
+    uint64_t m_tcpPackets = 0, m_udpPackets = 0;
+};
 namespace zwift_network {
     struct Motion { //32 bytes
         float m_ptg_f3 = 0.0f;
@@ -145,6 +148,7 @@ namespace zwift_network {
     bool is_paired_to_phone();
     bool pop_phone_to_game_command(protobuf::PhoneToGameCommand *pDest);
     bool pop_player_id_with_updated_profile(int64_t *ret);
+    void get_connection_metrics(ConnectivityInfo *);
     NetworkRequestOutcome send_ble_peripheral_request(const protobuf::BLEPeripheralRequest &rq);
     NetworkRequestOutcome send_default_activity_name_command(const std::string &name);
     NetworkRequestOutcome send_game_packet(const std::string &a2, bool force);

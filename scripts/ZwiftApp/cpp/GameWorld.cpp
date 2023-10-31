@@ -234,7 +234,7 @@ GpsInfo *GameWorld::LoadGpsInfo(tinyxml2::XMLElement *el) {
 void LoadShotListData(std::vector<std::string> *ret, tinyxml2::XMLElement *src, const char *name) {
     auto el = src->FirstChildElement();
     ret->clear();
-    for (int idx = 0; true; idx++) {
+    for (int idx = 0; el; idx++) {
         zassert(el->Name() == name + std::to_string(idx));
         ret->push_back(el->Value());
         el = el->NextSiblingElement();

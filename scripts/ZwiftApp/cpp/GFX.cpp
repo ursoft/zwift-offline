@@ -411,7 +411,7 @@ int GFXAPI_CreateTextureFromRGBA(uint32_t w, uint32_t h, const void *data, bool 
     return g_nTexturesLoaded++;
 }
 void GFX_TextureSys_Initialize() {
-    //memset(g_Textures, 0, sizeof(g_Textures)); //и так будет забит нулями
+    //memset(g_Textures, 0, sizeof(g_Textures)); //пїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     for (auto &i : g_Textures)
         i.m_texState = TS_INVALID;
     memset(g_WhiteTexture, 255, sizeof(g_WhiteTexture));
@@ -687,7 +687,7 @@ int dms(const Clock::time_point &from) {
     return std::chrono::duration_cast<ms>(d).count();
 }
 int maxdms = -1;
-//#define OWN_SHADER_CACHE //применял, пока в коде была ошибка (кеш шейдеров распухал из-за неправильной длины буфера)
+//#define OWN_SHADER_CACHE //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ-пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ)
 #define TIME(f) f
 #define TIME2(f) ret=f
 #define TIME3(f) { \
@@ -3777,6 +3777,12 @@ void GFX_SetVrtShaderConstByName_Vec4(const GFX_UserRegister &r, const VEC4 &v) 
             glUniform4f(loc, v.m_data[0], v.m_data[1], v.m_data[2], v.m_data[3]);
     }
 }
+float GFX_UI_GetWideSpaceHeight() { return g_WideUISpace_Height; }
+float GFX_UI_GetWideSpaceWidth() { return g_WideUISpace_Width; }
+void GUI_MouseMove(float x, float y, float w, float h) {
+    //TODO
+}
+
 //Unit Tests
 TEST(SmokeTest, DISABLED_VertexArray) {
     static bool bFirst = true;

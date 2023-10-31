@@ -1,4 +1,4 @@
-#include "ZwiftApp.h"
+﻿#include "ZwiftApp.h"
 void WindowSizeCallback(GLFWwindow *wnd, int w, int h) {
     if (!w) w = 1;
     if (!h) h = 1;
@@ -52,8 +52,53 @@ void CharModsCallback(GLFWwindow *, uint32_t codePoint, int keyModifiers) {
     //GLFW_MOD_SHIFT           0x0001, GLFW_MOD_CONTROL         0x0002, GLFW_MOD_ALT             0x0004, GLFW_MOD_SUPER           0x0008
     CONSOLE_KeyFilter(codePoint, keyModifiers | 0x2000);
 }
-void MouseButtonCallback(GLFWwindow *, int, int, int) {
-    //TODO
+struct MouseState {
+    VEC2 m_posLastCB;
+    bool m_butStates[4];
+    VEC2 m_butDowns[4];
+} g_MouseState;
+VEC2 g_MousePos;
+DWORD g_lastMousePress;
+LARGE_INTEGER g_usTimeLastMenuChange;
+void MouseButtonCallback(GLFWwindow *, int button, int down, int /*mods*/) {
+    button &= 3;
+    g_MouseState.m_posLastCB = g_MousePos;
+    if (down == 0 || down == 1) {
+        if (auto pNoesisGUI = g_pNoesisGUI.lock()) {
+            if (down == 1) {
+                if (pNoesisGUI->OnMouseButtonDown(g_MousePos))
+                    return;
+            } else {
+                if (pNoesisGUI->OnMouseButtonUp(g_MousePos))
+                    return;
+            }
+        }
+    }
+//LABEL_26:
+    LARGE_INTEGER pc;
+    QueryPerformanceCounter(&pc);
+    if (down == 1) {
+        g_MouseState.m_butDowns[button] = g_MousePos;
+        g_MouseState.m_butStates[button] = true;
+    } else {
+        g_MouseState.m_butStates[button] = false;
+        if (button == 0) {
+            if (pc.QuadPart - g_usTimeLastMenuChange.QuadPart > 500'000) {
+                auto newt = timeGetTime();
+                if (newt - g_lastMousePress <= 250)
+                    GUI_MouseDoubleClick();
+                g_lastMousePress = newt;
+            }
+        }
+    }
+    int v48{};
+    if (pc.QuadPart - g_usTimeLastMenuChange.QuadPart > 500'000) {
+        auto x = (g_MousePos.m_data[0] - g_UI_WindowOffsetX) * 1280.0f / g_UI_WindowWidth;
+        auto y = 1280.0f / VRAM_GetUIAspectRatio() * (g_MousePos.m_data[1] - g_UI_WindowOffsetY) / g_UI_WindowHeight;
+        auto w = g_WideUISpace_Width * (g_MousePos.m_data[0] - GFX_UI_GetLeftEdgePad()) / (g_WIN32_WindowWidth - 2 * GFX_UI_GetLeftEdgePad());
+        auto h = g_WideUISpace_Height * g_MousePos.m_data[1] / g_WIN32_WindowHeight;
+        GUI_MouseClick(button, down, x, y, w, h, &v48);
+    }
 }
 void KeyCallback(GLFWwindow *, int key, int scanCode, int action, int mods) {
     //URSOFT FIX (anti-bouncing algo)
@@ -72,12 +117,557 @@ void KeyCallback(GLFWwindow *, int key, int scanCode, int action, int mods) {
     lastCodePoint = key;
     lastMod = mods;
     lastTime = nowTime;
-    if (action == GLFW_RELEASE)
+    bool noesisHandled = false;
+    switch (action) {
+    case GLFW_REPEAT:
+        break;
+    case GLFW_RELEASE:
         lastCodePoint = -1;
-    //TODO
-    if (action == GLFW_PRESS || (action == GLFW_REPEAT && (key == GLFW_KEY_BACKSPACE || key == GLFW_KEY_PAGE_UP || key == GLFW_KEY_PAGE_DOWN || key == GLFW_KEY_UP || key == GLFW_KEY_DOWN || key == GLFW_KEY_HOME || key == GLFW_KEY_END)))
+        if (auto pNoesisGUI = g_pNoesisGUI.lock()) {
+#if 0 //LATER
+            v17 = *(_QWORD *)(qword_7FF60C88A370 + 8);
+            v18 = qword_7FF60C88A370;
+            while (!*(_BYTE *)(v17 + 25)) {
+                if (*(_DWORD *)(v17 + 28) >= key) {
+                    v18 = v17;
+                    v17 = *(_QWORD *)v17;
+                } else {
+                    v17 = *(_QWORD *)(v17 + 16);
+                }
+            }
+            if (*(_BYTE *)(v18 + 25) || key < *(_DWORD *)(v18 + 28))
+                v18 = qword_7FF60C88A370;
+            if (v18 != qword_7FF60C88A370) {
+                noesisHandled = (*(__int64(__fastcall **)(void *, _QWORD, _QWORD))(*(_QWORD *)v69._Ptr[1].vptr + 280i64))(
+                    v69._Ptr[1].vptr,
+                    *(unsigned int *)(v18 + 32),
+                    *(_QWORD *)&scanCode);
+                if (!noesisHandled)
+                    sub_7FF60B323940((__int64)v69._Ptr, *(_DWORD *)(v18 + 32), qword_7FF60C854E50, 0);
+            }
+#endif
+        }
+        for (int v19 = 0; v19 < 4; ++v19) {
+            if (key == g_keys4[v19]) {
+                g_keys4[v19] = 0;
+                g_mods[v19] = 0;
+                break;
+            }
+        }
+        return;
+    case GLFW_PRESS:
+        if (auto pNoesisGUI = g_pNoesisGUI.lock()) {
+#if 0 //LATER
+            v11 = *(_QWORD *)(qword_7FF60C88A370 + 8);
+            v12 = qword_7FF60C88A370;
+            while (!*(_BYTE *)(v11 + 25))
+            {
+                if (*(_DWORD *)(v11 + 28) >= key)
+                {
+                    v12 = v11;
+                    v11 = *(_QWORD *)v11;
+                } else
+                {
+                    v11 = *(_QWORD *)(v11 + 16);
+                }
+            }
+            if (*(_BYTE *)(v12 + 25) || key < *(_DWORD *)(v12 + 28))
+                v12 = qword_7FF60C88A370;
+            if (v12 != qword_7FF60C88A370)
+            {
+                noesisHandled = (*(__int64(__fastcall **)(void *, _QWORD, _QWORD))(*(_QWORD *)v65._Ptr[1].vptr + 272i64))(
+                    v65._Ptr[1].vptr,
+                    *(unsigned int *)(v12 + 32),
+                    *(_QWORD *)&scanCode);
+                if (!noesisHandled)
+                    sub_7FF60B323940((__int64)v65._Ptr, *(_DWORD *)(v12 + 32), qword_7FF60C854E48, 1);
+            }
+#endif
+        }
+        for (int v13 = 0; v13 < 4; ++v13) {
+            if (0 == g_keys4[v13]) {
+                g_keys4[v13] = key;
+                g_mods[v13] = mods;
+                break;
+            }
+        }
+        if (noesisHandled)
+            return;
+        break;
+    }
+    if ((mods & GLFW_MOD_SHIFT) == 0) {
+//LABEL_126:
+        switch (key) {
+        case GLFW_KEY_RIGHT: case GLFW_KEY_LEFT:
+            if (action == GLFW_PRESS && !GUI_Key(key, mods))
+                CONSOLE_KeyFilter(key, mods);
+            break;
+        case GLFW_KEY_F1:
+            TriggerLocalPlayerAction(BikeEntity::UA_ELBOW);
+            break;
+        case GLFW_KEY_F2:
+            TriggerLocalPlayerAction(BikeEntity::UA_WAVE);
+            break;
+        case GLFW_KEY_F3:
+            TriggerLocalPlayerAction(BikeEntity::UA_RIDEON);
+            break;
+        case GLFW_KEY_F4:
+            TriggerLocalPlayerAction(BikeEntity::UA_HAMMERTIME);
+            break;
+        case GLFW_KEY_F5:
+            TriggerLocalPlayerAction(BikeEntity::UA_NICE);
+            break;
+        case GLFW_KEY_F6:
+            TriggerLocalPlayerAction(BikeEntity::UA_BRINGIT);
+            break;
+        case GLFW_KEY_F7:
+            TriggerLocalPlayerAction(BikeEntity::UA_TOAST);
+            break;
+        case GLFW_KEY_F8:
+            TriggerLocalPlayerAction(BikeEntity::UA_BELL);
+            break;
+        case GLFW_KEY_F9:
+            return;
+        case GLFW_KEY_F10:
+            GAME_QueueScreenshot(GAME_ScreenshotParams(SCS_USER_TRIGGERED));
+            break;
+        default:
+            if (key > 255 || (mods & (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) == GLFW_MOD_CONTROL)
+                CONSOLE_KeyFilter(key, mods);
+            break;
+        }
+    }
+#if 0 //TODO
+    if (key != 290)
+    {
+        wnd = (GLFWwindow *)(unsigned int)(key - 291);
+        if (key != 291)
+        {
+            if (key == 292)
+            {
+                SaveGame_0 = (__int64 **)GetSaveGame_0(BikeManager::g_pBikeManager->m_mainBike);
+                v21 = SIG_CalcCaseInsensitiveSignature("ENTITLED_ACCOUNT_FOR_RESPAWNING");
+                if (!sub_7FF60B3A1C90(SaveGame_0, v21))
+                    return;
+                m_mainBike = BikeManager::g_pBikeManager->m_mainBike;
+                if (WorldID(g_pGameWorld) == WID_WATOPIA)
+                {
+                    BikeEntity::Respawn_((__int64)m_mainBike, 35, 0.76, 0, 1);
+                LABEL_77:
+                    v28 = (__int64)g_entityMgr;
+                    if (!g_entityMgr)
+                    {
+                        v66 = operator new(0x5F8ui64);
+                        v28 = EntityManager_ctr((__int64)v66);
+                        g_entityMgr = (EntityManager *)v28;
+                    }
+                    v29 = 0;
+                    v30 = *(_QWORD *)(v28 + 464);
+                    if (!((*(_QWORD *)(v28 + 472) - v30) >> 3))
+                        return;
+                    v31 = 0i64;
+                    do
+                    {
+                        v32 = *(_QWORD *)(v31 + v30);
+                        if (v32)
+                        {
+                            *(_DWORD *)(v32 + 4160) = 0;
+                            *(_DWORD *)(v32 + 1040) = 0;
+                            *(_QWORD *)(v32 + 1048) = 0i64;
+                            *(_WORD *)(v32 + 1056) = 0;
+                            *(_WORD *)(v32 + 1086) = 0;
+                            *(_OWORD *)(v32 + 1116) = xmmword_7FF60C1FE860;
+                            *(_BYTE *)(v32 + 1628) = 0;
+                            *(_DWORD *)(v32 + 1632) = 0;
+                            *(_QWORD *)(v32 + 1640) = 0i64;
+                            *(_QWORD *)(v32 + 1648) = 0i64;
+                            *(_QWORD *)(v32 + 1656) = 0i64;
+                            *(_QWORD *)(v32 + 1664) = 0i64;
+                            *(_QWORD *)(v32 + 1672) = 0i64;
+                            *(_QWORD *)(v32 + 1680) = 0i64;
+                            *(_DWORD *)(v32 + 1688) = 0;
+                            *(_BYTE *)(v32 + 1692) = 0;
+                            *(_DWORD *)(v32 + 1696) = 0;
+                            *(_BYTE *)(v32 + 1700) = 0;
+                            *(_QWORD *)(v32 + 1704) = 0i64;
+                            *(_QWORD *)(v32 + 1720) = *(_QWORD *)(v32 + 1712);
+                            *(_QWORD *)(v32 + 1744) = *(_QWORD *)(v32 + 1736);
+                            *(_DWORD *)(v32 + 1760) = 0;
+                            *(_QWORD *)(v32 + 1768) = 0i64;
+                            *(_WORD *)(v32 + 1776) = 0;
+                            *(_WORD *)(v32 + 1806) = 0;
+                            *(_OWORD *)(v32 + 1836) = xmmword_7FF60C1FE860;
+                            *(_BYTE *)(v32 + 2348) = 0;
+                            *(_DWORD *)(v32 + 2352) = 0;
+                            *(_QWORD *)(v32 + 2360) = 0i64;
+                            *(_QWORD *)(v32 + 2368) = 0i64;
+                            *(_QWORD *)(v32 + 2376) = 0i64;
+                            *(_QWORD *)(v32 + 2384) = 0i64;
+                            *(_QWORD *)(v32 + 2392) = 0i64;
+                            *(_QWORD *)(v32 + 2400) = 0i64;
+                            *(_DWORD *)(v32 + 2408) = 0;
+                            *(_BYTE *)(v32 + 2412) = 0;
+                            *(_DWORD *)(v32 + 2416) = 0;
+                            *(_BYTE *)(v32 + 2420) = 0;
+                            *(_QWORD *)(v32 + 2424) = 0i64;
+                            *(_QWORD *)(v32 + 2440) = *(_QWORD *)(v32 + 2432);
+                            *(_QWORD *)(v32 + 2464) = *(_QWORD *)(v32 + 2456);
+                            *(_WORD *)(v32 + 952) = 0;
+                            *(_DWORD *)(v32 + 4164) = 0;
+                            *(_DWORD *)(v32 + 4168) = -1082130432;
+                            *(_DWORD *)(v32 + 4172) = -1082130432;
+                            v30 = *(_QWORD *)(v28 + 464);
+                        }
+                        ++v29;
+                        v31 += 8i64;
+                    } while (v29 < (unsigned __int64)((*(_QWORD *)(v28 + 472) - v30) >> 3));
+                    return;
+                }
+                if (WorldID(g_pGameWorld) == WID_INNSBRUCK)
+                {
+                    v23 = 214013 * g_seed + 2531011;
+                    g_seed = 214013 * v23 + 2531011;
+                    BikeEntity::Respawn_(
+                        (__int64)m_mainBike,
+                        7,
+                        (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.000000018311107) - 0.0000000091555536)
+                            * (float)(HIWORD(v23) & 0x7FFF))
+                            + 0.55650002),
+                        1u,
+                        1);
+                    v24 = 1083353771;
+                } else if (WorldID(g_pGameWorld) == WID_RICHMOND)
+                {
+                    v25 = 214013 * g_seed + 2531011;
+                    g_seed = 214013 * v25 + 2531011;
+                    BikeEntity::Respawn_(
+                        (__int64)m_mainBike,
+                        0,
+                        (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.00000012207404) - 0.000000061037021)
+                            * (float)(HIWORD(v25) & 0x7FFF))
+                            + 0.1717),
+                        1u,
+                        1);
+                    v24 = 1083528533;
+                } else
+                {
+                    if (WorldID(g_pGameWorld) == WID_LONDON)
+                    {
+                        v26 = 214013 * g_seed + 2531011;
+                        g_seed = 214013 * v26 + 2531011;
+                        v27 = (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.00000018311106) - 0.000000091555528)
+                            * (float)(HIWORD(v26) & 0x7FFF))
+                            + 0.77700001);
+                    } else
+                    {
+                        if (WorldID(g_pGameWorld) != WID_YORKSHIRE)
+                            goto LABEL_77;
+                        v27 = 0.5971000194549561;
+                    }
+                    BikeEntity::Respawn_((__int64)m_mainBike, 0, v27, 0, 1);
+                    v24 = 1077936128;
+                }
+                LODWORD(g_WorldTime) = v24;
+                goto LABEL_77;
+            }
+            goto LABEL_126;
+        }
+        v33 = (__int64 **)GetSaveGame_0(BikeManager::g_pBikeManager->m_mainBike);
+        v34 = SIG_CalcCaseInsensitiveSignature("ENTITLED_ACCOUNT_FOR_RESPAWNING");
+        if (!sub_7FF60B3A1C90(v33, v34))
+            return;
+        v35 = BikeManager::g_pBikeManager->m_mainBike;
+        if (WorldID(g_pGameWorld) == WID_WATOPIA)
+        {
+            v36 = 214013 * g_seed + 2531011;
+            g_seed = 214013 * v36 + 2531011;
+            BikeEntity::Respawn_(
+                (__int64)v35,
+                0,
+                (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.000000018311107) - 0.0000000091555536)
+                    * (float)(HIWORD(v36) & 0x7FFF))
+                    + 0.65509999),
+                0,
+                1);
+            v37 = 1082479957;
+        } else if (WorldID(g_pGameWorld) == WID_RICHMOND)
+        {
+            v38 = 214013 * g_seed + 2531011;
+            g_seed = 214013 * v38 + 2531011;
+            BikeEntity::Respawn_(
+                (__int64)v35,
+                0,
+                (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.00000012207404) - 0.000000061037021)
+                    * (float)(HIWORD(v38) & 0x7FFF))
+                    + 0.1717),
+                1u,
+                1);
+            v37 = 1083528533;
+        } else if (WorldID(g_pGameWorld) == WID_LONDON)
+        {
+            v39 = 214013 * g_seed + 2531011;
+            g_seed = 214013 * v39 + 2531011;
+            BikeEntity::Respawn_(
+                (__int64)v35,
+                0,
+                (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.00000018311106) - 0.000000091555528)
+                    * (float)(HIWORD(v39) & 0x7FFF))
+                    + 0.77700001),
+                0,
+                1);
+            v37 = 1077936128;
+        } else
+        {
+            if (WorldID(g_pGameWorld) == WID_NYC)
+            {
+                v40 = 214013 * g_seed + 2531011;
+                g_seed = 214013 * v40 + 2531011;
+                v41 = (float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.000000018311107) - 0.0000000091555536)
+                    * (float)(HIWORD(v40) & 0x7FFF))
+                    + 0.89749998;
+                v42 = 4;
+            } else
+            {
+                if (WorldID(g_pGameWorld) != WID_INNSBRUCK)
+                {
+                LABEL_98:
+                    v44 = (__int64)g_entityMgr;
+                    if (!g_entityMgr)
+                    {
+                        v67 = operator new(0x5F8ui64);
+                        v44 = EntityManager_ctr((__int64)v67);
+                        g_entityMgr = (EntityManager *)v44;
+                    }
+                    v45 = 0;
+                    v46 = *(_QWORD *)(v44 + 464);
+                    if (!((*(_QWORD *)(v44 + 472) - v46) >> 3))
+                        return;
+                    v47 = 0i64;
+                    do
+                    {
+                        v48 = *(_QWORD *)(v47 + v46);
+                        if (v48)
+                        {
+                            *(_DWORD *)(v48 + 4160) = 0;
+                            *(_DWORD *)(v48 + 1040) = 0;
+                            *(_QWORD *)(v48 + 1048) = 0i64;
+                            *(_WORD *)(v48 + 1056) = 0;
+                            *(_WORD *)(v48 + 1086) = 0;
+                            *(_OWORD *)(v48 + 1116) = xmmword_7FF60C1FE860;
+                            *(_BYTE *)(v48 + 1628) = 0;
+                            *(_DWORD *)(v48 + 1632) = 0;
+                            *(_QWORD *)(v48 + 1640) = 0i64;
+                            *(_QWORD *)(v48 + 1648) = 0i64;
+                            *(_QWORD *)(v48 + 1656) = 0i64;
+                            *(_QWORD *)(v48 + 1664) = 0i64;
+                            *(_QWORD *)(v48 + 1672) = 0i64;
+                            *(_QWORD *)(v48 + 1680) = 0i64;
+                            *(_DWORD *)(v48 + 1688) = 0;
+                            *(_BYTE *)(v48 + 1692) = 0;
+                            *(_DWORD *)(v48 + 1696) = 0;
+                            *(_BYTE *)(v48 + 1700) = 0;
+                            *(_QWORD *)(v48 + 1704) = 0i64;
+                            *(_QWORD *)(v48 + 1720) = *(_QWORD *)(v48 + 1712);
+                            *(_QWORD *)(v48 + 1744) = *(_QWORD *)(v48 + 1736);
+                            *(_DWORD *)(v48 + 1760) = 0;
+                            *(_QWORD *)(v48 + 1768) = 0i64;
+                            *(_WORD *)(v48 + 1776) = 0;
+                            *(_WORD *)(v48 + 1806) = 0;
+                            *(_OWORD *)(v48 + 1836) = xmmword_7FF60C1FE860;
+                            *(_BYTE *)(v48 + 2348) = 0;
+                            *(_DWORD *)(v48 + 2352) = 0;
+                            *(_QWORD *)(v48 + 2360) = 0i64;
+                            *(_QWORD *)(v48 + 2368) = 0i64;
+                            *(_QWORD *)(v48 + 2376) = 0i64;
+                            *(_QWORD *)(v48 + 2384) = 0i64;
+                            *(_QWORD *)(v48 + 2392) = 0i64;
+                            *(_QWORD *)(v48 + 2400) = 0i64;
+                            *(_DWORD *)(v48 + 2408) = 0;
+                            *(_BYTE *)(v48 + 2412) = 0;
+                            *(_DWORD *)(v48 + 2416) = 0;
+                            *(_BYTE *)(v48 + 2420) = 0;
+                            *(_QWORD *)(v48 + 2424) = 0i64;
+                            *(_QWORD *)(v48 + 2440) = *(_QWORD *)(v48 + 2432);
+                            *(_QWORD *)(v48 + 2464) = *(_QWORD *)(v48 + 2456);
+                            *(_WORD *)(v48 + 952) = 0;
+                            *(_DWORD *)(v48 + 4164) = 0;
+                            *(_DWORD *)(v48 + 4168) = -1082130432;
+                            *(_DWORD *)(v48 + 4172) = -1082130432;
+                            v46 = *(_QWORD *)(v44 + 464);
+                        }
+                        ++v45;
+                        v47 += 8i64;
+                    } while (v45 < (unsigned __int64)((*(_QWORD *)(v44 + 472) - v46) >> 3));
+                    return;
+                }
+                v43 = 214013 * g_seed + 2531011;
+                g_seed = 214013 * v43 + 2531011;
+                v41 = (float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.000000018311107) - 0.0000000091555536)
+                    * (float)(HIWORD(v43) & 0x7FFF))
+                    + 0.054099999;
+                v42 = 7;
+            }
+            BikeEntity::Respawn_((__int64)v35, v42, v41, 1u, 1);
+            v37 = 1082829483;
+        }
+        LODWORD(g_WorldTime) = v37;
+        goto LABEL_98;
+    }
+    v49 = (__int64 **)GetSaveGame_0(BikeManager::g_pBikeManager->m_mainBike);
+    v50 = SIG_CalcCaseInsensitiveSignature("ENTITLED_ACCOUNT_FOR_RESPAWNING");
+    if (!sub_7FF60B3A1C90(v49, v50))
+        return;
+    v51 = BikeManager::g_pBikeManager->m_mainBike;
+    if (WorldID(g_pGameWorld) == WID_WATOPIA)
+    {
+        v52 = 214013 * g_seed + 2531011;
+        g_seed = 214013 * v52 + 2531011;
+        BikeEntity::Respawn_(
+            (__int64)v51,
+            0,
+            (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.000000018311107) - 0.0000000091555536)
+                * (float)(HIWORD(v52) & 0x7FFF))
+                + 0.076499999),
+            1u,
+            1);
+        v53 = 1082479957;
+    LABEL_117:
+        LODWORD(g_WorldTime) = v53;
+        goto LABEL_118;
+    }
+    if (WorldID(g_pGameWorld) == WID_RICHMOND)
+    {
+        v54 = 214013 * g_seed + 2531011;
+        g_seed = 214013 * v54 + 2531011;
+        BikeEntity::Respawn_(
+            (__int64)v51,
+            0,
+            (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.00000012207404) - 0.000000061037021)
+                * (float)(HIWORD(v54) & 0x7FFF))
+                + 0.67680001),
+            1u,
+            1);
+        v53 = 1076538027;
+        goto LABEL_117;
+    }
+    if (WorldID(g_pGameWorld) == WID_LONDON)
+    {
+        v55 = 214013 * g_seed + 2531011;
+        g_seed = 214013 * v55 + 2531011;
+        BikeEntity::Respawn_(
+            (__int64)v51,
+            7,
+            (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.00000012207404) - 0.000000061037021)
+                * (float)(HIWORD(v55) & 0x7FFF))
+                + 0.37970001),
+            0,
+            1);
+        v53 = 1077936128;
+        goto LABEL_117;
+    }
+    if (WorldID(g_pGameWorld) == WID_NYC)
+    {
+        v56 = 214013 * g_seed + 2531011;
+        g_seed = 214013 * v56 + 2531011;
+        BikeEntity::Respawn_(
+            (__int64)v51,
+            24,
+            (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.0000000061037015) - 0.0000000030518508)
+                * (float)(HIWORD(v56) & 0x7FFF))
+                + 0.069499999),
+            1u,
+            1);
+        v53 = 1077237077;
+        goto LABEL_117;
+    }
+    if (WorldID(g_pGameWorld) == WID_INNSBRUCK)
+    {
+        v57 = 214013 * g_seed + 2531011;
+        g_seed = 214013 * v57 + 2531011;
+        BikeEntity::Respawn_(
+            (__int64)v51,
+            7,
+            (float)((float)((float)((float)((float)(HIWORD(g_seed) & 1) * 0.000000012207403) - 0.0000000061037015)
+                * (float)(HIWORD(v57) & 0x7FFF))
+                + 0.97000003),
+            1u,
+            1);
+        v53 = 1084227584;
+        goto LABEL_117;
+    }
+LABEL_118:
+    v58 = (__int64)g_entityMgr;
+    if (!g_entityMgr)
+    {
+        v68 = operator new(0x5F8ui64);
+        v58 = EntityManager_ctr((__int64)v68);
+        g_entityMgr = (EntityManager *)v58;
+    }
+    v59 = 0;
+    v60 = *(_QWORD *)(v58 + 464);
+    if ((*(_QWORD *)(v58 + 472) - v60) >> 3)
+    {
+        v61 = 0i64;
+        do
+        {
+            v62 = *(_QWORD *)(v61 + v60);
+            if (v62)
+            {
+                *(_DWORD *)(v62 + 4160) = 0;
+                *(_DWORD *)(v62 + 1040) = 0;
+                *(_QWORD *)(v62 + 1048) = 0i64;
+                *(_WORD *)(v62 + 1056) = 0;
+                *(_WORD *)(v62 + 1086) = 0;
+                *(_OWORD *)(v62 + 1116) = xmmword_7FF60C1FE860;
+                *(_BYTE *)(v62 + 1628) = 0;
+                *(_DWORD *)(v62 + 1632) = 0;
+                *(_QWORD *)(v62 + 1640) = 0i64;
+                *(_QWORD *)(v62 + 1648) = 0i64;
+                *(_QWORD *)(v62 + 1656) = 0i64;
+                *(_QWORD *)(v62 + 1664) = 0i64;
+                *(_QWORD *)(v62 + 1672) = 0i64;
+                *(_QWORD *)(v62 + 1680) = 0i64;
+                *(_DWORD *)(v62 + 1688) = 0;
+                *(_BYTE *)(v62 + 1692) = 0;
+                *(_DWORD *)(v62 + 1696) = 0;
+                *(_BYTE *)(v62 + 1700) = 0;
+                *(_QWORD *)(v62 + 1704) = 0i64;
+                *(_QWORD *)(v62 + 1720) = *(_QWORD *)(v62 + 1712);
+                *(_QWORD *)(v62 + 1744) = *(_QWORD *)(v62 + 1736);
+                *(_DWORD *)(v62 + 1760) = 0;
+                *(_QWORD *)(v62 + 1768) = 0i64;
+                *(_WORD *)(v62 + 1776) = 0;
+                *(_WORD *)(v62 + 1806) = 0;
+                *(_OWORD *)(v62 + 1836) = xmmword_7FF60C1FE860;
+                *(_BYTE *)(v62 + 2348) = 0;
+                *(_DWORD *)(v62 + 2352) = 0;
+                *(_QWORD *)(v62 + 2360) = 0i64;
+                *(_QWORD *)(v62 + 2368) = 0i64;
+                *(_QWORD *)(v62 + 2376) = 0i64;
+                *(_QWORD *)(v62 + 2384) = 0i64;
+                *(_QWORD *)(v62 + 2392) = 0i64;
+                *(_QWORD *)(v62 + 2400) = 0i64;
+                *(_DWORD *)(v62 + 2408) = 0;
+                *(_BYTE *)(v62 + 2412) = 0;
+                *(_DWORD *)(v62 + 2416) = 0;
+                *(_BYTE *)(v62 + 2420) = 0;
+                *(_QWORD *)(v62 + 2424) = 0i64;
+                *(_QWORD *)(v62 + 2440) = *(_QWORD *)(v62 + 2432);
+                *(_QWORD *)(v62 + 2464) = *(_QWORD *)(v62 + 2456);
+                *(_WORD *)(v62 + 952) = 0;
+                *(_DWORD *)(v62 + 4164) = 0;
+                *(_DWORD *)(v62 + 4168) = -1082130432;
+                *(_DWORD *)(v62 + 4172) = -1082130432;
+                v60 = *(_QWORD *)(v58 + 464);
+            }
+            ++v59;
+            v61 += 8i64;
+        } while (v59 < (unsigned __int64)((*(_QWORD *)(v58 + 472) - v60) >> 3));
+    }
+#endif GLFW_KEY_BACKSPACE
+    /* was simplified: if (action == GLFW_PRESS || (action == GLFW_REPEAT && (key == GLFW_KEY_BACKSPACE || key == GLFW_KEY_PAGE_UP || key == GLFW_KEY_PAGE_DOWN || key == GLFW_KEY_UP || key == GLFW_KEY_DOWN || key == GLFW_KEY_HOME || key == GLFW_KEY_END)))
         if (key > 255 || (mods & (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) == GLFW_MOD_CONTROL)
-            CONSOLE_KeyFilter(key, mods);
+            CONSOLE_KeyFilter(key, mods);*/
 }
 bool g_ResetLastSaveTime, g_onceEndSession = true;
 void Zwift_EndSession(bool bShutdown) {
@@ -111,19 +701,72 @@ void WindowCloseCallback(GLFWwindow *) {
             UI_CreateDialog(UID_QUIT, OnQuit, nullptr);
             glfwSetWindowShouldClose(g_mainWindow, 0);
         }
-        return;
+        //return; TODO: removeme
     }
-    ZwiftExit(0); //URSOFT FIX
+    ZwiftExit(0); //URSOFT FIX TODO: removeme (now I see Audio is not destroyed without this call)
 }
-void ScrollCallback(GLFWwindow *wnd, double, double dir) { //mouse scrolling
+void ScrollCallback(GLFWwindow *wnd, double a2, double dir) { //mouse scrolling
     auto v3 = -1;
     if (dir > 0.0)
         v3 = 1;
     ScrollLog(v3);
-    //TODO
+    if (auto pNoesisGUI = g_pNoesisGUI.lock()) {
+        /*LATER NoesisGUI_vtbl v7 = (unsigned int)(int)g_MousePos.m_data[1];
+        v8 = (int)g_MousePos.m_data[0];
+        (*(void(__fastcall **)(void *, _QWORD, __int64, _QWORD))(*(_QWORD *)v10._Ptr[1].vptr + 208i64))(
+            v10._Ptr[1].vptr,
+            v8,
+            v7,
+            (unsigned int)(int)(a2 * 100.0));
+        (*(void(__fastcall **)(void *, _QWORD, _QWORD, _QWORD))(*(_QWORD *)v10._Ptr[1].vptr + 200i64))(
+            v10._Ptr[1].vptr,
+            v8,
+            (unsigned int)v7,
+            (unsigned int)(int)(dir * 100.0));*/
+    }
+    return GUI_MouseWheel(v3);
 }
-void CursorPosCallback(GLFWwindow *, double, double) {
-    //TODO
+DWORD g_cursorPosLastTime;
+bool g_ShowCursor = true;
+void CursorPosCallback(GLFWwindow *wnd, double x, double y) {
+    g_cursorPosLastTime = timeGetTime();
+    if (!g_ShowCursor && g_tweakArray[TWI_3DTVENABLED].IntValue() == 0) {
+        g_ShowCursor = true;
+        ShowCursor(1);
+    }
+    double x_ = x * g_kwidth, y_ = y * g_kheight;
+    if (x_ > 32768.0)
+        x_ -= 65536.0;
+    if (y_ > 32768.0)
+        y_ -= 65536.0;
+    g_MousePos.m_data[0] = x_;
+    g_MousePos.m_data[1] = y_;
+    g_MouseState.m_posLastCB = g_MousePos;
+    auto TopmostDialog = GUI_GetTopmostDialog();
+    bool hasActiveChild = false;
+    if (auto pNoesisGUI = g_pNoesisGUI.lock()) {
+        double _x, _y;
+        if (y_ >= 0.0)
+            _y = y_ + 0.5;
+        else
+            _y = y_ - 0.5;
+        if (x_ >= 0.0)
+            _x = x_ + 0.5;
+        else
+            _x = x_ - 0.5;
+        pNoesisGUI->OnCursorMove(_x, _y);
+        if (!TopmostDialog)
+            hasActiveChild = pNoesisGUI->HasActiveChild();
+    }
+    if (!hasActiveChild) {
+        auto fx = (g_MousePos.m_data[0] - g_UI_WindowOffsetX) / g_UI_WindowWidth * 1280.0f;
+        auto fy = 1280.0f * (g_MousePos.m_data[1] - g_UI_WindowOffsetY) / g_UI_WindowHeight / VRAM_GetUIAspectRatio();
+        auto w = GFX_UI_GetWideSpaceWidth() * (g_MousePos.m_data[0] - GFX_UI_GetLeftEdgePad()) / (g_WIN32_WindowWidth - GFX_UI_GetLeftEdgePad() - GFX_UI_GetLeftEdgePad());
+        auto h = GFX_UI_GetWideSpaceHeight() * g_MousePos.m_data[1] / g_WIN32_WindowHeight;
+        GUI_MouseMove(fx, fy, w, h);
+    }
+    /* OMIT g_PROFILER_CursorPosition = (float)((float)(g_MousePos.m_data[0] / (float)g_WIN32_WindowWidth) * 16.700001)
+        + (float)((float)(g_MousePos.m_data[0] / (float)g_WIN32_WindowWidth) * 16.700001);*/
 }
 #include "optionparser.h"
 enum optionIndex { UNKNOWN, LAUNCHER, TOKEN };
@@ -144,8 +787,35 @@ void ClearWheelSlippingMessage(EVENT_ID, va_list) {
     if (UI_IsDialogOfTypeOpen(UID_SLIPPING_NOTIFICATION))
         UI_CloseDialog(UID_SLIPPING_NOTIFICATION);
 }
-void BroadcastPrompt(EVENT_ID, va_list) {
-    //TODO
+struct ZNETWORK_WebEventStart {
+    float field_0{};
+    char m_url[256]{}, m_title[128]{}, m_msg1[256]{}, m_msg2[128]{};
+    float m_timeout = -1.0;
+};
+bool g_BroadcastReceived;
+std::string g_BroadcastEventURL;
+void EventNotificationDialogCallback(UI_TwoButtonsDialog::DIALOG_RESULTS dr) {
+    if (dr == UI_TwoButtonsDialog::DIALOG_RESULTS::OK)
+        ShellExecuteA(nullptr, "open", g_BroadcastEventURL.c_str(), nullptr, nullptr, 1);
+}
+void BroadcastPrompt(EVENT_ID eid, va_list e) {
+    //va_list e;
+    //va_start(e, eid);
+    auto broadcast_event = va_arg(e, ZNETWORK_WebEventStart *);
+    zassert(broadcast_event && "ZwiftApp::BroadcastPrompt Asserted; No instance of ZNETWORK_WebEventStart passed in");
+    auto btn1 = "OK";
+    const char *btn2 = nullptr;
+    if (broadcast_event->m_url[0]) {
+        btn1 = "Listen In";
+        btn2 = "Nope";
+    }
+    if (!g_BroadcastReceived) {
+        g_BroadcastReceived = true;
+        if (broadcast_event->m_url[0])
+            g_BroadcastEventURL = broadcast_event->m_url;
+        GUI_CreateTwoButtonsDialog(btn1, btn2, broadcast_event->m_title, broadcast_event->m_msg1, broadcast_event->m_msg2,
+            broadcast_event->m_timeout, EventNotificationDialogCallback, 650.0f, 260.0f, false, 0.0f, false);
+    }
 }
 void ZwiftInitialize(const std::vector<std::string> &argv) {
     uint32_t startTime = timeGetTime();
@@ -502,12 +1172,13 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
     ZWIFT_UpdateLoading(nullptr, false);
     GAME_Initialize();
     GAME_SetTrainerSlopeModifier(g_UserConfigDoc.GetF32("ZWIFT\\CONFIG\\TRAINER_EFFECT", 0.5f, true));
-    BikeManager::Instance()->m_mainBike->m_bc->SetTireSize(g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\TIRE_CIRC", 2105));
-    BikeManager::Instance()->m_mainBike->m_fwGdeSignature = SIG_CalcCaseInsensitiveSignature("bikes/Wheels/Campagnolo_Bora_Ultra/Campagnolo_Bora_Ultra_Low_Front.gde");
-    BikeManager::Instance()->m_mainBike->m_rwGdeSignature = SIG_CalcCaseInsensitiveSignature("bikes/Wheels/Campagnolo_Bora_Ultra/Campagnolo_Bora_Ultra_Low_Rear.gde");
-    //TODO BikeManager::Instance()->m_mainBike->m_field_11F0 = nullptr;
-    //TODO BikeManager::Instance()->m_mainBike->m_field_804 = true;
-    BikeManager::Instance()->m_mainBike->m_bc->m_powerSmoothing = (g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\POWERSMOOTHING", 1, true) != 0);
+    auto mb = BikeManager::Instance()->m_mainBike;
+    mb->m_bc->SetTireSize(g_UserConfigDoc.GetU32("ZWIFT\\CONFIG\\TIRE_CIRC", 2105));
+    mb->m_fwGdeSignature = SIG_CalcCaseInsensitiveSignature("bikes/Wheels/Campagnolo_Bora_Ultra/Campagnolo_Bora_Ultra_Low_Front.gde");
+    mb->m_rwGdeSignature = SIG_CalcCaseInsensitiveSignature("bikes/Wheels/Campagnolo_Bora_Ultra/Campagnolo_Bora_Ultra_Low_Rear.gde");
+    //TODO mb->m_field_11F0 = nullptr;
+    //TODO mb->m_field_804 = true;
+    mb->m_bc->m_powerSmoothing = (g_UserConfigDoc.GetS32("ZWIFT\\CONFIG\\POWERSMOOTHING", 1, true) != 0);
     //g_GlobalMouseOverSID = "Play_SFX_UI_MOUSEOVER_1"; //etc moved to static data
     GUI_Initialize(/*make_sound,*/ !g_IsOnProductionServer);
     GUI_SetDefaultFont(&g_GiantFontW);
@@ -714,7 +1385,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         AccessoryManager::InitAllAccessories();
         ZWIFT_UpdateLoading(nullptr, false);
         BikeManager::Instance()->Initialize(exp);
-        SteeringModule::Self()->Init(BikeManager::Instance()->m_mainBike);
+        SteeringModule::Self()->Init(mb);
         g_ScreenMeshHandle = LOADER_LoadGdeFile("data/screenbox.gde", false);
         g_TrainerMeshHandle = LOADER_LoadGdeFile("data/bikes/Trainers/Zwift/Trainer.gde", false);
         g_HandCycleTrainerMeshHandle = LOADER_LoadGdeFile("data/bikes/Trainers/Zwift/HandcycleTrainer.gde", false);
@@ -727,7 +1398,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         g_LargeFontW.SetHeadAndBaseLines(14.0, 20.0);
         HUD_UpdateChatFont();
         g_LargeFontW.SetScaleAndKerning(0.6f, 0.887f);
-        g_LargeFontW.SetLanguageKerningScalar(LID_CHINESE, 1.3f);
+        g_LargeFontW.SetLanguageKerningScalar(CID_CHINESE, 1.3f);
         g_ButterflyTexture = GFX_CreateTextureFromTGAFile("blue_butterfly.tga", -1, true);
         g_RedButterflyTexture = GFX_CreateTextureFromTGAFile("white_butterfly.tga", -1, true);
         g_MonarchTexture = GFX_CreateTextureFromTGAFile("monarch.tga", -1, true);
@@ -789,7 +1460,7 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         auto     ltd = g_UserConfigDoc.GetU32("ZWIFT\\DEVICES\\LASTTRAINERDEVICE", (uint32_t)-1);
         uint64_t Power;
         if (ltd != -1 && (Power = ZwiftPowers::GetInst()->GetPower(ltd)) != 0) {
-            BikeManager::Instance()->m_mainBike->m_bc->m_lastPower = Power;
+            mb->m_bc->m_lastPower = Power;
         } else {
             g_UserConfigDoc.ClearPath("ZWIFT\\DEVICES\\LASTTRAINERDEVICE");
             g_UserConfigDoc.ClearPath("ZWIFT\\DEVICES\\LASTSPEEDDEVICE");
@@ -820,7 +1491,6 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         GAME_LoadLevel(worldCfg);
         AccessoryManager::CreateSegmentJerseys();
         DetermineNoesisFeatureFlags();
-        //bool v423 = false; //TODO
         if (options[TOKEN].arg) {
             Log("Got an access token");
             g_startupFlowStateParam = options[TOKEN].arg;
@@ -832,6 +1502,39 @@ void ZwiftInitialize(const std::vector<std::string> &argv) {
         }
         ZSF_SwitchState(g_gameStartupFlowState, g_startupFlowStateParam);
         ZWIFT_UpdateLoading(u"Ride On.", true);
+        //delme {
+        //ZWIFT_UpdateLoading(u"QWEАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯ", true);
+        //::Sleep(5000);
+        //ZWIFT_UpdateLoading(u"qweабвгдеёжзийклмнопрстуфхцчшщьыъэюя", true);
+        //::Sleep(5000);
+        std::vector<UChar> alphabet;
+        for (UChar c = 33; c < 128; c++)
+            alphabet.push_back(c);
+        for (UChar c = L'А'; c <= L'Я'; c++)
+            alphabet.push_back(c);
+        alphabet.push_back(L'Ё');
+        for (UChar c = L'а'; c <= L'я'; c++)
+            alphabet.push_back(c);
+        alphabet.push_back(L'ё');
+        std::wstring line;
+        line.reserve(70);
+        for (auto c1 : alphabet) {
+            for (auto c2 : alphabet) {
+                if (line.size() >= line.capacity() - 4) {
+                    char buf[150]{};
+                    WideCharToMultiByte(CP_UTF8, 0, line.c_str(), (int)line.length(), buf, 150, nullptr, nullptr);
+                    Log("%s", buf);
+                    line.erase(0, line.size() - 1);
+                }
+                line.push_back(c1);
+                line.push_back(c2);
+            }
+        }{
+            char buf[150]{};
+            WideCharToMultiByte(CP_UTF8, 0, line.c_str(), (int)line.length(), buf, 150, nullptr, nullptr);
+            Log("%s", buf);
+        }
+        //delme }
         ANTRECEIVER_PostConnect();
         auto TotalLoadTimeInSeconds = (timeGetTime() - startTime) * 0.001; (void)TotalLoadTimeInSeconds;
         if (parse.error()) {

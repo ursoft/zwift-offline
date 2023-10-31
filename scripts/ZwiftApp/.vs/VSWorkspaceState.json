@@ -1,14 +1,13 @@
 {
   "OutputFoldersPerTargetSystem": {
     "Local Machine": [
-      "..\\..\\..\\ZwiftApp_build\\Debug-host",
-      "1.32.1_106405-Debug",
-      "..\\..\\..\\ZwiftApp_build\\RelWithDebInfo-host"
+      "..\\..\\..\\ZwiftApp_build\\RelWithDebInfo-host",
+      "1.32.1_106405-Debug"
     ]
   },
   "ExpandedNodes": [
     ""
   ],
-  "SelectedNode": "\\C:\\Users\\builder\\source\\repos\\zwift-offline\\scripts\\ZwiftApp\\CMakeLists.txt\\ZwiftApp.exe\\C:\\Users\\builder\\source\\repos\\zwift-offline\\scripts\\ZwiftApp\\TestReady\\Audio.h",
+  "SelectedNode": "\\CMakeLists.txt",
   "PreviewInSolutionExplorer": false
 }

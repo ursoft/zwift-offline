@@ -58,6 +58,7 @@ struct CameraManager { //0x98 bytes
 /*inlined/not used DebugApplyCameraPosition(VEC3 const&,VEC3 const&), CameraManager::DeleteCamera(Camera *), DisableElasticity(uint), GetCameraRotMatrix(MATRIX33 &)
 GetTemporaryCamera(), IsElasticityEnabled(), PasteCameraPositionFromClipboard(), RegisterCommands(), Self(), SetSteeringMode(SteeringMode,bool), SetTemporaryCamera(Camera *,float), UpdateGlobalElasticity() */
 };
+inline int g_keys4[4], g_mods[4];
 inline CameraManager g_CameraManager;
 float JoyY2();
 void SwitchCamera(int to);

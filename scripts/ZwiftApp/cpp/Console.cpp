@@ -1,4 +1,21 @@
-#include "ZwiftApp.h" //READY for testing
+﻿#include "ZwiftApp.h" //READY for testing
+#if 1 //default branch(54)
+CFont2D *ConsoleRenderer::GetConsoleFont() {
+    return &g_LargeFontW;
+}
+int ConsoleRenderer::GetConsolePageLines() { return 37; }
+float ConsoleRenderer::LineHeight() {
+    return 16.0;
+}
+#else //test bold font (105) kerning branch
+CFont2D *ConsoleRenderer::GetConsoleFont() {
+    return &g_GiantFontW;
+}
+int ConsoleRenderer::GetConsolePageLines() { return 33; }
+float ConsoleRenderer::LineHeight() {
+    return 18.0;
+}
+#endif
 void SetupConsoleCommands() {
     CONSOLE_Init();
     CONSOLE_AddCommand("loadconfig", CMD_ChangeTime);
@@ -922,26 +939,26 @@ bool CMD_SetLanguage(const char *lang) {
     return true;
 }
 void CONSOLE_DrawCmdline(const ConsoleRenderer &cr, const char *line) {
-    g_LargeFontW.RenderWString_c(cr.m_cmdX1, cr.m_cmdY, ">", 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
-    g_LargeFontW.RenderWString_c(cr.m_cmdX2, cr.m_cmdY, line, 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
+    ConsoleRenderer::GetConsoleFont()->RenderWString_c(cr.m_cmdX1, cr.m_cmdY, ">", 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
+    ConsoleRenderer::GetConsoleFont()->RenderWString_c(cr.m_cmdX2, cr.m_cmdY, line, 0xAA00CCFF, 0, cr.m_cmdScale, true, false);
 }
 void CONSOLE_DrawPar(const ConsoleRenderer &cr, const char *str, int *lineNo, int lineCount, LOG_TYPE lineType) {
     auto ustr = ToUTF8_ib(str);
     auto w = cr.m_width - 6.0f /*URSOFT scrollbar*/;
-    auto mea = g_LargeFontW.GetParagraphLineCountW(w, ustr, g_Console.LargeFontScale, 0.0f, false);
-    int  lines = g_LargeFontW.RenderParagraphW(15.0f, cr.m_atY + 16.0f * (lineCount - mea + 1 - *lineNo),
+    auto mea = cr.GetConsoleFont()->GetParagraphLineCountW(w, ustr, g_Console.LargeFontScale, 0.0f, false);
+    int  lines = cr.GetConsoleFont()->RenderParagraphW(15.0f, cr.m_atY + cr.LineHeight() * (lineCount - mea + 1 - *lineNo),
                                                w, cr.m_height, ustr, ConsoleRenderer::TYPE_COLORS[lineType],
                                                0,
                                                g_Console.LargeFontScale,
                                                true,
                                                0.886f, //URSOFT FIX (was 1.0)
                                                0.0f,
-                                               cr.m_atY + 16.0f /*URSOFT FIX, otherwise multiline overwrites top line*/);
+                                               cr.m_atY + cr.LineHeight() /*URSOFT FIX, otherwise multiline overwrites top line*/);
     if (lines > 1)
         *lineNo += lines - 1;
 }
 void ScrollLog(int dir) {
-    int maxScroll = LogGetLineCount() - (LOGC_PAGE + 1);
+    int maxScroll = LogGetLineCount() - ConsoleRenderer::GetConsolePageLines();
     g_scrollLogPos = std::clamp(g_scrollLogPos + (dir <= 0 ? 1 : -1), 0, maxScroll);
     g_alwaysScrollToEnd = (g_scrollLogPos >= maxScroll);
 }
@@ -979,7 +996,7 @@ void CONSOLE_Paste(int cmdLen) {
     auto cs = glfwGetClipboardString(g_mainWindow);
     if (cs) {
         auto pDest = g_consoleCommand + cmdLen, pDestMax = g_consoleCommand + sizeof(g_consoleCommand) - 1;
-        while (*cs >= ' ' && pDest < pDestMax) {
+        while (uint8_t(*cs) >= ' ' && pDest < pDestMax) {
             if (*cs == '\x7f')
                 break;
             *pDest++ = *cs++;
@@ -988,17 +1005,24 @@ void CONSOLE_Paste(int cmdLen) {
     }
 }
 void CONSOLE_DefaultKey(int codePoint, int keyMods, unsigned int promptLen) {
-    if (codePoint < 255) {
+    //URSOFT addition: Cyr unicode {
+    bool cyr = (codePoint >= L'а' && codePoint <= L'я') || (codePoint >= L'А' && codePoint <= L'Я') || codePoint == L'Ё' || codePoint == L'ё';
+    //URSOFT addition: Cyr unicode }
+    if (codePoint < 255 || cyr) {
         if (keyMods & GLFW_MOD_CONTROL) {
-            if (codePoint == 'C') {
+            if (codePoint == 'C' || codePoint == L'С') {
                 glfwSetClipboardString(g_mainWindow, g_consoleCommand);
-            } else if (codePoint == 'V') {
+            } else if (codePoint == 'V' || codePoint == L'М') {
                 CONSOLE_Paste(promptLen);
             }
         } else {
-            if (promptLen < 0x3FF) {
-                g_consoleCommand[promptLen] = codePoint;
-                g_consoleCommand[promptLen + 1] = 0;
+            if (promptLen < 0x3FF - 1) {
+                wchar_t wch = codePoint;
+                int cnt = WideCharToMultiByte(CP_UTF8, 0, &wch, 1, g_consoleCommand + promptLen, 3, nullptr, nullptr);
+                if (cnt > 0)
+                    *(g_consoleCommand + promptLen + cnt) = 0;
+                //g_consoleCommand[promptLen] = codePoint;
+                //g_consoleCommand[promptLen + 1] = 0;
             } else {
                 zassert(0);
             }
@@ -1122,8 +1146,10 @@ void CONSOLE_KeyPress(int codePoint, int keyModifiers) {
             }
             break;
         case GLFW_KEY_BACKSPACE:
-            if (cmdLen) {
-                g_consoleCommand[cmdLen - 1] = 0;
+            if (cmdLen--) {
+                while (cmdLen && (g_consoleCommand[cmdLen] & 0xC0) == 0x80)
+                    --cmdLen;
+                g_consoleCommand[cmdLen] = 0;
                 g_autoComplete.clear();
             }
             return;
@@ -1143,10 +1169,10 @@ void CONSOLE_KeyPress(int codePoint, int keyModifiers) {
             scrollDelta = 1;
             break;
         case GLFW_KEY_PAGE_UP:
-            scrollDelta = -LOGC_PAGE;
+            scrollDelta = -ConsoleRenderer::GetConsolePageLines();
             break;
         case GLFW_KEY_PAGE_DOWN:
-            scrollDelta = LOGC_PAGE;
+            scrollDelta = ConsoleRenderer::GetConsolePageLines();
             break;
         case GLFW_KEY_HOME:
             if (keyModifiers & GLFW_MOD_CONTROL)
@@ -1160,7 +1186,7 @@ void CONSOLE_KeyPress(int codePoint, int keyModifiers) {
             CONSOLE_DefaultKey(codePoint, keyModifiers, cmdLen);
     }
     if (scrollDelta) {
-        int maxScroll = LogGetLineCount() - (LOGC_PAGE + 1);
+        int maxScroll = LogGetLineCount() - ConsoleRenderer::GetConsolePageLines();
         g_scrollLogPos = std::clamp(g_scrollLogPos + scrollDelta, 0, maxScroll);
         g_alwaysScrollToEnd = (g_scrollLogPos >= maxScroll);
     }
@@ -1183,10 +1209,10 @@ void CONSOLE_KeyFilter(uint32_t codePoint, int keyModifiers) {
     }
 }
 void CONSOLE_Draw(float atY, float dt) {
-    int lc = std::min(LOGC_PAGE, LogGetLineCount());
+    int lc = std::min(ConsoleRenderer::GetConsolePageLines(), LogGetLineCount());
     int scrollLogPos = g_scrollLogPos;
     if (g_alwaysScrollToEnd) {
-        scrollLogPos = LogGetLineCount() - LOGC_PAGE - 1;
+        scrollLogPos = LogGetLineCount() - ConsoleRenderer::GetConsolePageLines();
         if (scrollLogPos < 0)
             scrollLogPos = 0;
     }
@@ -1200,14 +1226,14 @@ void CONSOLE_Draw(float atY, float dt) {
     g_Console.Update(atY);
     GFX_Draw2DQuad(0.0f, g_Console.m_top, g_Console.m_width, g_Console.m_delimHeight, ConsoleRenderer::LogBGColor, true);
     if (g_Console.m_logVisible) {
-        float lastLinePrinted = lc + scrollLogPos;
+        float lastLinePrinted = lc + scrollLogPos - 1;
         for (int v6 = 0; lc > v6; --lc) {
             //sprintf(v11, "linenum = %d\n", lc);
-            auto str = LogGetLine(lc + scrollLogPos);
+            auto str = LogGetLine(lc + scrollLogPos - 1);
             if (str)
-                CONSOLE_DrawPar(g_Console, str, &v6, lc, LogGetLineType(lc + scrollLogPos));
+                CONSOLE_DrawPar(g_Console, str, &v6, lc, LogGetLineType(lc + scrollLogPos - 1));
         }
-        float firstLinePrinted = lc + scrollLogPos;
+        float firstLinePrinted = lc + scrollLogPos - 1;
         GFX_Draw2DQuad(0.0f, g_Console.m_cmdY, 1280.0f, 1.0f, (uint32_t)-1, false);
         //scrollBarTop, scrollBarHeight=0..g_Console.m_cmdY
         float scrollBarTop = firstLinePrinted / LogGetLineCount() * g_Console.m_cmdY, scrollBarHeight = (lastLinePrinted - firstLinePrinted + 1) / LogGetLineCount() * g_Console.m_cmdY;
@@ -1218,7 +1244,7 @@ void CONSOLE_Draw(float atY, float dt) {
     auto banner = "Zwift Debug Console (toggle with ` key and Ctrl+F12; <tab> to autocomplete)";
     if (!g_Console.m_logBanner.empty())
         banner = g_Console.m_logBanner.c_str();
-    g_LargeFontW.RenderWString_c(15.0f, 0.0f, banner, 0xFFFFFF00, 0, 0.35f /*URSOFT FIX : was 0.4*/, true, false);
+    ConsoleRenderer::GetConsoleFont()->RenderWString_c(15.0f, 0.0f, banner, 0xFFFFFF00, 0, 0.35f /*URSOFT FIX : was 0.4*/, true, false);
 }
 char g_CMD_PlayWemBuf[1024], g_OnFinishedDownloadingSimpleAudio[1024];
 void OnFinishedDownloadingSimpleAudio(const std::string &f, int result) {
@@ -1268,7 +1294,6 @@ void KeyProcessorStack::RemoveAllKeyProcessors() {
 bool GUIKeyProcessor::ProcessKey(int key, int mod) {
     return GUI_Key(key, mod);
 }
-int g_3DTV_algo = 1;
 bool GoKeyProcessor::ProcessKey(int key, int mod) {
     const int cs = GLFW_MOD_CONTROL | GLFW_MOD_SHIFT;
     if ((mod & cs) == cs && key == '3') {

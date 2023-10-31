@@ -22,6 +22,10 @@ std::string FitnessDeviceManager::GetDeviceNameAndModel(const ExerciseDevice &) 
     //TODO
     return std::string("TODO");
 }
+bool FitnessDeviceManager::DoesSteeringDeviceHaveSignal(InputDeviceType) {
+    //TODO
+    return false;
+}
 ExerciseDevice *FitnessDeviceManager::FindDevice(uint32_t hash) {
     std::lock_guard l(g_FDM_DeviceListMutex);
     for (auto i : m_DeviceList)

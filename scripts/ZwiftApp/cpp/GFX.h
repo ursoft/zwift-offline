@@ -901,8 +901,8 @@ void GFX_Translate(const VEC3 &);
 void GFX_UI_GetCurrentSpaceHeight();
 inline float GFX_UI_GetLeftEdgePad() { return 0.0f; }
 inline float GFX_UI_GetRightEdgePad() { return 0.0f; }
-void GFX_UI_GetWideSpaceHeight();
-void GFX_UI_GetWideSpaceWidth();
+float GFX_UI_GetWideSpaceHeight();
+float GFX_UI_GetWideSpaceWidth();
 void GFX_UnloadTexture(int);
 void GFX_UnmapBuffer(int bufId);
 void GFX_UnsetShader();

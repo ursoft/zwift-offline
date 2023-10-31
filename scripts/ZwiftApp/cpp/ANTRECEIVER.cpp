@@ -1,6 +1,4 @@
 #include "ZwiftApp.h" //READY for testing
-#include <shellapi.h>
-bool g_bANTInitialized, g_bANTConnected;
 int g_ANT_Mutex = -1;
 typedef BOOL(*fANT_CloseChannel)(uint8_t ch);
 fANT_CloseChannel ANT_CloseChannel;

@@ -524,6 +524,7 @@ struct DeviceDbItem { //0x18 bytes
     DeviceProtocol m_protocol;
     uint32_t m_hash, m_mfgModel;
 };
+enum InputDeviceType : int;
 struct FitnessDeviceManager {
     static inline protobuf::Sport m_PairingSport;
     static inline std::vector<DeviceDbItem *> m_DeviceDB;
@@ -563,6 +564,7 @@ struct FitnessDeviceManager {
     static bool TrainerSetGradeLookAheadSecs(float f);
     static bool TrainerSetWindSpeed(float);
     static std::string GetDeviceNameAndModel(const ExerciseDevice &);
+    static bool DoesSteeringDeviceHaveSignal(InputDeviceType);
     /*
 FitnessDeviceManager::AddDevicesToReconnectAfterBackgrounding(void)
 FitnessDeviceManager::AddLostDevice(uint)
@@ -575,7 +577,6 @@ FitnessDeviceManager::CreateDeviceAnalyticsProperties(BLEDevice const*)
 FitnessDeviceManager::CreateErrorEventName(BLE_ERROR_TYPE)
 FitnessDeviceManager::CurrentConfigurationSupportsERGMode(void)
 FitnessDeviceManager::DisableAll(void)
-FitnessDeviceManager::DoesSteeringDeviceHaveSignal(InputDeviceType)
 FitnessDeviceManager::EndWorkout(void)
 FitnessDeviceManager::FindFriendlyName(uint)
 FitnessDeviceManager::ForceDeviceChangeSignal(void)

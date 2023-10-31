@@ -1,4 +1,4 @@
-//UT Coverage: 38%, 2503/6638
+п»ї//UT Coverage: 38%, 2503/6638
 #include "ZwiftApp.h"
 #include "readerwriterqueue/readerwriterqueue.h"
 #include "concurrentqueue/concurrentqueue.h"
@@ -646,7 +646,7 @@ struct ServiceListeners {
     moodycamel::ReaderWriterQueue<T *> m_rwqAdded, m_rwqRemoved;
     ServiceListeners() : m_rwqAdded(1), m_rwqRemoved(1) {}
     void flushPendingQueues() {
-        //не стал разгребать, что там у них - сделал по-своему
+        //РЅРµ СЃС‚Р°Р» СЂР°Р·РіСЂРµР±Р°С‚СЊ, С‡С‚Рѕ С‚Р°Рј Сѓ РЅРёС… - СЃРґРµР»Р°Р» РїРѕ-СЃРІРѕРµРјСѓ
         T *added = nullptr, *removed = nullptr;
         while (m_rwqAdded.try_dequeue(added));
         while (m_rwqRemoved.try_dequeue(removed))
@@ -1821,7 +1821,7 @@ struct WorldClockService { //0x2120 bytes
         }
     }
     uint64_t getRoundTripLatencyInMilliseconds() { return m_twoLegsLatency; }
-    void storeSequenceNumberSendTime(uint32_t seq) { //сам написал, требуется проверка
+    void storeSequenceNumberSendTime(uint32_t seq) { //СЃР°Рј РЅР°РїРёСЃР°Р», С‚СЂРµР±СѓРµС‚СЃСЏ РїСЂРѕРІРµСЂРєР°
         if (m_map38.size() > 100) {
             std::erase_if(m_map38, [seq](const auto &item) {
                return int(seq - item.first) >= 100;
@@ -2928,6 +2928,7 @@ struct UdpStatistics { //0x450 bytes
             m_field_400 = qsize;
 #endif
     }
+    uint64_t m_packets = 0; //Ursoft simplification
     void registerReceivedDatagram(uint32_t seqno, const std::string &host) {
 #ifndef ZWIFT_FAST_STAT
         if (host != m_curHost) { // inlined UdpStatistics::resetServerToClientSequenceNumber
@@ -4052,10 +4053,7 @@ WorkoutServiceRestInvoker::fetchAssetSummary(const std::string &) AssetSummary "
 WorkoutServiceRestInvoker::fetchCustomWorkouts(zwift_network::Optional<std::string>) WorkoutSummaries "Get Custom Workouts" */
 };
 struct TcpStatistics { //0xC8 bytes
-    TcpStatistics() {
-        //OMIT
-    }
-    //OMIT
+    uint64_t m_packets = 0;
 };
 struct WorldClockStatistics { //0xB0 bytes
     WorldClockStatistics() {
@@ -6204,6 +6202,10 @@ struct NetworkClientImpl { //0x400 bytes, calloc
         else
             return false;
     }
+    void getConnectionMetrics(ConnectivityInfo *pDest) {
+        pDest->m_tcpPackets = m_tcpStat->m_packets;
+        pDest->m_udpPackets = m_udpStat->m_packets;
+    }
 
     /*
 LATER: void connectLanExerciseDevice(uint32_t,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>,std::chrono::duration<int64_t int64_t,std::ratio<1l,1l>>)
@@ -6259,7 +6261,6 @@ void enrollInCampaignV2(const std::string &)
 void fetchUpcomingWorkouts()
 void fetchWorkout(zwift_network::model::WorkoutPartnerEnum,const std::string &)
 void getAllFirmwareReleases(const std::string &)
-void getConnectionMetrics(zwift_network::ConnectivityInfo &)
 void getFirmwareRelease(const std::string &,const std::string &)
 void registerInCampaign(const std::string &)
 void registerInCampaignV2(const std::string &)
@@ -7514,6 +7515,9 @@ NetworkRequestOutcome send_game_packet(const std::string &a2, bool force) {
     aux->send_game_packet(a2, force);
     return NRO_OK;
 }
+void get_connection_metrics(ConnectivityInfo *ptr) {
+    g_networkClient->m_pImpl->getConnectionMetrics(ptr);
+}
 NetworkRequestOutcome send_ble_peripheral_request(const protobuf::BLEPeripheralRequest &rq) {
     auto aux = g_networkClient->m_pImpl->m_aux.get();
     if (!aux || !aux->m_connectedOK || !aux)
@@ -7810,6 +7814,7 @@ void UdpClient::handleWorldAndMapRevisionChanges(uint64_t time, int64_t world, u
     }
 }
 void UdpClient::handleServerToClient(const std::shared_ptr<protobuf::ServerToClient> &src) {
+    m_netImpl->m_udpStat->m_packets++;
     if (src->has_has_simult_login() && src->has_simult_login()) {
         if (!m_field_F20) {
             m_field_F20 = true;
@@ -7863,6 +7868,7 @@ void TcpClient::processPayload(uint64_t len) {
         protobuf::ServerToClient stc;
         if (stc.ParseFromArray(decodedPtr, len)) {
             auto wcs_time = m_wcs->getWorldTime();
+            m_ncli->m_tcpStat->m_packets++;
             //OMIT ? TcpStatistics::inspectServerToClient((_Mtx_t)this->m_stat, (__int64)&_stc_ptr->m_stc, wcs_time);
             m_wat->handleServerToClient(stc);
             if (stc.has_zc_local_ip()) {
@@ -7884,7 +7890,7 @@ void TcpClient::processPayload(uint64_t len) {
                 NetworkingLogDebug("TCP TcpConfig from StC");
                 handleTcpConfig(stc.tcp_config());
             }
-            processSubscribedSegment(stc); //QUEST я передвинул перед m_rwq.emplace, чтобы объект был еще тут - надеюсь, не повлияет
+            processSubscribedSegment(stc); //QUEST СЏ РїРµСЂРµРґРІРёРЅСѓР» РїРµСЂРµРґ m_rwq.emplace, С‡С‚РѕР±С‹ РѕР±СЉРµРєС‚ Р±С‹Р» РµС‰Рµ С‚СѓС‚ - РЅР°РґРµСЋСЃСЊ, РЅРµ РїРѕРІР»РёСЏРµС‚
             if (stc.has_race_placements())
                 m_rwq.emplace(wcs_time, std::make_shared<protobuf::ServerToClient>(std::move(stc)));
         } else {

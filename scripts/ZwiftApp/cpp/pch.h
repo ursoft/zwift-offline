@@ -38,6 +38,8 @@
 #include <fstream>
 #include <random>
 #include <numbers>
+#include <bitset>
+#include <shellapi.h>
 
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>

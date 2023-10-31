@@ -1,4 +1,4 @@
-#include "ZwiftApp.h" //READY for testing
+﻿#include "ZwiftApp.h" //READY for testing
 bool CFont2D::LoadFont(const char *name) {
     bool result = false;
     auto name_ = GAMEPATH(name);
@@ -9,7 +9,7 @@ bool CFont2D::LoadFont(const char *name) {
         if (ver == 0x100) {
             m_info.m_fileHdrV1.m_version = ver;
             fread(((uint8_t *)&m_info.m_fileHdrV1) + sizeof(ver), sizeof(CFont2D_fileHdrV1) - sizeof(ver), 1, f);
-            fread(m_info.m_v1gls + m_info.m_fileHdrV1.m_from, sizeof(tViewport<uint16_t>), m_info.m_fileHdrV1.m_chars, f);
+            fread(m_info.m_v1gls + m_info.m_fileHdrV1.m_from, sizeof(tViewport<uint16_t>), m_info.m_fileHdrV1.m_charsCnt, f);
             if (g_fontShader == -1)
                 g_fontShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
             auto cb = m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_width * 4;
@@ -35,17 +35,17 @@ bool CFont2D::LoadFont(const char *name) {
                     memset(m_info.m_glyphIndexes, 255, sizeof(m_info.m_glyphIndexes)); //last not used?
                     if (m_glyphs)
                         free(m_glyphs);
-                    m_glyphs = (CFont2D_glyph *)malloc(sizeof(CFont2D_glyph) * m_info.m_fileHdrV3.m_usedGlyphs);
-                    fread(m_glyphs, sizeof(CFont2D_glyph), m_info.m_fileHdrV3.m_usedGlyphs, f);
-                    for (int g = 0; g < m_info.m_fileHdrV3.m_usedGlyphs; ++g) {
+                    m_glyphs = (CFont2D_glyph *)malloc(sizeof(CFont2D_glyph) * m_info.m_fileHdrV3.m_charsCnt);
+                    fread(m_glyphs, sizeof(CFont2D_glyph), m_info.m_fileHdrV3.m_charsCnt, f);
+                    for (int g = 0; g < m_info.m_fileHdrV3.m_charsCnt; ++g) {
                         auto codePoint = m_glyphs[g].m_codePoint;
                         if (codePoint == 0xFFFF) {
                             Log("Loading font with codepoint beyond max: %d\n", codePoint);
                         } else {
                             m_info.m_glyphIndexes[codePoint] = g;
-                            if (uint8_t(m_glyphs[g].m_cnt - 1) <= 2) {
+                            if (uint8_t(m_glyphs[g].m_lid - 1) <= 2) { //i.e. [1,2,3]
                                 bool found = false;
-                                auto &vect = m_struc24x4[m_glyphs[g].m_cnt].m_cont;
+                                auto &vect = m_lidKernIdx[m_glyphs[g].m_lid];
                                 for (auto x : vect) {
                                     if (x == m_glyphs[g].m_kernIdx)
                                         found = true;
@@ -53,8 +53,8 @@ bool CFont2D::LoadFont(const char *name) {
                                 if (!found)
                                     vect.push_back(m_glyphs[g].m_kernIdx);
                             }
-                            if (codePoint == 33)
-                                m_glyphs[g].m_view.m_width *= 0.7f;
+                            //if (codePoint == 33)
+                            //    m_glyphs[g].m_view.m_width *= 0.7f;
                         }
                     }
                     char tname[MAX_PATH], *pDest = tname;
@@ -69,6 +69,12 @@ bool CFont2D::LoadFont(const char *name) {
                     if (g_fontWShader == -1)
                         g_fontWShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
                     LoadLanguageTextures(LOC_GetLanguageIndex());
+                    static_assert(sizeof(RealKernItem) == 5);
+                    RealKernItem rki;
+                    for (int k = 0; k < m_info.m_fileHdrV3.m_realKerns; k++) {
+                        fread(&rki, sizeof(RealKernItem), 1, f);
+                        m_realKerning[std::make_pair(rki.m_prev, rki.m_cur)] = rki.m_corr / 2048.0;
+                    }
                     result = true;
                     m_loadedV3 = true;
                 }
@@ -83,18 +89,18 @@ bool CFont2D::LoadFont(const char *name) {
 }
 void CFont2D::LoadLanguageTextures(LOC_LANGS left) {
     GFX_SetLoadedAssetMode(true);
-    m_texSuffix = LID_LAT;
+    m_texSuffix = CID_RUSLAT;
     switch (left) {
         default:
             break;
         case LOC_JAPAN:
-            m_texSuffix = LID_JAPAN;
+            m_texSuffix = CID_JAPAN;
             break;
         case LOC_KOREAN:
-            m_texSuffix = LID_KOREAN;
+            m_texSuffix = CID_KOREAN;
             break;
         case LOC_CHINESE:
-            m_texSuffix = LID_CHINESE;
+            m_texSuffix = CID_CHINESE;
             break;
     }
     if (g_fontWShader == -1)
@@ -114,11 +120,11 @@ void CFont2D::LoadLanguageTextures(LOC_LANGS left) {
         }
         *dest++ = *src++;
     }
-    m_info.m_langId = m_texSuffix;
+    m_info.m_charsetId = m_texSuffix;
     if (m_texSuffix)
         m_info.m_fileHdrV3.m_tex[1] = GFX_CreateTextureFromTGAFile(tname, -1, true);
     m_lineHeight = 0;
-    for (int i = 0; i < m_info.m_fileHdrV3.m_usedGlyphs; i++) {
+    for (int i = 0; i < m_info.m_fileHdrV3.m_charsCnt; i++) {
         auto v23 = int(0.5f + m_info.m_fileHdrV3.m_kern[m_glyphs[i].m_kernIdx] * m_glyphs[i].m_view.m_height);
         if (v23 > m_lineHeight)
             m_lineHeight = v23;
@@ -134,7 +140,7 @@ bool CFont2D::LoadFontFromWad(const char *name) {
         CFont2D_fileHdrV1 *pFontHeaderV1 = (CFont2D_fileHdrV1 *)wh->FirstChar();
         if (pFontHeaderV1->m_version == 0x100) {
             m_info.m_fileHdrV1 = *pFontHeaderV1;
-            auto cb_3 = sizeof(tViewport<uint16_t>) * m_info.m_fileHdrV1.m_chars;
+            auto cb_3 = sizeof(tViewport<uint16_t>) * m_info.m_fileHdrV1.m_charsCnt;
             memmove(m_info.m_v1gls + m_info.m_fileHdrV1.m_from, pFontHeaderV1 + 1, cb_3);
             //OMIT m_RGBAv1 = malloc(m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_width * 4);
             //memset(m_RGBAv1, 0x11, 4 * m_info.m_fileHdrV1.m_height * m_info.m_fileHdrV1.m_height); //QUEST why not m_height * m_width ???
@@ -155,18 +161,18 @@ bool CFont2D::LoadFontFromWad(const char *name) {
                     memset(m_info.m_glyphIndexes, 255, sizeof(m_info.m_glyphIndexes)); //last not used?
                     if (m_glyphs)
                         free(m_glyphs);
-                    auto gsz = sizeof(CFont2D_glyph) * m_info.m_fileHdrV3.m_usedGlyphs;
+                    auto gsz = sizeof(CFont2D_glyph) * m_info.m_fileHdrV3.m_charsCnt;
                     m_glyphs = (CFont2D_glyph *)malloc(gsz);
                     memmove(m_glyphs, pFontHeaderV3 + 1, gsz);
-                    for (int g = 0; g < m_info.m_fileHdrV3.m_usedGlyphs; ++g) {
+                    for (int g = 0; g < m_info.m_fileHdrV3.m_charsCnt; ++g) {
                         auto codePoint = m_glyphs[g].m_codePoint;
                         if (codePoint == 0xFFFF) {
                             Log("Loading font with codepoint beyond max: %d\n", codePoint);
                         } else {
                             m_info.m_glyphIndexes[codePoint] = g;
-                            if (uint8_t(m_glyphs[g].m_cnt - 1) <= 2) {
+                            if (uint8_t(m_glyphs[g].m_lid - 1) <= 2) { //i.e. [1,2,3]
                                 bool found = false;
-                                auto &vect = m_struc24x4[m_glyphs[g].m_cnt].m_cont;
+                                auto &vect = m_lidKernIdx[m_glyphs[g].m_lid];
                                 for (auto x : vect) {
                                     if (x == m_glyphs[g].m_kernIdx)
                                         found = true;
@@ -174,8 +180,8 @@ bool CFont2D::LoadFontFromWad(const char *name) {
                                 if (!found)
                                     vect.push_back(m_glyphs[g].m_kernIdx);
                             }
-                            if (codePoint == 33)
-                                m_glyphs[g].m_view.m_width *= 0.7f;
+                            //if (codePoint == 33)
+                            //    m_glyphs[g].m_view.m_width *= 0.7f;
                         }
                     }
                     char tname[MAX_PATH], *pDest = tname;
@@ -190,6 +196,12 @@ bool CFont2D::LoadFontFromWad(const char *name) {
                     if (g_fontWShader == -1)
                         g_fontWShader = GFX_CreateShaderFromFile("GFXDRAW_FontW", -1);
                     LoadLanguageTextures(LOC_GetLanguageIndex());
+                    static_assert(sizeof(RealKernItem) == 5);
+                    RealKernItem *rki = (RealKernItem *)((const char *)(pFontHeaderV3 + 1) + gsz);
+                    for (int k = 0; k < m_info.m_fileHdrV3.m_realKerns; k++) {
+                        m_realKerning[std::make_pair(rki->m_prev, rki->m_cur)] = rki->m_corr / 2048.0;
+                        rki++;
+                    }
                     result = true;
                     m_loadedV3 = true;
                 }
@@ -215,7 +227,7 @@ void CFont2D::LoadFontV1(const uint8_t *data) {
         }
     }
 }
-bool CFont2D::LoadDirect(const char *name) { return LoadFontFromWad(name) || LoadFont(name); }
+bool CFont2D::LoadDirect(const char *name) { return LoadFont(name) || LoadFontFromWad(name); }
 void CFont2D::LoadDirectEast(const char *name1, const char *name2) {
     LoadDirect(name1);
     if (!m_loadedV3)
@@ -275,12 +287,12 @@ CFont2D::CFont2D() {
     m_cacheCntUsed = 0;
     m_loadedV1 = false;
     m_loadedV3 = false;
-    m_info.m_langId = LID_CNT;
-    m_texSuffix = LID_LAT;
+    m_info.m_charsetId = CID_CNT;
+    m_texSuffix = CID_RUSLAT;
     m_kern[0] = 1.0f;
-    m_kern[1] = 1.08935f;
+    m_kern[1] = 1.0f; //1.08935f;
     m_kern[2] = 1.0f;
-    m_kern[3] = 1.08435f;
+    m_kern[3] = 1.0f; //1.08435f;
     m_headLine = 22.0f;
     m_baseLine = 10.0f;
 }
@@ -297,9 +309,9 @@ void CFont2D::SetHeadAndBaseLines(float headLine, float baseLine) {
     m_headLine = headLine;
     m_baseLine = baseLine;
 }
-void CFont2D::SetLanguageKerningScalar(LANGUAGE_IDS lid, float kern) {
-    if (lid < LID_CNT)
-        m_kern[lid] = kern;
+void CFont2D::SetLanguageKerningScalar(CHARSET_IDS cid, float kern) {
+    if (cid < CID_CNT)
+        m_kern[cid] = kern;
 }
 void CFont2D::StartCaching(uint32_t cnt) {
     if (g_bSupportFontCaching && cnt) {
@@ -406,6 +418,22 @@ float CFont2D::StringWidthW_c(const char *text) {
     return StringWidthW_u(SafeToUTF8(text, &buf));
 }
 float CFont2D::StringWidthW_u(const UChar *uText) { return StringWidthW_ulen(uText, u_strlen(uText)); }
+struct UrsoftKerner {
+    const CFont2D &m_font;
+    std::pair<UChar, UChar> m_realKernKey;
+    float operator ()(UChar ch) {
+#ifdef URSOFT_KERNING
+        m_realKernKey.first = m_realKernKey.second;
+        m_realKernKey.second = ch;
+        if (ch != 32 && m_realKernKey.first && !m_font.m_realKerning.empty()) {
+            auto fnd = m_font.m_realKerning.find(m_realKernKey);
+            if (fnd != m_font.m_realKerning.end())
+                return fnd->second;
+        }
+#endif
+        return 0;
+    }
+};
 float CFont2D::StringWidthW_ulen(const UChar *uText, uint32_t textLen) {
     static_assert(sizeof(CFont2D_info) == 0x20990);
     static_assert(sizeof(CFont2D_glyph) == 20);
@@ -413,12 +441,14 @@ float CFont2D::StringWidthW_ulen(const UChar *uText, uint32_t textLen) {
         return 0.0f;
     float       ret = 0.0f;
     const UChar *uEnd = uText + textLen;
+    UrsoftKerner uk{ .m_font = *this };
     do {
-        auto gidx = m_info.m_glyphIndexes[*uText];
+        auto ch = *uText;
+        auto gidx = m_info.m_glyphIndexes[ch];
         if (gidx != 0xFFFF) {
-            float mult = (*uText == 32) ? this->m_spaceScale : 1.0f;
+            float mult = (ch == 32) ? this->m_spaceScale : 1.0f;
             auto  kidx = m_glyphs[gidx].m_kernIdx;
-            ret += m_kern[kidx] * m_kerning * m_info.m_fileHdrV3.m_kern[kidx] * m_glyphs[gidx].m_view.m_width * mult;
+            ret += m_kern[kidx] * m_kerning * m_info.m_fileHdrV3.m_kern[kidx] * (m_glyphs[gidx].m_view.m_width + uk(ch)) * mult;
         }
     } while (++uText != uEnd);
     return ret * m_scale;
@@ -466,11 +496,13 @@ int CFont2D::FitCharsToWidthW(const UChar *str, int w) {
     if (!len)
         return len;
     int i = 0;
+    UrsoftKerner uk{ .m_font = *this };
     while (true) {
-        auto v11 = m_info.m_glyphIndexes[str[i]];
+        auto ch = str[i];
+        auto v11 = m_info.m_glyphIndexes[ch];
         if (v11 != 0xFFFF) {
             auto kernIdx = m_glyphs[v11].m_kernIdx;
-            v8 += m_kern[kernIdx] * m_kerning * m_info.m_fileHdrV3.m_kern[kernIdx] * m_glyphs[v11].m_view.m_width * m_scale * (str[i] == 32 ? m_spaceScale : 1.0);
+            v8 += m_kern[kernIdx] * m_kerning * m_info.m_fileHdrV3.m_kern[kernIdx] * (m_glyphs[v11].m_view.m_width + uk(ch)) * m_scale * (ch == 32 ? m_spaceScale : 1.0);
         }
         if (v8 >= w)
             break;
@@ -497,11 +529,13 @@ int CFont2D::FitWordsToWidthW(const UChar *str, int w, float marg) {
         }
         while (str[v11] == 32)
             ++v11;
+        UrsoftKerner uk0{ .m_font = *this };
         for (int i = 0; i < v11; i++) {
-            auto v21 = m_info.m_glyphIndexes[str[i]];
+            auto ch = str[i];
+            auto v21 = m_info.m_glyphIndexes[ch];
             if (v21 != 0xFFFF) {
                 auto kernIdx = m_glyphs[v21].m_kernIdx;
-                v16 += m_kern[kernIdx] * m_kerning * m_info.m_fileHdrV3.m_kern[kernIdx] * m_glyphs[v21].m_view.m_width * m_scale * (str[i] == 32 ? m_spaceScale : 1.0f);
+                v16 += m_kern[kernIdx] * m_kerning * m_info.m_fileHdrV3.m_kern[kernIdx] * (m_glyphs[v21].m_view.m_width + uk0(ch)) * m_scale * (ch == 32 ? m_spaceScale : 1.0f);
             }
         }
         ++v14;
@@ -521,11 +555,13 @@ int CFont2D::FitWordsToWidthW(const UChar *str, int w, float marg) {
                 v16 = 0.0;
                 if (v11) {
                     auto v29 = str;
+                    UrsoftKerner uk{ .m_font = *this };
                     while (1) {
-                        auto v30 = m_info.m_glyphIndexes[*v29];
+                        auto ch = *v29;
+                        auto v30 = m_info.m_glyphIndexes[ch];
                         if (v30 != 0xFFFF) {
                             auto v33 = m_glyphs[v30].m_kernIdx;
-                            v16 += m_kern[v33] * m_kerning * m_info.m_fileHdrV3.m_kern[v33] * m_glyphs[v30].m_view.m_width * m_scale * (*v29 == 32 ? m_spaceScale : 1.0f);
+                            v16 += m_kern[v33] * m_kerning * m_info.m_fileHdrV3.m_kern[v33] * (m_glyphs[v30].m_view.m_width + uk(ch)) * m_scale * (ch == 32 ? m_spaceScale : 1.0f);
                         }
                         if (v16 > goalWidth)
                             break;
@@ -548,12 +584,13 @@ int CFont2D::FitWordsToWidthW(const UChar *str, int w, float marg) {
         v9 = v11;
     }
     if (v12) {
+        UrsoftKerner uk{ .m_font = *this };
         for (int v35 = 0; v35 < v11; ++v35) {
             auto v36 = str[v35];
             auto v37 = m_info.m_glyphIndexes[v36];
             if (v37 != 0xFFFF) {
                 auto v40 = m_glyphs[v37].m_kernIdx;
-                v15 += m_kern[v40] * m_kerning * m_info.m_fileHdrV3.m_kern[v40] * m_glyphs[v37].m_view.m_width * m_scale * ((v36 == 32) ? m_spaceScale : 1.0f);
+                v15 += m_kern[v40] * m_kerning * m_info.m_fileHdrV3.m_kern[v40] * (m_glyphs[v37].m_view.m_width + uk(v36)) * m_scale * ((v36 == 32) ? m_spaceScale : 1.0f);
             }
             if (v15 > goalWidth) {
                 v11 = v35;
@@ -774,9 +811,11 @@ void CFont2D::RenderWString_u(float cx, float cy, const UChar *text, uint32_t co
         int  v31 = -1;
         auto pflt = (float *)v29;
         if (textLen) {
+            UrsoftKerner uk{ .m_font = *this };
             for (int i = 0; i < textLen; ++i, ++text) {
                 auto v35 = v31;
-                auto v36 = m_info.m_glyphIndexes[*text];
+                auto ch = *text;
+                auto v36 = m_info.m_glyphIndexes[ch];
                 if (v36 == 0xFFFF) {
                     if (m_cache && !forceDrawMalloc && m_cacheCntUsed) {
                         ++m_curCache;
@@ -792,7 +831,7 @@ void CFont2D::RenderWString_u(float cx, float cy, const UChar *text, uint32_t co
                         v31 = v35;
                     auto  v42 = m_info.m_fileHdrV3.m_kern[g.m_kernIdx];
                     float dx;
-                    if (*text == 32) {
+                    if (ch == 32) {
                         dx = g.m_view.m_width * v42 * v17 * m_kerning * m_kern[g.m_kernIdx] * m_spaceScale;
                         if (m_cache && !forceDrawMalloc && m_cacheCntUsed) {
                             ++m_curCache;
@@ -800,6 +839,8 @@ void CFont2D::RenderWString_u(float cx, float cy, const UChar *text, uint32_t co
                         }
                     } else {
                         auto pint = (uint32_t *)pflt;
+                        auto corr = uk(ch);
+                        cx += v15 * corr * v42;
                         pflt[0] = cx;
                         pflt[1] = v25;
                         //QUEST: is it OK? auto v33 = pflt + 7;
@@ -912,7 +953,7 @@ int CFont2D::GetTexture(uint32_t digit) {
 void CFont2D::GetGlyphUVView(uint32_t ch, tViewport<float> *vwp, uint32_t *kernIdx) {
     if (ch < 0xFFFF) {
         if (m_loadedV1) {
-            if (ch >= m_info.m_fileHdrV1.m_chars)
+            if (ch >= m_info.m_fileHdrV1.m_charsCnt)
                 return;
             if (kernIdx)
                 *kernIdx = 0;
@@ -938,7 +979,7 @@ bool CFont2D::GetGlyphView(uint32_t ch, tViewport<int> *viewPort) {
     if (ch >= 0xFFFF)
         return false;
     if (m_loadedV1) {
-        if (ch < m_info.m_fileHdrV1.m_chars) {
+        if (ch < m_info.m_fileHdrV1.m_charsCnt) {
             auto v1_glyph = m_info.m_v1gls[ch];
             viewPort->m_left = v1_glyph.m_left;
             viewPort->m_top = v1_glyph.m_top;
@@ -1005,7 +1046,7 @@ const char *CFont2D::Ellipsize(float scale, const char *txt, float maxW) {
             strcpy_s(g_ellipsizeBuf, txt);
             auto v9 = strlen(g_ellipsizeBuf) - 1;
             while (true) {
-                g_ellipsizeBuf[v9--] = 0; //QUEST: ����� ����� ��������� ��������
+                g_ellipsizeBuf[v9--] = 0; //QUEST: зачем такой медленный алгоритм
                 if (v9 < 0)
                     break;
                 auto w = StringWidth(g_ellipsizeBuf) * scale + d3w;
@@ -1042,7 +1083,7 @@ const UChar *CFont2D::EllipsizeW(float scale, const UChar *txt, float maxW) {
             auto v14 = u_strlen(g_ellipsizeBufW) - 1;
             while (true) {
                 g_ellipsizeBufW[v14] = 0;
-                auto w = StringWidthW_u(g_ellipsizeBufW) * scale + d3w; //QUEST: ����� ����� ��������� ��������
+                auto w = StringWidthW_u(g_ellipsizeBufW) * scale + d3w; //QUEST: зачем такой медленный алгоритм
                 if (--v14 < 0)
                     break;
                 if (w <= maxW) {
@@ -1155,12 +1196,14 @@ int CFont2D::GetParagraphIndexByPosition(float cx, float cy, float w, float h, c
                 auto ox_ = 0.0f;
                 *oy = oy_;
                 *ox = ox_;
+                UrsoftKerner uk{ .m_font = *this };
                 for (int v20 = 0; v20 < eatChars; v20++) {
-                    auto v24 = m_info.m_glyphIndexes[_str[v20]];
+                    auto ch = _str[v20];
+                    auto v24 = m_info.m_glyphIndexes[ch];
                     if (v24 != 0xFFFF) {
                         auto v25 = ox_;
                         auto v27 = m_glyphs[v24].m_kernIdx;
-                        ox_ += m_kern[v27] * m_kerning * m_glyphs[v24].m_view.m_width * m_info.m_fileHdrV3.m_kern[v27] * scaleW * m_scale * ((_str[v20] == 32) ? m_spaceScale : 1.0f);
+                        ox_ += m_kern[v27] * m_kerning * (m_glyphs[v24].m_view.m_width + uk(ch)) * m_info.m_fileHdrV3.m_kern[v27] * scaleW * m_scale * ((ch == 32) ? m_spaceScale : 1.0f);
                         if (ox_ > cx && cx > v25 && cy > oy_ && (oy_ + v18) > cy) {
                             *ox = v25;
                             *oy = oy_;
@@ -1204,6 +1247,7 @@ VEC2 CFont2D::GetParagraphPositionByIndexW(int index, float w, UChar *str, float
                 y += lh;
         } while (*_str);
         auto v24 = mult * m_scale * m_kerning;
+        UrsoftKerner uk{ .m_font = *this };
         while (*_str) {
             ++i;
             auto v26 = *_str++;
@@ -1214,7 +1258,7 @@ VEC2 CFont2D::GetParagraphPositionByIndexW(int index, float w, UChar *str, float
                     y += lh;
                 } else {
                     auto v29 = m_glyphs[v27].m_kernIdx;
-                    ret.m_data[0] += m_kern[v29] * m_glyphs[v27].m_view.m_width * m_info.m_fileHdrV3.m_kern[v29] * v24 * ((v26 == 32) ? m_spaceScale : 1.0f);
+                    ret.m_data[0] += m_kern[v29] * (m_glyphs[v27].m_view.m_width + uk(v26)) * m_info.m_fileHdrV3.m_kern[v29] * v24 * ((v26 == 32) ? m_spaceScale : 1.0f);
                 }
             }
             if (i >= index)
@@ -1258,3 +1302,399 @@ TEST(SmokeTestFont, Imbue) {
     ASSERT_EQ(std::string("1,234"), f.ImbueCommas(1234));
     ASSERT_EQ(std::string("4,294,967,295"), f.ImbueCommas(0xFFFFFFFF));
 }
+enum FontBitmapPixel : uint8_t { FBP_NOP, FBP_LIGHT, FBP_MEDIUM, FBP_SOLID };
+const int FONT_BITMAP_SIZE = 2048, GLYPH_MAX_SIZE = 170;
+using FontBitmapPixelGrid = std::array<std::array<FontBitmapPixel, FONT_BITMAP_SIZE>, FONT_BITMAP_SIZE>;
+FontBitmapPixelGrid *LoadFontBitmap(FILE *ftxt) {
+    auto ret = new FontBitmapPixelGrid;
+    char srow[FONT_BITMAP_SIZE + 3];
+    for (int row = 0; row < FONT_BITMAP_SIZE; ++row) {
+        fgets(srow, sizeof(srow), ftxt);
+        for (int col = 0; col < FONT_BITMAP_SIZE; col++) {
+            switch (srow[col]) {
+            case ' ':
+                (*ret)[row][col] = FBP_NOP;
+                break;
+            case '\xdb': //full block (100%)
+                (*ret)[row][col] = FBP_SOLID;
+                break;
+            case '\xb0': //light block (25%)
+                (*ret)[row][col] = FBP_LIGHT;
+                break;
+            case '\xb1': //med block (50%)
+                (*ret)[row][col] = FBP_MEDIUM;
+                break;
+            default:
+                assert(0);
+            }
+        }
+    }
+    return ret;
+}
+using GlyphBitmapPixelGrid = std::array<std::array<FontBitmapPixel, GLYPH_MAX_SIZE>, GLYPH_MAX_SIZE>;
+struct CFont2D_glyphBMP : public CFont2D_glyph {
+    SIZE m_iSize{};
+    RECT m_paddings{};
+    GlyphBitmapPixelGrid m_grid;
+    int m_freeAtRight[GLYPH_MAX_SIZE]{};
+    void initGrid(const FontBitmapPixelGrid *grid) {
+        m_iSize = { LONG(m_view.m_width * 2048), LONG(m_view.m_height * 2048) };
+        if (m_iSize.cx > GLYPH_MAX_SIZE || m_iSize.cy > GLYPH_MAX_SIZE) {
+            printf("overflow\n");
+        }
+        m_paddings.right = m_paddings.left = m_paddings.top = m_paddings.bottom = -1;
+        for (int row = m_view.m_top * 2048, irow = 0; irow < m_iSize.cy; ++row, ++irow) {
+            bool pixFound = false;
+            m_freeAtRight[irow] = m_iSize.cx;
+            for (int col = m_view.m_left * 2048, icol = 0; icol < m_iSize.cx; ++col, ++icol) {
+                FontBitmapPixel p = grid->at(row).at(col);
+                m_grid[irow][icol] = p;
+                if (p != FBP_NOP) {
+                    if (pixFound == false) {
+                        pixFound = true;
+                        if (m_paddings.left == -1 || m_paddings.left > icol)
+                            m_paddings.left = icol;
+                    }
+                    m_freeAtRight[irow] = m_iSize.cx - icol - 1;
+                }
+            }
+            if (m_paddings.right == -1 || m_paddings.right > m_freeAtRight[irow])
+                m_paddings.right = m_freeAtRight[irow];
+            if (pixFound) { //not empty row -> set top/bottom paddings
+                if (m_paddings.top == -1) //if not set yet
+                    m_paddings.top = irow;
+                m_paddings.bottom = m_iSize.cy - irow - 1;
+            }
+        }
+        if (m_paddings.top == -1) //if not set yet
+            m_paddings.top = m_iSize.cy;
+        if (m_paddings.bottom == -1) //if not set yet
+            m_paddings.bottom = m_iSize.cy;
+        if (m_paddings.left == -1) //if not set yet
+            m_paddings.left = m_iSize.cx;
+        if (m_paddings.right == -1) //if not set yet
+            m_paddings.right = m_iSize.cx;
+        if (m_paddings.right == 0 || /*m_paddings.left == 0 || m_paddings.top == 0 || */ m_paddings.bottom == 0) {
+            printf("why aligned to border");
+        }
+    }
+};
+void dumpGlyphBmp(CFont2D_glyphBMP &g, const FontBitmapPixelGrid *grid, FILE *fAlphabet) {
+    g.initGrid(grid);
+    fprintf(fAlphabet, "Glyph codePoint:%04x, w=%d, h=%d, pad.ltrb=[%d, %d, %d, %d]\n", g.m_codePoint, g.m_iSize.cx, g.m_iSize.cy,
+        g.m_paddings.left, g.m_paddings.top, g.m_paddings.right, g.m_paddings.bottom);
+    const char legend[]{ '.', '\xb0', '\xb1', '\xdb' };
+    for (int irow = 0; irow < g.m_iSize.cy; irow++) {
+        for (int icol = 0; icol < g.m_iSize.cx; icol++) {
+            fprintf(fAlphabet, "%c", legend[g.m_grid[irow][icol]]);
+        }
+        fprintf(fAlphabet, "\n");
+    }
+    fprintf(fAlphabet, "\n");
+}
+int dumpKernPairBmp(const CFont2D_glyphBMP &g1, const CFont2D_glyphBMP &g2, const char *fmt, int kern, bool file) {
+    char fileName[MAX_PATH];
+    sprintf(fileName, fmt, g1.m_codePoint, g2.m_codePoint);
+    FILE *f = file ? fopen(fileName, "wt") : nullptr;
+    if (f) {
+        fprintf(f, "Glyph1 codePoint:%04x, w=%d, h=%d, pad.ltrb=[%d, %d, %d, %d]\n", g1.m_codePoint, g1.m_iSize.cx, g1.m_iSize.cy,
+            g1.m_paddings.left, g1.m_paddings.top, g1.m_paddings.right, g1.m_paddings.bottom);
+        fprintf(f, "Glyph2 codePoint:%04x, w=%d, h=%d, pad.ltrb=[%d, %d, %d, %d]\n", g2.m_codePoint, g2.m_iSize.cx, g2.m_iSize.cy,
+            g2.m_paddings.left, g2.m_paddings.top, g2.m_paddings.right, g2.m_paddings.bottom);
+    }
+    const char legend1[]{ '.', '\xb0', '\xb1', '\xdb' };
+    const char legend2[]{ ':', '\xfe', '\xfe', '\xfe' };
+    const int colMax = GLYPH_MAX_SIZE * 2 + 32;
+    char buf[GLYPH_MAX_SIZE][colMax];
+    memset(buf, 32, sizeof(buf));
+    for (int irow = 0; irow < g1.m_iSize.cy; irow++) {
+        int icol = 0;
+        for (; icol < g1.m_iSize.cx; icol++) {
+            buf[irow][icol] = legend1[g1.m_grid[irow][icol]];
+        }
+    }
+    bool bConflict = false;
+    for (int irow = 0; irow < g2.m_iSize.cy; irow++) {
+        int col = g1.m_iSize.cx + kern;
+        for (int icol = 0; icol < g2.m_iSize.cx; icol++) {
+            if (irow >= g1.m_iSize.cy || col >= g1.m_iSize.cx || g1.m_grid[irow][col] == FBP_NOP || g2.m_grid[irow][icol] == FBP_NOP) {
+                if (irow < g1.m_iSize.cy && col < g1.m_iSize.cx && g1.m_grid[irow][col] != FBP_NOP && g2.m_grid[irow][icol] == FBP_NOP)
+                    col++; //do not overwrite g1 with g2.nop
+                else
+                    buf[irow][col++] = legend2[g2.m_grid[irow][icol]];
+            } else {
+                bConflict = true;
+                auto ch1 = g1.m_grid[irow][col]; (void)ch1;
+                auto ch2 = g2.m_grid[irow][icol]; (void)ch2;
+                buf[irow][col++] = '#';
+            }
+        }
+    }
+    int rowMax = 0;
+    for (int irow = 0; irow < GLYPH_MAX_SIZE; irow++) {
+        for (int icol = colMax - 2; icol >= 0; icol--) {
+            if (buf[irow][icol] == ' ') {
+                buf[irow][icol] = '\n';
+                buf[irow][icol+1] = 0;
+            } else {
+                break;
+            }
+        }
+        if (buf[irow][0] == '\n') {
+            rowMax = irow;
+            break;
+        }
+    }
+    int shortestRay = 2000, shortestDir{}, shortestX{}, shortestY{};
+    for (int irow = 0; irow < g1.m_iSize.cy; irow++) {
+        if (g1.m_freeAtRight[irow] != g1.m_iSize.cx) {
+            for (int dir = -1; dir < 2; dir++) { //2 diagonal and one straight
+                int x = g1.m_iSize.cx - g1.m_freeAtRight[irow], y = irow;
+                int curLen = 0;
+                do {
+                    switch (buf[y][x]) {
+                    case ' ': case '.': case ':': //empty: go next pixel
+                        curLen++;
+                        x++;
+                        y += dir;
+                        if (y < 0 || y >= rowMax) //out of field
+                            curLen = 0;
+                        break;
+                    case '\xfe': //g2 - stop count, accept curLen
+                        if (curLen * (dir ? 1.4 : 1.0) < shortestRay * (shortestDir ? 1.4 : 1.0)) {
+                            shortestRay = curLen;
+                            shortestY = y - dir;
+                            shortestX = x - 1;
+                            shortestDir = dir;
+                        }
+                        curLen = 0;
+                        break;
+                    case '\n': //end of buffer - stop count, reject curLen
+                        curLen = 0;
+                        break;
+                    default: //myself - stop count, reject curLen
+                        curLen = 0;
+                        break;
+                    }
+                } while (curLen);
+            }
+        }
+    }
+    if (shortestRay == 2000) {
+        if (f) fprintf(f, "Shortest ray not found!!!\n");
+    } else {
+        for (int i = 0; i < shortestRay; i++) {
+            buf[shortestY][shortestX--] = '*';
+            shortestY -= shortestDir;
+        }
+    }
+    for (int irow = 0; irow < GLYPH_MAX_SIZE; irow++) {
+        if (buf[irow][0] == '\n') {
+            break;
+        }
+        if (f) fputs(buf[irow], f);
+    }
+    if (bConflict)
+        if (f) fprintf(f, "Conflicts!!!\n");
+    if (shortestDir)
+        shortestRay = shortestRay * 14 / 10;
+    if (f) {
+        fprintf(f, "Kern=%d -> shortestRay=%d\n", kern, shortestRay);
+        fclose(f);
+    }
+    return shortestRay;
+}
+#if 0
+TEST(SmokeTestFont, PatchToCyr) { //TODO: kerning
+    //prepare:
+    // 1. unpack zwift-offline\scripts\ZwiftApp\1.32.1_106405\assets\fonts\font.wad\Fonts\*.* to zwift-offline\scripts\ZwiftApp\1.32.1_106405\data\Fonts
+    // 2. convert zwift-offline\scripts\ZwiftApp\1.32.1_106405-Debug\data\Fonts\*.ztx to *.dds (zwift-offline\scripts\textures\tgax) and edit *.dds in VS editor then execute "Generate Mips" command in VS
+    // 3. convert *.dds back to ztx (the same utility)
+    // 4. fill coordinates below:
+    struct ddsCoordinates { wchar_t codePoint, stoleFrom; RECT coords[2]; /*54, 105*/ }; //l t r->w b->h
+    const int h1 = 120, h2 = 168, row1_54 = 1041, row2_54 = row1_54 + 130, row3_54 = row2_54 + 130, 
+        row1_105 = 1 + 168 * 10, row2_105 = row1_105 + 168;
+    ddsCoordinates patch[]{
+        //                  x             w             x              w
+        { L'А', L'A', {{    0, row1_54,  76, h1 }, {                         }}},
+        { L'Б',    0, {{   72, row1_54,  68, h1 }, {    0, row1_105, 102, h2 }}},
+        { L'В', L'B', {{  136, row1_54,  66, h1 }, {                         }}},
+        { L'Г',    0, {{  198, row1_54,  58, h1 }, {  101, row1_105,  91, h2 }}},
+        { L'Д',    0, {{  252, row1_54,  85, h1 }, {  727, row1_105, 139, h2 }}},
+        { L'Е', L'E', {{  333, row1_54,  63, h1 }, {                         }}},
+        { L'Ё', L'Ë', {{  390, row1_54,  64, h1 }, {                         }}},
+        { L'Ж',    0, {{  452, row1_54, 110, h1 }, {  301, row1_105, 165, h2 }}},
+        { L'З', L'3', {{  560, row1_54,  61, h1 }, {                         }}},
+        { L'И',    0, {{  617, row1_54,  75, h1 }, {  188, row1_105, 116, h2 }}},
+        { L'Й',    0, {{  688, row1_54,  76, h1 }, {    0, row2_105, 116, h2 }}},
+        { L'К', L'K', {{  760, row1_54,  72, h1 }, {                         }}},
+        { L'Л',    0, {{  828, row1_54,  76, h1 }, {  463, row1_105, 116, h2 }}},
+        { L'М', L'M', {{  902, row1_54,  95, h1 }, {                         }}},
+        { L'Н', L'H', {{  994, row1_54,  71, h1 }, {                         }}},
+        { L'О', L'O', {{ 1061, row1_54,  89, h1 }, {                         }}},
+        { L'П',    0, {{ 1146, row1_54,  75, h1 }, {  964, row1_105, 116, h2 }}},
+        { L'Р', L'P', {{ 1217, row1_54,  64, h1 }, {                         }}},
+        { L'С', L'C', {{ 1277, row1_54,  69, h1 }, {                         }}},
+        { L'Т', L'T', {{ 1344, row1_54,  66, h1 }, {                         }}},
+        { L'У',    0, {{ 1408, row1_54,  73, h1 }, { 1077, row1_105, 103, h2 }}},
+        { L'Ф', L'Ø', {{ 1479, row1_54,  96, h1 }, {                         }}},
+        { L'Х', L'X', {{ 1573, row1_54,  74, h1 }, {                         }}},
+        { L'Ц',    0, {{ 1643, row1_54,  80, h1 }, { 1455, row1_105, 120, h2 }}},
+        { L'Ч',    0, {{ 1720, row1_54,  70, h1 }, {  516, row2_105, 101, h2 }}},
+        { L'Ш',    0, {{ 1786, row1_54, 110, h1 }, { 1177, row1_105, 140, h2 }}},
+        { L'Щ',    0, {{ 1892, row1_54, 122, h1 }, { 1314, row1_105, 145, h2 }}},
+        { L'Ь',    0, {{    0, row3_54,  62, h1 }, { 1572, row1_105,  93, h2 }}},
+        { L'Ы',    0, {{    0, row3_54,  90, h1 }, { 1572, row1_105, 140, h2 }}},
+        { L'Ъ',    0, {{   85, row3_54,  81, h1 }, { 1709, row1_105, 117, h2 }}},
+        { L'Э',    0, {{  164, row3_54,  69, h1 }, { 1958, row1_105,  90, h2 }}},
+        { L'Ю',    0, {{  229, row3_54, 107, h1 }, { 1823, row1_105, 138, h2 }}},
+        { L'Я',    0, {{  334, row3_54,  68, h1 }, {  865, row1_105, 104, h2 }}},
+        { L'а', L'a', {{    0, row2_54,  59, h1 }, {                         }}},
+        { L'б',    0, {{   55, row2_54,  68, h1 }, {  113, row2_105,  90, h2 }}},
+        { L'в',    0, {{  120, row2_54,  58, h1 }, {  200, row2_105,  77, h2 }}},
+        { L'г',    0, {{  175, row2_54,  50, h1 }, {  274, row2_105,  64, h2 }}},
+        { L'д',    0, {{  220, row2_54,  76, h1 }, {  333, row2_105,  96, h2 }}},
+        { L'е', L'e', {{  292, row2_54,  64, h1 }, {                         }}},
+        { L'ё', L'ë', {{  353, row2_54,  63, h1 }, {                         }}},
+        { L'ж',    0, {{  413, row2_54,  98, h1 }, {  576, row1_105, 134, h2 }}},
+        { L'з',    0, {{  506, row2_54,  55, h1 }, {  614, row2_105,  69, h2 }}},
+        { L'и', L'u', {{  558, row2_54,  64, h1 }, {                         }}},
+        { L'й', L'ú', {{  619, row2_54,  61, h1 }, {                         }}},
+        { L'к',    0, {{  677, row2_54,  61, h1 }, {  757, row2_105,  81, h2 }}},
+        { L'л',    0, {{  735, row2_54,  65, h1 }, {  835, row2_105,  82, h2 }}},
+        { L'м',    0, {{  795, row2_54,  82, h1 }, {  913, row2_105, 109, h2 }}},
+        { L'н',    0, {{  874, row2_54,  60, h1 }, { 1019, row2_105,  79, h2 }}},
+        { L'о', L'o', {{  931, row2_54,  70, h1 }, {                         }}},
+        { L'п', L'n', {{  998, row2_54,  64, h1 }, {                         }}},
+        { L'р', L'p', {{ 1058, row2_54,  69, h1 }, {                         }}},
+        { L'с', L'c', {{ 1123, row2_54,  56, h1 }, {                         }}},
+        { L'т', L'm', {{ 1176, row2_54,  60, h1 }, {                         }}},
+        { L'у', L'y', {{ 1233, row2_54,  64, h1 }, {                         }}},
+        { L'ф',    0, {{ 1293, row2_54,  93, h1 }, { 1095, row2_105, 122, h2 }}},
+        { L'х', L'x', {{ 1382, row2_54,  62, h1 }, {                         }}},
+        { L'ц',    0, {{ 1443, row2_54,  66, h1 }, { 1214, row2_105,  89, h2 }}},
+        { L'ч',    0, {{ 1505, row2_54,  62, h1 }, { 1300, row2_105,  79, h2 }}},
+        { L'ш',    0, {{ 1563, row2_54,  96, h1 }, { 1375, row2_105, 115, h2 }}},
+        { L'щ',    0, {{ 1655, row2_54, 102, h1 }, { 1485, row2_105, 128, h2 }}},
+        { L'ь',    0, {{ 1747, row2_54,  60, h1 }, {  428, row2_105,  71, h2 }}},
+        { L'ы',    0, {{ 1747, row2_54,  84, h1 }, { 1610, row2_105, 101, h2 }}},
+        { L'ъ',    0, {{  400, row3_54,  73, h1 }, { 1708, row2_105,  91, h2 }}},
+        { L'э',    0, {{  468, row3_54,  60, h1 }, { 1796, row2_105,  75, h2 }}},
+        { L'ю',    0, {{  523, row3_54,  91, h1 }, { 1868, row2_105, 105, h2 }}},
+        { L'я',    0, {{  609, row3_54,  64, h1 }, { 1970, row2_105,  78, h2 }}},
+    };
+    FILE *fOrg[]{ fopen("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_K.bin.org", "rb"), fopen("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_K.bin.org", "rb") };
+    FILE *fKernCache[]{ fopen("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_K.bin.cache", "rb"), fopen("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_K.bin.cache", "rb") };
+    FILE *fPatched[]{ fopen("data/Fonts/ZwiftFondoMedium54ptW_EFIGS_K.bin", "wb"), fopen("data/Fonts/ZwiftFondoBlack105ptW_EFIGS_K.bin", "wb") };
+    FILE *fBMP[]{ fopen("data/Fonts/ZwiftFondoMedium54ptW0.txt", "rt"), fopen("data/Fonts/ZwiftFondoBlack105ptW0.txt", "rt") };
+    FILE *fAlphabet[]{ fopen("data/Fonts/ZwiftFondoMedium54ptW0-a.txt", "wt"), fopen("data/Fonts/ZwiftFondoBlack105ptW0-a.txt", "wt") };
+    const char *kernDumpFmt[] = { "data/Fonts/ZwiftFondoMedium54ptW0/%04x-%04x.txt", "data/Fonts/ZwiftFondoBlack105ptW0/%04x-%04x.txt" };
+    const int goalKernDistance[] = { 19, 22 };
+    for (int i = 0; i < 2; i++) {
+        CFont2D_fileHdrV3 h, hk;
+        fread(&h, sizeof(h), 1, fOrg[i]);
+        fread(&hk, sizeof(hk), 1, fKernCache[i]);
+        std::unique_ptr<RealKernItem[]> prki{ new RealKernItem[hk.m_realKerns] };
+        fseek(fKernCache[i], -(int)sizeof(RealKernItem) * hk.m_realKerns, SEEK_END);
+        if (hk.m_realKerns != fread(prki.get(), sizeof(RealKernItem), hk.m_realKerns, fKernCache[i]))
+            FAIL();
+        h.m_charsCnt += _countof(patch);
+        fwrite(&h, sizeof(h), 1, fPatched[i]);
+        CFont2D_glyphBMP tmp;
+        std::map<wchar_t, CFont2D_glyphBMP> map;
+        std::set<std::string> line_height;
+        while (fread(&tmp, sizeof(CFont2D_glyph), 1, fOrg[i])) {
+            if (tmp.m_codePoint == L'!') {
+                tmp.m_view.m_width += (i ? 5 : 4) / 2048.0;
+            }
+            if (i == 1 && tmp.m_lid == 0) { //compact 105
+                int row = (int(tmp.m_view.m_top * 2048.0f + 0.5) - 1) / 168;
+                if (row > 0)
+                    tmp.m_view.m_top = (row * 168 + 1) / 2048.0f;
+            }
+            fwrite(&tmp, sizeof(CFont2D_glyph), 1, fPatched[i]);
+            map[(wchar_t)tmp.m_codePoint] = tmp;
+            if (tmp.m_lid == 0)
+                line_height.insert(std::to_string(int(tmp.m_view.m_top * 2048.0f + 0.5)) + "x" + std::to_string(int(tmp.m_view.m_height * 2048.0f + 0.5)));
+        }
+        for (const auto &g : patch) {
+            CFont2D_glyphBMP newg{};
+            if (g.coords[i].right == 0 && g.stoleFrom != 0) {
+                assert(map.contains(g.stoleFrom));
+                newg = map[g.stoleFrom];
+                newg.m_codePoint = g.codePoint;
+            } else {
+                newg.m_codePoint = g.codePoint;
+                newg.m_view.m_left = g.coords[i].left / 2048.0f;
+                newg.m_view.m_top = g.coords[i].top / 2048.0f;
+                newg.m_view.m_width = g.coords[i].right / 2048.0f;
+                newg.m_view.m_height = g.coords[i].bottom / 2048.0f;
+            }
+            fwrite(&newg, sizeof(CFont2D_glyph), 1, fPatched[i]);
+            map[(wchar_t)newg.m_codePoint] = newg;
+        }
+        auto fullBMP = LoadFontBitmap(fBMP[i]);
+        for (auto &g : map) {
+            if (g.second.m_lid == 0)
+                dumpGlyphBmp(g.second, fullBMP, fAlphabet[i]);
+        }
+        delete fullBMP;
+        std::map<std::pair<UChar, UChar>, char> autoKern;
+        std::vector<RealKernItem> autoKernArray;
+        for (int k = 0; k < hk.m_realKerns; k++) {
+            auto key = std::make_pair(prki[k].m_prev, prki[k].m_cur);
+            if (autoKern.contains(key))
+                printf("autoKern.contains\n");
+            autoKern[key] = prki[k].m_corr;
+        }
+        for (auto g1 : map) {
+            if (g1.second.m_codePoint == ' ' || g1.second.m_codePoint == 10 || g1.second.m_codePoint == 160 || g1.second.m_codePoint == 0x200b || g1.second.m_lid != 0) continue;
+            for (auto g2 : map) {
+                if (g2.second.m_codePoint == ' ' || g2.second.m_codePoint == 10 || g2.second.m_codePoint == 160 || g2.second.m_codePoint == 0x200b || g2.second.m_lid != 0) continue;
+                auto key = std::make_pair(g1.second.m_codePoint, g2.second.m_codePoint);
+                char &corr = autoKern[key];
+                std::map<char, int> tries;
+                do {
+                    auto dist = dumpKernPairBmp(g1.second, g2.second, kernDumpFmt[i], corr, false);
+                    tries[corr] = dist;
+                    if (dist == 2000) {
+                        break;
+                    }
+                    if (corr == -16)
+                        break;
+                    auto deltaDist = dist - goalKernDistance[i];
+                    if (deltaDist == 0) break;
+                    corr = std::clamp(corr - deltaDist / abs(deltaDist), -16, 16);
+                    if (tries.contains(corr))
+                        break;
+                } while (true);
+                int bestDelta = 2000;
+                if (tries.size() > 1) {
+                    for (auto &t : tries) {
+                        auto dt = abs(t.second - goalKernDistance[i]);
+                        if (dt < bestDelta) {
+                            bestDelta = dt;
+                            corr = t.first;
+                        }
+                    }
+                    if (corr && tries[0] == tries[corr])
+                        corr = 0;
+                }
+                //dumpKernPairBmp(g1.second, g2.second, kernDumpFmt[i], corr, true);
+            }
+        }
+        for (auto &mi : autoKern)
+            if(mi.second) 
+                autoKernArray.push_back(RealKernItem{ .m_prev = mi.first.first, .m_cur = mi.first.second, .m_corr = mi.second });
+        h.m_realKerns = (int)autoKernArray.size();
+        fwrite(autoKernArray.data(), h.m_realKerns * sizeof(RealKernItem), 1, fPatched[i]);
+        fseek(fPatched[i], 0, SEEK_SET);
+        fwrite(&h, sizeof(h), 1, fPatched[i]);
+    }
+    for (auto f : fPatched) fclose(f);
+    for (auto f : fOrg) fclose(f);
+    for (auto f : fBMP) fclose(f);
+    for (auto f : fAlphabet) fclose(f);
+    for (auto f : fKernCache) fclose(f);
+}
+#endif
