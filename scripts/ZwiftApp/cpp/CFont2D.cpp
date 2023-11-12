@@ -1331,6 +1331,7 @@ FontBitmapPixelGrid *LoadFontBitmap(FILE *ftxt) {
     }
     return ret;
 }
+#if 0
 using GlyphBitmapPixelGrid = std::array<std::array<FontBitmapPixel, GLYPH_MAX_SIZE>, GLYPH_MAX_SIZE>;
 struct CFont2D_glyphBMP : public CFont2D_glyph {
     SIZE m_iSize{};
@@ -1504,7 +1505,6 @@ int dumpKernPairBmp(const CFont2D_glyphBMP &g1, const CFont2D_glyphBMP &g2, cons
     }
     return shortestRay;
 }
-#if 0
 TEST(SmokeTestFont, PatchToCyr) { //TODO: kerning
     //prepare:
     // 1. unpack zwift-offline\scripts\ZwiftApp\1.32.1_106405\assets\fonts\font.wad\Fonts\*.* to zwift-offline\scripts\ZwiftApp\1.32.1_106405\data\Fonts

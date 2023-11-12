@@ -33,3 +33,9 @@ logs/
 /scripts/ZwiftApp/cpp/concurrentqueue/benchmarks
 /scripts/ZwiftApp/cpp/concurrentqueue/tests
 /scripts/ConsoleApp1
+/scripts/wad_unpack/x64/ConsoleDebug
+/scripts/wad_unpack/x64/ConsoleRelease
+/scripts/wad_unpack/.vs/wad_unpack/v17
+/scripts/wad_unpack/.vs/wad_unpack/FileContentIndex/*.vsidx
+/scripts/wad_unpack/x64/WcxDebug
+/scripts/wad_unpack/x64/WcxRelease

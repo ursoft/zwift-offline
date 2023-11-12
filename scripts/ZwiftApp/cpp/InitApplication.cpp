@@ -238,8 +238,7 @@ void KeyCallback(GLFWwindow *, int key, int scanCode, int action, int mods) {
         }
     }
 #if 0 //TODO
-    if (key != 290)
-    {
+    if (key != GLFW_KEY_F1) {
         wnd = (GLFWwindow *)(unsigned int)(key - 291);
         if (key != 291)
         {
@@ -664,7 +663,7 @@ LABEL_118:
             v61 += 8i64;
         } while (v59 < (unsigned __int64)((*(_QWORD *)(v58 + 472) - v60) >> 3));
     }
-#endif GLFW_KEY_BACKSPACE
+#endif
     /* was simplified: if (action == GLFW_PRESS || (action == GLFW_REPEAT && (key == GLFW_KEY_BACKSPACE || key == GLFW_KEY_PAGE_UP || key == GLFW_KEY_PAGE_DOWN || key == GLFW_KEY_UP || key == GLFW_KEY_DOWN || key == GLFW_KEY_HOME || key == GLFW_KEY_END)))
         if (key > 255 || (mods & (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) == GLFW_MOD_CONTROL)
             CONSOLE_KeyFilter(key, mods);*/

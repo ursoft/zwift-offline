@@ -1,3 +1,5 @@
+﻿#define _CRT_SECURE_NO_WARNINGS
+#define _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
 #include <iostream>
 #include <cstdio>
 #include <filesystem>
@@ -7,6 +9,10 @@
 #include <cassert>
 #include <string>
 #include <functional>
+#include <fstream>
+#include <locale>
+#include <codecvt>
+#include <tlhelp32.h>
 
 const uint32_t g_crc32Table[256] = {
 	0, 0x77073096, 0xEE0E612C, 0x990951BA, 0x76DC419, 0x706AF48F,
@@ -289,10 +295,10 @@ struct WadUnpacker {
 					fix = "tgax";
 				}
 				fixed += fix;
-				std::cout << "[name fixed] ";
+				if (bDumpMode) std::cout << "[name fixed] ";
 				assert(m_nameICRC32 == SIG_CalcCaseInsensitiveSignature(fixed.c_str()));
 			}
-			std::cout << (m_crypted ? '{' : '[') << AssetType() << (m_crypted ? "} " : "] ") << filePath;
+			if (bDumpMode) std::cout << (m_crypted ? '{' : '[') << AssetType() << (m_crypted ? "} " : "] ") << filePath;
 			assert(m_filePath[0] != 0);
 			for (size_t idx = strlen(filePath); idx < sizeof(filePath); idx++) {
 				assert(filePath[idx] == 0);
@@ -325,7 +331,7 @@ struct WadUnpacker {
 					if (lastDelimiter != -1) {
 						path[lastDelimiter] = 0;
 						if (!std::filesystem::is_directory(path) && !std::filesystem::create_directories(path)) {
-							std::cout << " failed to create dirs, quit\n";
+							if (bDumpMode) std::cout << " failed to create dirs, quit\n";
 							exit(-12);
 						}
 						path[lastDelimiter] = '\\';
@@ -333,10 +339,10 @@ struct WadUnpacker {
 					FILE *f = nullptr;
 					fopen_s(&f, path, "wb");
 					if (f == nullptr || m_fileLength != fwrite(FirstChar(), 1, m_fileLength, f)) {
-						std::cout << " failed to write, quit\n";
+						if (bDumpMode) std::cout << " failed to write, quit\n";
 						exit(-13);
 					}
-					std::cout << ' ' << m_fileLength << " bytes saved OK\n";
+					if (bDumpMode) std::cout << ' ' << m_fileLength << " bytes saved OK\n";
 					fclose(f);
 				}
 				m_seqNo = ~m_seqNo;
@@ -355,7 +361,7 @@ struct WadUnpacker {
 		uint32_t m_compressed_size = 0;
 		WAD_HEADER() { static_assert(256 == sizeof(WAD_HEADER)); }
 		void dump(bool bDumpMode) {
-			auto crc = SIG_CalcCaseInsensitiveSignature("f:\\Projects\\ZwiftApp\\assets\\global.wad");
+			//auto crc = SIG_CalcCaseInsensitiveSignature("f:\\Projects\\ZwiftApp\\assets\\global.wad");
 			if (bDumpMode) {
 				char wadFilePath[sizeof(m_wadFilePath) + 1] = {};
 				memcpy(wadFilePath, m_wadFilePath, sizeof(m_wadFilePath));
@@ -429,7 +435,7 @@ struct WadUnpacker {
 				}
 			}
 		}
-#ifdef _DEBUG
+#if 0 //def _DEBUG
 		uint32_t min = 0xFFFFFFFF, max = 0;
 		if (m_seqCheck.size()) {
 			for (auto chk : m_seqCheck) {
@@ -447,7 +453,7 @@ struct WadUnpacker {
 			auto bucket = ((WAD_FILE_HEADER **)(m_decomp_buf + sizeof(WAD_HEADER)))[bucketIdx];
 			while (bucket != chk.second) {
 				bucket = bucket->m_nextFileSameHash;
-				assert(bucket); //���� �� ��������� ���, ������ hash �� ������������� bucket 
+				assert(bucket); //если мы сломались тут, значит hash не соответствует bucket 
 			}
 		}
 		FILE *f[(int)WAD_ASSET_TYPE::CNT] = {};
@@ -771,7 +777,7 @@ LABEL_32:
 		HeaderData->FileAttr = (m_curPosition->second->m_crypted) ? 0x2 : 0;
 		return true;
 	}
-	int DeleteFiles(char *DeleteList) {
+	int DeleteFiles(const char *DeleteList) {
 		while (*DeleteList) {
 			auto len = strlen(DeleteList);
 			auto last = DeleteList + len - 1;
@@ -790,22 +796,25 @@ LABEL_32:
 		}
 		return Save();
 	}
-	int PackFiles(char *SubPath, char *SrcPath, char *AddList, int Flags) {
+	int PackFiles(const char *SubPath, const char *SrcPath, const char *AddList, int Flags) {
 		std::list<WAD_FILE_HEADER *> pool;
 		//std::list<std::string> srcList;
 		int ret = 0;
 		while (*AddList) {
 			while (*AddList == '\\') AddList++;
-			char *name = AddList, *nextAdd = AddList + strlen(AddList) + 1;
+			const char *name = AddList, *nextAdd = AddList + strlen(AddList) + 1;
 			if (nextAdd[-2] != '\\') {
 				char arcPathName[MAX_PATH] = {}, srcPathName[MAX_PATH] = {};
 				if (SubPath && *SubPath) {
 					strcpy_s(arcPathName, SubPath);
 					auto pos = strlen(arcPathName);
-					if (pos < MAX_PATH && arcPathName[pos - 1] != '\\') arcPathName[pos] = '\\';
+					if (pos < MAX_PATH-1 && arcPathName[pos - 1] != '\\') {
+						arcPathName[pos] = '\\';
+						arcPathName[pos+1] = 0;
+					}
 				}
 				if (0 == (Flags & PK_PACK_SAVE_PATHS)) {
-					char *newName = nextAdd;
+					const char *newName = nextAdd;
 					while (--newName > name) {
 						if (*newName == '\\') {
 							newName++;
@@ -863,7 +872,7 @@ LABEL_32:
 		}
 		if (ret == 0)
 			ret = Save();
-		m_list.clear(); //good to clear after asve and before pool free
+		m_list.clear(); //good to clear after save and before pool free
 		m_curPosition = m_list.cbegin();
 		for (auto pi : pool) free(pi);
 		if (ret) return ret;
@@ -958,39 +967,490 @@ LABEL_32:
 		return ret;
 	}
 };
-
-int main(int argc, char **argv) {
-	int ret = 0;
-	switch(argc) {
-	case 2:
-		return WadUnpacker(argv[1]);
-	case 0: case 1: //no args: read line-by-line from stdin
-		std::cout << "wad_unpack v100966+ usage:\nwad_unpack.exe file.wad\nNow working from stdin\n";
-		while(true) {
-			std::cout << "Input WAD filePath: ";
-			std::string fn;
-			getline(std::cin, fn);
-			if (fn.length() == 0) break;
-			WadUnpacker next(fn.c_str());
-			assert(0 == int(next));
-			std::cout << "Result: " << int(next) << std::endl;
-			if (ret == 0) ret = int(next);
-#ifdef _DEBUG
-#if 0 //test
-			next.m_wadFileName = "c:\\Users\\build\\Downloads\\tmp\\assets" + next.m_wadFileName.substr(1 + strlen("c:\\Program Files(x86)\\Zwift\\assets"));
-			next.Save();
-			WadUnpacker check(next.m_wadFileName.c_str());
-			assert(0 == int(check));
-#endif
-#endif
-		}
-		break;
-	default: //too many args
-		std::cout << "wad_unpack v100966+ usage:\nwad_unpack.exe file.wad\n";
-		ret = -1;
-		break;
+std::string_view trim(std::string_view s) {
+	s.remove_prefix(min(s.find_first_not_of(" \t\r\v\n"), s.size()));
+	s.remove_suffix(min(s.size() - s.find_last_not_of(" \t\r\v\n") - 1, s.size()));
+	return s;
+}
+std::wstring toWideChar(const std::string &str, UINT code_page = CP_ACP) {
+	int cnt = MultiByteToWideChar(code_page, 0, str.c_str(), (int)str.size(), 0, 0);
+	if (!cnt) {
+		return std::wstring();
 	}
-	return ret;
+	std::wstring f;
+	f.resize(cnt);
+	if (!MultiByteToWideChar(code_page, 0, str.c_str(), (int)str.size(), &f[0], cnt)) {
+		return std::wstring();
+	}
+	return f;
+}
+enum LocalizerStatus { LOC_LOG_FAIL, LOC_INIT_FAIL, LOC_INIT_OK };
+struct Logger : public std::wofstream {
+	Logger() : std::wofstream("zwift_localizer.log", std::ios::app | std::ios::binary) {
+		const unsigned long MaxCode = 0x10ffff;
+		const std::codecvt_mode Mode = (std::codecvt_mode)(std::generate_header | std::little_endian);
+		std::locale utf16_locale(getloc(), new std::codecvt_utf16<wchar_t, MaxCode, Mode>);
+		imbue(utf16_locale);
+	}
+	void println(std::wstring_view data) {
+		auto t = std::time(nullptr);
+		auto tm = *std::localtime(&t);
+		(*this) << std::put_time(&tm, L"[%d-%m-%Y %H-%M-%S]") << L": " << data << std::endl;
+	}
+};
+struct Localizer {
+	Logger *m_pLog;
+	std::wstring m_report;
+	std::filesystem::path m_zwiftCatalog;
+	LocalizerStatus m_status{m_pLog->bad() ? LOC_LOG_FAIL : LOC_INIT_FAIL };
+	enum Inputs { IN_LOC_XML, IN_ANT_DLL, IN_105_ZTX, IN_54_ZTX, IN_105_BIN, IN_54_BIN, IN_CNT };
+	std::vector<std::ifstream> m_inputs;
+	bool InitInputFile(std::wstring_view file) {
+		m_inputs.emplace_back(file.data(), std::ios::binary);
+		bool good = m_inputs.back().good();
+		m_pLog->println(std::format(L"Check if input {} is readable: {}", file.data(), good ? L"OK" : L"FAILED"));
+		if (!good) {
+			m_report = std::format(L"В текущем каталоге {} ожидался {}, но он не найден", std::filesystem::current_path().wstring(), file);
+		}
+		return good;
+	}
+	inline static const wchar_t *stFilenames[IN_CNT]{
+			L"Localization.xml",						//<ProgramFiles>\Zwift\assets\global.wad\Localization\*.*
+			L"ANT_DLL.dll",								//<ProgramFiles>\Zwift\*.*
+			L"ZwiftFondoBlack105ptW0.ztx",				//<ProgramFiles>\Zwift\data\Fonts\*.*
+			L"ZwiftFondoMedium54ptW0.ztx",				//<ProgramFiles>\Zwift\data\Fonts\*.*
+			L"ZwiftFondoBlack105ptW_EFIGS_K.bin",		//<ProgramFiles>\Zwift\assets\fonts\font.wad\Fonts\*.*
+			L"ZwiftFondoMedium54ptW_EFIGS_K.bin" };		//<ProgramFiles>\Zwift\assets\fonts\font.wad\Fonts\*.*
+	bool InitInputFiles() {
+		for (auto ifn : stFilenames) {
+			if (!InitInputFile(ifn)) return false;
+		}
+		return true;
+	}
+	enum Backups { BAK_GLOBAL_WAD, BAK_ANT_DLL, BAK_105_ZTX, BAK_FONT_WAD, BAK_54_ZTX };
+	std::vector<bool> m_validBackup;
+	std::vector<std::filesystem::path> m_originalPaths, m_backupPaths;
+	std::map<std::wstring, uint32_t> m_manifestCRCs;
+	int GetRealCRC(std::wstring_view file) {
+		uint8_t chs[4096];
+		uint32_t crc32 = 0xFFFFFFFF;
+		std::ifstream is(std::wstring(file), std::ios::binary);
+		if (is.good()) {
+			while (!is.eof()) {
+				is.read((char *)chs, sizeof(chs));
+				for (auto i = 0u; i < is.gcount(); i++)
+					crc32 = g_crc32Table[(uint8_t)(crc32 ^ chs[i])] ^ (crc32 >> 8);
+			}
+		} else {
+			throw std::invalid_argument("GetRealCRC: cannot open already checked file");
+		}
+		return (int)(crc32 ^ ~0u);
+	}
+	bool InitBackupFile(std::wstring_view file) {
+		auto wfile{ std::wstring(file) };
+		auto f = m_manifestCRCs.find(wfile);
+		if (f == m_manifestCRCs.end()) {
+			m_report = std::format(L"InitBackupFile: {} is not found in manifest", file);
+			m_pLog->println(m_report);
+			return false;
+		}
+		int manCrc = f->second;
+		auto mainFile{ m_zwiftCatalog / file };
+		m_originalPaths.push_back(mainFile);
+		if (!std::filesystem::exists(mainFile)) {
+			m_report = std::format(L"InitBackupFile: {} is not found in filesystem", file);
+			m_pLog->println(m_report);
+			return false;
+		}
+		std::wstring bakFile{wfile + L".bak"};
+		std::replace(bakFile.begin(), bakFile.end(), L'\\', L'_');
+		m_backupPaths.emplace_back(std::filesystem::current_path() / bakFile);
+		bool mainIsGoodForBackup{ GetRealCRC(mainFile.wstring()) == manCrc };
+		if (mainIsGoodForBackup) {
+			m_pLog->println(std::format(L"InitBackupFile: main {} is equal to manifest", mainFile.wstring()));
+		} else {
+			m_pLog->println(std::format(L"InitBackupFile: main {} is NOT equal to manifest", mainFile.wstring()));
+		}
+		bool backupIsGoodForRestore = false;
+		if (std::filesystem::exists(m_backupPaths.back())) {
+			if (GetRealCRC(bakFile) == manCrc) {
+				m_pLog->println(std::format(L"InitBackupFile: {} is equal to manifest", bakFile));
+				backupIsGoodForRestore = true;
+			} else {
+				m_pLog->println(std::format(L"InitBackupFile: {} is NOT equal to manifest, removed: {}", bakFile,
+					std::filesystem::remove(bakFile) ? L"OK" : L"FAILED"));
+			}
+		} 
+		if (!backupIsGoodForRestore && mainIsGoodForBackup) {
+			backupIsGoodForRestore = std::filesystem::copy_file(mainFile, bakFile);
+			m_pLog->println(std::format(L"InitBackupFile: copy {} to {}: {}", mainFile.wstring(), bakFile, backupIsGoodForRestore ? L"OK" : L"FAILED"));
+			backupIsGoodForRestore = true;
+		}
+		m_validBackup.push_back(backupIsGoodForRestore);
+		return true;
+	}
+	bool InitBackupFiles() {
+		for (auto bfn : { L"assets\\global.wad", L"ANT_DLL.dll", L"data\\Fonts\\ZwiftFondoBlack105ptW0.ztx", L"data\\Fonts\\ZwiftFondoMedium54ptW0.ztx", L"assets\\fonts\\font.wad" }) {
+			if (!InitBackupFile(bfn)) return false;
+		}
+		return true;
+	}
+	Localizer(Logger *pLog) : m_pLog(pLog) {
+		m_pLog->println(std::format(L"************* zwift_localizer 1.0 запущен @{} *************", std::filesystem::current_path().wstring()));
+		if (!SetupZwiftCatalog()) return;
+		if (!InitInputFiles()) return;
+		if (!InitBackupFiles()) return;
+		m_status = LOC_INIT_OK;
+	}
+	bool SetupZwiftCatalog() {
+		m_zwiftCatalog = std::filesystem::current_path().parent_path();
+		auto ver_cur_path{ m_zwiftCatalog / "Zwift_ver_cur.xml" };
+		auto checkPath{ std::filesystem::exists(ver_cur_path) };
+		if (!checkPath) {
+			m_report = std::format(L"В родительском каталоге {} ожидался Zwift_ver_cur.xml, но он не найден", m_zwiftCatalog.wstring());
+		} else {
+			std::ifstream ver_cur{ ver_cur_path };
+			std::string ver_cur_xml;
+			std::getline(ver_cur, ver_cur_xml);
+			auto fnd1 = ver_cur_xml.find("manifest=\"");
+			if (fnd1 == std::string::npos) {
+				m_report = std::format(L"В {}/Zwift_ver_cur.xml ожидался manifest, но он не найден ({})", m_zwiftCatalog.wstring(), toWideChar(ver_cur_xml));
+				m_pLog->println(L"No manifest in Zwift_ver_cur.xml");
+				checkPath = false;
+			} else {
+				fnd1 += 10;
+				auto fnd2 = ver_cur_xml.find('"', fnd1);
+				if (fnd2 == std::string::npos) {
+					m_report = std::format(L"В {}/Zwift_ver_cur.xml ожидался manifest, но он не найден ({})", m_zwiftCatalog.wstring(), toWideChar(ver_cur_xml));
+					m_pLog->println(L"No manifest in Zwift_ver_cur.xml");
+					checkPath = false;
+				} else {
+					ver_cur_xml = ver_cur_xml.substr(fnd1, fnd2 - fnd1);
+					m_pLog->println(std::format(L"Zwift_ver_cur.xml: manifest={}", toWideChar(ver_cur_xml)));
+					auto manifest_path{ m_zwiftCatalog / ver_cur_xml };
+					std::ifstream manifest{ manifest_path };
+					if (!manifest.good()) {
+						m_report = std::format(L"Файл манифеста {} недоступен для чтения", manifest_path.wstring());
+						m_pLog->println(L"Cannot open manifest for read");
+						checkPath = false;
+					} else {
+						std::string mfile;
+						while (!manifest.eof()) {
+							std::string mline;
+							std::getline(manifest, mline);
+							auto findPath1 = mline.find("<path>");
+							if (findPath1 != std::string::npos) {
+								auto findPath2 = mline.find("</path>");
+								if (findPath2 != std::string::npos) {
+									findPath1 += 6;
+									mfile = mline.substr(findPath1, findPath2 - findPath1);
+								}
+							} else if (!mfile.empty()) {
+								auto findCRC1 = mline.find("<checksum>");
+								if (findCRC1 != std::string::npos) {
+									auto findCRC2 = mline.find("</checksum>");
+									if (findCRC2 != std::string::npos) {
+										auto crc = std::atoi(mline.data() + findCRC1 + 10);
+										m_manifestCRCs[toWideChar(mfile)] = crc;
+										mfile.clear();
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		if (m_manifestCRCs.size() == 0)
+			checkPath = false;
+		m_pLog->println(std::format(L"Check Zwift directory {}: {}, man={}", m_zwiftCatalog.wstring(), checkPath ? L"OK" : L"FAILED", m_manifestCRCs.size()));
+		return checkPath;
+	}
+	std::wstring Report(std::wformat_string<std::wstring &> fmt) {
+		return std::format(fmt, m_report);
+	}
+	operator LocalizerStatus() const { return m_status; }
+	void TerminateProcessByName(const wchar_t *processName) {
+		HANDLE hProcessSnap;
+		PROCESSENTRY32 pe32;
+
+		// Получаем снимок текущих процессов
+		hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (hProcessSnap == INVALID_HANDLE_VALUE) {
+			m_pLog->println(std::format(L"TerminateProcessByName({}).CreateToolhelp32Snapshot failed: GLE={}", processName, GetLastError()));
+			return;
+		}
+
+		// Устанавливаем размер структуры PROCESSENTRY32
+		pe32.dwSize = sizeof(PROCESSENTRY32);
+
+		// Получаем информацию о первом процессе
+		if (!Process32First(hProcessSnap, &pe32)) {
+			CloseHandle(hProcessSnap);
+			m_pLog->println(std::format(L"TerminateProcessByName({}).Process32First failed: GLE={}", processName, GetLastError()));
+			return;
+		}
+		bool bFound = false;
+		// Проходим по всем процессам
+		do {
+			// Если имя процесса совпадает с заданным
+			if (_wcsicmp(pe32.szExeFile, processName) == 0) {
+				bFound = true;
+				// Получаем дескриптор процесса
+				HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pe32.th32ProcessID);
+				if (hProcess != NULL) {
+					// Завершаем процесс
+					bool term = TerminateProcess(hProcess, 0);
+					m_pLog->println(std::format(L"TerminateProcessByName({}).TerminateProcess: {}", processName, term ? L"OK": L"FAILED"));
+					CloseHandle(hProcess);
+				} else {
+					m_pLog->println(std::format(L"TerminateProcessByName({}).OpenProcess failed: GLE={}", processName, GetLastError()));
+				}
+			}
+		} while (Process32Next(hProcessSnap, &pe32));
+		if (!bFound)
+			m_pLog->println(std::format(L"TerminateProcessByName({}) not found in the list", processName));
+		CloseHandle(hProcessSnap);
+	}
+	void TerminateProcesses() {
+		for (auto p : { L"ZwiftApp.exe", L"ZwiftLauncher.exe" })
+			TerminateProcessByName(p);
+	}
+	bool Undo() {
+		TerminateProcesses();
+		for (int i = 0; i < std::ssize(m_validBackup); i++) {
+			if (!m_validBackup[i]) {
+				m_report = std::format(L"Ошибка проверки резервной копии {}, ничего не изменяю.", m_backupPaths[i].wstring());
+			}
+		}
+		bool ret = true;
+		for (int i = 0; i < std::ssize(m_validBackup); i++) {
+			std::error_code ec;
+			bool del = std::filesystem::remove(m_originalPaths[i], ec);
+			m_pLog->println(std::format(L"Undo: remove main file {}: {}", m_originalPaths[i].wstring(), toWideChar(ec.message())));
+			if (!del) {
+				ret = false;
+				m_report = std::format(L"Ошибка '{}' удаления {}, переустановите Zwift.", toWideChar(ec.message()), m_originalPaths[i].wstring());
+				break;
+			}
+			bool cpy = std::filesystem::copy_file(m_backupPaths[i], m_originalPaths[i], ec);
+			m_pLog->println(std::format(L"Undo: copy backup file {} to {}: {}", m_backupPaths[i].wstring(), m_originalPaths[i].wstring(), toWideChar(ec.message())));
+			if (!cpy) {
+				ret = false;
+				m_report = std::format(L"Ошибка '{}' возвращения {}, переустановите Zwift.", toWideChar(ec.message()), m_originalPaths[i].wstring());
+				break;
+			}
+		}
+		return ret;
+	}
+	bool SimpleReplace(const std::filesystem::path &main, std::ifstream &src) {
+		bool ret = true;
+		std::ofstream dest(main, std::ios::binary);
+		if (dest.good()) {
+			dest << src.rdbuf();
+			m_pLog->println(std::format(L"SimpleReplace({}): OK", main.wstring()));
+		} else {
+			ret = false;
+			m_report = std::format(L"SimpleReplace({}): неудачная запись", main.wstring());
+			m_pLog->println(m_report);
+		}
+		return ret;
+	}
+	bool SimpleWadReplace(const std::filesystem::path &mainWad, const char *subPath, const char *fsFileName) {
+		bool ret = true;
+		WadUnpacker wu(mainWad.generic_string().c_str(), false);
+		if (wu.g_ret != 0) {
+			m_report = std::format(L"SimpleWadReplace({})={}: неудачное чтение", mainWad.wstring(), wu.g_ret);
+			m_pLog->println(m_report);
+			ret = false;
+		} else {
+			auto status = wu.PackFiles(subPath, "", fsFileName, 0);
+			if (status != 0) {
+				m_report = std::format(L"SimpleWadReplace({},{})={}: неудачный PackFiles", mainWad.wstring(), toWideChar(fsFileName), status);
+				m_pLog->println(m_report);
+				ret = false;
+			} else {
+				m_pLog->println(std::format(L"SimpleWadReplace({}): OK", mainWad.wstring()));
+			}
+		}
+		return ret;
+	}
+	bool LocXmlReplace(const std::filesystem::path &mainWad, std::ifstream &in) {
+		const char *subPath = "Localization", *fsFileName = "Localization.xml";
+		//1. save input stream to temp
+		auto tmpDir{ std::filesystem::temp_directory_path() };
+		auto tmpOut = tmpDir / fsFileName;
+		std::ofstream out(tmpOut, std::ios::binary);
+		if (!out.good()) {
+			m_report = std::format(L"LocXmlReplace({},{}): неудачный temp", mainWad.wstring(), tmpOut.wstring());
+			m_pLog->println(m_report);
+			return false;
+		}
+		std::string locLine, enLine;
+		size_t enPos{};
+		bool bWasRU = false;
+		std::map<std::string, bool> alreadyHas;
+		while (!in.eof()) {
+			std::getline(in, locLine);
+			if (locLine.find("<FR value=") != std::string::npos) {
+				continue; //no real french
+			}
+			auto en = locLine.find("<EN value=");
+			if (en != std::string::npos) {
+				enLine = locLine;
+				enPos = en;
+			} else {
+				auto badRu = locLine.find("<RU value=\"\"");
+				if (badRu != std::string::npos) {
+					continue; //not real ru
+				}
+				auto ru = locLine.find("<RU value=");
+				if (ru != std::string::npos) {
+					bWasRU = true;
+					locLine[ru + 1] = 'F';
+					locLine[ru + 2] = 'R';
+				} else {
+					if (locLine.find("<Entry") != std::string::npos) {
+						enLine.clear();
+						enPos = std::string::npos;
+						bWasRU = false;
+						std::string toDict{ trim(locLine) };
+						alreadyHas[toDict] = true;
+					} else {
+						if (locLine.find("</Entry>") != std::string::npos) {
+							if (!bWasRU && enLine.length() && enPos != std::string::npos) { //get from en
+								enLine[enPos + 1] = 'F';
+								enLine[enPos + 2] = 'R';
+								out << enLine << '\n';
+							}
+						} else if (locLine.find("</ZL>") != std::string::npos) {
+							continue;
+						}
+					}
+				}
+			}
+			out << locLine << '\n';
+		}
+		//2. append new and untranslated from original wad
+		WadUnpacker wu(mainWad.generic_string().c_str(), false);
+		if (wu.g_ret != 0) {
+			m_report = std::format(L"LocXmlReplace({})={}: неудачное чтение", mainWad.wstring(), wu.g_ret);
+			m_pLog->println(m_report);
+			return false;
+		} else {
+			auto newMaybe = wu.m_list.find("Localization\\Localization.xml");
+			if (newMaybe == wu.m_list.end()) {
+				m_report = std::format(L"LocXmlReplace({}): неудачное исходного Localization/Localization.xml", mainWad.wstring());
+				m_pLog->println(m_report);
+				return false;
+			}
+			std::string_view locXml{(const char *)newMaybe->second->FirstChar(), (const char *)newMaybe->second->FirstChar() + newMaybe->second->m_fileLength };
+			size_t pos{};
+			bool insideNew = false;
+			while (pos != std::string_view::npos) {
+				size_t end = locXml.find('\n', pos);
+				auto line{ locXml.substr(pos, end - pos) };
+				auto tline{ trim(line) };
+				if (tline.find("<Entry LOC_ID=") != std::string_view::npos && alreadyHas.find(std::string(tline)) == alreadyHas.end()) {
+					insideNew = true;
+					out << line << '\n';
+				} else if (insideNew) {
+					if (tline.find("</Entry>") != std::string_view::npos) {
+						out << line << '\n';
+						insideNew = false;
+					} else if (tline.find("<FR value=") != std::string_view::npos) {
+						//continue;
+					} else {
+						auto en = line.find("<EN value=");
+						if (en != std::string_view::npos) {
+							out << line << '\n';
+							std::string frAsEn{ line };
+							frAsEn[en + 1] = 'F';
+							frAsEn[en + 2] = 'R';
+							out << frAsEn << '\n';
+						} else {
+							out << line << '\n';
+						}
+					}
+				}
+				pos = (end == std::string_view::npos) ? end : end + 1;
+			}
+			out << "</ZL>" << '\n';
+			out.close();
+			auto status = wu.PackFiles(subPath, "", (tmpOut.string() + '\0').c_str(), 0);
+			if (status != 0) {
+				m_report = std::format(L"LocXmlReplace({},{})={}: неудачный PackFiles", mainWad.wstring(), toWideChar(fsFileName), status);
+				m_pLog->println(m_report);
+				return false;
+			}
+		}
+		m_pLog->println(std::format(L"LocXmlReplace({}): OK", mainWad.wstring()));
+		return true;
+	}
+	bool DaiKraba() {
+		TerminateProcesses();
+		bool ret = true;
+		for (int i = 0; i < m_originalPaths.size(); i++) {
+			switch (i) {
+			case IN_LOC_XML:
+				ret &= LocXmlReplace(m_originalPaths[i], m_inputs[i]);
+				break;
+			case IN_105_BIN: //and 54 too
+				m_inputs[i].close(); //SimpleWadReplace@next iter
+				m_inputs[i + 1].close();
+				ret &= SimpleWadReplace(m_originalPaths[i], "Fonts", "ZwiftFondoBlack105ptW_EFIGS_K.bin\0ZwiftFondoMedium54ptW_EFIGS_K.bin\0");
+				break;
+			default:
+				m_inputs[i].seekg(0, std::ios::beg);
+				ret &= SimpleReplace(m_originalPaths[i], m_inputs[i]); //all already backed up
+				break;
+			}
+		}
+		return ret;
+	}
+};
+void SetupCurrentDirectory() {
+	wchar_t path[MAX_PATH];
+	GetModuleFileName(nullptr, path, MAX_PATH);
+	std::filesystem::path p{ path };
+	p.remove_filename();
+	SetCurrentDirectory(p.wstring().c_str());
+}
+int main(int argc, char **argv) {
+    //std::setlocale(LC_ALL, "en_US.UTF-8");
+	SetupCurrentDirectory();
+	Logger log;
+	if (log.good()) try {
+		Localizer loc(&log);
+		switch (LocalizerStatus(loc)) {
+		case LOC_INIT_OK:
+			if (::MessageBox(nullptr, L"Готов локализовать Zwift (OK) или отменить локализацию (Cancel, Отмена). Процессы ZwiftApp и ZwiftLauncher закройте, а то я их уничтожу без сохранения.", L"zwift_localizer", MB_OKCANCEL | MB_ICONQUESTION) == IDOK) {
+				if (loc.DaiKraba()) {
+					log.close();
+					::MessageBox(nullptr, L"Zwift локализован. Отправьте zwift_localizer.log из каталога zwift_localizer по адресу sulimova08@mail.ru, если что не так", L"zwift_localizer", MB_ICONINFORMATION);
+					return 0;
+				}
+			} else {
+				if (loc.Undo()) {
+					log.close();
+					::MessageBox(nullptr, L"Zwift возвращен в исходное состояние. Отправьте zwift_localizer.log из каталога zwift_localizer по адресу sulimova08@mail.ru, если что не так", L"zwift_localizer", MB_ICONINFORMATION);
+					return 0;
+				}
+			}
+			[[fallthrough]];
+		case LOC_INIT_FAIL:
+			log.close();
+			::MessageBox(nullptr, loc.Report(L"{}. Отправьте zwift_localizer.log из текущего каталога по адресу sulimova08@mail.ru").c_str(), L"zwift_localizer", MB_ICONERROR);
+			return -2;
+		}
+	} catch (std::exception &e) {
+		log.println(toWideChar(e.what()));
+	} catch (...) {
+		log.println(L"catch (...)");
+	}
+	log.close();
+	::MessageBox(nullptr, L"Что-то пошло не так. Убедитесь, что в текущий каталог есть права для записи и отправьте zwift_localizer.log из него по адресу sulimova08@mail.ru", L"zwift_localizer", MB_ICONERROR);
+	return -1;
 }
 extern "C" {
 /*OpenArchive should perform all necessary operations when an archive is to be opened.

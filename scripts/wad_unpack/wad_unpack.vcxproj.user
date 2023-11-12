@@ -9,9 +9,10 @@
     <LocalDebuggerWorkingDirectory>c:\Users\build\Downloads\tmp\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ConsoleDebug|x64'">
-    <LocalDebuggerCommandArguments>c:\Users\build\Downloads\tmp\assets\Worlds\world9\data_1.wad</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>
+    </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerWorkingDirectory>c:\Users\build\Downloads\tmp\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>c:\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='WcxRelease|x64'">
     <LocalDebuggerCommandArguments>z:\Zwift\noesis.wad</LocalDebuggerCommandArguments>
@@ -19,8 +20,9 @@
     <LocalDebuggerWorkingDirectory>c:\Users\build\Downloads\tmp\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ConsoleRelease|x64'">
-    <LocalDebuggerCommandArguments>c:\Users\build\Downloads\tmp\assets\Worlds\world9\data_1.wad</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>
+    </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerWorkingDirectory>c:\Users\build\Downloads\tmp\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>c:\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
 </Project>
