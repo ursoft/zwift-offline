@@ -39,3 +39,140 @@ logs/
 /scripts/wad_unpack/.vs/wad_unpack/FileContentIndex/*.vsidx
 /scripts/wad_unpack/x64/WcxDebug
 /scripts/wad_unpack/x64/WcxRelease
+/scripts/wad_unpack/x64/MultiThread/vc143.pdb
+/scripts/wad_unpack/x64/MultiThread/vcpkg.applocal.log
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.log
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.obj
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.tlog/CL.command.1.tlog
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.tlog/Cl.items.tlog
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.tlog/CL.read.1.tlog
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.tlog/CL.write.1.tlog
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.tlog/link.command.1.tlog
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.tlog/link.read.1.tlog
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.tlog/link.write.1.tlog
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.tlog/link.write.2u.tlog
+/scripts/wad_unpack/x64/MultiThread/wad_unpack.tlog/wad_unpack.lastbuildstate
+/scripts/wad_unpack/x64/MultiThread/zwift_localizer.exe.recipe
+/scripts/wad_unpack/x64/MultiThread/zwift_localizer.iobj
+/scripts/wad_unpack/x64/MultiThread/zwift_localizer.ipdb
+/scripts/wad_unpack/x64/MultiThreadD/std.compat.ixx.ifc.dt.d.json
+/scripts/wad_unpack/x64/MultiThreadD/std.compat.ixx.ifc.dt.module.json
+/scripts/wad_unpack/x64/MultiThreadD/std.compat.ixx.ifc.dt.module.json.command
+/scripts/wad_unpack/x64/MultiThreadD/std.ixx.ifc.dt.d.json
+/scripts/wad_unpack/x64/MultiThreadD/std.ixx.ifc.dt.module.json
+/scripts/wad_unpack/x64/MultiThreadD/std.ixx.ifc.dt.module.json.command
+/scripts/wad_unpack/x64/MultiThreadD/vc143.idb
+/scripts/wad_unpack/x64/MultiThreadD/vc143.pdb
+/scripts/wad_unpack/x64/MultiThreadD/vcpkg.applocal.log
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.exe
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.exe.recipe
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.exp
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.ilk
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.lib
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.log
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.obj
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.pdb
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.tlog/CL.command.1.tlog
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.tlog/Cl.items.tlog
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.tlog/CL.read.1.tlog
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.tlog/CL.write.1.tlog
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.tlog/link.command.1.tlog
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.tlog/link.read.1.tlog
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.tlog/link.write.1.tlog
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.tlog/link.write.2u.tlog
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.tlog/wad_unpack.lastbuildstate
+/scripts/wad_unpack/x64/MultiThreadD/wad_unpack.vcxproj.FileListAbsolute.txt
+/scripts/wad_unpack/x64/MultiThreadD/zwift_localizer.exe
+/scripts/wad_unpack/x64/MultiThreadD/zwift_localizer.exe.recipe
+/scripts/wad_unpack/x64/MultiThreadD/zwift_localizer.iobj
+/scripts/wad_unpack/x64/MultiThreadD/zwift_localizer.ipdb
+/scripts/wad_unpack/x64/MultiThreadR/std.compat.ixx.ifc.dt.d.json
+/scripts/wad_unpack/x64/MultiThreadR/std.compat.ixx.ifc.dt.module.json
+/scripts/wad_unpack/x64/MultiThreadR/std.compat.ixx.ifc.dt.module.json.command
+/scripts/wad_unpack/x64/MultiThreadR/std.ixx.ifc.dt.d.json
+/scripts/wad_unpack/x64/MultiThreadR/std.ixx.ifc.dt.module.json
+/scripts/wad_unpack/x64/MultiThreadR/std.ixx.ifc.dt.module.json.command
+/scripts/wad_unpack/x64/MultiThreadR/vc143.pdb
+/scripts/wad_unpack/x64/MultiThreadR/vcpkg.applocal.log
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.exe
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.exe.recipe
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.exp
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.iobj
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.ipdb
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.lib
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.log
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.obj
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.pdb
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.tlog/CL.command.1.tlog
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.tlog/Cl.items.tlog
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.tlog/CL.read.1.tlog
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.tlog/CL.write.1.tlog
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.tlog/link.command.1.tlog
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.tlog/link.read.1.tlog
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.tlog/link.write.1.tlog
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.tlog/link.write.2u.tlog
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.tlog/wad_unpack.lastbuildstate
+/scripts/wad_unpack/x64/MultiThreadR/wad_unpack.vcxproj.FileListAbsolute.txt
+/scripts/wad_unpack/x64/MultiThreadR/zwift_localizer.exe
+/scripts/wad_unpack/x64/MultiThreadR/zwift_localizer.exe.recipe
+/scripts/wad_unpack/x64/MultiThreadR/zwift_localizer.iobj
+/scripts/wad_unpack/x64/MultiThreadR/zwift_localizer.ipdb
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/FileContentIndex/6b6e3e7c-1519-4d3d-9ef8-4a765e2717e7.vsidx
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/.suo
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/Browse.VC.db
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/Browse.VC.db-shm
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/Browse.VC.db-wal
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/Browse.VC.opendb
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/ipch/AutoPCH/162d4887d14ab69/DDSFILE.ipch
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/ipch/AutoPCH/318dbaaffc3c8f4a/TXTFILE.ipch
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/ipch/AutoPCH/31b71e893132b64f/DDSFILE.ipch
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/ipch/AutoPCH/46b2083544cec912/CONVERTER.ipch
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/ipch/AutoPCH/5f143531a7a05d90/CONVERTER.ipch
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/ipch/AutoPCH/8558bf3c807d5e3b/BMP-DDS CONVERTER.ipch
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/ipch/AutoPCH/d84e74dbcb6ca99d/BMP-DDS CONVERTER.ipch
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/.vs/BMP-DDS Converter/v17/ipch/AutoPCH/f63e2e5ce717fd90/TXTFILE.ipch
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/output1.txt
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS .71FE65AF.tlog/BMP-DDS Converter.lastbuildstate
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS .71FE65AF.tlog/CL.command.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS .71FE65AF.tlog/Cl.items.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS .71FE65AF.tlog/CL.read.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS .71FE65AF.tlog/CL.write.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS .71FE65AF.tlog/link.command.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS .71FE65AF.tlog/link.read.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS .71FE65AF.tlog/link.write.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS Converter.exe.recipe
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS Converter.ilk
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS Converter.log
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMP-DDS Converter.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/BMPFile.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/Converter.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/DDSFile.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/Filetype.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/TXTFile.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/vc143.idb
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/vc143.pdb
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Debug/vcpkg.applocal.log
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS .71FE65AF.tlog/BMP-DDS Converter.lastbuildstate
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS .71FE65AF.tlog/CL.command.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS .71FE65AF.tlog/Cl.items.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS .71FE65AF.tlog/CL.read.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS .71FE65AF.tlog/CL.write.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS .71FE65AF.tlog/link.command.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS .71FE65AF.tlog/link.read.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS .71FE65AF.tlog/link.write.1.tlog
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS Converter.exe.recipe
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS Converter.iobj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS Converter.ipdb
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS Converter.log
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMP-DDS Converter.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/BMPFile.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/Converter.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/DDSFile.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/Filetype.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/TXTFile.obj
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/vc143.pdb
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/BMP-DDS Converter/x64/Release/vcpkg.applocal.log
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/x64/Debug/BMP-DDS Converter.exe
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/x64/Debug/BMP-DDS Converter.pdb
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/x64/Release/BMP-DDS Converter.exe
+/scripts/ZwiftApp/patch/data/Fonts/Converter_dds/x64/Release/BMP-DDS Converter.pdb

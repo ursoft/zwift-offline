@@ -1,12 +1,49 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "TXTFile.h"
 #include "MyException.h"
 #include <iostream>
 #include <fstream>
 #include <cassert>
 
-void TXTFile::VInitializeFromFile(const std::string & location)
+void TXTFile::VInitializeFromFile(const std::string &location)
 {
-	assert(false);//not impl
+	//only 2048*2048 supported now
+	m_w = m_h = 2048;
+	m_sz = 3 * m_w * m_h;
+	m_pixels = new uint8_t[m_sz];
+	FILE *fin = fopen(location.c_str(), "rt");
+	char buf[2051];
+	int y = m_h;
+	while (fgets(buf, sizeof(buf), fin)) {
+		if (y == 0)
+			break;
+		uint8_t *dest = m_pixels + (m_w * 3) * --y;
+		for (int x = 0; x < 2048; x++) {
+			switch (buf[x]) {
+			case '\xdb': //full block (100%)
+				*dest++ = 255;
+				*dest++ = 255;
+				*dest++ = 255;
+				break;
+			case '\xb1': //medium shade (50%)
+				*dest++ = 0x90;
+				*dest++ = 0x90;
+				*dest++ = 0x90;
+				break;
+			case '\xb0': //light shade (25%)
+				*dest++ = 0x50;
+				*dest++ = 0x50;
+				*dest++ = 0x50;
+				break;
+			default:
+				*dest++ = 0;
+				*dest++ = 0;
+				*dest++ = 0;
+				break;
+			}
+		}
+	}
+	fclose(fin);
 }
 
 void TXTFile::VConversionInitialize(uint8_t * uncompressedImageData, unsigned int imageSize, unsigned int width, unsigned int height)

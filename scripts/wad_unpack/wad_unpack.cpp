@@ -155,7 +155,7 @@ struct WadUnpacker {
 					if (m_decomp_buf) {
 						auto pCompressedPtr = (uint8_t *)calloc(wad_hdr.m_compressed_size, 1);
 						if (pCompressedPtr) {
-							memcpy(m_decomp_buf, &wad_hdr, sizeof(wad_hdr));
+							memmove(m_decomp_buf, &wad_hdr, sizeof(wad_hdr));
 							if (wad_hdr.m_compressed_size) {
 								if (wad_hdr.m_compressed_size != fread_s(pCompressedPtr, wad_hdr.m_compressed_size, 1, wad_hdr.m_compressed_size, g_fwad)) {
 									g_ret = -10;
@@ -194,11 +194,13 @@ struct WadUnpacker {
 							WAD_HEADER *wh = (WAD_HEADER *)m_decomp_buf;
 							wh->dump(g_bDumpMode);
 							if (resultLength == wh->m_decompressed_size) {
+#ifndef MT_TEST
 								if (wh->m_crc32 != crc32) {
 									g_ret = -8;
 									if (bDumpMode) std::cerr << "\nwad_unpack error: wad file counted crc32: " << crc32
 										<< " but header value is:" << wh->m_crc32 << "\n";
 								}
+#endif
 								WAD_OffsetsToPointers(wh);
 								m_curPosition = m_list.cbegin();
 							} else {
@@ -283,7 +285,7 @@ struct WadUnpacker {
 			assert(fB0 == 0);
 			assert(fB8 == 0);
 			char filePath[sizeof(m_filePath) + 1] = {};
-			memcpy(filePath, m_filePath, sizeof(m_filePath));
+			memmove(filePath, m_filePath, sizeof(m_filePath));
 			std::string fix;
 			if (m_nameICRC32 != SIG_CalcCaseInsensitiveSignature(filePath)) {
 				assert(m_filePath[sizeof(m_filePath) - 1] != 0);
@@ -364,7 +366,7 @@ struct WadUnpacker {
 			//auto crc = SIG_CalcCaseInsensitiveSignature("f:\\Projects\\ZwiftApp\\assets\\global.wad");
 			if (bDumpMode) {
 				char wadFilePath[sizeof(m_wadFilePath) + 1] = {};
-				memcpy(wadFilePath, m_wadFilePath, sizeof(m_wadFilePath));
+				memmove(wadFilePath, m_wadFilePath, sizeof(m_wadFilePath));
 #ifdef _DEBUG
 				for (size_t idx = strlen(wadFilePath); idx < sizeof(wadFilePath); idx++) {
 					assert(wadFilePath[idx] == 0);
@@ -525,12 +527,20 @@ struct WadUnpacker {
 			break;
 		}
 		auto pDict = (*pDestPtr) - backOff;
+#ifdef MT_TEST
+		if (len) {
+			memmove(*pDestPtr, pDict, len);
+			pDict += len;
+			(*pDestPtr) += len;
+		}
+#else
 		while(len--) {
 			auto chr = *pDict++;
 			**pDestPtr = chr;
 			(*pDestPtr)++;
 			*crc32 = g_crc32Table[(uint8_t)*crc32 ^ chr] ^ (*crc32 >> 8);
 		}
+#endif
 		return result;
 	}
 	void TJZIP_ParseRawDataBlock(uint8_t **pSrcPtr, uint8_t **pDestPtr, uint32_t *crc32) {
@@ -562,12 +572,20 @@ struct WadUnpacker {
 				}
 			}
 		}
+#ifdef MT_TEST
+		if (len) {
+			memmove(*pDestPtr, *pSrcPtr, len);
+			(*pSrcPtr) += len;
+			(*pDestPtr) += len;
+		}
+#else
 		while(len--) {
 			**pDestPtr = **pSrcPtr;
 			*crc32 = g_crc32Table[(uint8_t)*crc32 ^ **pSrcPtr] ^ (*crc32 >> 8);
 			(*pSrcPtr)++;
 			(*pDestPtr)++;
 		}
+#endif
 	}
 	uint32_t TJZIP_Decompress(uint8_t *pDecompressPtr, uint8_t *m_decomp_buf, uint32_t compressed_size, uint32_t *crc32) {
 		uint8_t *destPtr = m_decomp_buf;
@@ -581,11 +599,17 @@ struct WadUnpacker {
 					TJZIP_ParseRawDataBlock(&srcPtr, &destPtr, crc32);
 				} else {
 					if (srcPtr - pDecompressPtr < (int)compressed_size) {
+#ifdef MT_TEST
+						memmove(destPtr, srcPtr, dCode);
+						destPtr += dCode;
+						srcPtr += dCode;
+#else
 						for (int i = 0; i < dCode; i++) {
 							uint8_t chr = *srcPtr++;
 							*destPtr++ = chr;
 							*crc32 = g_crc32Table[(uint8_t)*crc32 ^ chr] ^ (*crc32 >> 8);
 						}
+#endif
 					}
 				}
 			}
@@ -638,7 +662,7 @@ struct WadUnpacker {
 			assert(false);
 			return;
 		}
-		memcpy(*ppDest, src, n);
+		memmove(*ppDest, src, n);
 		*ppDest += n;
 	}
 	void TJZIP_OutputCode(uint8_t **ppDest, uint32_t offs, uint32_t len) {
@@ -845,7 +869,7 @@ LABEL_32:
 					fclose(f);
 					break;
 				}
-				auto fh = (WAD_FILE_HEADER *)calloc(1, fileSize + sizeof(WAD_FILE_HEADER));
+				auto fh = (WAD_FILE_HEADER *)calloc(1, fileSize + sizeof(WAD_FILE_HEADER) + 1 /*zero byte*/);
 				if (fh == nullptr) {
 					ret = E_NO_MEMORY;
 					fclose(f);
@@ -855,7 +879,7 @@ LABEL_32:
 				fh->m_nameICRC32 = SIG_CalcCaseInsensitiveSignature(arcPathName);
 				auto copy = strlen(arcPathName);
 				if (copy > FILE_PATH_SIZE) copy = FILE_PATH_SIZE;
-				memcpy(fh->m_filePath, arcPathName, copy);
+				memmove(fh->m_filePath, arcPathName, copy);
 				for (auto &ch : fh->m_filePath) if (ch == '\\') ch = '/';
 				fh->m_assetType = GuessAssetType(srcPathName);
 				fh->m_fileLength = (uint32_t)fileSize;
@@ -897,12 +921,12 @@ LABEL_32:
 		}
 		uint32_t seqNo = 0;
 		WAD_HEADER wad_header;
-		memcpy_s(wad_header.m_fileSignature, sizeof(wad_header.m_fileSignature), "ZWF!", 4);
+		memmove_s(wad_header.m_fileSignature, sizeof(wad_header.m_fileSignature), "ZWF!", 4);
 		size_t nameOffset = 0;
 		if (m_wadFileName.length() > sizeof(wad_header.m_wadFilePath)) {
 			nameOffset = m_wadFileName.length() - sizeof(wad_header.m_wadFilePath);
 		}
-		memcpy_s(wad_header.m_wadFilePath, sizeof(wad_header.m_wadFilePath), m_wadFileName.c_str() + nameOffset, 
+		memmove_s(wad_header.m_wadFilePath, sizeof(wad_header.m_wadFilePath), m_wadFileName.c_str() + nameOffset, 
 			m_wadFileName.length() - nameOffset);
 		wad_header.m_wadFilePathCrc32 = SIG_CalcCaseInsensitiveSignature(m_wadFileName.c_str());
 		wad_header.m_version = WAD_VERSION;
@@ -930,20 +954,20 @@ LABEL_32:
 				lastBuckets[bucketIdx]->m_nextFileSameHash = (WAD_FILE_HEADER *)offset;
 			}
 			lastBuckets[bucketIdx] = i.second;
-			offset += sizeof(WAD_FILE_HEADER) + i.second->m_fileLength;
+			offset += sizeof(WAD_FILE_HEADER) + i.second->m_fileLength + 1 /*zero byte after each file*/;
 		}
 		wad_header.m_decompressed_size = (uint32_t)offset - sizeof(WAD_HEADER);
 		auto compBufSize = offset + 7 + 7 * (offset / 256);
 		uint8_t *decompBuf = (uint8_t *)calloc(1, offset), *compBuf = (uint8_t *)calloc(1, compBufSize);
 		if (decompBuf && compBuf) {
 			offset = sizeof(buckets);
-			memcpy_s(decompBuf, offset, buckets, offset);
+			memmove_s(decompBuf, offset, buckets, offset);
 			for (auto i : m_list) {
 				auto size = sizeof(WAD_FILE_HEADER);
-				memcpy_s(decompBuf + offset, size, i.second, size);
+				memmove_s(decompBuf + offset, size, i.second, size);
 				offset += size;
-				memcpy_s(decompBuf + offset, i.second->m_fileLength, i.second->FirstChar(), i.second->m_fileLength);
-				offset += i.second->m_fileLength;
+				memmove_s(decompBuf + offset, i.second->m_fileLength, i.second->FirstChar(), i.second->m_fileLength);
+				offset += i.second->m_fileLength + 1 /*zero byte after each file*/;
 			}
 			wad_header.m_compressed_size = TJZIP_Compress(decompBuf, wad_header.m_decompressed_size, compBuf, &wad_header.m_crc32);
 			/*FILE *ftmp = nullptr;
@@ -1027,7 +1051,7 @@ struct Localizer {
 		}
 		return true;
 	}
-	enum Backups { BAK_GLOBAL_WAD, BAK_ANT_DLL, BAK_105_ZTX, BAK_FONT_WAD, BAK_54_ZTX };
+	enum Backups { BAK_GLOBAL_WAD, BAK_ANT_DLL, BAK_105_ZTX, BAK_54_ZTX, BAK_FONT_WAD, BAK_NOESIS };
 	std::vector<bool> m_validBackup;
 	std::vector<std::filesystem::path> m_originalPaths, m_backupPaths;
 	std::map<std::wstring, uint32_t> m_manifestCRCs;
@@ -1050,6 +1074,8 @@ struct Localizer {
 		auto wfile{ std::wstring(file) };
 		auto f = m_manifestCRCs.find(wfile);
 		if (f == m_manifestCRCs.end()) {
+			if (file == L"assets\\Noesis\\Blend_Data\\noesis.wad")
+				return InitBackupFile(L"assets\\Noesis\\Blend_Data\\noesis_loc.wad");
 			m_report = std::format(L"InitBackupFile: {} is not found in manifest", file);
 			m_pLog->println(m_report);
 			return false;
@@ -1090,7 +1116,9 @@ struct Localizer {
 		return true;
 	}
 	bool InitBackupFiles() {
-		for (auto bfn : { L"assets\\global.wad", L"ANT_DLL.dll", L"data\\Fonts\\ZwiftFondoBlack105ptW0.ztx", L"data\\Fonts\\ZwiftFondoMedium54ptW0.ztx", L"assets\\fonts\\font.wad" }) {
+		for (auto bfn : { L"assets\\global.wad", L"ANT_DLL.dll", 
+			L"data\\Fonts\\ZwiftFondoBlack105ptW0.ztx", L"data\\Fonts\\ZwiftFondoMedium54ptW0.ztx", 
+			L"assets\\fonts\\font.wad", L"assets\\Noesis\\Blend_Data\\noesis.wad" }) {
 			if (!InitBackupFile(bfn)) return false;
 		}
 		return true;
@@ -1275,7 +1303,7 @@ struct Localizer {
 		}
 		return ret;
 	}
-	bool LocXmlReplace(const std::filesystem::path &mainWad, std::ifstream &in) {
+	bool LocXmlReplace(const std::filesystem::path &mainWad, std::ifstream &in, std::map<std::string, std::string> *pDestRus) {
 		const char *subPath = "Localization", *fsFileName = "Localization.xml";
 		//1. save input stream to temp
 		auto tmpDir{ std::filesystem::temp_directory_path() };
@@ -1286,7 +1314,7 @@ struct Localizer {
 			m_pLog->println(m_report);
 			return false;
 		}
-		std::string locLine, enLine;
+		std::string locLine, enLine, curEntry;
 		size_t enPos{};
 		bool bWasRU = false;
 		std::map<std::string, bool> alreadyHas;
@@ -1299,6 +1327,7 @@ struct Localizer {
 			if (en != std::string::npos) {
 				enLine = locLine;
 				enPos = en;
+				continue;
 			} else {
 				auto badRu = locLine.find("<RU value=\"\"");
 				if (badRu != std::string::npos) {
@@ -1307,18 +1336,23 @@ struct Localizer {
 				auto ru = locLine.find("<RU value=");
 				if (ru != std::string::npos) {
 					bWasRU = true;
+					(*pDestRus)[curEntry] = trim(locLine);
 					locLine[ru + 1] = 'F';
 					locLine[ru + 2] = 'R';
+					out << locLine << '\n'; //FR<->RU first
+					out << enLine << '\n';  //then EN
+					continue;
 				} else {
 					if (locLine.find("<Entry") != std::string::npos) {
 						enLine.clear();
 						enPos = std::string::npos;
 						bWasRU = false;
-						std::string toDict{ trim(locLine) };
-						alreadyHas[toDict] = true;
+						curEntry = trim(locLine);
+						alreadyHas[curEntry] = true;
 					} else {
 						if (locLine.find("</Entry>") != std::string::npos) {
 							if (!bWasRU && enLine.length() && enPos != std::string::npos) { //get from en
+								out << enLine << '\n';
 								enLine[enPos + 1] = 'F';
 								enLine[enPos + 2] = 'R';
 								out << enLine << '\n';
@@ -1340,7 +1374,7 @@ struct Localizer {
 		} else {
 			auto newMaybe = wu.m_list.find("Localization\\Localization.xml");
 			if (newMaybe == wu.m_list.end()) {
-				m_report = std::format(L"LocXmlReplace({}): неудачное исходного Localization/Localization.xml", mainWad.wstring());
+				m_report = std::format(L"LocXmlReplace({}): неудачное чтение исходного Localization/Localization.xml", mainWad.wstring());
 				m_pLog->println(m_report);
 				return false;
 			}
@@ -1363,11 +1397,11 @@ struct Localizer {
 					} else {
 						auto en = line.find("<EN value=");
 						if (en != std::string_view::npos) {
-							out << line << '\n';
 							std::string frAsEn{ line };
 							frAsEn[en + 1] = 'F';
 							frAsEn[en + 2] = 'R';
 							out << frAsEn << '\n';
+							out << line << '\n';
 						} else {
 							out << line << '\n';
 						}
@@ -1387,20 +1421,85 @@ struct Localizer {
 		m_pLog->println(std::format(L"LocXmlReplace({}): OK", mainWad.wstring()));
 		return true;
 	}
+	bool LanguageXamlReplace(const std::filesystem::path &noesisWad, const std::map<std::string, std::string> &rus) {
+		const char *fsFileName = "Language_FR.xaml";
+		//1. create temp destination file
+		auto tmpDir{ std::filesystem::temp_directory_path() };
+		auto tmpOut = tmpDir / fsFileName;
+		std::ofstream out(tmpOut, std::ios::binary);
+		if (!out.good()) {
+			m_report = std::format(L"LanguageXamlReplace({},{}): неудачный temp", noesisWad.wstring(), tmpOut.wstring());
+			m_pLog->println(m_report);
+			return false;
+		}
+		//2. translate source to dest
+		WadUnpacker wu(noesisWad.generic_string().c_str(), false);
+		if (wu.g_ret != 0) {
+			m_report = std::format(L"LanguageXamlReplace({})={}: неудачное чтение", noesisWad.wstring(), wu.g_ret);
+			m_pLog->println(m_report);
+			return false;
+		} else {
+			auto enSrc = wu.m_list.find("Noesis\\Blend_Data\\Language_EN.xaml");
+			if (enSrc == wu.m_list.end()) {
+				m_report = std::format(L"LocXmlReplace({}): неудачное чтение исходного Noesis/Blend_Data/Language_EN.xaml", noesisWad.wstring());
+				m_pLog->println(m_report);
+				return false;
+			}
+			std::string_view locXml{ (const char *)enSrc->second->FirstChar(), (const char *)enSrc->second->FirstChar() + enSrc->second->m_fileLength };
+			size_t pos{};
+			while (pos != std::string_view::npos) {
+				size_t end = locXml.find('\n', pos);
+				auto line{ locXml.substr(pos, end - pos) };
+				auto ss = line.find("<sys:String");
+				if (ss != std::string_view::npos) {
+					ss += 19; //<sys:String x:Key="
+					auto locEnd = line.find("\"", ss);
+					std::string_view loc{ line.substr(ss, locEnd - ss) };
+					std::string key{ std::format("<Entry LOC_ID=\"{}\">", loc)};
+					auto f = rus.find(key);
+					if (f != rus.end()) {
+						auto rusFrom = f->second.find('"');
+						auto rusTo = f->second.rfind('"');
+						std::string txt{ f->second.substr(rusFrom + 1, rusTo - rusFrom - 1) };
+						out << "	<sys:String x:Key=\"" << loc << "\">" << txt << "</sys:String>\r\n";
+					} else {
+						out << line << '\n';
+					}
+				} else {
+					out << line << '\n';
+				}
+				pos = (end == std::string_view::npos) ? end : end + 1;
+			}
+		}
+		//2. pack dest to original wad
+		out.close();
+		auto status = wu.PackFiles("Noesis\\Blend_Data", "", (tmpOut.string() + '\0').c_str(), 0);
+		if (status != 0) {
+			m_report = std::format(L"LanguageXamlReplace({},{})={}: неудачный PackFiles", noesisWad.wstring(), toWideChar(fsFileName), status);
+			m_pLog->println(m_report);
+			return false;
+		}
+		m_pLog->println(std::format(L"LanguageXamlReplace({}): OK", noesisWad.wstring()));
+		return true;
+	}
 	bool DaiKraba() {
 		TerminateProcesses();
 		bool ret = true;
-		for (int i = 0; i < m_originalPaths.size(); i++) {
+		std::map<std::string, std::string> ruTrans;
+		for (int i = 0; i < m_inputs.size(); i++) {
 			switch (i) {
 			case IN_LOC_XML:
-				ret &= LocXmlReplace(m_originalPaths[i], m_inputs[i]);
+				ret &= LocXmlReplace(m_originalPaths[BAK_GLOBAL_WAD], m_inputs[i], &ruTrans);
+				ret &= LanguageXamlReplace(m_originalPaths[BAK_NOESIS], ruTrans);
+				break;
+			case IN_54_BIN:
+				m_inputs[i].close();
 				break;
 			case IN_105_BIN: //and 54 too
 				m_inputs[i].close(); //SimpleWadReplace@next iter
-				m_inputs[i + 1].close();
-				ret &= SimpleWadReplace(m_originalPaths[i], "Fonts", "ZwiftFondoBlack105ptW_EFIGS_K.bin\0ZwiftFondoMedium54ptW_EFIGS_K.bin\0");
+				ret &= SimpleWadReplace(m_originalPaths[BAK_FONT_WAD], "Fonts", "ZwiftFondoBlack105ptW_EFIGS_K.bin\0ZwiftFondoMedium54ptW_EFIGS_K.bin\0");
 				break;
-			default:
+			case IN_ANT_DLL: case IN_105_ZTX: case IN_54_ZTX:
 				m_inputs[i].seekg(0, std::ios::beg);
 				ret &= SimpleReplace(m_originalPaths[i], m_inputs[i]); //all already backed up
 				break;
@@ -1416,6 +1515,36 @@ void SetupCurrentDirectory() {
 	p.remove_filename();
 	SetCurrentDirectory(p.wstring().c_str());
 }
+#ifdef MT_TEST
+#include <omp.h>
+#include <filesystem>
+int main(int argc, char **argv) {
+	std::atomic_int32_t errCnt{};
+	int filesCnt{};
+	auto tc = GetTickCount();
+	auto path{ std::filesystem::current_path() };
+	std::vector<std::string> wads;
+	for (const auto &entry : std::filesystem::recursive_directory_iterator(path)) {
+		if (entry.is_regular_file() && entry.path().extension().string() == ".wad") {
+			filesCnt++;
+			wads.push_back(entry.path().string());
+		}
+	}
+	#pragma omp parallel
+	{
+		#pragma omp for
+		for (int i = 0; i < (int)wads.size(); i++) {
+			WadUnpacker wu(wads[i].c_str(), false);
+			if (wu.g_ret != 0)
+				errCnt++;
+		}
+	}
+	if(errCnt)
+		std::cout << "Wads count: " << filesCnt << ", errors: " << errCnt << std::endl;
+	else
+		std::cout << "Wads count: " << filesCnt << ", time elapsed: " << GetTickCount() - tc << std::endl;
+}
+#else
 int main(int argc, char **argv) {
     //std::setlocale(LC_ALL, "en_US.UTF-8");
 	SetupCurrentDirectory();
@@ -1424,23 +1553,23 @@ int main(int argc, char **argv) {
 		Localizer loc(&log);
 		switch (LocalizerStatus(loc)) {
 		case LOC_INIT_OK:
-			if (::MessageBox(nullptr, L"Готов локализовать Zwift (OK) или отменить локализацию (Cancel, Отмена). Процессы ZwiftApp и ZwiftLauncher закройте, а то я их уничтожу без сохранения.", L"zwift_localizer", MB_OKCANCEL | MB_ICONQUESTION) == IDOK) {
+			if (::MessageBox(nullptr, L"Готов локализовать Zwift (OK)\nили отменить локализацию (Cancel, Отмена).\nПроцессы ZwiftApp и ZwiftLauncher закройте,\nа то я их уничтожу без сохранения.", L"zwift_localizer", MB_OKCANCEL | MB_ICONQUESTION) == IDOK) {
 				if (loc.DaiKraba()) {
 					log.close();
-					::MessageBox(nullptr, L"Zwift локализован. Отправьте zwift_localizer.log из каталога zwift_localizer по адресу sulimova08@mail.ru, если что не так", L"zwift_localizer", MB_ICONINFORMATION);
+					::MessageBox(nullptr, L"Zwift локализован.\n\nОтправьте zwift_localizer.log\nиз каталога zwift_localizer\nпо адресу sulimova08@mail.ru,\nесли что не так", L"zwift_localizer", MB_ICONINFORMATION);
 					return 0;
 				}
 			} else {
 				if (loc.Undo()) {
 					log.close();
-					::MessageBox(nullptr, L"Zwift возвращен в исходное состояние. Отправьте zwift_localizer.log из каталога zwift_localizer по адресу sulimova08@mail.ru, если что не так", L"zwift_localizer", MB_ICONINFORMATION);
+					::MessageBox(nullptr, L"Zwift возвращен в исходное состояние.\nОтправьте zwift_localizer.log\nиз каталога zwift_localizer\nпо адресу sulimova08@mail.ru,\nесли что не так", L"zwift_localizer", MB_ICONINFORMATION);
 					return 0;
 				}
 			}
 			[[fallthrough]];
 		case LOC_INIT_FAIL:
 			log.close();
-			::MessageBox(nullptr, loc.Report(L"{}. Отправьте zwift_localizer.log из текущего каталога по адресу sulimova08@mail.ru").c_str(), L"zwift_localizer", MB_ICONERROR);
+			::MessageBox(nullptr, loc.Report(L"{}. Отправьте zwift_localizer.log\nиз текущего каталога\nпо адресу sulimova08@mail.ru").c_str(), L"zwift_localizer", MB_ICONERROR);
 			return -2;
 		}
 	} catch (std::exception &e) {
@@ -1452,6 +1581,7 @@ int main(int argc, char **argv) {
 	::MessageBox(nullptr, L"Что-то пошло не так. Убедитесь, что в текущий каталог есть права для записи и отправьте zwift_localizer.log из него по адресу sulimova08@mail.ru", L"zwift_localizer", MB_ICONERROR);
 	return -1;
 }
+#endif
 extern "C" {
 /*OpenArchive should perform all necessary operations when an archive is to be opened.
 OpenArchive should return a unique handle representing the archive. The handle should remain valid until CloseArchive is called. 

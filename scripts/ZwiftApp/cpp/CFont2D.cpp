@@ -1248,7 +1248,7 @@ VEC2 CFont2D::GetParagraphPositionByIndexW(int index, float w, UChar *str, float
         } while (*_str);
         auto v24 = mult * m_scale * m_kerning;
         UrsoftKerner uk{ .m_font = *this };
-        while (*_str) {
+        while (i < index && *_str) {
             ++i;
             auto v26 = *_str++;
             auto v27 = m_info.m_glyphIndexes[v26];
@@ -1261,8 +1261,6 @@ VEC2 CFont2D::GetParagraphPositionByIndexW(int index, float w, UChar *str, float
                     ret.m_data[0] += m_kern[v29] * (m_glyphs[v27].m_view.m_width + uk(v26)) * m_info.m_fileHdrV3.m_kern[v29] * v24 * ((v26 == 32) ? m_spaceScale : 1.0f);
                 }
             }
-            if (i >= index)
-                break;
         }
         ret.m_data[1] = y;
     }
@@ -1302,7 +1300,7 @@ TEST(SmokeTestFont, Imbue) {
     ASSERT_EQ(std::string("1,234"), f.ImbueCommas(1234));
     ASSERT_EQ(std::string("4,294,967,295"), f.ImbueCommas(0xFFFFFFFF));
 }
-enum FontBitmapPixel : uint8_t { FBP_NOP, FBP_LIGHT, FBP_MEDIUM, FBP_SOLID };
+enum FontBitmapPixel : uint8_t { FBP_NOP, FBP_LIGHT, FBP_MEDIUM, FBP_SOLID, FBP_NOP1 /*занято пустое место*/, FBP_NOP2 /*занято пустое место, несколько глифов уже */ };
 const int FONT_BITMAP_SIZE = 2048, GLYPH_MAX_SIZE = 170;
 using FontBitmapPixelGrid = std::array<std::array<FontBitmapPixel, FONT_BITMAP_SIZE>, FONT_BITMAP_SIZE>;
 FontBitmapPixelGrid *LoadFontBitmap(FILE *ftxt) {
@@ -1331,14 +1329,21 @@ FontBitmapPixelGrid *LoadFontBitmap(FILE *ftxt) {
     }
     return ret;
 }
-#if 0
+#if 1
 using GlyphBitmapPixelGrid = std::array<std::array<FontBitmapPixel, GLYPH_MAX_SIZE>, GLYPH_MAX_SIZE>;
+struct FinderCache {
+    std::multimap<uint64_t, POINT> m_sameGlyphs;
+    POINT m_trialPoint{};
+};
 struct CFont2D_glyphBMP : public CFont2D_glyph {
     SIZE m_iSize{};
     RECT m_paddings{};
     GlyphBitmapPixelGrid m_grid;
+    uint64_t m_sum{};
     int m_freeAtRight[GLYPH_MAX_SIZE]{};
-    void initGrid(const FontBitmapPixelGrid *grid) {
+    void initFromGrid(const FontBitmapPixelGrid *grid) {
+        memset(m_freeAtRight, 0, sizeof(m_freeAtRight));
+        m_sum = 0;
         m_iSize = { LONG(m_view.m_width * 2048), LONG(m_view.m_height * 2048) };
         if (m_iSize.cx > GLYPH_MAX_SIZE || m_iSize.cy > GLYPH_MAX_SIZE) {
             printf("overflow\n");
@@ -1348,9 +1353,10 @@ struct CFont2D_glyphBMP : public CFont2D_glyph {
             bool pixFound = false;
             m_freeAtRight[irow] = m_iSize.cx;
             for (int col = m_view.m_left * 2048, icol = 0; icol < m_iSize.cx; ++col, ++icol) {
-                FontBitmapPixel p = grid->at(row).at(col);
+                FontBitmapPixel p = col < 0 ? FBP_NOP : grid->at(row).at(col);
                 m_grid[irow][icol] = p;
                 if (p != FBP_NOP) {
+                    m_sum += p;
                     if (pixFound == false) {
                         pixFound = true;
                         if (m_paddings.left == -1 || m_paddings.left > icol)
@@ -1379,15 +1385,19 @@ struct CFont2D_glyphBMP : public CFont2D_glyph {
             printf("why aligned to border");
         }
     }
+    bool initFromLetterTxt(const char *file);
+    bool appendTo(FontBitmapPixelGrid *grid, FinderCache *cache);
+    bool findEmptySpace(FontBitmapPixelGrid *grid, POINT *result, FinderCache *cache);
+    bool conflictAt(FontBitmapPixelGrid *grid, POINT tryPoint);
 };
+constexpr char glbGlyphLegend[]{ '.', '\xb0', '\xb1', '\xdb', '\'', '"'};
 void dumpGlyphBmp(CFont2D_glyphBMP &g, const FontBitmapPixelGrid *grid, FILE *fAlphabet) {
-    g.initGrid(grid);
+    g.initFromGrid(grid);
     fprintf(fAlphabet, "Glyph codePoint:%04x, w=%d, h=%d, pad.ltrb=[%d, %d, %d, %d]\n", g.m_codePoint, g.m_iSize.cx, g.m_iSize.cy,
         g.m_paddings.left, g.m_paddings.top, g.m_paddings.right, g.m_paddings.bottom);
-    const char legend[]{ '.', '\xb0', '\xb1', '\xdb' };
     for (int irow = 0; irow < g.m_iSize.cy; irow++) {
         for (int icol = 0; icol < g.m_iSize.cx; icol++) {
-            fprintf(fAlphabet, "%c", legend[g.m_grid[irow][icol]]);
+            fprintf(fAlphabet, "%c", glbGlyphLegend[g.m_grid[irow][icol]]);
         }
         fprintf(fAlphabet, "\n");
     }
@@ -1505,14 +1515,396 @@ int dumpKernPairBmp(const CFont2D_glyphBMP &g1, const CFont2D_glyphBMP &g2, cons
     }
     return shortestRay;
 }
-TEST(SmokeTestFont, PatchToCyr) { //TODO: kerning
+TEST(SmokeTestFont, PatchToCyr_105_1) {
+    //instruction:
+    //1. copy zwift-offline\scripts\ZwiftApp\patch\data\Fonts\ZwiftFondoBlack105ptW_EFIGS_K.bin to g:\Fonts\105\in\
+    //2. copy zwift-offline\scripts\ZwiftApp\patch\data\Fonts\ZwiftFondoBlack105ptW0.dds to g:\Fonts\105\in\
+    //3. convert dds to txt (4198400 bytes) with BMP-DDS util
+    //4. create g:\Fonts\105\in\letters directory
+    //5. run this test
+    // 5.1 letters dir filled with *.txt files
+    // 5.2 bin simplified (no kerning for digits) & converted to txt also
+    //6. edit letters, and correct kerning pairs ZwiftFondoBlack105ptW_EFIGS_K.txt as you wish then run PatchToCyr_105_2 test
+    FILE *fBMP{ fopen("g:\\fonts\\105\\in\\ZwiftFondoBlack105ptW0.txt", "rt") };
+    FILE *fBIN{ fopen("g:\\fonts\\105\\in\\ZwiftFondoBlack105ptW_EFIGS_K.bin", "rb") };
+    FILE *fTXT{ fopen("g:\\fonts\\105\\in\\ZwiftFondoBlack105ptW_EFIGS_K.txt", "wt") };
+    CFont2D_fileHdrV3 h;
+    fread(&h, sizeof(h), 1, fBIN);
+    CFont2D_glyphBMP tmp;
+    std::map<wchar_t, CFont2D_glyphBMP> map;
+    const int sh105[]{ -1,-2,0,-4,-1,-2,-2,-4,-2,0 }, width = 103;
+    fprintf(fTXT, "points:%u\n", h.m_charsCnt);
+    for (int i = 0; i < h.m_charsCnt; i++) {
+        fread(&tmp, sizeof(CFont2D_glyph), 1, fBIN);
+        if (tmp.m_lid != 0)
+            continue;
+        //patch digits
+        if (tmp.m_codePoint <= '9' && tmp.m_codePoint >= '0') {
+            tmp.m_view.m_width = width / 2048.0f;
+            tmp.m_view.m_left += sh105[tmp.m_codePoint - L'0'] / 2048.0f;
+        }
+        fprintf(fTXT, "%u left=%d width=%d top=%d height=%d\n",
+            tmp.m_codePoint, int(tmp.m_view.m_left * 2048.0f + 0.5), int(tmp.m_view.m_width * 2048.0f + 0.5),
+            int(tmp.m_view.m_top * 2048.0f + 0.5), int(tmp.m_view.m_height * 2048.0f + 0.5));
+        map[(wchar_t)tmp.m_codePoint] = tmp;
+    }
+    std::unique_ptr<RealKernItem[]> prki{ new RealKernItem[h.m_realKerns] };
+    fprintf(fTXT, "kerns:%u\n", h.m_realKerns);
+    if (h.m_realKerns != fread(prki.get(), sizeof(RealKernItem), h.m_realKerns, fBIN))
+        FAIL();
+    //patch kerns (no digit kerning)
+    for (int k = 0; k < h.m_realKerns; k++) {
+        bool prevNotDigit = prki[k].m_prev < '0' || prki[k].m_prev > '9';
+        bool curNotDigit = prki[k].m_cur < '0' || prki[k].m_cur > '9';
+        if (prevNotDigit && curNotDigit) {
+            fprintf(fTXT, "%u>%u corr=%d\n", prki[k].m_prev, prki[k].m_cur, prki[k].m_corr);
+        } else if (!prevNotDigit && (prki[k].m_cur == '.' || prki[k].m_cur == ':')) {
+            fprintf(fTXT, "%u>%u corr=4\n", prki[k].m_prev, prki[k].m_cur);
+        }
+    }
+    fclose(fTXT);
+    auto fullBMP = LoadFontBitmap(fBMP);
+    for (auto &g : map) {
+        std::wstring fileName{ L"g:\\fonts\\105\\in\\letters\\" + std::to_wstring(g.first) };
+        fileName.push_back(L'_');
+        if (g.first > L' ' && !wcschr(L"<>:\"/\\|?*", (wchar_t)g.first))
+            fileName.push_back(g.first);
+        FILE *fAlphabet{ _wfopen((fileName + L".txt").c_str(), L"wt")};
+        if (nullptr == fAlphabet)
+            FAIL();
+        if (g.second.m_lid == 0)
+            dumpGlyphBmp(g.second, fullBMP, fAlphabet);
+        else
+            FAIL();
+        fclose(fAlphabet);
+    }
+    delete fullBMP;
+    fclose(fBMP);
+    fclose(fBIN);
+}
+TEST(SmokeTestFont, PatchToCyr_54_1) {
+    //instruction:
+    //1. copy zwift-offline\scripts\ZwiftApp\patch\data\Fonts\ZwiftFondoMedium54ptW_EFIGS_K.bin to g:\Fonts\54\in\
+    //2. run this test -> bin simplified (no kerning for digits) & converted to txt also
+    //3. correct kerning pairs ZwiftFondoMedium54ptW_EFIGS_K.txt as you wish then run PatchToCyr_54_2 test
+    FILE *fBIN{ fopen("g:\\fonts\\54\\in\\ZwiftFondoMedium54ptW_EFIGS_K.bin", "rb") };
+    FILE *fTXT{ fopen("g:\\fonts\\54\\in\\ZwiftFondoMedium54ptW_EFIGS_K.txt", "wt") };
+    CFont2D_fileHdrV3 h;
+    fread(&h, sizeof(h), 1, fBIN);
+    CFont2D_glyphBMP tmp;
+    std::map<wchar_t, CFont2D_glyphBMP> map;
+    const int sh54[]{ 1,0,1,-1,-1,0,0,-1,0,0 }, width = 71;
+    fprintf(fTXT, "points:%u\n", h.m_charsCnt);
+    for (int i = 0; i < h.m_charsCnt; i++) {
+        fread(&tmp, sizeof(CFont2D_glyph), 1, fBIN);
+        if (tmp.m_lid != 0)
+            continue;
+        //patch digits
+        if (tmp.m_codePoint <= '9' && tmp.m_codePoint >= '0') {
+            tmp.m_view.m_width = width / 2048.0f;
+            tmp.m_view.m_left += sh54[tmp.m_codePoint - L'0'] / 2048.0f;
+        }
+        fprintf(fTXT, "%u left=%d width=%d top=%d height=%d\n",
+            tmp.m_codePoint, int(tmp.m_view.m_left * 2048.0f + 0.5), int(tmp.m_view.m_width * 2048.0f + 0.5),
+            int(tmp.m_view.m_top * 2048.0f + 0.5), int(tmp.m_view.m_height * 2048.0f + 0.5));
+        map[(wchar_t)tmp.m_codePoint] = tmp;
+    }
+    std::unique_ptr<RealKernItem[]> prki{ new RealKernItem[h.m_realKerns] };
+    fprintf(fTXT, "kerns:%u\n", h.m_realKerns);
+    if (h.m_realKerns != fread(prki.get(), sizeof(RealKernItem), h.m_realKerns, fBIN))
+        FAIL();
+    //patch kerns (no digit kerning)
+    for (int k = 0; k < h.m_realKerns; k++) {
+        bool prevNotDigit = prki[k].m_prev < '0' || prki[k].m_prev > '9';
+        bool curNotDigit = prki[k].m_cur < '0' || prki[k].m_cur > '9';
+        if (prevNotDigit && curNotDigit) {
+            fprintf(fTXT, "%u>%u corr=%d\n", prki[k].m_prev, prki[k].m_cur, prki[k].m_corr);
+        } else if (!prevNotDigit && (prki[k].m_cur == '.' || prki[k].m_cur == ':')) {
+            fprintf(fTXT, "%u>%u corr=4\n", prki[k].m_prev, prki[k].m_cur);
+        }
+    }
+    fclose(fTXT);
+    fclose(fBIN);
+}
+bool CFont2D_glyphBMP::initFromLetterTxt(const char *file) {
+    bool ret = false;
+    memset(m_freeAtRight, 0, sizeof(m_freeAtRight));
+    m_sum = 0;
+    FILE *letter = fopen(file, "rt");
+    if (letter) {
+        char line[4096]{};
+        fgets(line, sizeof(line), letter);
+        int cp, w, h, l, t, r, b;
+        if (sscanf_s(line, "Glyph codePoint:%x, w=%d, h=%d, pad.ltrb=[%d, %d, %d, %d]", &cp, &w, &h, &l, &t, &r, &b) == 7) {
+            m_codePoint = (uint16_t)cp;
+            m_iSize.cx = w; m_iSize.cy = h;
+            m_paddings.left = l; m_paddings.right = r; m_paddings.top = t; m_paddings.bottom = b;
+            int row{}, col{}, minFreeAtRight = FONT_BITMAP_SIZE + 1, minFreeAtLeft = FONT_BITMAP_SIZE + 1, topFree{}, bottomFree{};
+            ret = true;
+            bool wasDirtyLine{};
+            while (ret && fgets(line, sizeof(line), letter)) {
+                if (line[0] == '\n')
+                    break;
+                char *ptr = line;
+                int freeAtRight{}, freeAtLeft{};
+                bool dirty{};
+                col = 0;
+                while (*ptr) {
+                    switch (*ptr++) {
+                    case glbGlyphLegend[FBP_NOP]:
+                        ++freeAtRight;
+                        if (!dirty)
+                            ++freeAtLeft;
+                        m_grid[row][col++] = FBP_NOP;
+                        break;
+                    case glbGlyphLegend[FBP_LIGHT]:
+                        m_grid[row][col++] = FBP_LIGHT;
+                        m_sum += FBP_LIGHT;
+                        freeAtRight = 0;
+                        dirty = true;
+                        break;
+                    case glbGlyphLegend[FBP_MEDIUM]:
+                        m_grid[row][col++] = FBP_MEDIUM;
+                        m_sum += FBP_MEDIUM;
+                        freeAtRight = 0;
+                        dirty = true;
+                        break;
+                    case glbGlyphLegend[FBP_SOLID]:
+                        m_grid[row][col++] = FBP_SOLID;
+                        m_sum += FBP_SOLID;
+                        freeAtRight = 0;
+                        dirty = true;
+                        break;
+                    case '\n':
+                        break;
+                    default:
+                        ret = false;
+                        break;
+                    }
+                }
+                m_freeAtRight[row++] = freeAtRight;
+                minFreeAtRight = std::min(minFreeAtRight, freeAtRight);
+                minFreeAtLeft = std::min(minFreeAtLeft, freeAtLeft);
+                if (freeAtRight == freeAtLeft) { //empty line
+                    if(!wasDirtyLine) ++topFree;
+                    ++bottomFree;
+                } else {
+                    wasDirtyLine = true;
+                    bottomFree = 0;
+                }
+            }
+            if (topFree != m_paddings.top)
+                ret = false;
+            if (bottomFree != m_paddings.bottom)
+                ret = false;
+            if (minFreeAtRight != m_paddings.right)
+                ret = false;
+            if (minFreeAtLeft != m_paddings.left)
+                ret = false;
+            if (col != m_iSize.cx)
+                ret = false;
+            if (row != m_iSize.cy)
+                ret = false;
+        }
+        fclose(letter);
+    }
+    return ret;
+}
+bool CFont2D_glyphBMP::conflictAt(FontBitmapPixelGrid *grid, POINT p) {
+    for (int y = 0; y < m_iSize.cy; y++) {
+        for (int x = 0; x < m_iSize.cx; x++) {
+            auto prev = (*grid)[p.y + y][p.x + x];
+            auto pix = m_grid[y][x];
+            switch (prev) {
+            case FBP_NOP:
+                //FBP_NOP примет любого
+                break;
+            case FBP_NOP1: case FBP_NOP2:
+                if (pix != FBP_NOP)
+                    return true;
+                break;
+            default:
+                if (pix != prev)
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+bool CFont2D_glyphBMP::findEmptySpace(FontBitmapPixelGrid *grid, POINT *result, FinderCache *cache) {
+    for (auto [itr, rangeEnd] = cache->m_sameGlyphs.equal_range(m_sum); itr != rangeEnd; ++itr) {
+        if (!conflictAt(grid, itr->second)) {
+            *result = itr->second;
+            return true;
+        }
+    }
+    int checksRemaining = (FONT_BITMAP_SIZE - m_iSize.cy) * (FONT_BITMAP_SIZE - m_iSize.cx);
+    for (; ; cache->m_trialPoint.y = (cache->m_trialPoint.y + 1) % (FONT_BITMAP_SIZE - m_iSize.cy), cache->m_trialPoint.x = 0) {
+        for (; cache->m_trialPoint.x < FONT_BITMAP_SIZE - m_iSize.cx; ++cache->m_trialPoint.x) {
+            if (!conflictAt(grid, cache->m_trialPoint)) {
+                cache->m_sameGlyphs.insert({ m_sum, cache->m_trialPoint });
+                *result = cache->m_trialPoint;
+                return true;
+            }
+            if (checksRemaining-- < 0)
+                return false;
+        }
+    }
+}
+bool CFont2D_glyphBMP::appendTo(FontBitmapPixelGrid *grid, FinderCache *cache) {
+    //найти свободное место, занять его и обновить себе m_view[l, t, w, h]
+    POINT pt;
+    if (!findEmptySpace(grid, &pt, cache))
+        return false; //увы, место закончилось
+    for (int y = 0; y < m_iSize.cy; y++) {
+        for (int x = 0; x < m_iSize.cx; x++) {
+            auto &prev = (*grid)[pt.y + y][pt.x + x];
+            auto pix = m_grid[y][x];
+            switch (prev) {
+            case FBP_NOP:
+                prev = (pix == FBP_NOP) ? FBP_NOP1 : pix;
+                break;
+            case FBP_NOP1: case FBP_NOP2:
+                if (pix != FBP_NOP)
+                    return false;
+                prev = FBP_NOP2;
+                break;
+            default:
+                if (pix != prev)
+                    return false;
+            }
+        }
+    }
+    m_view.m_top = pt.y / 2048.0f;
+    m_view.m_left = pt.x / 2048.0f;
+    m_view.m_height = m_iSize.cy / 2048.0f;
+    m_view.m_width = m_iSize.cx / 2048.0f;
+    return true;
+}
+void dumpFontBitmapPixelGrid(const FontBitmapPixelGrid &outDds, FILE *fBMP) {
+    for (int irow = 0; irow < FONT_BITMAP_SIZE; irow++) {
+        for (int icol = 0; icol < FONT_BITMAP_SIZE; icol++) {
+            fprintf(fBMP, "%c", glbGlyphLegend[outDds[irow][icol]]);
+        }
+        fprintf(fBMP, "\n");
+    }
+}
+TEST(SmokeTestFont, PatchToCyr_105_2) {
+    //instruction:
+    //1. create g:\Fonts\105\out directory
+    //2. run this test:
+    // 2.1 new g:\Fonts\105\out\ZwiftFondoBlack105ptW0.txt is created with condensed and filtered letters
+    // 2.2 new g:\Fonts\105\out\ZwiftFondoBlack105ptW_EFIGS_K.bin is created from old bin and corrected txt kerns
+    //3. convert txt to dds with BMP-DDS util then edit *.dds in VS editor then execute "Generate Mips" command in VS
+    //4. convert *.dds back to ztx with tgax util then copy out bin and tgax back to assets\fonts\font.wad\Fonts\ and data\Fonts\ 
+    FILE *fBMP{ fopen("g:\\fonts\\105\\out\\ZwiftFondoBlack105ptW0.txt", "wt") }; //resulting dds 2048*2048
+    FILE *fBIN[]{ fopen("g:\\fonts\\105\\in\\ZwiftFondoBlack105ptW_EFIGS_K.bin", "rb"), fopen("g:\\fonts\\105\\out\\ZwiftFondoBlack105ptW_EFIGS_K.bin", "wb") }; //i&o fonts
+    FILE *fTXT{ fopen("g:\\fonts\\105\\in\\ZwiftFondoBlack105ptW_EFIGS_K.txt", "rt") }; //you can correct kerns in this file only; todo: 0->autocorrect
+    //read our corrections
+    char line[4096];
+    CFont2D_glyphBMP tmp;
+    std::map<wchar_t, CFont2D_glyphBMP> map;
+    //read our new glyphs
+    auto outDds{ std::make_unique<FontBitmapPixelGrid>() };
+    auto path{ std::filesystem::path("g:\\fonts\\105\\in\\letters") };
+    FinderCache cache;
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(path)) {
+        EXPECT_TRUE(tmp.initFromLetterTxt(entry.path().generic_string().c_str()));
+        EXPECT_TRUE(tmp.appendTo(outDds.get(), &cache));
+        map[(wchar_t)tmp.m_codePoint] = tmp;
+        printf("%03d/271\r", (int)map.size());
+    }
+    dumpFontBitmapPixelGrid(*outDds.get(), fBMP);
+    fclose(fBMP);
+    std::vector<RealKernItem> newKerns;
+    newKerns.reserve(70000);
+    //read our new kerns
+    while (fgets(line, sizeof(line), fTXT)) {
+        int prev, cur, corr;
+        if (sscanf_s(line, "%d>%d corr=%d", &prev, &cur, &corr) == 3) {
+            if (map.contains(prev) && map.contains(cur))
+                newKerns.push_back(RealKernItem{ .m_prev = (UChar)prev, .m_cur = (UChar)cur, .m_corr = (char)corr });
+        }
+    }
+    //write back to bin
+    CFont2D_fileHdrV3 hIn, hOut;
+    fread(&hIn, sizeof(hIn), 1, fBIN[0]);
+    hOut = hIn;
+    hOut.m_realKerns = (int)newKerns.size();
+    hOut.m_charsCnt = 0;
+    fwrite(&hOut, sizeof(hOut), 1, fBIN[1]);
+    for (int i = 0; i < hIn.m_charsCnt; i++) {
+        fread(&tmp, sizeof(CFont2D_glyph), 1, fBIN[0]);
+        if (tmp.m_lid == 0) {
+            //correct if any
+            auto f = map.find(tmp.m_codePoint);
+            if (f == map.end())
+                continue; //deleted
+            tmp = f->second;
+        }
+        hOut.m_charsCnt++;
+        fwrite(&tmp, sizeof(CFont2D_glyph), 1, fBIN[1]);
+        map.erase(tmp.m_codePoint);
+    }
+    //write our new glyphs
+    for (auto newg : map) {
+        hOut.m_charsCnt++;
+        fwrite(&newg.second, sizeof(CFont2D_glyph), 1, fBIN[1]);
+    }
+    //write our new kerns
+    fwrite(newKerns.data(), sizeof(RealKernItem), newKerns.size(), fBIN[1]);
+    fseek(fBIN[1], 0, SEEK_SET);
+    fwrite(&hOut, sizeof(hOut), 1, fBIN[1]);
+    for (auto f : fBIN) fclose(f);
+    fclose(fTXT);
+}
+TEST(SmokeTestFont, PatchToCyr_54_2) {
+    //new g:\Fonts\54\ZwiftFondoMedium54ptW_EFIGS_K.bin is created from old bin and corrected txt kerns
+    FILE *fBIN[]{ fopen("g:\\fonts\\54\\in\\ZwiftFondoMedium54ptW_EFIGS_K.bin", "rb"), fopen("g:\\fonts\\54\\ZwiftFondoMedium54ptW_EFIGS_K.bin", "wb") }; //i&o fonts
+    FILE *fTXT{ fopen("g:\\fonts\\54\\in\\ZwiftFondoMedium54ptW_EFIGS_K.txt", "rt") }; //you can correct kerns in this file only; todo: 0->autocorrect
+    //read our corrections
+    char line[4096];
+    std::vector<RealKernItem> newKerns;
+    newKerns.reserve(70000);
+    //read our new kerns
+    while (fgets(line, sizeof(line), fTXT)) {
+        int prev, cur, corr;
+        if (sscanf_s(line, "%d>%d corr=%d", &prev, &cur, &corr) == 3) {
+            newKerns.push_back(RealKernItem{ .m_prev = (UChar)prev, .m_cur = (UChar)cur, .m_corr = (char)corr });
+        }
+    }
+    //write back to bin
+    CFont2D_fileHdrV3 hIn, hOut;
+    fread(&hIn, sizeof(hIn), 1, fBIN[0]);
+    hOut = hIn;
+    hOut.m_realKerns = (int)newKerns.size();
+    CFont2D_glyph tmp;
+    fwrite(&hOut, sizeof(hOut), 1, fBIN[1]);
+    const int sh54[]{ 1,0,1,-1,-1,0,0,-1,0,0 }, width = 71;
+    for (int i = 0; i < hIn.m_charsCnt; i++) {
+        fread(&tmp, sizeof(CFont2D_glyph), 1, fBIN[0]);
+        if (tmp.m_lid == 0) {
+            //patch digits
+            if (tmp.m_codePoint <= '9' && tmp.m_codePoint >= '0') {
+                tmp.m_view.m_width = width / 2048.0f;
+                tmp.m_view.m_left += sh54[tmp.m_codePoint - L'0'] / 2048.0f;
+            }
+        }
+        fwrite(&tmp, sizeof(CFont2D_glyph), 1, fBIN[1]);
+    }
+    //write our new kerns
+    fwrite(newKerns.data(), sizeof(RealKernItem), newKerns.size(), fBIN[1]);
+    for (auto f : fBIN) fclose(f);
+    fclose(fTXT);
+}
+TEST(SmokeTestFont, PatchTo_Cyr_old) {
     //prepare:
     // 1. unpack zwift-offline\scripts\ZwiftApp\1.32.1_106405\assets\fonts\font.wad\Fonts\*.* to zwift-offline\scripts\ZwiftApp\1.32.1_106405\data\Fonts
     // 2. convert zwift-offline\scripts\ZwiftApp\1.32.1_106405-Debug\data\Fonts\*.ztx to *.dds (zwift-offline\scripts\textures\tgax) and edit *.dds in VS editor then execute "Generate Mips" command in VS
     // 3. convert *.dds back to ztx (the same utility)
     // 4. fill coordinates below:
     struct ddsCoordinates { wchar_t codePoint, stoleFrom; RECT coords[2]; /*54, 105*/ }; //l t r->w b->h
-    const int h1 = 120, h2 = 168, row1_54 = 1041, row2_54 = row1_54 + 130, row3_54 = row2_54 + 130, 
+    const int h1 = 120, h2 = 168, row1_54 = 1041, row2_54 = row1_54 + 130, row3_54 = row2_54 + 130,
         row1_105 = 1 + 168 * 10, row2_105 = row1_105 + 168;
     ddsCoordinates patch[]{
         //                  x             w             x              w
@@ -1684,7 +2076,7 @@ TEST(SmokeTestFont, PatchToCyr) { //TODO: kerning
             }
         }
         for (auto &mi : autoKern)
-            if(mi.second) 
+            if (mi.second)
                 autoKernArray.push_back(RealKernItem{ .m_prev = mi.first.first, .m_cur = mi.first.second, .m_corr = mi.second });
         h.m_realKerns = (int)autoKernArray.size();
         fwrite(autoKernArray.data(), h.m_realKerns * sizeof(RealKernItem), 1, fPatched[i]);
