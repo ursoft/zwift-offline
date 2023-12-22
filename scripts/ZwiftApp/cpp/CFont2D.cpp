@@ -1413,10 +1413,10 @@ struct CFont2D_glyphBMP : public CFont2D_glyph {
                 sum += m_grid[row][col];
             }
         }
-        if (sum > maxSum * 3 / 4) return FBP_SOLID;
-        if (sum > maxSum / 3) return FBP_MEDIUM;
-        if (sum < maxSum / 5) return FBP_NOP;
-        return FBP_LIGHT;
+        if (sum > maxSum * 9 / 12) return FBP_SOLID;
+        if (sum > maxSum * 8 / 12) return FBP_MEDIUM;
+        if (sum > maxSum * 7 / 12) return FBP_LIGHT;
+        return FBP_NOP;
     }
     CFont2D_glyphBMP asPixelSize(int psz) const { //2048 to required
         CFont2D_glyphBMP ret;
@@ -2173,8 +2173,8 @@ struct Dds2Txt { //here bmp in textual form
                 fread(&tmp, sizeof(CFont2D_glyph), 1, fBIN);
                 if (tmp.m_lid != 0)
                     continue;
-                tmp.m_iSize = { LONG(tmp.m_view.m_width * float(mult) + 0.5f), LONG(tmp.m_view.m_height * float(mult) + 0.5f) };
-                tmp.m_iPos = { LONG(tmp.m_view.m_left * float(mult) + 0.5f), LONG(tmp.m_view.m_top * float(mult) + 0.5f) };
+                tmp.m_iSize = { LONG(tmp.m_view.m_width * float(mult) + 0.05f), LONG(tmp.m_view.m_height * float(mult) + 0.05f) };
+                tmp.m_iPos = { LONG(tmp.m_view.m_left * float(mult) + 0.05f), LONG(tmp.m_view.m_top * float(mult) + 0.05f) };
                 fprintf(fTXT, "%u left=%d width=%d top=%d height=%d\n", tmp.m_codePoint, tmp.m_iPos.x, tmp.m_iSize.cx, tmp.m_iPos.y, tmp.m_iSize.cy);
                 map[(wchar_t)tmp.m_codePoint] = tmp;
             }
@@ -2247,11 +2247,11 @@ TEST(SmokeTestFont, AutoPlace) {
     FILE *fBINout[]{ fopen("ZwiftFondoBlack105ptW_EFIGS_K.bin", "wb"), fopen("ZwiftFondoMedium54ptW_EFIGS_K.bin", "wb") }; //out fonts
     FILE *fBMP[]{ fopen("105\\2048\\ZwiftFondoBlack105ptW0.txt", "wt"), fopen("ZwiftFondoMedium54ptW0.txt", "wt") }; //resulting dds 2048*2048
     const int p[]{ 105, 54 };
-    const int goalKernDistance[] = { 16, 18 };
+    const int goalKernDistance[] = { 16, 12 };
     for (int task = 0; task < _countof(fBMP); task++) {
         CFont2D_glyphBMP tmp;
         std::map<wchar_t, CFont2D_glyphBMP> map;
-        std::map<wchar_t, CFont2D_glyphBMP> mapKern;
+        std::vector<CFont2D_glyphBMP> vecKern;
         auto outDds{ std::make_unique<FontBitmapPixelGrid>() };
         fs::path path{ std::to_string(p[task]) };
         FinderCache cache;
@@ -2281,8 +2281,10 @@ TEST(SmokeTestFont, AutoPlace) {
             }
             hOut.m_charsCnt++;
             fwrite(&tmp, sizeof(CFont2D_glyph), 1, fBINout[task]);
-            if (tmp.m_lid == 0)
-                mapKern[(wchar_t)tmp.m_codePoint] = tmp;
+            if (tmp.m_lid == 0 && !std::isdigit(tmp.m_codePoint) //цифры не должны прыгать - поэтому у них одинаковая ширина, они выровнены + константный кернинг
+                && tmp.m_codePoint != 32  && tmp.m_codePoint != 10  && tmp.m_codePoint != 160  && tmp.m_codePoint != 0x200b ) {
+                vecKern.push_back(tmp);
+            }
             map.erase(tmp.m_codePoint);
         }
         //write our new glyphs
@@ -2290,61 +2292,66 @@ TEST(SmokeTestFont, AutoPlace) {
             hOut.m_charsCnt++;
             fwrite(&newg.second, sizeof(CFont2D_glyph), 1, fBINout[task]);
             if (newg.second.m_lid == 0)
-                mapKern[newg.first] = newg.second;
+                vecKern.push_back(newg.second);
         }
         //kerns calc
         std::map<std::pair<UChar, UChar>, char> autoKern;
         char kernDumpFmt[260];
-        int cntr{};
         sprintf(kernDumpFmt, "%d\\kern\\%%04x-%%04x.txt", p[task]);
-        for (auto g1 : mapKern) {
-            if (g1.second.m_codePoint == ' ' || g1.second.m_codePoint == 10 || g1.second.m_codePoint == 160 || g1.second.m_codePoint == 0x200b) continue;
-            printf("T%d: %03d/%03d (k)          \r", task, ++cntr, (int)mapKern.size());
-            for (auto g2 : mapKern) {
-                if (g2.second.m_codePoint == ' ' || g2.second.m_codePoint == 10 || g2.second.m_codePoint == 160 || g2.second.m_codePoint == 0x200b) continue;
-                auto key = std::make_pair(g1.second.m_codePoint, g2.second.m_codePoint);
+        //warm autokern {
+        for (auto g1 : vecKern) {
+            for (auto g2 : vecKern) {
+                auto key = std::make_pair(g1.m_codePoint, g2.m_codePoint);
                 char &corr = autoKern[key];
-                //здесь патч для значений кернинга
-                bool isD1 = g1.first >= '0' && g1.first <= '9';
-                bool isD2 = g2.first >= '0' && g2.first <= '9';
-                if (isD1 || isD2) {
-                    corr = 4; //цифры не должны прыгать - поэтому у них одинаковая ширина, они выровнены + константный кернинг
-                    continue;
-                }
-                std::map<char, int> tries;
-                do {
-                    auto dist = dumpKernPairBmp(g1.second, g2.second, kernDumpFmt, corr, false);
-                    tries[corr] = dist;
-                    if (dist == 2000) {
-                        break;
-                    }
-                    if (corr == -16)
-                        break;
-                    auto deltaDist = dist - goalKernDistance[task];
-                    if (deltaDist == 0) break;
-                    corr = std::clamp(corr - deltaDist / abs(deltaDist), -16, 16);
-                    if (tries.contains(corr))
-                        break;
-                } while (true);
-                int bestDelta = 2000;
-                if (tries.size() > 1) {
-                    for (auto &t : tries) {
-                        auto dt = abs(t.second - goalKernDistance[task]);
-                        if (dt < bestDelta) {
-                            bestDelta = dt;
-                            corr = t.first;
+                corr = 0;
+            }
+        }
+        //warm autokern }
+#pragma omp parallel
+        {
+#pragma omp for
+            for (int g1i = 0; g1i < (int)vecKern.size(); g1i++) { //auto g1 : vecKern
+                const auto &g1 = vecKern[g1i];
+                for (auto g2 : vecKern) {
+                    auto key = std::make_pair(g1.m_codePoint, g2.m_codePoint);
+                    char &corr = autoKern[key]; //no data race here, warmed already
+                    //здесь патч для значений кернинга
+                    //..если нужен
+                    std::map<char, int> tries;
+                    do {
+                        auto dist = dumpKernPairBmp(g1, g2, kernDumpFmt, corr, false);
+                        tries[corr] = dist;
+                        if (dist == 2000) {
+                            break;
                         }
+                        if (corr == -16)
+                            break;
+                        auto deltaDist = dist - goalKernDistance[task];
+                        if (deltaDist == 0) break;
+                        corr = std::clamp(corr - deltaDist / abs(deltaDist), -16, 16);
+                        if (tries.contains(corr))
+                            break;
+                    } while (true);
+                    int bestDelta = 2000;
+                    if (tries.size() > 1) {
+                        for (auto &t : tries) {
+                            auto dt = abs(t.second - goalKernDistance[task]);
+                            if (dt < bestDelta) {
+                                bestDelta = dt;
+                                corr = t.first;
+                            }
+                        }
+                        if (corr && tries[0] == tries[corr])
+                            corr = 0;
                     }
-                    if (corr && tries[0] == tries[corr])
-                        corr = 0;
+                    //dumpKernPairBmp(g1.second, g2.second, kernDumpFmt[i], corr, true);
                 }
-                //dumpKernPairBmp(g1.second, g2.second, kernDumpFmt[i], corr, true);
             }
         }
         //kerns write
         std::vector<RealKernItem> autoKernArray;
         for (auto &mi : autoKern)
-            if (mi.second > 1 || mi.second < -1)
+            if (mi.second)
                 autoKernArray.push_back(RealKernItem{ .m_prev = mi.first.first, .m_cur = mi.first.second, .m_corr = mi.second });
         fwrite(autoKernArray.data(), sizeof(RealKernItem), (int)autoKernArray.size(), fBINout[task]);
         fseek(fBINout[task], 0, SEEK_SET);
@@ -2407,7 +2414,7 @@ TEST(SmokeTestFont, DDS_from_TXT) {
                     letterTxtName.push_back(g.first);
                 letterTxtName += L".txt";
                 g.second.initFromLetterTxt(letterTxtName.c_str());
-                bool res = g.second.placeExactlyTo(outDds.get(), { LONG(g.second.m_view.m_left * destSize + 0.5f), LONG(g.second.m_view.m_top * destSize + 0.5f) });
+                bool res = g.second.placeExactlyTo(outDds.get(), { LONG(g.second.m_view.m_left * destSize + 0.05f), LONG(g.second.m_view.m_top * destSize + 0.05f) });
                 if (destSize > 64)
                     EXPECT_TRUE(res);
             }

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(ZwiftApp)
 
-add_compile_options(/nologo /bigobj /W4 /WX /wd4100 /wd4244 /wd4389 /wd4324)
+add_compile_options(/nologo /bigobj /W4 /WX /wd4100 /wd4244 /wd4389 /wd4324 /openmp)
 include(cmake/thirdparty.cmake)
 
 add_executable(${PROJECT_NAME} WIN32)
