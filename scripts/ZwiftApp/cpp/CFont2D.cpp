@@ -2057,13 +2057,13 @@ struct DDS_HEADER {			/**** DDS file header ****/
         magic[2] = 'S';
         magic[3] = ' ';
         dwSize = HEADER_SIZE;
-        dwFlags = 0x000A1007; //
+        dwFlags = 0x000A1007; //1:DDSD_CAPS req; 2,4:h&w, req; 0x1000 pixelformat req; 0x20000=dwMipMapCount; 0x80000=dwPitchOrLinearSize=LinearSize (no volume flag here)
         dwHeight = FONT_BITMAP_SIZE;
         dwWidth = FONT_BITMAP_SIZE;
         dwPitchOrLinearSize = FONT_BITMAP_SIZE * FONT_BITMAP_SIZE / 2; // 0x00200000
         dwMipMapCount = 12;
-        dwDepth = 1; //?
-        dwCaps = 0x00401008; //DDSCAPS_TEXTURE and some else
+        dwDepth = 0; // only if DDS_HEADER_FLAGS_VOLUME is set in flags
+        dwCaps = 0x00401008; //DDSCAPS_COMPLEX(8), DDSCAPS_TEXTURE (0x1000) and DDSCAPS_MIPMAP (0x400000)
         ddspf.dwsize = INFO_SIZE;
         ddspf.dwflags = 4; //DDPF_FOURCC
         ddspf.dwfourCC = DXT1_FOURCC;
@@ -2071,7 +2071,8 @@ struct DDS_HEADER {			/**** DDS file header ****/
     }
     void WriteFromTxtMipmapTo(FILE *fDDS, FontBitmapPixelGrid *grid, int size) {
         int imgSz = 3 * size * size;
-        int comprSz = size * size / 2;
+        int comprSz = ((size + 3) / 4) * ((size + 3) / 4) * 8;
+        if (comprSz < 8) comprSz = 8;
         std::unique_ptr<uint8_t[]> rgbData{new uint8_t[imgSz]};
         for (int y = size - 1; y >= 0; y--) {
             uint8_t *dest = rgbData.get() + (size * 3) * y;
@@ -2405,7 +2406,7 @@ TEST(SmokeTestFont, DDS_from_TXT) {
         DDS_HEADER ddsh{};
         ddsh.WriteHeaderTo(fDDSout[task]); //write dds header
         ddsh.WriteFromTxtMipmapTo(fDDSout[task], outMainDds.get(), FONT_BITMAP_SIZE);
-        for (int destSize = 1024; destSize > 1; destSize /= 2) {
+        for (int destSize = 1024; destSize > 0; destSize /= 2) {
             std::unique_ptr outDds{ std::make_unique<FontBitmapPixelGrid>() };
             for (auto &g : map) {
                 std::wstring letterTxtName{ std::to_wstring(p[task]) + L"\\" + std::to_wstring(destSize) + L"\\" + std::to_wstring(g.first)};
@@ -2419,12 +2420,13 @@ TEST(SmokeTestFont, DDS_from_TXT) {
                     EXPECT_TRUE(res);
             }
             ddsh.WriteFromTxtMipmapTo(fDDSout[task], outDds.get(), destSize);
-
-            char dumpMipMapName[256];
-            sprintf(dumpMipMapName, "%d\\%d\\W0.txt", p[task], destSize);
-            FILE *fBMP = fopen(dumpMipMapName, "wt");
-            dumpFontBitmapPixelGrid(*outDds.get(), fBMP, destSize);
-            fclose(fBMP);
+            if (destSize > 1) {
+                char dumpMipMapName[256];
+                sprintf(dumpMipMapName, "%d\\%d\\W0.txt", p[task], destSize);
+                FILE *fBMP = fopen(dumpMipMapName, "wt");
+                dumpFontBitmapPixelGrid(*outDds.get(), fBMP, destSize);
+                fclose(fBMP);
+            }
         }
     }
     for (auto i : fBMPin) fclose(i);
