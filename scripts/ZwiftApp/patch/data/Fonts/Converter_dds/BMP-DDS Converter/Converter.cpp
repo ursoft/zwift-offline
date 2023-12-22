@@ -57,7 +57,7 @@ void Converter::loadFiletype(const std::string & location)
 {
 	//Separate filetype from the filename
 	std::size_t dot = location.find('.');
-	if (dot == std::string::npos)  
+	if (dot == std::string::npos)
 		throw MyException("No filetype ending found");
 	const std::string filetype = location.substr(dot + 1);
 	if (filetype == "")

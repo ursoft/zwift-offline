@@ -54,8 +54,8 @@ void DDSFile::VInitializeFromFile(const std::string & location)
 		throw MyException("File " + location + " does not have width or height divisible by 4");
 
 	//Check if file contains compressed RGB data
-	if (m_pDdsHeader->ddspf.dwflags != DDPF_FOURCC)
-		throw MyException("File " + location + " texture does not contain compressed RGB data");
+	//if (m_pDdsHeader->ddspf.dwflags != DDPF_FOURCC)
+	//	throw MyException("File " + location + " texture does not contain compressed RGB data");
 
 	//Check if file is DXT1 compressed
 	if (m_pDdsHeader->ddspf.dwfourCC != DXT1_FOURCC)
@@ -63,8 +63,8 @@ void DDSFile::VInitializeFromFile(const std::string & location)
 
 	//Calculate main image size, (blocksize = 8 and packing = 4 for DXT1)
 	unsigned int mainImageSize = std::max((unsigned int)1, (m_pDdsHeader->dwWidth + 3) / 4) * std::max((unsigned int)1, (m_pDdsHeader->dwHeight + 3) / 4) * 8;
-	if (mainImageSize != m_pDdsHeader->dwPitchOrLinearSize)
-		std::cerr << "Warning! Calculated main image size differ from header value" << std::endl;
+	//if (mainImageSize != m_pDdsHeader->dwPitchOrLinearSize)
+	//	std::cerr << "Warning! Calculated main image size differ from header value" << std::endl;
 
 	//Read the main data
 	m_mainData = new uint8_t[mainImageSize];
